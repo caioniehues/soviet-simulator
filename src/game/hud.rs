@@ -9,6 +9,7 @@ use super::tools::{GroundCursor, ToolMode};
 use crate::sim::SimSpeed;
 use crate::sim::buildings::{Building, PowerOutput, Powered};
 use crate::sim::resources::{Inventory, ResourceKind};
+use crate::sim::roads::RoadBuildFeedback;
 use crate::sim::vehicles::ActiveVehicle;
 
 #[derive(Component)]
@@ -101,7 +102,7 @@ fn tool_label(mode: ToolMode) -> String {
     match mode {
         ToolMode::Inspect => "INSPECT - click a building".into(),
         ToolMode::Road(class) => {
-            format!("ROAD ({class:?}) - click-chain, right-click ends, X cuts")
+            format!("ROAD ({class:?}) - click-chain, right-click ends, X cuts, R rebuilds last cut")
         }
         ToolMode::Building(kind) => format!("BUILD ({kind:?}) - click places, 3 cycles kind"),
         ToolMode::Wire => "WIRE - click-chain hops, right-click ends, X cuts".into(),
@@ -121,9 +122,10 @@ fn speed_label(speed: SimSpeed) -> &'static str {
 fn update_tool_readout(
     mode: Res<ToolMode>,
     speed: Res<SimSpeed>,
+    feedback: Res<RoadBuildFeedback>,
     mut readout: Query<&mut Text, With<ToolReadout>>,
 ) {
-    if !mode.is_changed() && !speed.is_changed() {
+    if !mode.is_changed() && !speed.is_changed() && !feedback.is_changed() {
         return;
     }
     let Ok(mut text) = readout.single_mut() else {
@@ -136,6 +138,13 @@ fn update_tool_readout(
         tool_label(*mode),
         speed_label(*speed),
     );
+    if let Some(shortfall) = feedback.0 {
+        text.0.push_str(&format!(
+            "\nNOT ENOUGH GRAVEL DELIVERED: paving needs {:.1} t, {:.1} t in yards nearby",
+            shortfall.needed,
+            shortfall.available.max(0.0),
+        ));
+    }
 }
 
 fn drive_inspect_tool(

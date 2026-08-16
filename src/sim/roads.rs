@@ -5,9 +5,18 @@
 
 use bevy::prelude::*;
 
+use super::buildings::Building;
+use super::resources::{Inventory, ResourceKind};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 pub const SNAP_RADIUS: f32 = 6.0;
+
+/// Paving is a physical build: gravel per metre of centreline, drawn from
+/// building yards whose centre lies within `GRAVEL_SUPPLY_RADIUS` of the new
+/// segment. Dirt roads stay free (graded earth). Full phased construction
+/// arrives in B6; this is the M1 "single-quantum" stub the charter names.
+pub const PAVED_GRAVEL_PER_METRE: f32 = 0.05;
+pub const GRAVEL_SUPPLY_RADIUS: f32 = 80.0;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RoadClass {
@@ -94,6 +103,23 @@ pub enum RoadEdit {
     },
     /// Remove the segment nearest to `pos` (within `SNAP_RADIUS` of its line).
     RemoveNear { pos: Vec3 },
+    /// Re-place the most recently cut segment (paved pays gravel again).
+    RebuildLast,
+}
+
+/// The most recently cut segment, so the rebuild hotkey can restore it.
+#[derive(Resource, Default, Clone, Copy)]
+pub struct LastCut(pub Option<(Vec3, Vec3, RoadClass)>);
+
+/// Why the last paved placement failed, for the HUD. Cleared by the next
+/// successful placement.
+#[derive(Resource, Default, Clone, Copy)]
+pub struct RoadBuildFeedback(pub Option<GravelShortfall>);
+
+#[derive(Clone, Copy, Debug)]
+pub struct GravelShortfall {
+    pub needed: f32,
+    pub available: f32,
 }
 
 #[derive(Resource, Default)]
@@ -108,6 +134,8 @@ impl Plugin for RoadSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RoadEditQueue>()
             .init_resource::<RoadIds>()
+            .init_resource::<LastCut>()
+            .init_resource::<RoadBuildFeedback>()
             .add_systems(
                 SimTick,
                 (apply_road_edits, compile_dirty_segments)
@@ -124,6 +152,11 @@ fn apply_road_edits(world: &mut World) {
         match edit {
             RoadEdit::Place { from, to, class } => place_segment(world, from, to, class),
             RoadEdit::RemoveNear { pos } => remove_segment_near(world, pos),
+            RoadEdit::RebuildLast => {
+                if let Some((from, to, class)) = world.resource::<LastCut>().0 {
+                    place_segment(world, from, to, class);
+                }
+            }
         }
     }
 }
@@ -152,19 +185,82 @@ fn snap_or_create_node(world: &mut World, pos: Vec3) -> Entity {
     })
 }
 
-fn place_segment(world: &mut World, from: Vec3, to: Vec3, class: RoadClass) {
-    let a = snap_or_create_node(world, from);
-    let b = snap_or_create_node(world, to);
-    if a == b {
-        return;
+/// Where `pos` would land after node snapping, without mutating the graph —
+/// the cost and duplicate checks must run before any node is created.
+fn snapped_node(world: &mut World, pos: Vec3) -> (Option<Entity>, Vec3) {
+    let mut nodes = world.query::<(Entity, &RoadNode)>();
+    nodes
+        .iter(world)
+        .map(|(e, n)| (e, n.pos, n.pos.distance_squared(pos)))
+        .filter(|(.., d2)| *d2 <= SNAP_RADIUS * SNAP_RADIUS)
+        .min_by(|a, b| a.2.total_cmp(&b.2))
+        .map_or((None, pos), |(e, p, _)| (Some(e), p))
+}
+
+/// Drain `cost` tonnes of gravel from yards within `GRAVEL_SUPPLY_RADIUS` of
+/// the segment, nearest yard first; all-or-nothing. Returns false (and records
+/// the shortfall) when the delivered stock nearby cannot cover the build.
+fn pay_gravel(world: &mut World, a: Vec3, b: Vec3, cost: f32) -> bool {
+    let mut yards = world.query::<(Entity, &Building, &Inventory)>();
+    let mut candidates: Vec<(f32, u64, Entity, f32)> = yards
+        .iter(world)
+        .map(|(e, building, inventory)| {
+            let d = point_to_segment_distance(building.pos, a, b);
+            (d, building.id.0, e, inventory.amount(ResourceKind::Gravel))
+        })
+        .filter(|(d, .., gravel)| *d <= GRAVEL_SUPPLY_RADIUS && *gravel > 0.0)
+        .collect();
+    candidates.sort_by(|x, y| x.0.total_cmp(&y.0).then(x.1.cmp(&y.1)));
+    let available: f32 = candidates.iter().map(|(.., g)| g).sum();
+    if available < cost {
+        world.resource_mut::<RoadBuildFeedback>().0 = Some(GravelShortfall {
+            needed: cost,
+            available,
+        });
+        return false;
     }
-    // reject duplicate edge
-    let a_segments = world.get::<RoadNode>(a).unwrap().segments.clone();
-    for &seg in &a_segments {
-        let s = world.get::<RoadSegment>(seg).unwrap();
-        if (s.a == a && s.b == b) || (s.a == b && s.b == a) {
+    let mut owed = cost;
+    for (_, _, entity, _) in candidates {
+        if owed <= 0.0 {
+            break;
+        }
+        owed -= world
+            .get_mut::<Inventory>(entity)
+            .unwrap()
+            .take(ResourceKind::Gravel, owed);
+    }
+    true
+}
+
+fn place_segment(world: &mut World, from: Vec3, to: Vec3, class: RoadClass) {
+    // Read-only pre-checks: both would-snap endpoints resolving to the same
+    // node, or to two nodes already joined by a segment, reject the placement
+    // before any node is created or gravel is paid.
+    let (node_a, pa) = snapped_node(world, from);
+    let (node_b, pb) = snapped_node(world, to);
+    if let (Some(na), Some(nb)) = (node_a, node_b) {
+        if na == nb {
             return;
         }
+        let a_segments = world.get::<RoadNode>(na).unwrap().segments.clone();
+        for &seg in &a_segments {
+            let s = world.get::<RoadSegment>(seg).unwrap();
+            if (s.a == na && s.b == nb) || (s.a == nb && s.b == na) {
+                return;
+            }
+        }
+    }
+    if class == RoadClass::Paved {
+        let cost = pa.distance(pb) * PAVED_GRAVEL_PER_METRE;
+        if !pay_gravel(world, pa, pb, cost) {
+            return;
+        }
+    }
+    world.resource_mut::<RoadBuildFeedback>().0 = None;
+    let a = node_a.unwrap_or_else(|| snap_or_create_node(world, from));
+    let b = node_b.unwrap_or_else(|| snap_or_create_node(world, to));
+    if a == b {
+        return;
     }
     let id = {
         let mut ids = world.resource_mut::<RoadIds>();
@@ -207,10 +303,14 @@ fn remove_segment_near(world: &mut World, pos: Vec3) {
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(e, _)| e);
     let Some(segment) = hit else { return };
-    let (a, b) = {
+    let (a, b, class) = {
         let s = world.get::<RoadSegment>(segment).unwrap();
-        (s.a, s.b)
+        (s.a, s.b, s.class)
     };
+    if let (Some(na), Some(nb)) = (world.get::<RoadNode>(a), world.get::<RoadNode>(b)) {
+        let cut = Some((na.pos, nb.pos, class));
+        world.resource_mut::<LastCut>().0 = cut;
+    }
     world.despawn(segment);
     for node in [a, b] {
         let orphaned = {
@@ -342,9 +442,27 @@ mod tests {
         assert_eq!(counts(&mut app), (3, 2));
     }
 
+    /// A yard with gravel stock near the origin, for paved-build tests.
+    fn stock_gravel(app: &mut App, pos: Vec3, tonnes: f32) -> Entity {
+        use super::super::buildings::{BuildingId, BuildingKind};
+        let mut inventory = Inventory::new(60.0);
+        inventory.add(ResourceKind::Gravel, tonnes);
+        app.world_mut()
+            .spawn((
+                Building {
+                    id: BuildingId(999),
+                    kind: BuildingKind::Quarry,
+                    pos,
+                },
+                inventory,
+            ))
+            .id()
+    }
+
     #[test]
     fn compile_fills_lanes_and_bumps_modification_index() {
         let mut app = app();
+        stock_gravel(&mut app, Vec3::ZERO, 50.0);
         push(
             &mut app,
             RoadEdit::Place {
@@ -434,5 +552,89 @@ mod tests {
         );
         tick(&mut app);
         assert_eq!(counts(&mut app), (2, 1));
+    }
+
+    #[test]
+    fn paved_build_consumes_delivered_gravel_from_the_nearby_yard() {
+        let mut app = app();
+        let yard = stock_gravel(&mut app, Vec3::new(0.0, 0.0, 20.0), 50.0);
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Paved,
+            },
+        );
+        tick(&mut app);
+        assert_eq!(counts(&mut app), (2, 1));
+        let left = app
+            .world()
+            .get::<Inventory>(yard)
+            .unwrap()
+            .amount(ResourceKind::Gravel);
+        let cost = 100.0 * PAVED_GRAVEL_PER_METRE;
+        assert!((left - (50.0 - cost)).abs() < 1e-3, "left = {left}");
+    }
+
+    #[test]
+    fn paved_build_without_gravel_is_rejected_with_feedback() {
+        let mut app = app();
+        stock_gravel(&mut app, Vec3::new(0.0, 0.0, 20.0), 1.0); // < 5 t needed
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Paved,
+            },
+        );
+        tick(&mut app);
+        assert_eq!(counts(&mut app), (0, 0));
+        let shortfall = app.world().resource::<RoadBuildFeedback>().0.unwrap();
+        assert!((shortfall.needed - 5.0).abs() < 1e-3);
+        assert!((shortfall.available - 1.0).abs() < 1e-3);
+        // dirt on the same line still goes down free
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            },
+        );
+        tick(&mut app);
+        assert_eq!(counts(&mut app), (2, 1));
+        assert!(app.world().resource::<RoadBuildFeedback>().0.is_none());
+    }
+
+    #[test]
+    fn rebuild_hotkey_restores_the_last_cut_segment() {
+        let mut app = app();
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            },
+        );
+        tick(&mut app);
+        push(
+            &mut app,
+            RoadEdit::RemoveNear {
+                pos: Vec3::new(50.0, 0.0, 0.0),
+            },
+        );
+        tick(&mut app);
+        assert_eq!(counts(&mut app), (0, 0));
+        push(&mut app, RoadEdit::RebuildLast);
+        tick(&mut app);
+        let (nodes, segments) = counts(&mut app);
+        assert_eq!((nodes, segments), (2, 1));
+        let world = app.world_mut();
+        let segment = world.query::<&RoadSegment>().single(world).unwrap();
+        assert_eq!(segment.class, RoadClass::Dirt);
+        assert!((segment.length - 100.0).abs() < 1e-3);
     }
 }

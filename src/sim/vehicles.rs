@@ -253,7 +253,24 @@ fn run_shuttles(
                 }
             }
             ShuttlePhase::Outbound | ShuttlePhase::Returning => {
-                advance_along_route(&mut vehicle, dt, &nodes, &segments);
+                // A cut road severs the cached route mid-drive: re-route toward
+                // the same destination (from the source node — an M1 stub; lane
+                // re-entry arrives with the B3 dispatcher). No path yet means
+                // hold and retry next tick, so a rebuild resumes the trip.
+                let severed = vehicle
+                    .route
+                    .get(vehicle.leg)
+                    .is_some_and(|leg| segments.get(leg.segment).is_err());
+                if severed {
+                    let (from, to) = match vehicle.phase {
+                        ShuttlePhase::Outbound => (order.from, order.to),
+                        _ => (order.to, order.from),
+                    };
+                    let phase = vehicle.phase;
+                    depart(&mut vehicle, from, to, phase, &buildings, &nodes, &segments);
+                } else {
+                    advance_along_route(&mut vehicle, dt, &nodes, &segments);
+                }
             }
         }
     }
@@ -355,14 +372,16 @@ fn place_on_leg(
     vehicle.pos = start + travel * vehicle.s.min(segment.length) + right * offset;
 }
 
+/// A yard docks only onto a road node within this range: cutting a building's
+/// access road really severs it (no cross-map teleport to the next node).
+pub const DOCK_RADIUS: f32 = 40.0;
+
 fn nearest_node(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> Option<Entity> {
     nodes
         .iter()
-        .min_by(|(_, a), (_, b)| {
-            a.pos
-                .distance_squared(pos)
-                .total_cmp(&b.pos.distance_squared(pos))
-        })
+        .map(|(e, n)| (e, n.pos.distance_squared(pos)))
+        .filter(|(_, d2)| *d2 <= DOCK_RADIUS * DOCK_RADIUS)
+        .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(e, _)| e)
 }
 
@@ -558,6 +577,46 @@ mod tests {
         ticks(&mut app, 1100);
         let delivered = app
             .world_mut()
+            .get::<Inventory>(factory)
+            .unwrap()
+            .amount(ResourceKind::Gravel);
+        assert!(
+            delivered >= TRUCK_CARGO_CAPACITY - 1e-2,
+            "delivered = {delivered}"
+        );
+    }
+
+    #[test]
+    fn cut_road_holds_the_truck_and_rebuild_resumes_the_delivery() {
+        let mut app = app();
+        let (_, factory) = shuttle_world(&mut app);
+        ticks(&mut app, 100); // mid-drive, outbound
+        {
+            let world = app.world_mut();
+            let vehicle = world.query::<&ActiveVehicle>().single(world).unwrap();
+            assert_eq!(vehicle.phase, ShuttlePhase::Outbound);
+        }
+        app.world_mut()
+            .resource_mut::<RoadEditQueue>()
+            .0
+            .push(RoadEdit::RemoveNear {
+                pos: Vec3::new(50.0, 0.0, 0.0),
+            });
+        ticks(&mut app, 200); // severed: holds, nothing delivered
+        assert_eq!(
+            app.world()
+                .get::<Inventory>(factory)
+                .unwrap()
+                .amount(ResourceKind::Gravel),
+            0.0
+        );
+        app.world_mut()
+            .resource_mut::<RoadEditQueue>()
+            .0
+            .push(RoadEdit::RebuildLast);
+        ticks(&mut app, 1200); // reroute + full drive + unload
+        let delivered = app
+            .world()
             .get::<Inventory>(factory)
             .unwrap()
             .amount(ResourceKind::Gravel);

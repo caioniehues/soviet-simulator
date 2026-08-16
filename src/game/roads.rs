@@ -67,6 +67,11 @@ fn drive_road_tool(
         edits.0.push(RoadEdit::RemoveNear { pos });
         return;
     }
+    // R rebuilds the most recently cut segment (paved pays gravel again)
+    if keys.just_pressed(KeyCode::KeyR) {
+        edits.0.push(RoadEdit::RebuildLast);
+        return;
+    }
     if buttons.just_pressed(MouseButton::Right) {
         chain.0 = None;
         return;
@@ -151,5 +156,6 @@ fn ribbon(a: Vec3, b: Vec3, width: f32) -> Mesh {
     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
     .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-    .with_inserted_indices(Indices::U32(vec![0, 2, 1, 0, 3, 2]))
+    // counter-clockwise seen from +Y, or the ribbon is back-face culled
+    .with_inserted_indices(Indices::U32(vec![0, 1, 2, 0, 2, 3]))
 }
