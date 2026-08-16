@@ -171,7 +171,7 @@ fn recruit_immigrants(
 /// The housing office: strict FIFO — the head household gets the first
 /// dwelling with a free flat; no flat anywhere means the whole queue waits
 /// (shortage stays a visible planning failure, never a deletion).
-fn assign_housing(
+pub(super) fn assign_housing(
     mut queue: ResMut<HousingQueue>,
     mut households: Query<&mut Household>,
     mut dwellings: Query<(Entity, &mut Dwelling)>,

@@ -376,7 +376,7 @@ fn place_on_leg(
 /// access road really severs it (no cross-map teleport to the next node).
 pub const DOCK_RADIUS: f32 = 40.0;
 
-fn nearest_node(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> Option<Entity> {
+pub fn nearest_node(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> Option<Entity> {
     nodes
         .iter()
         .map(|(e, n)| (e, n.pos.distance_squared(pos)))

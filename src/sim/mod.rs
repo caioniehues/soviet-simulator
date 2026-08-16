@@ -5,6 +5,7 @@ pub mod buildings;
 pub mod citizens;
 pub mod clock;
 pub mod households;
+pub mod labour;
 pub mod resources;
 pub mod roads;
 pub mod stages;
