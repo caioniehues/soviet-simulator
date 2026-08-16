@@ -154,7 +154,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 Systems rungs prove mechanics; polish rungs make them look and feel like the finished product. Same wayfinder-map discipline — each P-rung is charted, has an acceptance demo (always a recaptured video judged against the previous one), and closes. Anchored to B-rungs so art never waits until "later" again. Art direction: **W&R-like industrial realism** — gritty, weathered, Soviet-era material honesty — *studied from reference, never ripped*; assets are our own procedural meshes, CC0 libraries (ambientCG, Poly Haven, Kenney), and (once approved) generated models.
 
-### P1 — First Light `[ ]` (anchor: after B1 — runs now, on the M1 scene)
+### P1 — First Light `[x]` (anchor: after B1 — runs now, on the M1 scene)
 
 **Destination** — the M1 demo scene stops looking like a debug view: real lighting and atmosphere, materially-honest ground and roads, buildings with silhouettes and detail instead of colored boxes, trucks that read as trucks, HUD that reads as a designed interface. Zero asset spend: procedural detail + CC0 textures/models only.
 **Acceptance demo** — recapture the B1 acceptance video with identical script; side-by-side with the M1 capture it must read as "a game" vs "a prototype".

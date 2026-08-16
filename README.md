@@ -51,12 +51,14 @@ Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire 
 
 ## What's next
 
-P1 "First Light" polish pass on the M1 scene (#16, zero-spend), then B2 staffing →
+P1 "First Light" done (#16, zero-spend). Next: B2 staffing →
 B3 dispatcher → … (see `ROADMAP.md`, including the new parallel P-ladder).
 
 ## Assets
 
 | Asset | Source | Status |
 |---|---|---|
-| Buildings, trucks, roads, wires | Procedural primitives (M1 charter Q12) | in use |
+| Buildings, trucks, poles, smoke | Multi-part procedural meshes (P1) | in use |
+| Ground/road textures | ambientCG (CC0): Grass001, Ground048, Asphalt010, Gravel022 | in use |
+| HUD font | Fira Sans (OFL 1.1, license bundled) | in use |
 | Generated art pass | `/asset-gen` (paid) | deferred, post-demo decision |
