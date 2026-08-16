@@ -143,7 +143,7 @@ fn extract_resources(mut buildings: Query<(&Building, &mut Inventory)>) {
 
 /// The plant is an ordinary recipe building: no coal ⇒ no output. (Unstaffed
 /// by charter until B2.)
-fn run_power_plants(mut plants: Query<(&Building, &mut Inventory, &mut PowerOutput)>) {
+pub(crate) fn run_power_plants(mut plants: Query<(&Building, &mut Inventory, &mut PowerOutput)>) {
     for (building, mut inventory, mut output) in &mut plants {
         if building.kind != BuildingKind::PowerPlant {
             continue;
@@ -158,7 +158,7 @@ fn run_power_plants(mut plants: Query<(&Building, &mut Inventory, &mut PowerOutp
 }
 
 /// The factory produces only while its electricity gate holds.
-fn run_factories(mut factories: Query<(&Building, &mut Inventory, &Powered)>) {
+pub(crate) fn run_factories(mut factories: Query<(&Building, &mut Inventory, &Powered)>) {
     for (building, mut inventory, powered) in &mut factories {
         if building.kind != BuildingKind::Factory {
             continue;

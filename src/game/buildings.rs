@@ -15,7 +15,7 @@ fn kind_color(kind: BuildingKind) -> Color {
     }
 }
 
-fn kind_height(kind: BuildingKind) -> f32 {
+pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
     match kind {
         BuildingKind::Mine => 6.0,
         BuildingKind::Quarry => 3.0,

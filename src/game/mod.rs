@@ -5,6 +5,7 @@ pub mod camera;
 pub mod roads;
 pub mod tools;
 pub mod vehicles;
+pub mod wires;
 pub mod world;
 
 /// Root plugin: every feature plugin under `src/game/` registers here,
@@ -20,6 +21,7 @@ impl Plugin for GamePlugin {
             roads::RoadToolPlugin,
             buildings::BuildingToolPlugin,
             vehicles::VehicleToolPlugin,
+            wires::WireToolPlugin,
         ));
     }
 }

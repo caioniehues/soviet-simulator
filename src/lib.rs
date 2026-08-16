@@ -17,6 +17,7 @@ pub fn run() {
             sim::roads::RoadSimPlugin,
             sim::buildings::BuildingSimPlugin,
             sim::vehicles::VehicleSimPlugin,
+            sim::wires::WireSimPlugin,
         ))
         .add_plugins(game::GamePlugin)
         .run();

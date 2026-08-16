@@ -7,6 +7,7 @@ pub mod resources;
 pub mod roads;
 pub mod stages;
 pub mod vehicles;
+pub mod wires;
 
 pub use clock::{FrameIndex, SimSpeed, TickIndex};
 pub use stages::{PostSimEasing, SimStage, SimTick};
