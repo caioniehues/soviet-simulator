@@ -113,7 +113,9 @@ fn sync_segment_meshes(
         };
         let mesh = ribbon(a.pos, b.pos, segment.class.width());
         if let Ok(old) = existing.get(entity) {
-            meshes.insert(&old.0, mesh);
+            if meshes.insert(&old.0, mesh).is_err() {
+                warn!("road mesh update failed for {entity:?}");
+            }
         } else {
             let material = match segment.class {
                 crate::sim::roads::RoadClass::Dirt => materials.dirt.clone(),
