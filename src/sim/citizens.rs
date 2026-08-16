@@ -14,6 +14,17 @@ pub struct CitizenId(pub u64);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
 pub struct EducationTier(pub u8);
 
+/// Where the citizen physically is (the spec's 2-bit location flag). Written
+/// by the commute systems; production reads presence through `Staffing`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum CitizenLocation {
+    #[default]
+    AtHome,
+    ToWork,
+    AtWork,
+    ToHome,
+}
+
 /// Flat per-citizen state (CS1-shaped substrate). `home` mirrors the
 /// household's dwelling for O(1) reads on hot paths; the household is the
 /// housing actor and the only writer of `home`.
@@ -27,6 +38,7 @@ pub struct Citizen {
     pub health: u8,    // 0..=100
     pub wellbeing: u8, // 0..=100
     pub education: EducationTier,
+    pub location: CitizenLocation,
 }
 
 impl Citizen {
@@ -39,6 +51,7 @@ impl Citizen {
             health: 100,
             wellbeing: 70,
             education: EducationTier::default(),
+            location: CitizenLocation::default(),
         }
     }
 }

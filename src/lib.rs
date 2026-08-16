@@ -18,6 +18,7 @@ pub fn run() {
             sim::buildings::BuildingSimPlugin,
             sim::households::HouseholdSimPlugin,
             sim::labour::LabourSimPlugin,
+            sim::commute::CommuteSimPlugin,
             sim::vehicles::VehicleSimPlugin,
             sim::wires::WireSimPlugin,
         ))

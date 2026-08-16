@@ -387,7 +387,7 @@ pub fn nearest_node(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> Option<Ent
 
 /// Unweighted BFS over node adjacency — fine at M1 scale; the B3 dispatcher
 /// brings cost-aware search over the packed mirror (ADR 0005).
-fn find_route(
+pub fn find_route(
     start: Entity,
     goal: Entity,
     nodes: &Query<(Entity, &RoadNode)>,

@@ -4,6 +4,7 @@
 pub mod buildings;
 pub mod citizens;
 pub mod clock;
+pub mod commute;
 pub mod households;
 pub mod labour;
 pub mod resources;

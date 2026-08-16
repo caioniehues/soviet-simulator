@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod buildings;
 pub mod camera;
+pub mod citizens;
 pub mod hud;
 pub mod roads;
 pub mod tools;
@@ -21,6 +22,7 @@ impl Plugin for GamePlugin {
             tools::ToolsPlugin,
             roads::RoadToolPlugin,
             buildings::BuildingToolPlugin,
+            citizens::CitizenViewPlugin,
             vehicles::VehicleToolPlugin,
             wires::WireToolPlugin,
             hud::HudPlugin,
