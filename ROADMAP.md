@@ -21,9 +21,9 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B1 — The First Chain `[ ]`
+### B1 — The First Chain `[~]`
 
-**Destination** — a standalone Linux build proving the one rule end to end in Bevy: coal physically hauled by truck powers a plant that powers a factory; cut the road and the blackout cascades. Ships the two-layer road representation *done right* (spline edges → compiled per-lane graph, incremental 1-ring recompile) so B4 scales a sound foundation instead of replacing a naive one.
+**Destination** — a standalone Linux build proving the one rule end to end in Bevy: coal physically hauled by truck powers a plant that powers a factory; cut the road and the blackout cascades. Ships the road representation *done right* per `spec/roads.md`: player-drawn spline centerlines compile into the one unified lane graph (node/segment/per-lane buffer — the lane network *is* the routing graph), with incremental 1-ring recompile and `modificationIndex` invalidation, so B4 scales a sound foundation instead of replacing a naive one.
 **Acceptance demo** — RTS camera over terrain; road tool (dirt instant, paved from delivered gravel); truck shuttling mine→plant; power gate on the factory; cut/rebuild hotkeys showing the cascade.
 **Specs consumed** — `roads.md` (stage 1), `resources.md` (stage 1), `production.md` (stage 1), `electricity.md` (stage 1), `vehicles.md` (movement only).
 **Bootstrap stubs left behind** — unstaffed buildings; office-less single-quantum construction; ad-hoc shuttle hauling; electricity-only utilities.
