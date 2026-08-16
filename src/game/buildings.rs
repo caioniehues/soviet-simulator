@@ -17,6 +17,7 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::Quarry => Color::srgb(0.60, 0.55, 0.45),
         BuildingKind::PowerPlant => Color::srgb(0.60, 0.59, 0.55),
         BuildingKind::Factory => Color::srgb(0.55, 0.52, 0.48),
+        BuildingKind::Dwelling => Color::srgb(0.58, 0.56, 0.52),
     }
 }
 
@@ -26,6 +27,7 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::Quarry => 3.0,
         BuildingKind::PowerPlant => 12.0,
         BuildingKind::Factory => 9.0,
+        BuildingKind::Dwelling => 11.0,
     }
 }
 
@@ -245,6 +247,31 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
                     ))
                     .with_rotation(Quat::from_rotation_z(0.45)),
                 });
+            }
+            v
+        }
+        // Khrushchyovka slab block: concrete bar, banded floors, low entry.
+        BuildingKind::Dwelling => {
+            let mut v = vec![
+                boxed(&m.concrete, Vec3::new(10.0, 11.0, 7.0), Vec3::ZERO),
+                boxed(
+                    &m.rust,
+                    Vec3::new(10.4, 0.4, 7.4),
+                    Vec3::new(0.0, 11.0, 0.0),
+                ),
+                boxed(
+                    &m.timber,
+                    Vec3::new(2.4, 2.6, 1.4),
+                    Vec3::new(0.0, 0.0, 4.0),
+                ),
+            ];
+            // floor bands: thin dark strips across the facade
+            for i in 0..4 {
+                v.push(boxed(
+                    &m.coal,
+                    Vec3::new(10.1, 0.25, 7.1),
+                    Vec3::new(0.0, 2.4 + i as f32 * 2.4, 0.0),
+                ));
             }
             v
         }

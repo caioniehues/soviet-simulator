@@ -16,6 +16,7 @@ pub fn run() {
             sim::SimPlugin,
             sim::roads::RoadSimPlugin,
             sim::buildings::BuildingSimPlugin,
+            sim::households::HouseholdSimPlugin,
             sim::vehicles::VehicleSimPlugin,
             sim::wires::WireSimPlugin,
         ))

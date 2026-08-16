@@ -41,7 +41,7 @@ impl Plugin for VehicleToolPlugin {
 fn shipped_resource(kind: BuildingKind) -> ResourceKind {
     match kind {
         BuildingKind::Quarry => ResourceKind::Gravel,
-        BuildingKind::Factory => ResourceKind::Goods,
+        BuildingKind::Factory | BuildingKind::Dwelling => ResourceKind::Goods,
         BuildingKind::Mine | BuildingKind::PowerPlant => ResourceKind::Coal,
     }
 }
