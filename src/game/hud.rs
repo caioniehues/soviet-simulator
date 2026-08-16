@@ -8,6 +8,8 @@ use bevy::prelude::*;
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::SimSpeed;
 use crate::sim::buildings::{Building, PowerOutput, Powered};
+use crate::sim::citizens::Citizen;
+use crate::sim::households::{Household, HousingQueue, RecruitmentPlan};
 use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::roads::RoadBuildFeedback;
 use crate::sim::vehicles::ActiveVehicle;
@@ -17,6 +19,9 @@ struct ToolReadout;
 
 #[derive(Component)]
 struct InspectReadout;
+
+#[derive(Component)]
+struct PopulationReadout;
 
 /// The inspect panel's chrome node; hidden while nothing is selected.
 #[derive(Component)]
@@ -36,6 +41,8 @@ impl Plugin for HudPlugin {
                 Update,
                 (
                     drive_time_controls,
+                    drive_recruitment_controls,
+                    update_population_readout,
                     drive_inspect_tool,
                     update_tool_readout,
                     update_inspect_readout,
@@ -92,6 +99,26 @@ fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             Node {
+                right: Val::Px(12.0),
+                top: Val::Px(10.0),
+                ..node
+            },
+            bg,
+            border,
+            Name::new("HudPopulationPanel"),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                PopulationReadout,
+                Text::new(""),
+                font.clone(),
+                TextColor(Color::srgb(0.92, 0.90, 0.82)),
+            ));
+        });
+    let (node, bg, border) = panel_node();
+    commands
+        .spawn((
+            Node {
                 left: Val::Px(12.0),
                 bottom: Val::Px(12.0),
                 display: Display::None,
@@ -135,6 +162,39 @@ fn drive_time_controls(keys: Res<ButtonInput<KeyCode>>, mut speed: ResMut<SimSpe
             SimSpeed::Double => SimSpeed::Normal,
             _ => SimSpeed::Paused,
         };
+    }
+}
+
+/// The plan's immigration lever: +/- adjusts the recruitment target.
+fn drive_recruitment_controls(keys: Res<ButtonInput<KeyCode>>, mut plan: ResMut<RecruitmentPlan>) {
+    if keys.just_pressed(KeyCode::Equal) {
+        plan.target_households += 1;
+    }
+    if keys.just_pressed(KeyCode::Minus) {
+        plan.target_households = plan.target_households.saturating_sub(1);
+    }
+}
+
+fn update_population_readout(
+    citizens: Query<&Citizen>,
+    households: Query<&Household>,
+    queue: Res<HousingQueue>,
+    plan: Res<RecruitmentPlan>,
+    mut readout: Query<&mut Text, With<PopulationReadout>>,
+) {
+    let Ok(mut text) = readout.single_mut() else {
+        return;
+    };
+    let total = households.iter().count();
+    let housed = households.iter().filter(|h| h.dwelling.is_some()).count();
+    let next = format!(
+        "POPULATION {}\nhouseholds {housed}/{total} housed   queue {}\nplan target {}   (+/- adjusts)",
+        citizens.iter().count(),
+        queue.0.len(),
+        plan.target_households,
+    );
+    if text.0 != next {
+        text.0 = next;
     }
 }
 

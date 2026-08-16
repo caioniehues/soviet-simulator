@@ -5,6 +5,8 @@
 //! immigration source (M2.2 wires the recruitment lever; the queue is the
 //! only way citizens enter the world).
 
+use std::collections::VecDeque;
+
 use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
@@ -63,6 +65,29 @@ struct HouseholdIds {
     next: u64,
 }
 
+/// The explicit, player-visible housing queue (spec households.md): FIFO of
+/// household entities waiting for a flat. Entry sources for M2: plan-recruited
+/// immigration; later, eviction and displacement — never deletion.
+#[derive(Resource, Default)]
+pub struct HousingQueue(pub VecDeque<Entity>);
+
+/// The plan's immigration lever: recruit households until this many exist.
+/// Raising it is the only way citizens enter the world.
+#[derive(Resource, Default)]
+pub struct RecruitmentPlan {
+    pub target_households: u32,
+}
+
+/// Total households ever recruited — compared against the plan target so
+/// in-flight spawns (commands not yet flushed) are never double-counted.
+#[derive(Resource, Default)]
+struct RecruitmentLedger {
+    recruited: u32,
+}
+
+/// Household sizes are dealt from this cycle (deterministic, averages ~3).
+const RECRUIT_SIZES: [u8; 5] = [3, 2, 4, 1, 5];
+
 pub struct HouseholdSimPlugin;
 
 impl Plugin for HouseholdSimPlugin {
@@ -70,11 +95,20 @@ impl Plugin for HouseholdSimPlugin {
         app.init_resource::<HouseholdSpawnQueue>()
             .init_resource::<HouseholdIds>()
             .init_resource::<CitizenIds>()
+            .init_resource::<HousingQueue>()
+            .init_resource::<RecruitmentPlan>()
+            .init_resource::<RecruitmentLedger>()
             .add_systems(
                 SimTick,
                 (attach_flat_tables, apply_household_spawns)
                     .in_set(SimStage::ApplyCommands)
                     .after(ApplyCommandsFlush),
+            )
+            .add_systems(
+                SimTick,
+                (recruit_immigrants, assign_housing)
+                    .chain()
+                    .in_set(SimStage::AllocationAndDispatch),
             );
     }
 }
@@ -94,6 +128,7 @@ fn attach_flat_tables(mut commands: Commands, added: Query<(Entity, &Building), 
 fn apply_household_spawns(
     mut commands: Commands,
     mut queue: ResMut<HouseholdSpawnQueue>,
+    mut housing_queue: ResMut<HousingQueue>,
     mut household_ids: ResMut<HouseholdIds>,
     mut citizen_ids: ResMut<CitizenIds>,
 ) {
@@ -115,6 +150,52 @@ fn apply_household_spawns(
             dwelling: None,
             pantry: PANTRY_START,
         });
+        housing_queue.0.push_back(household);
+    }
+}
+
+/// Plan-recruited immigration: deal out spawn requests until the ledger meets
+/// the target. Requests apply next tick's ApplyCommands.
+fn recruit_immigrants(
+    plan: Res<RecruitmentPlan>,
+    mut ledger: ResMut<RecruitmentLedger>,
+    mut spawns: ResMut<HouseholdSpawnQueue>,
+) {
+    while ledger.recruited < plan.target_households {
+        let size = RECRUIT_SIZES[ledger.recruited as usize % RECRUIT_SIZES.len()];
+        spawns.0.push(SpawnHousehold { members: size });
+        ledger.recruited += 1;
+    }
+}
+
+/// The housing office: strict FIFO — the head household gets the first
+/// dwelling with a free flat; no flat anywhere means the whole queue waits
+/// (shortage stays a visible planning failure, never a deletion).
+fn assign_housing(
+    mut queue: ResMut<HousingQueue>,
+    mut households: Query<&mut Household>,
+    mut dwellings: Query<(Entity, &mut Dwelling)>,
+    mut citizens: Query<&mut Citizen>,
+) {
+    while let Some(&head) = queue.0.front() {
+        // Spawn commands may not have flushed yet; the head is simply not
+        // ready this tick.
+        let Ok(mut household) = households.get_mut(head) else {
+            break;
+        };
+        let Some((dwelling_entity, mut dwelling)) =
+            dwellings.iter_mut().find(|(_, d)| d.free_flats() > 0)
+        else {
+            break;
+        };
+        dwelling.occupied += 1;
+        household.dwelling = Some(dwelling_entity);
+        for &member in &household.members {
+            if let Ok(mut citizen) = citizens.get_mut(member) {
+                citizen.home = Some(dwelling_entity);
+            }
+        }
+        queue.0.pop_front();
     }
 }
 
@@ -182,6 +263,63 @@ mod tests {
             .collect();
         sizes.sort();
         assert_eq!(sizes, vec![1, MAX_HOUSEHOLD_SIZE]);
+    }
+
+    fn place_dwelling(app: &mut App) {
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Place {
+                kind: BuildingKind::Dwelling,
+                pos: Vec3::ZERO,
+            });
+    }
+
+    #[test]
+    fn recruited_households_are_housed_while_flats_exist() {
+        let mut app = app();
+        place_dwelling(&mut app);
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 3;
+        ticks(&mut app, 4);
+        let world = app.world_mut();
+        let households: Vec<&Household> = world.query::<&Household>().iter(world).collect();
+        assert_eq!(households.len(), 3, "plan met exactly, no double-spawn");
+        assert!(households.iter().all(|h| h.dwelling.is_some()));
+        let member = households[0].members[0];
+        let dwelling_entity = households[0].dwelling.unwrap();
+        assert_eq!(
+            world.get::<Citizen>(member).unwrap().home,
+            Some(dwelling_entity)
+        );
+        assert_eq!(
+            world.query::<&Dwelling>().single(world).unwrap().occupied,
+            3
+        );
+        assert!(world.resource::<HousingQueue>().0.is_empty());
+    }
+
+    #[test]
+    fn overflow_households_stay_visibly_queued() {
+        let mut app = app();
+        place_dwelling(&mut app);
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = DWELLING_FLATS + 2;
+        ticks(&mut app, 4);
+        let world = app.world_mut();
+        assert_eq!(
+            world.query::<&Dwelling>().single(world).unwrap().occupied,
+            DWELLING_FLATS
+        );
+        assert_eq!(world.resource::<HousingQueue>().0.len(), 2);
+        let unhoused = world
+            .query::<&Household>()
+            .iter(world)
+            .filter(|h| h.dwelling.is_none())
+            .count();
+        assert_eq!(unhoused, 2, "queued, never deleted");
     }
 
     #[test]
