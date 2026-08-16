@@ -1,4 +1,5 @@
 pub mod game;
+pub mod sim;
 
 use bevy::prelude::*;
 
@@ -11,6 +12,7 @@ pub fn run() {
             }),
             ..default()
         }))
+        .add_plugins(sim::SimPlugin)
         .add_plugins(game::GamePlugin)
         .run();
 }

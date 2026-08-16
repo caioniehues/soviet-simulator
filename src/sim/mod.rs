@@ -1,0 +1,24 @@
+//! Simulation core: the SimTick schedule, its stage pipeline, and the clock
+//! driver. See architecture/simulation-clock.md and ADRs 0001–0002.
+
+pub mod clock;
+pub mod stages;
+
+pub use clock::{FrameIndex, SimSpeed, TickIndex};
+pub use stages::{PostSimEasing, SimStage, SimTick};
+
+use bevy::prelude::*;
+
+pub struct SimPlugin;
+
+impl Plugin for SimPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<FrameIndex>()
+            .init_resource::<TickIndex>()
+            .init_resource::<SimSpeed>()
+            .init_resource::<clock::SimPacing>();
+        stages::configure(app);
+        app.add_systems(Update, clock::drive_sim);
+        app.configure_sets(Update, PostSimEasing.after(clock::drive_sim));
+    }
+}
