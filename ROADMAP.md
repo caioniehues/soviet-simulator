@@ -150,6 +150,31 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
+## Polish ladder (parallel P-track)
+
+Systems rungs prove mechanics; polish rungs make them look and feel like the finished product. Same wayfinder-map discipline — each P-rung is charted, has an acceptance demo (always a recaptured video judged against the previous one), and closes. Anchored to B-rungs so art never waits until "later" again. Art direction: **W&R-like industrial realism** — gritty, weathered, Soviet-era material honesty — *studied from reference, never ripped*; assets are our own procedural meshes, CC0 libraries (ambientCG, Poly Haven, Kenney), and (once approved) generated models.
+
+### P1 — First Light `[ ]` (anchor: after B1 — runs now, on the M1 scene)
+
+**Destination** — the M1 demo scene stops looking like a debug view: real lighting and atmosphere, materially-honest ground and roads, buildings with silhouettes and detail instead of colored boxes, trucks that read as trucks, HUD that reads as a designed interface. Zero asset spend: procedural detail + CC0 textures/models only.
+**Acceptance demo** — recapture the B1 acceptance video with identical script; side-by-side with the M1 capture it must read as "a game" vs "a prototype".
+**In scope** — art-direction doc (reference study, palette, material rules); lighting/atmosphere (sun angle, shadows, ambient, tonemapping, bloom/AO, distance fog, sky); terrain material (tiled CC0 ground with variation, road wear decals); building meshes v2 (multi-part procedural: walls/roofs/windows/chimneys, plant smoke VFX); road/wire pass (textured ribbons, catenary sag poles); truck model (CC0 or procedural v2, wheel spin); UI theme (font, panel styling, iconographic key legend).
+**Out of scope** — paid generation (separate spend decision), character art (P2), audio (P3).
+
+### P2 — Faces in the Crowd `[ ]` (anchor: after B2)
+
+Citizens and dwellings get the same treatment: readable people at RTS zoom, animation states (walk/work/queue), dwelling architecture pass, day/night cycle with window glow.
+
+### P3 — The Republic Sounds `[ ]` (anchor: after B5)
+
+The identity slice: tram/transit visual pass, full audio (ambient industry, vehicles, UI), weather/seasonal dressing first cut, camera feel (easing, cinematic zoom levels).
+
+### P4 — Ship Shape `[ ]` (anchor: pre-release fog)
+
+Menus, settings, onboarding, loading, performance-scaled visual options, trailer-grade capture tooling. Charted when the frontier approaches.
+
+---
+
 ## Rungs 12+ (named fog — direction without fake precision)
 
 - **Rail** — freight + passenger rail, signalling, stations; the dispatcher and transit models both extend.
@@ -164,7 +189,7 @@ Each is charted only when the frontier reaches it.
 
 - **Save/load** — first cut in B2 (custom serde-column format per ecosystem survey); hardened whenever a rung adds persistent state.
 - **UI** — every rung ships its demo's minimum; the dedicated pass is B7.
-- **Rendering** — Bevy 0.19 native (GPU instancing, `VisibilityRange` LOD) from day 1; art direction is a separate later effort.
+- **Rendering** — Bevy 0.19 native (GPU instancing, `VisibilityRange` LOD) from day 1; look-and-feel lives in the P-ladder above (P1 sets the art direction).
 - **Benchmarks** — identity ladder: 50k (B2) → 250k (B9) → 500k–1M (B11+). Simulation always benchmarked headless, independent of graphics.
 - **Simulation clock** — systems adopt the six-band registry as their cost demands it (the B8 solver is the forcing function).
 

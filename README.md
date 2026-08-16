@@ -51,8 +51,8 @@ Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire 
 
 ## What's next
 
-B2 staffing → B3 dispatcher → B4 road curves → B5 tram class → B6 phased
-construction → B8 wire tiers/loss (see `ROADMAP.md`).
+P1 "First Light" polish pass on the M1 scene (#16, zero-spend), then B2 staffing →
+B3 dispatcher → … (see `ROADMAP.md`, including the new parallel P-ladder).
 
 ## Assets
 
