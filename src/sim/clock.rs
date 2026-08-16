@@ -139,10 +139,16 @@ mod tests {
     fn slow_render_frame_clamps_instead_of_spiraling() {
         let mut app = test_app();
         advance(&mut app, 10.0); // one huge render frame
-        assert_eq!(app.world().resource::<FrameIndex>().0, MAX_PASSES_PER_UPDATE);
+        assert_eq!(
+            app.world().resource::<FrameIndex>().0,
+            MAX_PASSES_PER_UPDATE
+        );
         // backlog dropped: the next normal pass runs exactly one more
         run_passes(&mut app, 1);
-        assert_eq!(app.world().resource::<FrameIndex>().0, MAX_PASSES_PER_UPDATE + 1);
+        assert_eq!(
+            app.world().resource::<FrameIndex>().0,
+            MAX_PASSES_PER_UPDATE + 1
+        );
     }
 
     #[test]
