@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+pub mod buildings;
 pub mod camera;
 pub mod roads;
 pub mod tools;
@@ -16,6 +17,7 @@ impl Plugin for GamePlugin {
             camera::CameraPlugin,
             tools::ToolsPlugin,
             roads::RoadToolPlugin,
+            buildings::BuildingToolPlugin,
         ));
     }
 }

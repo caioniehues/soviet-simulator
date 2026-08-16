@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use crate::sim::buildings::BuildingKind;
 use crate::sim::roads::RoadClass;
 
 /// Active build tool. The road/building/wire tools (M1.3–M1.6) plug their
@@ -10,7 +11,7 @@ pub enum ToolMode {
     #[default]
     Inspect,
     Road(RoadClass),
-    Building,
+    Building(BuildingKind),
     Wire,
 }
 
@@ -43,7 +44,13 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
     } else if keys.just_pressed(KeyCode::Digit2) {
         Some(ToolMode::Road(RoadClass::Paved))
     } else if keys.just_pressed(KeyCode::Digit3) {
-        Some(ToolMode::Building)
+        // repeated presses cycle through the building kinds
+        Some(ToolMode::Building(match *mode {
+            ToolMode::Building(BuildingKind::Mine) => BuildingKind::Quarry,
+            ToolMode::Building(BuildingKind::Quarry) => BuildingKind::PowerPlant,
+            ToolMode::Building(BuildingKind::PowerPlant) => BuildingKind::Factory,
+            _ => BuildingKind::Mine,
+        }))
     } else if keys.just_pressed(KeyCode::Digit4) {
         Some(ToolMode::Wire)
     } else {

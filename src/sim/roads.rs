@@ -5,7 +5,7 @@
 
 use bevy::prelude::*;
 
-use super::stages::{SimStage, SimTick};
+use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 pub const SNAP_RADIUS: f32 = 6.0;
 
@@ -112,7 +112,8 @@ impl Plugin for RoadSimPlugin {
                 SimTick,
                 (apply_road_edits, compile_dirty_segments)
                     .chain()
-                    .in_set(SimStage::ApplyCommands),
+                    .in_set(SimStage::ApplyCommands)
+                    .after(ApplyCommandsFlush),
             );
     }
 }

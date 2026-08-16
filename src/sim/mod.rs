@@ -1,7 +1,9 @@
 //! Simulation core: the SimTick schedule, its stage pipeline, and the clock
 //! driver. See architecture/simulation-clock.md and ADRs 0001–0002.
 
+pub mod buildings;
 pub mod clock;
+pub mod resources;
 pub mod roads;
 pub mod stages;
 

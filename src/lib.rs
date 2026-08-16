@@ -12,7 +12,11 @@ pub fn run() {
             }),
             ..default()
         }))
-        .add_plugins((sim::SimPlugin, sim::roads::RoadSimPlugin))
+        .add_plugins((
+            sim::SimPlugin,
+            sim::roads::RoadSimPlugin,
+            sim::buildings::BuildingSimPlugin,
+        ))
         .add_plugins(game::GamePlugin)
         .run();
 }
