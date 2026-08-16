@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub mod camera;
+pub mod roads;
 pub mod tools;
 pub mod world;
 
@@ -10,6 +11,11 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((world::WorldPlugin, camera::CameraPlugin, tools::ToolsPlugin));
+        app.add_plugins((
+            world::WorldPlugin,
+            camera::CameraPlugin,
+            tools::ToolsPlugin,
+            roads::RoadToolPlugin,
+        ));
     }
 }

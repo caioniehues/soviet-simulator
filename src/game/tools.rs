@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use crate::sim::roads::RoadClass;
+
 /// Active build tool. The road/building/wire tools (M1.3–M1.6) plug their
 /// behavior into this state machine; switching or Esc must always be safe.
 #[derive(Resource, Default, Clone, Copy, PartialEq, Eq, Debug)]
@@ -10,12 +12,6 @@ pub enum ToolMode {
     Road(RoadClass),
     Building,
     Wire,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum RoadClass {
-    Dirt,
-    Paved,
 }
 
 /// Where the cursor ray hits the ground plane this frame, if it does.

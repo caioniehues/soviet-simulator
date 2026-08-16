@@ -2,6 +2,7 @@
 //! driver. See architecture/simulation-clock.md and ADRs 0001–0002.
 
 pub mod clock;
+pub mod roads;
 pub mod stages;
 
 pub use clock::{FrameIndex, SimSpeed, TickIndex};
