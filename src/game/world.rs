@@ -7,8 +7,26 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_world);
+        app.insert_resource(ClearColor(Color::srgb(0.62, 0.72, 0.82)))
+            .add_systems(Startup, spawn_world)
+            .add_systems(Update, draw_grid);
     }
+}
+
+/// 32 m reference grid; without it the flat plane reads as a blank screen.
+fn draw_grid(mut gizmos: Gizmos) {
+    let cells = (GROUND_HALF as u32 * 2) / 32;
+    gizmos
+        .grid(
+            Isometry3d::new(
+                Vec3::new(0.0, 0.02, 0.0),
+                Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+            ),
+            UVec2::splat(cells),
+            Vec2::splat(32.0),
+            Color::srgba(1.0, 1.0, 1.0, 0.08),
+        )
+        .outer_edges();
 }
 
 fn spawn_world(

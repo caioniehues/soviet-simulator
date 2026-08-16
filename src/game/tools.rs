@@ -98,6 +98,7 @@ fn spawn_cursor_marker(
 
 fn update_cursor_marker(
     cursor: Res<GroundCursor>,
+    rig: Res<super::camera::CameraRig>,
     mut marker: Query<(&mut Transform, &mut Visibility), With<CursorMarker>>,
 ) {
     let Ok((mut transform, mut visibility)) = marker.single_mut() else {
@@ -106,6 +107,8 @@ fn update_cursor_marker(
     match cursor.0 {
         Some(point) => {
             transform.translation = point;
+            // constant apparent size regardless of zoom
+            transform.scale = Vec3::splat((rig.dist / 120.0).max(0.4));
             *visibility = Visibility::Visible;
         }
         None => *visibility = Visibility::Hidden,
