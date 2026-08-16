@@ -18,6 +18,10 @@ struct ToolReadout;
 #[derive(Component)]
 struct InspectReadout;
 
+/// The inspect panel's chrome node; hidden while nothing is selected.
+#[derive(Component)]
+struct InspectPanel;
+
 /// Building picked with the Inspect tool.
 #[derive(Resource, Default)]
 struct Selected(Option<Entity>);
@@ -42,37 +46,73 @@ impl Plugin for HudPlugin {
     }
 }
 
-fn spawn_hud(mut commands: Commands) {
+/// Panel chrome per the art direction: near-black concrete panel, thin rust
+/// accent along the left edge, Fira Sans (OFL, bundled).
+fn panel_node() -> (Node, BackgroundColor, BorderColor) {
+    (
+        Node {
+            position_type: PositionType::Absolute,
+            padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
+            border: UiRect::left(Val::Px(3.0)),
+            border_radius: BorderRadius::px(2.0, 6.0, 6.0, 2.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.055, 0.06, 0.07, 0.86)),
+        BorderColor::all(Color::srgb(0.63, 0.35, 0.20)),
+    )
+}
+
+fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = TextFont {
+        font: asset_server.load("fonts/FiraSans-Regular.ttf").into(),
         font_size: bevy::text::FontSize::Px(15.0),
         ..default()
     };
-    commands.spawn((
-        ToolReadout,
-        Text::new(""),
-        font.clone(),
-        TextColor(Color::srgb(0.92, 0.90, 0.82)),
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(12.0),
-            top: Val::Px(10.0),
-            ..default()
-        },
-        Name::new("HudTool"),
-    ));
-    commands.spawn((
-        InspectReadout,
-        Text::new(""),
-        font,
-        TextColor(Color::srgb(0.95, 0.93, 0.85)),
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(12.0),
-            bottom: Val::Px(12.0),
-            ..default()
-        },
-        Name::new("HudInspect"),
-    ));
+    let (node, bg, border) = panel_node();
+    commands
+        .spawn((
+            Node {
+                left: Val::Px(12.0),
+                top: Val::Px(10.0),
+                ..node
+            },
+            bg,
+            border,
+            Name::new("HudToolPanel"),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                ToolReadout,
+                Text::new(""),
+                font.clone(),
+                TextColor(Color::srgb(0.92, 0.90, 0.82)),
+            ));
+        });
+    let (node, bg, border) = panel_node();
+    commands
+        .spawn((
+            Node {
+                left: Val::Px(12.0),
+                bottom: Val::Px(12.0),
+                display: Display::None,
+                ..node
+            },
+            bg,
+            border,
+            InspectPanel,
+            Name::new("HudInspectPanel"),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                InspectReadout,
+                Text::new(""),
+                TextFont {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
+                    ..font
+                },
+                TextColor(Color::srgb(0.95, 0.93, 0.85)),
+            ));
+        });
 }
 
 fn drive_time_controls(keys: Res<ButtonInput<KeyCode>>, mut speed: ResMut<SimSpeed>) {
@@ -182,8 +222,12 @@ fn update_inspect_readout(
         Option<&PowerOutput>,
     )>,
     mut readout: Query<&mut Text, With<InspectReadout>>,
+    mut panel: Query<&mut Node, With<InspectPanel>>,
 ) {
     let Ok(mut text) = readout.single_mut() else {
+        return;
+    };
+    let Ok(mut panel) = panel.single_mut() else {
         return;
     };
     let Some((building, inventory, powered, output)) =
@@ -192,8 +236,14 @@ fn update_inspect_readout(
         if !text.0.is_empty() {
             text.0.clear();
         }
+        if panel.display != Display::None {
+            panel.display = Display::None;
+        }
         return;
     };
+    if panel.display != Display::Flex {
+        panel.display = Display::Flex;
+    }
     let mut lines = format!(
         "{:?} #{}\nyard {:.1} / {:.0} t",
         building.kind,

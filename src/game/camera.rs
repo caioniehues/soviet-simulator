@@ -1,4 +1,7 @@
+use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::pbr::{DistanceFog, FogFalloff};
+use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 
 use super::world::GROUND_HALF;
@@ -41,7 +44,23 @@ impl Plugin for CameraPlugin {
 }
 
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn((Camera3d::default(), Name::new("RtsCamera")));
+    commands.spawn((
+        Camera3d::default(),
+        // Filmic look per docs/art-direction.md: neutral AgX, gentle bloom,
+        // haze that closes the world instead of a hard horizon line.
+        Tonemapping::TonyMcMapface,
+        Bloom::NATURAL,
+        DistanceFog {
+            color: Color::srgb(0.78, 0.82, 0.85),
+            directional_light_color: Color::srgba(1.0, 0.93, 0.82, 0.25),
+            directional_light_exponent: 40.0,
+            falloff: FogFalloff::Linear {
+                start: 500.0,
+                end: 1600.0,
+            },
+        },
+        Name::new("RtsCamera"),
+    ));
 }
 
 fn control_rig(

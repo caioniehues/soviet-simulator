@@ -144,6 +144,14 @@ fn hint_blocked_shuttles(
     }
 }
 
+#[derive(Component)]
+struct Wheel;
+
+#[derive(Component)]
+struct CargoMound;
+
+/// P1 truck: olive cab + rust-boarded flatbed + four wheels, nose on -Z so
+/// look_to() points it along the heading. Cargo shows as a dark mound.
 fn sync_truck_meshes(
     mut commands: Commands,
     added: Query<(Entity, &ActiveVehicle), Added<ActiveVehicle>>,
@@ -151,29 +159,111 @@ fn sync_truck_meshes(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, vehicle) in &added {
-        commands.entity(entity).insert((
-            // long axis on -Z so look_to() points the nose along the heading
-            Mesh3d(meshes.add(Cuboid::new(2.4, 2.2, 5.5))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(0.45, 0.48, 0.30),
-                perceptual_roughness: 0.7,
-                ..default()
-            })),
-            Transform::from_translation(vehicle.pos + Vec3::Y * 1.1),
-            Name::new("Truck"),
-        ));
+        let olive = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.36, 0.38, 0.24),
+            perceptual_roughness: 0.75,
+            ..default()
+        });
+        let boards = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.42, 0.30, 0.20),
+            perceptual_roughness: 0.9,
+            ..default()
+        });
+        let tire = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.08, 0.08, 0.09),
+            perceptual_roughness: 0.95,
+            ..default()
+        });
+        let load = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.12, 0.12, 0.13),
+            perceptual_roughness: 1.0,
+            ..default()
+        });
+        let wheel_mesh = meshes.add(Cylinder::new(0.55, 0.45));
+        commands
+            .entity(entity)
+            .insert((
+                Transform::from_translation(vehicle.pos + Vec3::Y * 0.55),
+                Visibility::default(),
+                Name::new("Truck"),
+            ))
+            .with_children(|parent| {
+                // cab (front = -Z)
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(2.2, 1.7, 1.8))),
+                    MeshMaterial3d(olive.clone()),
+                    Transform::from_xyz(0.0, 1.0, -1.9),
+                ));
+                // bed floor + sideboards
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(2.3, 0.4, 3.4))),
+                    MeshMaterial3d(olive),
+                    Transform::from_xyz(0.0, 0.5, 0.85),
+                ));
+                for x in [-1.05, 1.05] {
+                    parent.spawn((
+                        Mesh3d(meshes.add(Cuboid::new(0.18, 0.8, 3.4))),
+                        MeshMaterial3d(boards.clone()),
+                        Transform::from_xyz(x, 1.05, 0.85),
+                    ));
+                }
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(2.3, 0.8, 0.18))),
+                    MeshMaterial3d(boards),
+                    Transform::from_xyz(0.0, 1.05, 2.5),
+                ));
+                // cargo mound, shown only when loaded
+                parent.spawn((
+                    CargoMound,
+                    Mesh3d(meshes.add(Cuboid::new(1.9, 0.7, 3.0))),
+                    MeshMaterial3d(load),
+                    Transform::from_xyz(0.0, 1.05, 0.85),
+                    Visibility::Hidden,
+                ));
+                // wheels: cylinder axis is Y; roll axis must be X
+                for (x, z) in [(-1.1, -1.7), (1.1, -1.7), (-1.1, 1.6), (1.1, 1.6)] {
+                    parent.spawn((
+                        Wheel,
+                        Mesh3d(wheel_mesh.clone()),
+                        MeshMaterial3d(tire.clone()),
+                        Transform::from_xyz(x, 0.0, z)
+                            .with_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)),
+                    ));
+                }
+            });
     }
 }
 
-fn ease_truck_transforms(time: Res<Time>, mut trucks: Query<(&ActiveVehicle, &mut Transform)>) {
+fn ease_truck_transforms(
+    time: Res<Time>,
+    mut trucks: Query<(&ActiveVehicle, &mut Transform, &Children)>,
+    mut wheels: Query<&mut Transform, (With<Wheel>, Without<ActiveVehicle>)>,
+    mut mounds: Query<&mut Visibility, (With<CargoMound>, Without<Wheel>, Without<ActiveVehicle>)>,
+) {
     // frame-rate-independent exponential approach to the authoritative position
     let alpha = 1.0 - (-14.0 * time.delta_secs()).exp();
-    for (vehicle, mut transform) in &mut trucks {
-        let target = vehicle.pos + Vec3::Y * 1.1;
+    for (vehicle, mut transform, children) in &mut trucks {
+        let target = vehicle.pos + Vec3::Y * 0.55;
+        let travelled = transform.translation.distance(target);
         transform.translation = transform.translation.lerp(target, alpha);
         if vehicle.heading.length_squared() > 1e-6 {
             let facing = Transform::default().looking_to(vehicle.heading, Vec3::Y);
             transform.rotation = transform.rotation.slerp(facing.rotation, alpha);
+        }
+        let loaded = vehicle.cargo.total() > 0.5;
+        let spin = Quat::from_rotation_y(-travelled * alpha / 0.55);
+        for child in children {
+            if let Ok(mut wheel) = wheels.get_mut(*child) {
+                // local Y is the roll axis after the Z-rotation into place
+                let rot = wheel.rotation * spin;
+                wheel.rotation = rot;
+            } else if let Ok(mut visibility) = mounds.get_mut(*child) {
+                *visibility = if loaded {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+            }
         }
     }
 }

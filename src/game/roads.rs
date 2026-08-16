@@ -33,16 +33,27 @@ impl Plugin for RoadToolPlugin {
     }
 }
 
-fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
+fn setup_materials(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+) {
+    use super::world::load_tiled;
+    // CC0 surfaces (ambientCG Ground048 / Asphalt010), tinted per the
+    // art-direction palette; ribbon UVs tile along the segment length.
     commands.insert_resource(RoadMaterials {
         dirt: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.45, 0.36, 0.26),
+            base_color: Color::srgb(0.66, 0.60, 0.50),
+            base_color_texture: Some(load_tiled(&asset_server, "textures/dirt.png")),
+            normal_map_texture: Some(load_tiled(&asset_server, "textures/dirt_n.png")),
             perceptual_roughness: 1.0,
             ..default()
         }),
         paved: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.28, 0.28, 0.30),
-            perceptual_roughness: 0.9,
+            base_color: Color::srgb(0.85, 0.85, 0.88),
+            base_color_texture: Some(load_tiled(&asset_server, "textures/asphalt.png")),
+            normal_map_texture: Some(load_tiled(&asset_server, "textures/asphalt_n.png")),
+            perceptual_roughness: 0.92,
             ..default()
         }),
     });
@@ -148,7 +159,9 @@ fn ribbon(a: Vec3, b: Vec3, width: f32) -> Mesh {
     ];
     let positions: Vec<[f32; 3]> = corners.iter().map(|v| v.to_array()).collect();
     let normals = vec![[0.0, 1.0, 0.0]; 4];
-    let uvs = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    // v tiles along the segment so the surface texture doesn't stretch
+    let v_reps = (a.distance(b) / 16.0).max(1.0);
+    let uvs = vec![[0.0, 0.0], [1.0, 0.0], [1.0, v_reps], [0.0, v_reps]];
     Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),

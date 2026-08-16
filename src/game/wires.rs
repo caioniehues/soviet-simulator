@@ -87,16 +87,27 @@ fn sync_pole_meshes(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, pole) in &added {
-        commands.entity(entity).insert((
-            Mesh3d(meshes.add(Cylinder::new(0.35, POLE_HEIGHT))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(0.35, 0.28, 0.20),
-                perceptual_roughness: 0.9,
-                ..default()
-            })),
-            Transform::from_translation(pole.pos + Vec3::Y * (POLE_HEIGHT * 0.5)),
-            Name::new("WirePole"),
-        ));
+        let timber = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.35, 0.28, 0.20),
+            perceptual_roughness: 0.95,
+            ..default()
+        });
+        commands
+            .entity(entity)
+            .insert((
+                Mesh3d(meshes.add(Cylinder::new(0.28, POLE_HEIGHT))),
+                MeshMaterial3d(timber.clone()),
+                Transform::from_translation(pole.pos + Vec3::Y * (POLE_HEIGHT * 0.5)),
+                Name::new("WirePole"),
+            ))
+            .with_children(|parent| {
+                // crossarm near the tip
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(2.2, 0.22, 0.22))),
+                    MeshMaterial3d(timber),
+                    Transform::from_xyz(0.0, POLE_HEIGHT * 0.5 - 0.7, 0.0),
+                ));
+            });
     }
 }
 
