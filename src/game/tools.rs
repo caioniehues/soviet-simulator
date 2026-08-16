@@ -13,6 +13,8 @@ pub enum ToolMode {
     Road(RoadClass),
     Building(BuildingKind),
     Wire,
+    /// Click a source building, then a destination: creates a truck shuttle.
+    Shuttle,
 }
 
 /// Where the cursor ray hits the ground plane this frame, if it does.
@@ -53,6 +55,8 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
         }))
     } else if keys.just_pressed(KeyCode::Digit4) {
         Some(ToolMode::Wire)
+    } else if keys.just_pressed(KeyCode::Digit5) {
+        Some(ToolMode::Shuttle)
     } else {
         None
     };
