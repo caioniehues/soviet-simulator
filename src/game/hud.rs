@@ -6,14 +6,16 @@
 use bevy::prelude::*;
 
 use super::tools::{GroundCursor, ToolMode};
-use crate::sim::SimSpeed;
-use crate::sim::buildings::{Building, PowerOutput, Powered};
+use crate::sim::buildings::{Building, BuildingKind, PowerOutput, Powered};
 use crate::sim::citizens::Citizen;
+use crate::sim::dispatch::{DeficitBoard, DispatchQueue, FreightJob, FreightPhase};
 use crate::sim::households::{Household, HousingQueue, RecruitmentPlan};
 use crate::sim::labour::Staffing;
 use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::roads::RoadBuildFeedback;
-use crate::sim::vehicles::ActiveVehicle;
+use crate::sim::storage::StoragePolicies;
+use crate::sim::vehicles::{ActivePawn, ActiveVehicle, DEPOT_SLOTS, VehicleAsset};
+use crate::sim::{SimSpeed, TickIndex};
 
 #[derive(Component)]
 struct ToolReadout;
@@ -23,6 +25,11 @@ struct InspectReadout;
 
 #[derive(Component)]
 struct PopulationReadout;
+
+/// The fleet-legibility panel (#36): pending orders, busy/idle per depot,
+/// oldest starving deficit.
+#[derive(Component)]
+struct DispatchReadout;
 
 /// The inspect panel's chrome node; hidden while nothing is selected.
 #[derive(Component)]
@@ -44,6 +51,7 @@ impl Plugin for HudPlugin {
                     drive_time_controls,
                     drive_recruitment_controls,
                     update_population_readout,
+                    update_dispatch_readout,
                     drive_inspect_tool,
                     update_tool_readout,
                     update_inspect_readout,
@@ -114,6 +122,26 @@ fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
                 Text::new(""),
                 font.clone(),
                 TextColor(Color::srgb(0.92, 0.90, 0.82)),
+            ));
+        });
+    let (node, bg, border) = panel_node();
+    commands
+        .spawn((
+            Node {
+                right: Val::Px(12.0),
+                top: Val::Px(96.0),
+                ..node
+            },
+            bg,
+            border,
+            Name::new("HudDispatchPanel"),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                DispatchReadout,
+                Text::new(""),
+                font.clone(),
+                TextColor(Color::srgb(0.88, 0.87, 0.80)),
             ));
         });
     let (node, bg, border) = panel_node();
@@ -199,6 +227,79 @@ fn update_population_readout(
     }
 }
 
+/// Ticks → game hours (600 frames per game day).
+fn game_hours(ticks: u32) -> f32 {
+    ticks as f32 * 24.0 / crate::sim::clock::FRAMES_PER_GAME_DAY as f32
+}
+
+fn update_dispatch_readout(
+    queue: Res<DispatchQueue>,
+    board: Res<DeficitBoard>,
+    tick: Res<TickIndex>,
+    fleet: Query<(&VehicleAsset, Has<ActivePawn>)>,
+    buildings: Query<&Building>,
+    mut readout: Query<&mut Text, With<DispatchReadout>>,
+) {
+    let Ok(mut text) = readout.single_mut() else {
+        return;
+    };
+    let (mut busy, mut idle) = (0, 0);
+    let mut per_depot: std::collections::HashMap<Entity, (u32, u32)> =
+        std::collections::HashMap::new();
+    for (asset, on_road) in &fleet {
+        let slot = per_depot.entry(asset.home_depot).or_default();
+        if on_road {
+            busy += 1;
+            slot.0 += 1;
+        } else {
+            idle += 1;
+            slot.1 += 1;
+        }
+    }
+    let waiting = queue.orders.iter().filter(|o| o.assigned.is_none()).count();
+    let mut lines = format!(
+        "DISPATCH   fleet {busy} busy / {idle} idle\norders {} in flight, {waiting} waiting",
+        queue.orders.len() - waiting,
+    );
+    for (depot, (out, parked)) in &per_depot {
+        if let Ok(building) = buildings.get(*depot) {
+            lines.push_str(&format!(
+                "\n  depot #{}: {parked} parked, {out} out",
+                building.id.0
+            ));
+        }
+    }
+    // The queue is the planning signal: the oldest waiting orders read first.
+    let mut pending: Vec<_> = queue.orders.iter().filter(|o| o.assigned.is_none()).collect();
+    pending.sort_by_key(|o| o.issued_tick);
+    for order in pending.iter().take(4) {
+        lines.push_str(&format!(
+            "\n  {:?} {:.0} t — waiting {:.1} h",
+            order.resource,
+            order.qty,
+            game_hours(tick.0.saturating_sub(order.issued_tick)),
+        ));
+    }
+    if pending.len() > 4 {
+        lines.push_str(&format!("\n  … and {} more", pending.len() - 4));
+    }
+    if let Some(starving) = board.0.iter().min_by_key(|d| d.since_tick) {
+        let name = buildings
+            .get(starving.building)
+            .map(|b| format!("{:?} #{}", b.kind, b.id.0))
+            .unwrap_or_else(|_| "?".into());
+        lines.push_str(&format!(
+            "\nSTARVING: {name} short {:.1} t {:?} for {:.1} h",
+            starving.deficit,
+            starving.resource,
+            game_hours(tick.0.saturating_sub(starving.since_tick)),
+        ));
+    }
+    if text.0 != lines {
+        text.0 = lines;
+    }
+}
+
 fn tool_label(mode: ToolMode) -> String {
     match mode {
         ToolMode::Inspect => "INSPECT - click a building".into(),
@@ -276,6 +377,24 @@ fn drive_inspect_tool(
         .map(|(e, ..)| e);
 }
 
+/// A ten-cell text bar with the band's min/max marked: `[##·····|··]`.
+/// `|` is the min line, fill runs to the current stock.
+fn band_bar(current: f32, capacity: f32, min_pct: f32) -> String {
+    let cells = 10usize;
+    let fill = ((current / capacity.max(1e-3)) * cells as f32).round() as usize;
+    let min_cell = (min_pct * cells as f32).round() as usize;
+    let mut bar = String::from("[");
+    for i in 0..cells {
+        if i == min_cell && min_cell > 0 {
+            bar.push('|');
+        }
+        bar.push(if i < fill { '#' } else { '·' });
+    }
+    bar.push(']');
+    bar
+}
+
+#[allow(clippy::type_complexity)]
 fn update_inspect_readout(
     selected: Res<Selected>,
     buildings: Query<(
@@ -284,7 +403,9 @@ fn update_inspect_readout(
         Option<&Powered>,
         Option<&PowerOutput>,
         Option<&Staffing>,
+        Option<&StoragePolicies>,
     )>,
+    fleet: Query<(&VehicleAsset, Has<ActivePawn>, Option<&FreightJob>)>,
     mut readout: Query<&mut Text, With<InspectReadout>>,
     mut panel: Query<&mut Node, With<InspectPanel>>,
 ) {
@@ -294,7 +415,7 @@ fn update_inspect_readout(
     let Ok(mut panel) = panel.single_mut() else {
         return;
     };
-    let Some((building, inventory, powered, output, staffing)) =
+    let Some((building, inventory, powered, output, staffing, policies)) =
         selected.0.and_then(|e| buildings.get(e).ok())
     else {
         if !text.0.is_empty() {
@@ -317,9 +438,54 @@ fn update_inspect_readout(
     );
     for kind in ResourceKind::ALL {
         let amount = inventory.amount(kind);
-        if amount > 0.05 {
-            lines.push_str(&format!("\n  {kind:?}: {amount:.1} t"));
+        let band = policies.and_then(|p| p.band(kind));
+        match band {
+            // Banded resource: bar against the band plus the bucket's role.
+            Some(band) => {
+                let role = if amount < band.min_pct * inventory.capacity - 1e-3 {
+                    "DEMANDING"
+                } else if amount > band.max_pct * inventory.capacity + 1e-3 {
+                    "SUPPLYING"
+                } else {
+                    "in band"
+                };
+                lines.push_str(&format!(
+                    "\n  {kind:?} {} {amount:.1} t  {:.0}–{:.0}  {role}",
+                    band_bar(amount, inventory.capacity, band.min_pct),
+                    band.min_pct * inventory.capacity,
+                    band.max_pct * inventory.capacity,
+                ));
+            }
+            None if amount > 0.05 => {
+                lines.push_str(&format!("\n  {kind:?}: {amount:.1} t"));
+            }
+            None => {}
         }
+    }
+    if building.kind == BuildingKind::Depot {
+        let mut parked = 0;
+        let mut trucks = String::new();
+        for (asset, on_road, job) in &fleet {
+            if asset.home_depot != selected.0.unwrap() {
+                continue;
+            }
+            if !on_road {
+                parked += 1;
+            }
+            let state = match job.map(|j| j.phase) {
+                None => "parked",
+                Some(FreightPhase::ToPickup) => "→ pickup",
+                Some(FreightPhase::Loading) => "loading",
+                Some(FreightPhase::ToDropoff) => "→ dropoff",
+                Some(FreightPhase::Unloading) => "unloading",
+                Some(FreightPhase::ReturnToDepot) => "→ home",
+            };
+            trucks.push_str(&format!(
+                "\n  truck #{} {:?}: {state}",
+                asset.id.0, asset.cargo_class
+            ));
+        }
+        lines.push_str(&format!("\nslots {parked}/{DEPOT_SLOTS} parked{trucks}"));
     }
     if let Some(staffing) = staffing {
         lines.push_str(&format!(
