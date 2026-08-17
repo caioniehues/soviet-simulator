@@ -19,7 +19,7 @@ use soviet_simulator::sim::households::HouseholdSimPlugin;
 use soviet_simulator::sim::households::RecruitmentPlan;
 use soviet_simulator::sim::labour::LabourSimPlugin;
 use soviet_simulator::sim::needs::NeedsSimPlugin;
-use soviet_simulator::sim::resources::{Inventory, ResourceKind};
+use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
 use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
 use soviet_simulator::sim::vehicles::{
     ActiveVehicle, VehicleEdit, VehicleEditQueue, VehicleSimPlugin,
@@ -91,6 +91,10 @@ fn main() {
             kind: BuildingKind::Factory,
             pos: Vec3::new(245.0, 0.0, z),
         });
+        buildings.0.push(BuildingEdit::Place {
+            kind: BuildingKind::Depot,
+            pos: Vec3::new(-60.0, 0.0, z),
+        });
         // 7×3 grid inside DOCK_RADIUS (40 m) of the x=0 node: max offset
         // √(24² + 30²) ≈ 38.4 m.
         for d in 0..DWELLINGS_PER_CHAIN {
@@ -109,8 +113,9 @@ fn main() {
     }
     tick(&mut app); // flush placements
 
-    // Per chain: seed the mine yard and assign the coal shuttle.
-    let mut per_chain: Vec<(Option<Entity>, Option<Entity>)> = vec![(None, None); CHAINS as usize];
+    // Per chain: seed the mine yard, buy the depot truck, assign the shuttle.
+    let mut per_chain: Vec<(Option<Entity>, Option<Entity>, Option<Entity>)> =
+        vec![(None, None, None); CHAINS as usize];
     {
         let world = app.world_mut();
         let mut q = world.query::<(Entity, &Building)>();
@@ -127,22 +132,25 @@ fn main() {
                         .add(ResourceKind::Coal, 40.0);
                 }
                 BuildingKind::PowerPlant => per_chain[chain].1 = Some(entity),
+                BuildingKind::Depot => per_chain[chain].2 = Some(entity),
                 _ => {}
             }
         }
     }
-    for (mine, plant) in &per_chain {
-        let (Some(mine), Some(plant)) = (mine, plant) else {
-            panic!("[bench] chain assembly failed: missing mine or plant");
+    for (mine, plant, depot) in &per_chain {
+        let (Some(mine), Some(plant), Some(depot)) = (mine, plant, depot) else {
+            panic!("[bench] chain assembly failed: missing mine, plant or depot");
         };
-        app.world_mut()
-            .resource_mut::<VehicleEditQueue>()
-            .0
-            .push(VehicleEdit::CreateShuttle {
-                from: *mine,
-                to: *plant,
-                resource: ResourceKind::Coal,
-            });
+        let mut edits = app.world_mut().resource_mut::<VehicleEditQueue>();
+        edits.0.push(VehicleEdit::BuyTruck {
+            depot: *depot,
+            class: TransportClass::Bulk,
+        });
+        edits.0.push(VehicleEdit::CreateShuttle {
+            from: *mine,
+            to: *plant,
+            resource: ResourceKind::Coal,
+        });
     }
     app.world_mut()
         .resource_mut::<RecruitmentPlan>()

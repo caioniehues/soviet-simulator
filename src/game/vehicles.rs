@@ -10,6 +10,7 @@ use crate::sim::buildings::{Building, BuildingKind};
 use crate::sim::resources::ResourceKind;
 use crate::sim::vehicles::{
     ActivePawn, ActiveVehicle, ShuttleAssignment, VehicleAsset, VehicleEdit, VehicleEditQueue,
+    depot_slot_pos,
 };
 
 /// Click-picking radius around a building's centre, metres.
@@ -30,6 +31,8 @@ impl Plugin for VehicleToolPlugin {
                 preview_shuttle_source,
                 hint_blocked_shuttles,
                 sync_truck_meshes,
+                sync_parked_trucks,
+                toggle_parked_visibility,
                 ease_truck_transforms.in_set(PostSimEasing),
             ),
         );
@@ -41,9 +44,10 @@ impl Plugin for VehicleToolPlugin {
 fn shipped_resource(kind: BuildingKind) -> ResourceKind {
     match kind {
         BuildingKind::Quarry => ResourceKind::Gravel,
-        BuildingKind::Factory | BuildingKind::Dwelling | BuildingKind::Warehouse => {
-            ResourceKind::Goods
-        }
+        BuildingKind::Factory
+        | BuildingKind::Dwelling
+        | BuildingKind::Warehouse
+        | BuildingKind::Depot => ResourceKind::Goods,
         BuildingKind::Mine | BuildingKind::PowerPlant => ResourceKind::Coal,
     }
 }
@@ -161,6 +165,69 @@ fn sync_truck_meshes(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, vehicle) in &added {
+        dress_truck(&mut commands, entity, vehicle.pos, &mut meshes, &mut materials);
+        commands.entity(entity).insert(Name::new("Truck"));
+    }
+}
+
+/// Parked fleet: every asset gets the same truck body, standing on its home
+/// depot's slot (index = rank of its id within that depot's fleet). The fleet
+/// is countable on the apron — that's the point of owned vehicles.
+fn sync_parked_trucks(
+    mut commands: Commands,
+    added: Query<Entity, Added<VehicleAsset>>,
+    fleet: Query<&VehicleAsset>,
+    buildings: Query<&Building>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for entity in &added {
+        let Ok(asset) = fleet.get(entity) else {
+            continue;
+        };
+        let Ok(depot) = buildings.get(asset.home_depot) else {
+            continue;
+        };
+        let slot = fleet
+            .iter()
+            .filter(|a| a.home_depot == asset.home_depot && a.id.0 < asset.id.0)
+            .count() as u32;
+        dress_truck(
+            &mut commands,
+            entity,
+            depot_slot_pos(depot.pos, slot),
+            &mut meshes,
+            &mut materials,
+        );
+        commands.entity(entity).insert(Name::new("ParkedTruck"));
+    }
+}
+
+/// A parked body shows only while the asset has no live pawn; on the road the
+/// pawn entity carries the visible truck.
+fn toggle_parked_visibility(
+    mut parked: Query<(Option<&ActivePawn>, &mut Visibility), With<VehicleAsset>>,
+) {
+    for (pawn, mut visibility) in &mut parked {
+        let wanted = if pawn.is_some_and(|p| p.pawn().is_some()) {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
+        if *visibility != wanted {
+            *visibility = wanted;
+        }
+    }
+}
+
+fn dress_truck(
+    commands: &mut Commands,
+    entity: Entity,
+    pos: Vec3,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    {
         let olive = materials.add(StandardMaterial {
             base_color: Color::srgb(0.36, 0.38, 0.24),
             perceptual_roughness: 0.75,
@@ -185,9 +252,8 @@ fn sync_truck_meshes(
         commands
             .entity(entity)
             .insert((
-                Transform::from_translation(vehicle.pos + Vec3::Y * 0.55),
+                Transform::from_translation(pos + Vec3::Y * 0.55),
                 Visibility::default(),
-                Name::new("Truck"),
             ))
             .with_children(|parent| {
                 // cab (front = -Z)

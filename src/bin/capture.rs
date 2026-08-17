@@ -25,7 +25,7 @@ use soviet_simulator::game::tools::ToolMode;
 use soviet_simulator::sim::buildings::{
     Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
 };
-use soviet_simulator::sim::resources::{Inventory, ResourceKind};
+use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
 use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
 use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
 use soviet_simulator::sim::wires::{WireEdit, WireEditQueue, WireSimPlugin};
@@ -154,6 +154,7 @@ fn build_world(roads: &mut RoadEditQueue, buildings: &mut BuildingEditQueue) {
         (BuildingKind::PowerPlant, Vec3::new(30.0, 0.0, 0.0)),
         (BuildingKind::Factory, Vec3::new(120.0, 0.0, 0.0)),
         (BuildingKind::Quarry, Vec3::new(30.0, 0.0, 90.0)),
+        (BuildingKind::Depot, Vec3::new(-40.0, 0.0, 55.0)),
     ] {
         buildings.0.push(BuildingEdit::Place { kind, pos });
     }
@@ -195,7 +196,14 @@ fn drive_script(world: &mut World) {
             ] {
                 world.get_mut::<Inventory>(e).unwrap().add(kind, tonnes);
             }
+            let depot = get(BuildingKind::Depot);
             let mut vehicles = world.resource_mut::<VehicleEditQueue>();
+            for _ in 0..2 {
+                vehicles.0.push(VehicleEdit::BuyTruck {
+                    depot,
+                    class: TransportClass::Bulk,
+                });
+            }
             vehicles.0.push(VehicleEdit::CreateShuttle {
                 from: mine,
                 to: plant,

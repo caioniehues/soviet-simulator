@@ -19,6 +19,7 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::Factory => Color::srgb(0.55, 0.52, 0.48),
         BuildingKind::Dwelling => Color::srgb(0.58, 0.56, 0.52),
         BuildingKind::Warehouse => Color::srgb(0.52, 0.47, 0.40),
+        BuildingKind::Depot => Color::srgb(0.48, 0.50, 0.46),
     }
 }
 
@@ -30,6 +31,7 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::Factory => 9.0,
         BuildingKind::Dwelling => 11.0,
         BuildingKind::Warehouse => 7.0,
+        BuildingKind::Depot => 6.0,
     }
 }
 
@@ -299,6 +301,29 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
                 Vec3::new(2.4, 1.6, 2.4),
                 Vec3::new(-8.0, 0.0, 6.2),
             ));
+            v
+        }
+        // Vehicle depot: garage bar north of the apron, three open bays, a
+        // fuel drum at the gable. The apron itself is the yard pad; parked
+        // trucks render there per slot (game/vehicles.rs).
+        BuildingKind::Depot => {
+            let mut v = vec![
+                boxed(&m.concrete, Vec3::new(19.0, 5.5, 8.0), Vec3::new(0.0, 0.0, -8.0)),
+                boxed(
+                    &m.rust,
+                    Vec3::new(19.8, 0.6, 8.8),
+                    Vec3::new(0.0, 5.5, -8.0),
+                ),
+                chimney(&m.rust, 1.1, 3.2, Vec3::new(8.0, 0.0, -1.5)),
+            ];
+            // open bay mouths along the south face of the bar
+            for i in 0..3 {
+                v.push(boxed(
+                    &m.coal,
+                    Vec3::new(4.2, 4.0, 0.4),
+                    Vec3::new(-6.0 + i as f32 * 6.0, 0.0, -3.8),
+                ));
+            }
             v
         }
     }

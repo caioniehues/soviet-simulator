@@ -27,7 +27,7 @@ use soviet_simulator::sim::buildings::{
     Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
 };
 use soviet_simulator::sim::households::RecruitmentPlan;
-use soviet_simulator::sim::resources::{Inventory, ResourceKind};
+use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
 use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
 use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
 use soviet_simulator::sim::wires::{WireEdit, WireEditQueue, WireSimPlugin};
@@ -161,6 +161,7 @@ fn build_world(roads: &mut RoadEditQueue, buildings: &mut BuildingEditQueue) {
         (BuildingKind::Dwelling, Vec3::new(-75.0, 0.0, 90.0)),
         (BuildingKind::Dwelling, Vec3::new(-45.0, 0.0, 70.0)),
         (BuildingKind::Dwelling, Vec3::new(-45.0, 0.0, 90.0)),
+        (BuildingKind::Depot, Vec3::new(60.0, 0.0, -40.0)),
     ] {
         buildings.0.push(BuildingEdit::Place { kind, pos });
     }
@@ -205,14 +206,17 @@ fn drive_script(world: &mut World) {
                 from: Vec3::new(30.0, 0.0, 0.0),
                 to: Vec3::new(120.0, 0.0, 0.0),
             });
-            world
-                .resource_mut::<VehicleEditQueue>()
-                .0
-                .push(VehicleEdit::CreateShuttle {
-                    from: mine,
-                    to: plant,
-                    resource: ResourceKind::Coal,
-                });
+            let depot = get(BuildingKind::Depot);
+            let mut vehicles = world.resource_mut::<VehicleEditQueue>();
+            vehicles.0.push(VehicleEdit::BuyTruck {
+                depot,
+                class: TransportClass::Bulk,
+            });
+            vehicles.0.push(VehicleEdit::CreateShuttle {
+                from: mine,
+                to: plant,
+                resource: ResourceKind::Coal,
+            });
             world.resource_mut::<RecruitmentPlan>().target_households = 10;
         }
         // Pipelines warmed: freeze the sim through the warmup, then run hot.

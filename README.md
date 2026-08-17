@@ -85,6 +85,11 @@ and a finite depot-owned fleet (tickets #31–#37).
   (coal/gravel Bulk, goods Covered — the hard vehicle-compatibility gate),
   per-resource min/max bands against yard capacity (below min = demand, above
   max = supply), warehouse building kind, recipe-derived default policies.
+- **Depots & the finite fleet** (#32) — depot building with six physical
+  parking slots (fleet size *is* the slot count); trucks are depot-owned
+  assets acquired only by fiat purchase (manufacture is B10); shuttles seize
+  an idle class-compatible truck instead of minting one — no free trucks;
+  parked trucks render countable on the apron; fleet save columns (save v2).
 
 ## Run
 

@@ -53,6 +53,7 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
             ToolMode::Building(BuildingKind::PowerPlant) => BuildingKind::Factory,
             ToolMode::Building(BuildingKind::Factory) => BuildingKind::Dwelling,
             ToolMode::Building(BuildingKind::Dwelling) => BuildingKind::Warehouse,
+            ToolMode::Building(BuildingKind::Warehouse) => BuildingKind::Depot,
             _ => BuildingKind::Mine,
         }))
     } else if keys.just_pressed(KeyCode::Digit4) {

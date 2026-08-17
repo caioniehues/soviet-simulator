@@ -24,6 +24,9 @@ pub enum BuildingKind {
     /// Player-placeable storage: a big shared yard whose per-resource bands
     /// (`storage::StoragePolicies`) drive the dispatcher.
     Warehouse,
+    /// Fleet home: physical parking slots bound the owned truck fleet
+    /// (`vehicles::DEPOT_SLOTS`); the only place vehicles are acquired.
+    Depot,
 }
 
 impl BuildingKind {
@@ -35,6 +38,8 @@ impl BuildingKind {
             BuildingKind::Factory => Vec2::new(20.0, 16.0),
             BuildingKind::Dwelling => Vec2::new(12.0, 10.0),
             BuildingKind::Warehouse => Vec2::new(20.0, 12.0),
+            // Shed plus the two-row parking apron south of it.
+            BuildingKind::Depot => Vec2::new(22.0, 26.0),
         }
     }
     pub fn inventory_capacity(self) -> f32 {
@@ -45,6 +50,8 @@ impl BuildingKind {
             // Goods delivered to residents land here before pantry pickup.
             BuildingKind::Dwelling => 10.0,
             BuildingKind::Warehouse => 120.0,
+            // Stores no cargo; the fuel tank arrives with B8.
+            BuildingKind::Depot => 0.0,
         }
     }
 }

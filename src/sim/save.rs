@@ -28,14 +28,17 @@ use super::households::{
 };
 use super::labour::Staffing;
 use super::needs::CitizenNeeds;
-use super::resources::{Inventory, ResourceKind};
+use super::resources::{Inventory, ResourceKind, TransportClass};
 use super::roads::{
     LastCut, NodeId, RoadBuildFeedback, RoadClass, RoadIds, RoadNode, RoadSegment, SegmentId,
 };
 use super::vehicles::{ActiveVehicle, ShuttleAssignment, VehicleAsset, VehicleId, VehicleIds};
 use super::wires::{PoleId, SpanId, WireIds, WirePole, WireSpan};
 
-pub const SAVE_VERSION: u32 = 1;
+/// Bumped whenever a column layout changes — postcard is not self-describing,
+/// so an old file must be rejected, never misparsed. v2: VehicleRow gained
+/// home_depot + class (M3.2).
+pub const SAVE_VERSION: u32 = 2;
 /// Quicksave path, relative to the working directory.
 pub const QUICKSAVE_PATH: &str = "saves/quicksave.sav";
 
@@ -149,6 +152,10 @@ pub struct SpanRow {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct VehicleRow {
     pub id: u64,
+    /// Building idx of the depot whose slot this asset occupies.
+    pub home_depot: u32,
+    /// Transport-class discriminant.
+    pub class: u8,
     /// (from building idx, to building idx, resource discriminant).
     pub assignment: Option<(u32, u32, u8)>,
 }
@@ -163,6 +170,7 @@ fn kind_to_u8(kind: BuildingKind) -> u8 {
         BuildingKind::Factory => 3,
         BuildingKind::Dwelling => 4,
         BuildingKind::Warehouse => 5,
+        BuildingKind::Depot => 6,
     }
 }
 
@@ -174,6 +182,7 @@ fn kind_from_u8(v: u8) -> Option<BuildingKind> {
         3 => BuildingKind::Factory,
         4 => BuildingKind::Dwelling,
         5 => BuildingKind::Warehouse,
+        6 => BuildingKind::Depot,
         _ => return None,
     })
 }
@@ -215,6 +224,21 @@ fn resource_to_u8(kind: ResourceKind) -> u8 {
 
 fn resource_from_u8(v: u8) -> Option<ResourceKind> {
     ResourceKind::ALL.get(v as usize).copied()
+}
+
+fn transport_class_to_u8(class: TransportClass) -> u8 {
+    match class {
+        TransportClass::Bulk => 0,
+        TransportClass::Covered => 1,
+    }
+}
+
+fn transport_class_from_u8(v: u8) -> Option<TransportClass> {
+    Some(match v {
+        0 => TransportClass::Bulk,
+        1 => TransportClass::Covered,
+        _ => return None,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -438,8 +462,16 @@ pub fn snapshot(world: &mut World) -> SaveGame {
     let mut vehicle_rows: Vec<VehicleRow> = Vec::new();
     {
         let mut q = world.query::<(Entity, &VehicleAsset)>();
-        let assets: Vec<(u64, Entity)> = q.iter(world).map(|(e, v)| (v.id.0, e)).collect();
-        for (id, entity) in assets {
+        let assets: Vec<(u64, Entity, Entity, TransportClass)> = q
+            .iter(world)
+            .map(|(e, v)| (v.id.0, e, v.home_depot, v.cargo_class))
+            .collect();
+        for (id, entity, home_depot, class) in assets {
+            // An asset whose depot vanished cannot be re-homed on load; the
+            // sim never removes buildings yet, so this is only defensive.
+            let Some(&home_depot) = building_index.get(&home_depot) else {
+                continue;
+            };
             let assignment = world.get::<ShuttleAssignment>(entity).and_then(|a| {
                 Some((
                     building_index.get(&a.from).copied()?,
@@ -447,7 +479,12 @@ pub fn snapshot(world: &mut World) -> SaveGame {
                     resource_to_u8(a.resource),
                 ))
             });
-            vehicle_rows.push(VehicleRow { id, assignment });
+            vehicle_rows.push(VehicleRow {
+                id,
+                home_depot,
+                class: transport_class_to_u8(class),
+                assignment,
+            });
         }
     }
     vehicle_rows.sort_unstable_by_key(|row| row.id);
@@ -691,9 +728,17 @@ pub fn restore(world: &mut World, save: &SaveGame) {
     }
 
     for row in &save.vehicles {
+        let (Some(&home_depot), Some(cargo_class)) = (
+            building_ents.get(row.home_depot as usize),
+            transport_class_from_u8(row.class),
+        ) else {
+            continue;
+        };
         let mut entity = world.spawn(VehicleAsset {
             id: VehicleId(row.id),
             kind: super::vehicles::VehicleKind::Truck,
+            home_depot,
+            cargo_class,
         });
         if let Some((from, to, resource)) = row.assignment
             && let (Some(&from), Some(&to), Some(resource)) = (
@@ -891,6 +936,7 @@ mod tests {
                 (BuildingKind::Mine, Vec3::new(100.0, 0.0, 15.0)),
                 (BuildingKind::PowerPlant, Vec3::new(150.0, 0.0, 15.0)),
                 (BuildingKind::Factory, Vec3::new(200.0, 0.0, 15.0)),
+                (BuildingKind::Depot, Vec3::new(60.0, 0.0, 60.0)),
             ] {
                 buildings.0.push(BuildingEdit::Place { kind, pos });
             }
@@ -919,14 +965,21 @@ mod tests {
             .find(|(_, b)| b.kind == BuildingKind::PowerPlant)
             .unwrap()
             .0;
-        world
-            .resource_mut::<VehicleEditQueue>()
-            .0
-            .push(VehicleEdit::CreateShuttle {
-                from: mine,
-                to: plant,
-                resource: ResourceKind::Coal,
-            });
+        let depot = q
+            .iter(world)
+            .find(|(_, b)| b.kind == BuildingKind::Depot)
+            .unwrap()
+            .0;
+        let mut edits = world.resource_mut::<VehicleEditQueue>();
+        edits.0.push(VehicleEdit::BuyTruck {
+            depot,
+            class: TransportClass::Bulk,
+        });
+        edits.0.push(VehicleEdit::CreateShuttle {
+            from: mine,
+            to: plant,
+            resource: ResourceKind::Coal,
+        });
     }
 
     #[test]
