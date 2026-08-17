@@ -75,6 +75,17 @@ pub struct StarvingDeficit {
 #[derive(Resource, Default)]
 pub struct DeficitBoard(pub Vec<StarvingDeficit>);
 
+/// Cached building → dock-node map. Buildings and nodes never move, so the
+/// map only goes stale when something is added or removed — detected via the
+/// monotonic id counters plus the live node count. Without this every
+/// matching frame pays O(storages × nodes) re-deriving docks that never
+/// change.
+#[derive(Resource, Default)]
+pub struct DockIndex {
+    key: (u64, u64, usize),
+    map: HashMap<Entity, Option<Entity>>,
+}
+
 /// Trip state, carried by the *asset* (persistent identity) while its pawn
 /// drives. ToPickup → Loading → ToDropoff → Unloading → ReturnToDepot, then
 /// the pawn despawns and the truck is parked again.
@@ -99,6 +110,7 @@ impl Plugin for DispatchSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DispatchQueue>()
             .init_resource::<DeficitBoard>()
+            .init_resource::<DockIndex>()
             .add_systems(
                 SimTick,
                 (match_freight, assign_freight)
@@ -148,16 +160,28 @@ fn node_components(
 
 /// The matching pass (#33): scan buckets for this frame's resource, post one
 /// truckload order per starving demander from its best-scoring supplier.
+#[allow(clippy::too_many_arguments)]
 fn match_freight(
     tick: Res<TickIndex>,
     mut queue: ResMut<DispatchQueue>,
     mut board: ResMut<DeficitBoard>,
+    mut docks: ResMut<DockIndex>,
+    road_ids: Res<super::roads::RoadIds>,
+    building_ids: Res<super::buildings::BuildingIds>,
     storages: Query<(Entity, &Building, &Inventory, &StoragePolicies)>,
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
     if !tick.0.is_multiple_of(MATCH_INTERVAL) {
         return;
+    }
+    let key = (road_ids.next_node, building_ids.next, nodes.iter().count());
+    if docks.key != key {
+        docks.key = key;
+        docks.map = storages
+            .iter()
+            .map(|(e, b, ..)| (e, nearest_node(b.pos, &nodes)))
+            .collect();
     }
     let resource = ResourceKind::ALL[queue.cursor % ResourceKind::COUNT];
     queue.cursor = (queue.cursor + 1) % ResourceKind::COUNT;
@@ -172,7 +196,14 @@ fn match_freight(
     }
 
     let components = node_components(&nodes, &segments);
-    let dock = |pos: Vec3| nearest_node(pos, &nodes).and_then(|n| components.get(&n).copied());
+    let dock = |building: Entity| {
+        docks
+            .map
+            .get(&building)
+            .copied()
+            .flatten()
+            .and_then(|n| components.get(&n).copied())
+    };
 
     struct Demander {
         entity: Entity,
@@ -200,7 +231,7 @@ fn match_freight(
             demanders.push(Demander {
                 entity,
                 pos: building.pos,
-                component: dock(building.pos),
+                component: dock(entity),
                 deficit,
                 priority: deficit / min_line.max(1e-3),
             });
@@ -211,7 +242,7 @@ fn match_freight(
             suppliers.push(Supplier {
                 entity,
                 pos: building.pos,
-                component: dock(building.pos),
+                component: dock(entity),
                 surplus,
                 frac: surplus / inventory.capacity.max(1e-3),
             });
@@ -219,6 +250,15 @@ fn match_freight(
     }
     // Starving-first: the emptiest bucket relative to its min line matches first.
     demanders.sort_by(|a, b| b.priority.total_cmp(&a.priority));
+    // Suppliers bucketed by road component: a demander only ever scans the
+    // suppliers it could physically reach, which keeps the pass sub-linear in
+    // total storages when the map has disjoint districts.
+    let mut by_component: HashMap<u32, Vec<usize>> = HashMap::new();
+    for (i, supplier) in suppliers.iter().enumerate() {
+        if let Some(component) = supplier.component {
+            by_component.entry(component).or_default().push(i);
+        }
+    }
 
     let previous_board: HashMap<Entity, u32> = board
         .0
@@ -229,23 +269,25 @@ fn match_freight(
     board.0.retain(|d| d.resource != resource);
 
     for demander in &mut demanders {
-        if demander.component.is_some() {
+        if let Some(component) = demander.component {
             // Published score rule: score = priority / (1 + d²·w), with the
             // supplier's surplus fraction as its priority term.
-            let best = suppliers
-                .iter_mut()
-                .filter(|s| {
-                    s.entity != demander.entity
-                        && s.surplus > 1e-3
-                        && s.component == demander.component
+            let best = by_component
+                .get(&component)
+                .into_iter()
+                .flatten()
+                .filter(|&&i| {
+                    let s = &suppliers[i];
+                    s.entity != demander.entity && s.surplus > 1e-3
                 })
-                .map(|s| {
+                .map(|&i| {
+                    let s = &suppliers[i];
                     let d2 = s.pos.distance_squared(demander.pos);
-                    let score = s.frac / (1.0 + d2 * DIST_WEIGHT);
-                    (s, score)
+                    (i, s.frac / (1.0 + d2 * DIST_WEIGHT))
                 })
                 .max_by(|a, b| a.1.total_cmp(&b.1));
-            if let Some((supplier, _)) = best {
+            if let Some((i, _)) = best {
+                let supplier = &mut suppliers[i];
                 let qty = TRUCK_CARGO_CAPACITY
                     .min(demander.deficit)
                     .min(supplier.surplus);
@@ -363,12 +405,14 @@ enum Progress {
     NoPath,
 }
 
-/// Ensure a route toward `goal` exists (recomputing after a severed segment)
-/// and advance along it. Recovery re-enters at the nearest node — cargo stays
-/// aboard through a re-route.
+/// Ensure a route toward the goal exists (recomputing after a severed
+/// segment) and advance along it. `goal` is a lazy lookup — resolving the
+/// dock node costs an O(nodes) scan, so it runs only on the (re)routing tick,
+/// never per movement tick. Recovery re-enters at the nearest node — cargo
+/// stays aboard through a re-route.
 fn drive_toward(
     vehicle: &mut ActiveVehicle,
-    goal: Entity,
+    goal: impl FnOnce() -> Option<Entity>,
     dt: f32,
     nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
@@ -377,9 +421,11 @@ fn drive_toward(
         .route
         .get(vehicle.leg)
         .is_some_and(|leg| segments.get(leg.segment).is_err());
-    let exhausted = vehicle.leg >= vehicle.route.len();
-    if severed || (exhausted && !vehicle.route.is_empty()) || vehicle.route.is_empty() {
-        // Arrived already?
+    if severed || vehicle.route.is_empty() {
+        let Some(goal) = goal() else {
+            return Progress::NoPath;
+        };
+        // Standing at the goal already?
         if let Ok((_, goal_node)) = nodes.get(goal)
             && vehicle.pos.distance_squared(goal_node.pos) < 1.0
         {
@@ -403,6 +449,10 @@ fn drive_toward(
         }
     }
     if advance_along_route(vehicle, dt, nodes, segments) {
+        // Clear the spent route so the next phase starts with a fresh one.
+        vehicle.route = Vec::new();
+        vehicle.leg = 0;
+        vehicle.s = 0.0;
         Progress::Arrived
     } else {
         Progress::Moving
@@ -425,11 +475,21 @@ fn run_freight(
     segments: Query<&RoadSegment>,
 ) {
     let dt = SECS_PER_PASS as f32;
+    // Order index rebuilt once per tick — per-pawn linear scans over a large
+    // queue are what would make this pass quadratic at fleet scale.
+    let order_index: HashMap<u64, usize> = queue
+        .orders
+        .iter()
+        .enumerate()
+        .map(|(i, o)| (o.id.0, i))
+        .collect();
+    // Deferred so completed deliveries don't shift the indices mid-pass.
+    let mut completed: Vec<u64> = Vec::new();
     for (pawn, mut vehicle, pawn_of) in &mut pawns {
         let Ok(mut job) = jobs.get_mut(pawn_of.0) else {
             continue;
         };
-        let order = queue.orders.iter().position(|o| o.id == job.order);
+        let order = order_index.get(&job.order.0).copied();
         // Order gone or reassigned (severed-trip requeue): head home empty.
         if job.phase != FreightPhase::ReturnToDepot
             && order.is_none_or(|i| queue.orders[i].assigned != Some(pawn_of.0))
@@ -440,14 +500,8 @@ fn run_freight(
         match job.phase {
             FreightPhase::ToPickup => {
                 let Some(i) = order else { continue };
-                let Some(goal) = buildings
-                    .get(queue.orders[i].from)
-                    .ok()
-                    .and_then(|b| nearest_node(b.pos, &nodes))
-                else {
-                    requeue(&mut queue, i, &mut job);
-                    continue;
-                };
+                let from = queue.orders[i].from;
+                let goal = || buildings.get(from).ok().and_then(|b| nearest_node(b.pos, &nodes));
                 match drive_toward(&mut vehicle, goal, dt, &nodes, &segments) {
                     Progress::Arrived => job.phase = FreightPhase::Loading,
                     Progress::Moving => {}
@@ -478,13 +532,8 @@ fn run_freight(
                     job.phase = FreightPhase::ReturnToDepot;
                     continue;
                 };
-                let Some(goal) = buildings
-                    .get(queue.orders[i].to)
-                    .ok()
-                    .and_then(|b| nearest_node(b.pos, &nodes))
-                else {
-                    continue;
-                };
+                let to = queue.orders[i].to;
+                let goal = || buildings.get(to).ok().and_then(|b| nearest_node(b.pos, &nodes));
                 match drive_toward(&mut vehicle, goal, dt, &nodes, &segments) {
                     Progress::Arrived => job.phase = FreightPhase::Unloading,
                     // Severed with cargo aboard: hold and retry — the cargo
@@ -507,24 +556,26 @@ fn run_freight(
                 // Destination full: put the remainder back and wait.
                 vehicle.cargo.add(o.resource, taken - fit);
                 if vehicle.cargo.total() < 1e-3 {
-                    queue.orders.remove(i);
+                    completed.push(o.id.0);
                     job.phase = FreightPhase::ReturnToDepot;
                 }
             }
             FreightPhase::ReturnToDepot => {
-                let home = assets
-                    .get(pawn_of.0)
-                    .ok()
-                    .and_then(|a| buildings.get(a.home_depot).ok())
-                    .and_then(|b| nearest_node(b.pos, &nodes));
-                let done = match home {
-                    Some(goal) => matches!(
-                        drive_toward(&mut vehicle, goal, dt, &nodes, &segments),
-                        Progress::Arrived
-                    ),
-                    // Depot off the network: the truck parks where it stands
-                    // (asset teleports to its slot — fiat stub, as spawn-side).
-                    None => true,
+                let asset = pawn_of.0;
+                let home = || {
+                    assets
+                        .get(asset)
+                        .ok()
+                        .and_then(|a| buildings.get(a.home_depot).ok())
+                        .and_then(|b| nearest_node(b.pos, &nodes))
+                };
+                // A depot off the network cannot be driven to: the truck
+                // parks where it stands (asset teleports to its slot — fiat
+                // stub, matching the spawn side).
+                let done = match drive_toward(&mut vehicle, home, dt, &nodes, &segments) {
+                    Progress::Arrived => true,
+                    Progress::NoPath => home().is_none(),
+                    Progress::Moving => false,
                 };
                 if done {
                     commands.entity(pawn).despawn();
@@ -532,6 +583,9 @@ fn run_freight(
                 }
             }
         }
+    }
+    if !completed.is_empty() {
+        queue.orders.retain(|o| !completed.contains(&o.id.0));
     }
 }
 
