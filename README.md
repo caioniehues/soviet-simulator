@@ -350,7 +350,9 @@ electric-heating fallback, water quality grades.
 ## Status — G1 "The Weight of the Plan" (#75) — code complete, playtest pending
 
 The game grew its pressure loop: the player is **the planner**. Direction
-set by grilling session (2026-08-17); B9 paused for it.
+set by grilling session (2026-08-17). B9 was paused for it; that pause is
+lifted — B9 is now charter rung **R6** (#69), sequenced behind R1–R5 rather
+than blocked.
 
 - **The Plan** (#76) — `sim/plan.rs`: quota periods on the clock (a 60-day
   Five-Year Plan), a daily measure pass over live stockpiles and housed
@@ -376,7 +378,11 @@ Record video: `screenshots/result/g1/video.mp4` (16 s: the border gatehouse
 → town rises → trucks bought with roubles → coal and housing quotas climb
 → the ledger at 100%). All seven bench gates re-pass (legacy bench/capture
 bins run an infinite treasury — their scenarios predate the rouble).
-**Acceptance still open:** an unscripted 30-minute played session (#79).
+**Acceptance still open:** an unscripted 30-minute played session (#79) —
+the one pre-charter ticket still carrying real work. #86 substituted an
+agent frame-review, which fed the UX ledger but explicitly did not close
+the bar. Since R0 has changed the game underneath it, #79 now needs a call:
+retire it into the R15 campaign playthrough, or re-aim it at R0/R1.
 
 ## Status — R0 "The State Document" complete (#110)
 
