@@ -172,7 +172,6 @@ fn recruit_immigrants(
     }
 }
 
-/// The housing office: strict FIFO — the head household gets the first
 /// A demolished dwelling (B6.5) evicts its households back into the housing
 /// queue — visible homelessness pressure, never a silent deletion of people.
 fn requeue_lost_dwellings(
@@ -196,30 +195,88 @@ fn requeue_lost_dwellings(
     }
 }
 
-/// dwelling with a free flat; no flat anywhere means the whole queue waits
-/// (shortage stays a visible planning failure, never a deletion).
+/// Queue length beyond which the office starts assigning doubled-up flats —
+/// overcrowding as deliberate policy under shortage, never a bug.
+pub const DOUBLE_UP_QUEUE: usize = 4;
+
+/// Hard occupancy ceiling: at most two households per flat.
+pub fn max_households(d: Dwelling) -> u32 {
+    d.flats * 2
+}
+
+/// Whether a dwelling holds more households than flats (B7.1): the
+/// representable overcrowded state the needs pass penalises.
+pub fn overcrowded(d: Dwelling) -> bool {
+    d.occupied > d.flats
+}
+
+/// The housing office (B7.1): queue order is the fairness axis (the front
+/// household has waited longest), and *which* flat it gets is policy — the
+/// free flat nearest its members' workplaces wins. When nothing is free and
+/// the queue has grown past `DOUBLE_UP_QUEUE`, the office doubles households
+/// up in the least-crowded block instead of letting the queue rot; no flat
+/// anywhere within the ceiling means the queue waits, visibly.
 pub(super) fn assign_housing(
     mut queue: ResMut<HousingQueue>,
     mut households: Query<&mut Household>,
-    mut dwellings: Query<(Entity, &mut Dwelling)>,
+    mut dwellings: Query<(Entity, &Building, &mut Dwelling)>,
+    workplaces: Query<&Building>,
     mut citizens: Query<&mut Citizen>,
 ) {
     while let Some(&head) = queue.0.front() {
         // Spawn commands may not have flushed yet; the head is simply not
         // ready this tick.
-        let Ok(mut household) = households.get_mut(head) else {
+        let Ok(household) = households.get(head) else {
             break;
         };
-        let Some((dwelling_entity, mut dwelling)) =
-            dwellings.iter_mut().find(|(_, d)| d.free_flats() > 0)
-        else {
+        let work_positions: Vec<Vec3> = household
+            .members
+            .iter()
+            .filter_map(|&m| citizens.get(m).ok())
+            .filter_map(|c| c.work)
+            .filter_map(|w| workplaces.get(w).ok().map(|b| b.pos))
+            .collect();
+        // Nearer to the household's jobs = better; jobless households take
+        // any flat (score ties resolve arbitrarily).
+        let score = |pos: Vec3| -> f32 {
+            if work_positions.is_empty() {
+                0.0
+            } else {
+                -(work_positions.iter().map(|w| w.distance(pos)).sum::<f32>()
+                    / work_positions.len() as f32)
+            }
+        };
+        let free = dwellings
+            .iter()
+            .filter(|(_, _, d)| d.free_flats() > 0)
+            .map(|(e, b, _)| (e, score(b.pos)))
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(e, _)| e);
+        let target = free.or_else(|| {
+            if queue.0.len() <= DOUBLE_UP_QUEUE {
+                return None;
+            }
+            dwellings
+                .iter()
+                .filter(|(_, _, d)| d.occupied < max_households(**d))
+                .min_by(|a, b| {
+                    let ratio = |d: &Dwelling| d.occupied as f32 / d.flats.max(1) as f32;
+                    ratio(a.2).total_cmp(&ratio(b.2))
+                })
+                .map(|(e, ..)| e)
+        });
+        let Some(target) = target else { break };
+        let Ok((_, _, mut dwelling)) = dwellings.get_mut(target) else {
             break;
         };
         dwelling.occupied += 1;
-        household.dwelling = Some(dwelling_entity);
-        for &member in &household.members {
+        let Ok(mut household) = households.get_mut(head) else {
+            break;
+        };
+        household.dwelling = Some(target);
+        for &member in &household.members.clone() {
             if let Ok(mut citizen) = citizens.get_mut(member) {
-                citizen.home = Some(dwelling_entity);
+                citizen.home = Some(target);
             }
         }
         queue.0.pop_front();
@@ -300,6 +357,113 @@ mod tests {
                 kind: BuildingKind::Dwelling,
                 pos: Vec3::ZERO,
             });
+    }
+
+    #[test]
+    fn doubling_up_starts_only_past_the_queue_threshold() {
+        let mut app = app();
+        place_dwelling(&mut app); // one block, 8 flats
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 8 + DOUBLE_UP_QUEUE as u32 + 3;
+        ticks(&mut app, 6);
+        let world = app.world_mut();
+        let dwelling = *world.query::<&Dwelling>().single(world).unwrap();
+        assert!(
+            overcrowded(dwelling),
+            "past the threshold the office doubles households up, occupied = {}",
+            dwelling.occupied
+        );
+        assert!(
+            dwelling.occupied <= max_households(dwelling),
+            "never more than two households per flat"
+        );
+        // ceiling respected: whoever exceeds 2×flats stays visibly queued
+        let queued = world.resource::<HousingQueue>().0.len();
+        let housed = world
+            .query::<&Household>()
+            .iter(world)
+            .filter(|h| h.dwelling.is_some())
+            .count();
+        assert_eq!(housed as u32, dwelling.occupied);
+        assert_eq!(
+            housed + queued,
+            (8 + DOUBLE_UP_QUEUE + 3),
+            "nobody is ever deleted for lack of a flat"
+        );
+    }
+
+    #[test]
+    fn reallocation_prefers_the_flat_near_the_household_jobs() {
+        use super::super::labour::LabourSimPlugin;
+        use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
+        let mut a = App::new();
+        a.insert_resource(Time::<()>::default());
+        a.add_plugins((
+            SimPlugin,
+            RoadSimPlugin,
+            BuildingSimPlugin,
+            HouseholdSimPlugin,
+            LabourSimPlugin,
+        ));
+        let mut app = a;
+        // Road 0→400. Mine at x=0. Original dwelling at x=0 (workers hired
+        // there), a far spare dwelling at x=400, a near spare at x=40.
+        app.world_mut()
+            .resource_mut::<RoadEditQueue>()
+            .0
+            .push(RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(400.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            });
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            for (kind, pos) in [
+                (BuildingKind::Mine, Vec3::new(-10.0, 0.0, 0.0)),
+                (BuildingKind::Dwelling, Vec3::new(0.0, 0.0, 15.0)),
+                (BuildingKind::Dwelling, Vec3::new(400.0, 0.0, 15.0)),
+                (BuildingKind::Dwelling, Vec3::new(30.0, 0.0, 12.0)),
+            ] {
+                buildings.0.push(BuildingEdit::Place { kind, pos });
+            }
+        }
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 1;
+        ticks(&mut app, 8); // housed + hired at the mine
+        let world = app.world_mut();
+        let household = world
+            .query::<&Household>()
+            .single(world)
+            .unwrap()
+            .dwelling
+            .expect("housed");
+        // Evict by demolishing the current home; the office must re-house
+        // them in the flat nearest their mine jobs, not the far one.
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Demolish {
+                building: household,
+            });
+        ticks(&mut app, 4);
+        let world = app.world_mut();
+        let new_home = world
+            .query::<&Household>()
+            .single(world)
+            .unwrap()
+            .dwelling
+            .expect("re-housed");
+        let x = world
+            .get::<super::super::buildings::Building>(new_home)
+            .unwrap()
+            .pos
+            .x;
+        assert!(
+            x < 100.0,
+            "policy places the working household near its jobs, got x = {x}"
+        );
     }
 
     #[test]

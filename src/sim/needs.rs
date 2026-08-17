@@ -97,10 +97,15 @@ pub fn attends_today(id: CitizenId, day: u32, probability: f32) -> bool {
 
 /// The low-frequency needs pass: decay, meals, rest, wellbeing — one walk
 /// over the citizen table every `NEEDS_INTERVAL_FRAMES`.
+/// Rest ceiling in a doubled-up flat (B7.1): overcrowding is livable but it
+/// wears — a shared kitchen and a corridor bed never fully restore anyone.
+pub const OVERCROWDED_REST_CAP: f32 = 0.6;
+
 fn update_needs(
     frame: Res<FrameIndex>,
     mut citizens: Query<(&mut Citizen, &mut CitizenNeeds)>,
     mut households: Query<&mut Household>,
+    dwellings: Query<&super::households::Dwelling>,
 ) {
     if !frame.0.is_multiple_of(NEEDS_INTERVAL_FRAMES) {
         return;
@@ -112,7 +117,12 @@ fn update_needs(
     for (mut citizen, mut needs) in &mut citizens {
         needs.food = (needs.food - FOOD_DECAY).max(0.0);
         if citizen.location == CitizenLocation::AtHome {
-            needs.rest = (needs.rest + REST_RECOVERY).min(1.0);
+            let rest_cap = citizen
+                .home
+                .and_then(|d| dwellings.get(d).ok())
+                .filter(|d| super::households::overcrowded(**d))
+                .map_or(1.0, |_| OVERCROWDED_REST_CAP);
+            needs.rest = (needs.rest + REST_RECOVERY).min(rest_cap.max(needs.rest));
         } else {
             needs.rest = (needs.rest - REST_DRAIN).max(0.0);
         }
@@ -338,5 +348,44 @@ mod tests {
         // over many days the empirical rate approaches the probability
         let hits = (0..1000).filter(|&day| attends_today(id, day, 0.3)).count();
         assert!((250..=350).contains(&hits), "hits = {hits}");
+    }
+
+    #[test]
+    fn overcrowded_flat_caps_rest_recovery() {
+        use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingKind};
+        use super::super::households::{Dwelling, RecruitmentPlan};
+        let mut app = app();
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Place {
+                kind: BuildingKind::Dwelling,
+                pos: Vec3::ZERO,
+            });
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 1;
+        ticks(&mut app, 4);
+        // Drain rest, then mark the block overcrowded by hand.
+        {
+            let world = app.world_mut();
+            let mut q = world.query::<&mut CitizenNeeds>();
+            for mut n in q.iter_mut(world) {
+                n.rest = 0.3;
+            }
+            let mut d = world.query::<&mut Dwelling>();
+            let mut dwelling = d.single_mut(world).unwrap();
+            dwelling.occupied = dwelling.flats + 3;
+        }
+        ticks(&mut app, 200); // many at-home recovery passes
+        let world = app.world_mut();
+        for needs in world.query::<&CitizenNeeds>().iter(world) {
+            assert!(
+                needs.rest <= OVERCROWDED_REST_CAP + 1e-3,
+                "a corridor bed never fully restores anyone, rest = {}",
+                needs.rest
+            );
+            assert!(needs.rest > 0.3, "recovery still happens, just capped");
+        }
     }
 }
