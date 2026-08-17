@@ -267,15 +267,57 @@ lands and the freshly bought crane drives out; the block climbs phase by
 phase and snaps to full height, activated, with both machines back on the
 office apron.
 
+## Status — B7 "A Roof Over Every Head" complete (#59)
+
+Housing is allocated, never bought: the visible queue run by the housing
+office *is* residential demand, and the planner answers it by physically
+building dwellings through the B6 pipeline.
+
+- **Weighted allocation + overcrowding** (#60) — queue order stays the
+  fairness axis; *which* flat the head household gets is policy (the free
+  flat nearest its members' workplaces). Past a queue threshold the office
+  doubles households up — proximity first, crowding balance breaking ties,
+  hard-capped at two per flat — and a doubled flat carries a rest ceiling
+  that wears wellbeing down. Overcrowding is a representable state, never a
+  bug; whoever exceeds the ceiling waits visibly.
+- **Household dynamics** (#61) — a daily pass: full households shed an adult
+  into a new household that enters the queue (they keep the old bed until
+  the office assigns), and queued singles pair into couples. Both only ever
+  create queue pressure; nobody teleports into a flat, nobody is deleted.
+- **Zoning + PLAN dashboard** (#62) — key-7 land-use districts (residential
+  green / industrial rust) constrain siting — a mismatched blueprint is
+  refused with HUD feedback — and **never** spawn anything; a zoned-but-empty
+  district is a visible backlog. The PLAN block reads homeless vs free
+  flats, jobs open vs unemployed, districts not yet fulfilled: CS1's demand
+  servo surfaced as planner information, wired to no spawner.
+- **Eviction-to-queue** (from B6.5, closed here) — demolition evicts into
+  the queue and the office re-doubles survivors near their jobs.
+
+Benchmark gate (#63): the B2 citizen gate held with everything running —
+50k citizens at **0.57 ms/tick** (bench_citizens), and bench_transit's 5k
+concurrent riders re-passes at 0.28 ms after a real policy bug the bench
+caught: doubling-up ranked crowding above proximity, exiling ~300 workers
+across the map into refused commutes. All six gates green.
+
+Acceptance video (#63): `cargo run --release --bin capture_m7 -- frames
+screenshots/result/7 480` then ffmpeg; latest render at
+`screenshots/result/7/video.mp4` (local, untracked). Arc: 24 recruited
+households against 16 doubled-up flats — PLAN reads "homeless 10 / flats
+free 0"; the planner answers with a dwelling blueprint that rises through
+the phased pipeline; on activation the office drains the queue into it
+(homeless 10 → 2); the old block is demolished and its households are
+evicted back into the visible queue — population unchanged, shortage
+legible, the next build decision obvious.
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 95 sim tests
+cargo test           # 102 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
-`5` haul policy (click source, then sink) · `6` bus line (click stops, right-click closes) · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
+`5` haul policy (click source, then sink) · `6` bus line (click stops, right-click closes) · `7` zone paint (two clicks, repeat cycles use) · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
 `[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
 wheel zoom.
 
@@ -288,10 +330,10 @@ dispatcher cannot feed pulse a red ring.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2–B6 complete (above): staffing,
-dispatcher, traffic at scale, public transit, phased construction. Next: B7
-housing-and-the-plan per the ladder (see `ROADMAP.md`, including the
-parallel P-ladder).
+P1 "First Light" done (#16, zero-spend). B2–B7 complete (above): staffing,
+dispatcher, traffic at scale, public transit, phased construction, housing
+and the plan. Next: B8 utilities per the ladder (see `ROADMAP.md`,
+including the parallel P-ladder).
 
 ## Assets
 

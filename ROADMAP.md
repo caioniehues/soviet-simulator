@@ -91,7 +91,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B7 — A Roof Over Every Head: Housing and the Plan `[ ]`
+### B7 — A Roof Over Every Head: Housing and the Plan `[x]`
 
 **Destination** — housing is allocated, never bought: the visible housing queue run by the housing office *is* residential demand, and the planner answers it by physically building dwellings staffed and supplied by everything before.
 **Acceptance demo** — families join the queue; queue length drives build decisions; a finished block fills by allocation policy; overcrowding and eviction-to-queue work.

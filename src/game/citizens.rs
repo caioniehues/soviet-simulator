@@ -17,7 +17,13 @@ pub struct CitizenViewPlugin;
 impl Plugin for CitizenViewPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_visuals)
-            .add_systems(Update, (dress_new_pawns, sync_pawn_transforms));
+            .add_systems(
+                Update,
+                (
+                    dress_new_pawns.before(crate::sim::SimDriver),
+                    sync_pawn_transforms,
+                ),
+            );
     }
 }
 
@@ -48,7 +54,10 @@ fn dress_new_pawns(
 ) {
     for (entity, pawn) in &added {
         let coat = visuals.coats[pawn.citizen.to_bits() as usize % visuals.coats.len()].clone();
-        commands.entity(entity).insert((
+        // try_insert: a zero-length trip can spawn and finish inside one
+        // render frame (several sim ticks per Update at speed) — dressing a
+        // pawn that is already gone must be a no-op, not a panic.
+        commands.entity(entity).try_insert((
             Mesh3d(visuals.mesh.clone()),
             MeshMaterial3d(coat),
             Transform::from_translation(pawn.pos + Vec3::Y * 0.9),

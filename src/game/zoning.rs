@@ -16,6 +16,9 @@ pub struct ZoningToolPlugin;
 
 impl Plugin for ZoningToolPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::sim::zoning::ZoningSimPlugin>() {
+            app.add_plugins(crate::sim::zoning::ZoningSimPlugin);
+        }
         app.init_resource::<ZoneDraft>()
             .add_systems(Update, (drive_zone_tool, overlay_zones));
     }

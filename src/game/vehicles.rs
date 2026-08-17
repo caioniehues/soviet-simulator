@@ -28,8 +28,10 @@ impl Plugin for VehicleToolPlugin {
             (
                 drive_shuttle_tool,
                 preview_shuttle_source,
-                sync_truck_meshes,
-                sync_parked_trucks,
+                // Dress before the sim driver: a pawn that dies this frame
+                // must never receive our deferred commands post-mortem.
+                sync_truck_meshes.before(crate::sim::SimDriver),
+                sync_parked_trucks.before(crate::sim::SimDriver),
                 toggle_parked_visibility,
                 ease_truck_transforms.in_set(PostSimEasing),
             ),

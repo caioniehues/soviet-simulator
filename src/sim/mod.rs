@@ -23,7 +23,7 @@ pub mod wires;
 pub mod zoning;
 
 pub use clock::{FrameIndex, SimSpeed, TickIndex};
-pub use stages::{PostSimEasing, SimStage, SimTick};
+pub use stages::{PostSimEasing, SimDriver, SimStage, SimTick};
 
 use bevy::prelude::*;
 
@@ -36,7 +36,7 @@ impl Plugin for SimPlugin {
             .init_resource::<SimSpeed>()
             .init_resource::<clock::SimPacing>();
         stages::configure(app);
-        app.add_systems(Update, clock::drive_sim);
+        app.add_systems(Update, clock::drive_sim.in_set(stages::SimDriver));
         app.configure_sets(Update, PostSimEasing.after(clock::drive_sim));
     }
 }

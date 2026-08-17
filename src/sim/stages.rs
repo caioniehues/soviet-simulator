@@ -30,6 +30,12 @@ pub enum SimStage {
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ApplyCommandsFlush;
 
+/// Public handle on the sim driver system in `Update`: presentation systems
+/// that queue commands against sim-owned entities order themselves
+/// `.before(SimDriver)` so a same-frame despawn can never race their apply.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SimDriver;
+
 /// Render-side set in `Update`, ordered after the sim driver: eases rendered
 /// transforms toward authoritative sim state. Presentation reads sim state and
 /// never writes it (ADR 0003) — enforce by putting easing systems here only.

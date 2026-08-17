@@ -339,7 +339,13 @@ pub(super) fn assign_housing(
                 .filter(|(_, _, d)| d.occupied < max_households(**d))
                 .min_by(|a, b| {
                     let ratio = |d: &Dwelling| d.occupied as f32 / d.flats.max(1) as f32;
-                    ratio(a.2).total_cmp(&ratio(b.2))
+                    // Proximity to the household's jobs first — doubling-up
+                    // across the map from work trades a housing failure for
+                    // a commute failure. Crowding balance breaks ties (which
+                    // is also the jobless households' spread rule).
+                    score(b.1.pos)
+                        .total_cmp(&score(a.1.pos))
+                        .then_with(|| ratio(a.2).total_cmp(&ratio(b.2)))
                 })
                 .map(|(e, ..)| e)
         });
