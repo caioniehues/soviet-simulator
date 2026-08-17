@@ -75,6 +75,7 @@ impl Plugin for BuildingToolPlugin {
                 drive_building_tool,
                 preview_footprint,
                 sync_building_meshes,
+                rise_construction_sites,
                 emit_smoke,
                 animate_smoke,
             ),
@@ -344,6 +345,57 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             boxed(&m.concrete, Vec3::new(5.0, 0.4, 3.0), Vec3::new(0.0, 2.8, -0.4)),
             boxed(&m.timber, Vec3::new(4.0, 0.9, 0.8), Vec3::new(0.0, 0.0, -1.2)),
         ],
+    }
+}
+
+/// A building under construction reads as rising out of the ground: its
+/// render root squashes vertically with *real* site progress (never a
+/// timer), and a stalled site draws a pulsing ring — amber for a missing
+/// material, grey-blue for a missing machine.
+fn rise_construction_sites(
+    time: Res<Time>,
+    mut sites: Query<(
+        &Building,
+        &crate::sim::construction::ConstructionSite,
+        &mut Transform,
+    )>,
+    mut finished: Query<
+        &mut Transform,
+        (
+            With<Building>,
+            Without<crate::sim::construction::ConstructionSite>,
+        ),
+    >,
+    mut gizmos: Gizmos,
+) {
+    use crate::sim::construction::Bottleneck;
+    for (building, site, mut transform) in &mut sites {
+        let rise = 0.12 + 0.88 * site.progress();
+        if (transform.scale.y - rise).abs() > 1e-3 {
+            transform.scale.y = rise;
+        }
+        if let Some(bottleneck) = site.bottleneck {
+            let pulse = 0.5 + 0.5 * (time.elapsed_secs() * 3.0).sin();
+            let color = match bottleneck {
+                Bottleneck::NoMaterial => Color::srgb(0.92, 0.62, 0.12),
+                Bottleneck::NoMachine => Color::srgb(0.45, 0.55, 0.75),
+            }
+            .with_alpha(0.3 + 0.5 * pulse);
+            gizmos.circle(
+                Isometry3d::new(
+                    building.pos + Vec3::Y * 0.25,
+                    Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
+                ),
+                building.kind.footprint().length() * 0.5 + 3.0,
+                color,
+            );
+        }
+    }
+    // Activation snaps the structure to full height.
+    for mut transform in &mut finished {
+        if (transform.scale.y - 1.0).abs() > 1e-3 {
+            transform.scale.y = 1.0;
+        }
     }
 }
 

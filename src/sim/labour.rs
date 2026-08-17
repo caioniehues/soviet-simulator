@@ -145,7 +145,12 @@ fn sever_lost_workplaces(
 /// back for future assignments, while tenure holds for existing ones.
 fn plan_labour(
     mut citizens: Query<(Entity, &mut Citizen)>,
-    mut workplaces: Query<(Entity, &Building, &mut Staffing)>,
+    // A workplace mid-construction hires nobody (B6.4): the site is inert
+    // until activation opens the gate.
+    mut workplaces: Query<
+        (Entity, &Building, &mut Staffing),
+        Without<super::construction::ConstructionSite>,
+    >,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,

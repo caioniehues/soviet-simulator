@@ -63,6 +63,8 @@ impl Plugin for HudPlugin {
                     update_dispatch_readout,
                     drive_inspect_tool,
                     drive_depot_purchase,
+                    drive_office_purchase,
+                    drive_bus_purchase,
                     drive_band_tuning,
                     hint_starving_deficits,
                     hint_stalled_corridors,
@@ -267,6 +269,52 @@ fn drive_depot_purchase(
     info!("depot purchase queued: {class:?} truck at {depot:?}");
 }
 
+/// With a construction office selected: `T` buys an excavator, `Y` a crane.
+fn drive_office_purchase(
+    keys: Res<ButtonInput<KeyCode>>,
+    selected: Res<Selected>,
+    buildings: Query<&Building>,
+    mut edits: ResMut<VehicleEditQueue>,
+) {
+    use crate::sim::vehicles::VehicleKind;
+    let Some(office) = selected.0.filter(|&e| {
+        buildings
+            .get(e)
+            .is_ok_and(|b| b.kind == BuildingKind::ConstructionOffice)
+    }) else {
+        return;
+    };
+    let kind = if keys.just_pressed(KeyCode::KeyT) {
+        VehicleKind::Excavator
+    } else if keys.just_pressed(KeyCode::KeyY) {
+        VehicleKind::Crane
+    } else {
+        return;
+    };
+    edits.0.push(VehicleEdit::BuyMachine { office, kind });
+    info!("office purchase queued: {kind:?} at {office:?}");
+}
+
+/// A depot selected? `U` buys a bus (transit fleet shares the depot).
+fn drive_bus_purchase(
+    keys: Res<ButtonInput<KeyCode>>,
+    selected: Res<Selected>,
+    buildings: Query<&Building>,
+    mut edits: ResMut<VehicleEditQueue>,
+) {
+    let Some(depot) = selected.0.filter(|&e| {
+        buildings
+            .get(e)
+            .is_ok_and(|b| b.kind == BuildingKind::Depot)
+    }) else {
+        return;
+    };
+    if keys.just_pressed(KeyCode::KeyU) {
+        edits.0.push(VehicleEdit::BuyBus { depot });
+        info!("depot purchase queued: bus at {depot:?}");
+    }
+}
+
 /// Player policy control (the B3 dial): with a storage selected, `B` cycles
 /// the focused resource, `,`/`.` lower/raise its min line by 5%, and with
 /// Shift the max line instead. Writing `StoragePolicies` here is player
@@ -386,6 +434,7 @@ fn update_dispatch_readout(
     queue: Res<DispatchQueue>,
     board: Res<DeficitBoard>,
     stalls: Res<StallBoard>,
+    sites_q: Query<&crate::sim::construction::ConstructionSite>,
     transit_lines: Query<&crate::sim::transit::TransitLine>,
     duties: Query<&crate::sim::transit::BusDuty>,
     stop_queues: Res<crate::sim::transit::StopQueues>,
@@ -436,6 +485,20 @@ fn update_dispatch_readout(
     }
     if pending.len() > 4 {
         lines.push_str(&format!("\n  … and {} more", pending.len() - 4));
+    }
+    let site_count = sites_q.iter().count();
+    if site_count > 0 {
+        let (mut no_material, mut no_machine) = (0, 0);
+        for site in &sites_q {
+            match site.bottleneck {
+                Some(crate::sim::construction::Bottleneck::NoMaterial) => no_material += 1,
+                Some(crate::sim::construction::Bottleneck::NoMachine) => no_machine += 1,
+                None => {}
+            }
+        }
+        lines.push_str(&format!(
+            "\nSITES: {site_count} building — {no_material} want material, {no_machine} want machines"
+        ));
     }
     let line_count = transit_lines.iter().count();
     if line_count > 0 {
@@ -582,6 +645,7 @@ fn update_inspect_readout(
         Option<&StoragePolicies>,
     )>,
     fleet: Query<(&VehicleAsset, Has<ActivePawn>, Option<&FreightJob>)>,
+    sites: Query<&crate::sim::construction::ConstructionSite>,
     mut readout: Query<&mut Text, With<InspectReadout>>,
     mut panel: Query<&mut Node, With<InspectPanel>>,
 ) {
@@ -612,6 +676,33 @@ fn update_inspect_readout(
         inventory.total(),
         inventory.capacity,
     );
+    // A site names its phase, its bill, and — the whole point — its stall.
+    if let Some(site) = selected.0.and_then(|e| sites.get(e).ok()) {
+        if let Some(phase) = site.phase() {
+            lines.push_str(&format!(
+                "\nUNDER CONSTRUCTION {}/{} {:?}: work {:.0}%",
+                site.current + 1,
+                site.phases.len(),
+                phase.kind,
+                100.0 * phase.done / phase.work.max(1e-3),
+            ));
+            if let Some((resource, need)) = phase.material {
+                lines.push_str(&format!(
+                    "  {resource:?} {:.1}/{need:.1} t",
+                    phase.consumed
+                ));
+            }
+        }
+        match site.bottleneck {
+            Some(crate::sim::construction::Bottleneck::NoMaterial) => {
+                lines.push_str("\nSTALLED: NO MATERIAL")
+            }
+            Some(crate::sim::construction::Bottleneck::NoMachine) => {
+                lines.push_str("\nSTALLED: NO MACHINE")
+            }
+            None => {}
+        }
+    }
     let mut any_band = false;
     for (i, kind) in ResourceKind::ALL.into_iter().enumerate() {
         let amount = inventory.amount(kind);
