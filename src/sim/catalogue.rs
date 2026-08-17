@@ -2,11 +2,11 @@
 //! row per `BuildingKind`, holding today's exact per-kind numbers — footprint,
 //! yard capacity, vacancy count, default storage bands, material recipe and
 //! utility roles — the way W&R's `buildings_types/*.ini` holds one building
-//! per file. Nothing reads this table yet: `footprint()`, `inventory_capacity()`,
-//! `workers_needed()`, `default_policies()` and the utility solves still carry
-//! their own hand-written matches, and this module's tests exist to prove the
-//! table already agrees with every one of them before anything is switched
-//! over.
+//! per file. `footprint()`, `inventory_capacity()`, `workers_needed()` and
+//! `default_policies()` are now one-liners over this table and no longer carry
+//! a match of their own; the production pass and the utility solves still do,
+//! and this module's tests prove the table already agrees with each of them
+//! before it is switched over.
 
 use bevy::prelude::*;
 
@@ -177,7 +177,8 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         })),
         heat: None,
     },
-    // Dwelling
+    // Dwelling — the yard is the doorstep: goods delivered to residents land
+    // here before pantry pickup.
     BuildingSpec {
         kind: BuildingKind::Dwelling,
         footprint: Vec2::new(12.0, 10.0),
@@ -213,7 +214,8 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         water: None,
         heat: None,
     },
-    // Depot — stores no cargo; the fuel tank arrives with B8.
+    // Depot — shed plus the two-row parking apron south of it. Stores no
+    // cargo; the fuel tank arrives with B8.
     BuildingSpec {
         kind: BuildingKind::Depot,
         footprint: Vec2::new(22.0, 26.0),
@@ -237,7 +239,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         water: None,
         heat: None,
     },
-    // ConstructionOffice
+    // ConstructionOffice — office hut plus the machine apron.
     BuildingSpec {
         kind: BuildingKind::ConstructionOffice,
         footprint: Vec2::new(20.0, 22.0),
@@ -288,8 +290,10 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         water: None,
         heat: Some(HeatDemand::Producer),
     },
-    // CustomsOffice — no bands: exports arrive by player-set haul policy;
-    // the border sale drains whatever lands here.
+    // CustomsOffice — gatehouse plus inspection yard, and that yard is the
+    // export dock: goods wait there for the border sale. No bands, though —
+    // exports arrive by player-set haul policy and the sale drains whatever
+    // lands here.
     BuildingSpec {
         kind: BuildingKind::CustomsOffice,
         footprint: Vec2::new(22.0, 14.0),
@@ -310,7 +314,15 @@ pub fn spec(kind: BuildingKind) -> &'static BuildingSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sim::SimPlugin;
+    use crate::sim::buildings::{
+        Building, BuildingEdit, BuildingEditQueue, BuildingSimPlugin, Powered,
+    };
+    use crate::sim::construction::ConstructionSimPlugin;
+    use crate::sim::heat::HeatSimPlugin;
+    use crate::sim::resources::Inventory;
     use crate::sim::storage::default_policies;
+    use std::time::Duration;
 
     #[test]
     fn every_row_sits_at_its_own_kind_s_position() {
@@ -320,37 +332,89 @@ mod tests {
         }
     }
 
-    #[test]
-    fn footprint_matches_the_hand_written_lookup() {
-        for kind in BuildingKind::ALL {
-            assert_eq!(spec(kind).footprint, kind.footprint(), "{kind:?}");
-        }
-    }
+    /// (footprint, yard capacity, vacancies) per kind, in `ALL`'s order: a
+    /// golden record of what the three `match` blocks in `buildings.rs` and
+    /// `labour.rs` held before the catalogue replaced them. It duplicates three
+    /// table columns on purpose. `footprint()`, `inventory_capacity()` and
+    /// `workers_needed()` now *read* the table, so asserting the table against
+    /// them would compare a value with itself — these literals are the only
+    /// thing left between a mistyped row and a silently different game.
+    ///
+    /// It says nothing about whether the numbers are *right*, only that they
+    /// have not drifted since the day they were transcribed. A deliberate
+    /// rebalance is expected to edit both sides: that friction is the point on
+    /// a structural constant, which should change rarely and never by accident.
+    ///
+    /// Rates and utility demands are deliberately absent. They move every time
+    /// R4 tunes something, so pinning them would be friction without a
+    /// guarantee; `one_frame_moves_exactly_what_the_recipe_claims` guards those
+    /// by ticking the building instead, which is the stronger assertion anyway
+    /// — it also catches a row being right while the system ignores it.
+    const PINNED_COLUMNS: [(BuildingKind, Vec2, f32, u32); BuildingKind::COUNT] = [
+        (BuildingKind::Mine, Vec2::new(14.0, 14.0), 60.0, 6),
+        (BuildingKind::Quarry, Vec2::new(16.0, 12.0), 60.0, 4),
+        (BuildingKind::PowerPlant, Vec2::new(18.0, 14.0), 40.0, 8),
+        (BuildingKind::Factory, Vec2::new(20.0, 16.0), 40.0, 10),
+        (BuildingKind::Dwelling, Vec2::new(12.0, 10.0), 10.0, 0),
+        (BuildingKind::Warehouse, Vec2::new(20.0, 12.0), 120.0, 0),
+        (BuildingKind::Depot, Vec2::new(22.0, 26.0), 0.0, 0),
+        (BuildingKind::BusStop, Vec2::new(5.0, 3.0), 0.0, 0),
+        (
+            BuildingKind::ConstructionOffice,
+            Vec2::new(20.0, 22.0),
+            0.0,
+            0,
+        ),
+        (BuildingKind::WaterPump, Vec2::new(10.0, 8.0), 0.0, 0),
+        (BuildingKind::SewagePlant, Vec2::new(16.0, 12.0), 0.0, 0),
+        (BuildingKind::HeatPlant, Vec2::new(18.0, 12.0), 40.0, 0),
+        (BuildingKind::CustomsOffice, Vec2::new(22.0, 14.0), 120.0, 0),
+    ];
 
     #[test]
-    fn inventory_capacity_matches_the_hand_written_lookup() {
-        for kind in BuildingKind::ALL {
+    fn footprint_column_holds_its_pinned_values() {
+        for (i, kind) in BuildingKind::ALL.into_iter().enumerate() {
+            let (pinned_kind, footprint, ..) = PINNED_COLUMNS[i];
             assert_eq!(
-                spec(kind).inventory_capacity,
-                kind.inventory_capacity(),
-                "{kind:?}"
+                pinned_kind, kind,
+                "pinned row {i} drifted out of ALL's order"
             );
+            assert_eq!(spec(kind).footprint, footprint, "{kind:?}");
         }
     }
 
     #[test]
-    fn workers_needed_matches_the_hand_written_lookup() {
-        for kind in BuildingKind::ALL {
-            assert_eq!(spec(kind).workers_needed, kind.workers_needed(), "{kind:?}");
+    fn inventory_capacity_column_holds_its_pinned_values() {
+        for (i, kind) in BuildingKind::ALL.into_iter().enumerate() {
+            let (pinned_kind, _, capacity, _) = PINNED_COLUMNS[i];
+            assert_eq!(
+                pinned_kind, kind,
+                "pinned row {i} drifted out of ALL's order"
+            );
+            assert_eq!(spec(kind).inventory_capacity, capacity, "{kind:?}");
         }
     }
 
-    /// Band-by-band rather than a whole-struct `==`: `StoragePolicies` has no
-    /// `PartialEq` (nothing but this test would ever need one), so the table's
-    /// (resource, min, max) triples are compared against the live function's
-    /// bands directly.
     #[test]
-    fn default_policies_matches_the_hand_written_lookup() {
+    fn workers_needed_column_holds_its_pinned_values() {
+        for (i, kind) in BuildingKind::ALL.into_iter().enumerate() {
+            let (pinned_kind, .., workers) = PINNED_COLUMNS[i];
+            assert_eq!(
+                pinned_kind, kind,
+                "pinned row {i} drifted out of ALL's order"
+            );
+            assert_eq!(spec(kind).workers_needed, workers, "{kind:?}");
+        }
+    }
+
+    /// `storage::default_policies` now folds the row's triples into a
+    /// `StoragePolicies`, so what is left to prove is the fold: every band the
+    /// row lists arrives, none is dropped, and `StorageBand::new`'s clamp
+    /// leaves the values alone. Band-by-band rather than a whole-struct `==`,
+    /// because `StoragePolicies` has no `PartialEq` (nothing but this test
+    /// would ever need one).
+    #[test]
+    fn default_policies_folds_every_band_the_row_lists() {
         for kind in BuildingKind::ALL {
             let live = default_policies(kind);
             for resource in ResourceKind::ALL {
@@ -365,37 +429,125 @@ mod tests {
         }
     }
 
+    /// Yard headroom for the one-frame fixture. Five kinds store nothing when
+    /// finished, so their real yard refuses the seed and "consumes nothing"
+    /// would hold vacuously; widening it first makes a rogue draw — or a rogue
+    /// output — observable on every kind alike.
+    const FIXTURE_CAPACITY: f32 = 1000.0;
+    /// Seeded stock per resource: comfortably more than any one frame's input
+    /// draw, small enough that a 0.02 t delta doesn't drown in f32 cancellation.
+    const FIXTURE_STOCK: f32 = 1.0;
+    /// One frame moves 0.02–0.05 t off a 1.0 t base; the float noise there is
+    /// around 1e-7.
+    const RATE_EPSILON: f32 = 1e-5;
+
+    /// The plugins that own a production pass today — `extract_resources`,
+    /// `run_power_plants`, `run_factories` (buildings) and `run_heat_plants`
+    /// (heat) — plus construction, so that "placed pre-built" means a building
+    /// that genuinely is not a site. Deliberately no customs plugin: the border
+    /// sale drains the export yard by its own rules, which the recipe column
+    /// does not model.
+    fn production_app() -> App {
+        let mut a = App::new();
+        a.insert_resource(Time::<()>::default());
+        a.add_plugins((
+            SimPlugin,
+            BuildingSimPlugin,
+            HeatSimPlugin,
+            ConstructionSimPlugin,
+        ));
+        a
+    }
+
+    fn tick(app: &mut App) {
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs_f64(1.0 / 60.0 + 1e-9));
+        app.update();
+    }
+
+    fn yard(world: &World, entity: Entity) -> [f32; ResourceKind::COUNT] {
+        let inventory = world.get::<Inventory>(entity).unwrap();
+        ResourceKind::ALL.map(|resource| inventory.amount(resource))
+    }
+
+    /// What one production frame of `kind` actually moves through its yard,
+    /// with every gate the production systems read satisfied: fuel is the
+    /// seeded stock, the electricity gate is set by hand, and staffing and
+    /// water gate on component *absence* — no labour or water plugin here, the
+    /// "runs free" fixture path `extract_resources` documents — so the observed
+    /// delta is the unscaled base rate the table holds.
+    fn one_frame_yard_delta(kind: BuildingKind) -> [f32; ResourceKind::COUNT] {
+        let mut app = production_app();
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::PlacePrebuilt {
+                kind,
+                pos: Vec3::ZERO,
+            });
+        // The spawn flushes at the post-Commit barrier, so this tick only
+        // places; the next one is the building's first production frame.
+        tick(&mut app);
+        let world = app.world_mut();
+        let entity = world
+            .query::<(Entity, &Building)>()
+            .iter(world)
+            .find(|(_, b)| b.kind == kind)
+            .unwrap()
+            .0;
+        {
+            let mut inventory = world.get_mut::<Inventory>(entity).unwrap();
+            inventory.capacity = FIXTURE_CAPACITY;
+            for resource in ResourceKind::ALL {
+                inventory.add(resource, FIXTURE_STOCK);
+            }
+        }
+        if let Some(mut powered) = world.get_mut::<Powered>(entity) {
+            powered.0 = true;
+        }
+        let before = yard(app.world(), entity);
+        tick(&mut app);
+        let after = yard(app.world(), entity);
+        std::array::from_fn(|i| after[i] - before[i])
+    }
+
+    /// What the row claims one frame moves: outputs credit the yard, inputs
+    /// debit it.
+    fn recipe_yard_delta(recipe: &Recipe) -> [f32; ResourceKind::COUNT] {
+        let mut delta = [0.0; ResourceKind::COUNT];
+        for &(resource, rate) in recipe.outputs {
+            delta[resource as usize] += rate;
+        }
+        for &(resource, rate) in recipe.inputs {
+            delta[resource as usize] -= rate;
+        }
+        delta
+    }
+
+    /// The recipe column against observed behaviour, all 13 kinds. Asserting a
+    /// rate against the constant the row itself names proves nothing:
+    /// `MINE_COAL_RATE == QUARRY_GRAVEL_RATE` and
+    /// `PLANT_COAL_BURN == HEAT_PLANT_COAL_BURN` today, so a row naming the
+    /// wrong one stays invisible until R4 rebalances one of them. This ticks
+    /// each kind and reads its yard instead, which also makes the eight
+    /// recipe-less kinds assert something. It is the contract Phase 4's generic
+    /// production pass has to satisfy.
     #[test]
-    fn recipe_rates_match_the_named_production_constants() {
-        use super::super::buildings::{
-            FACTORY_GOODS_RATE, MINE_COAL_RATE, PLANT_COAL_BURN, QUARRY_GRAVEL_RATE,
-        };
-        use super::super::heat::HEAT_PLANT_COAL_BURN;
-        assert_eq!(
-            spec(BuildingKind::Mine).recipe.outputs,
-            &[(ResourceKind::Coal, MINE_COAL_RATE)]
-        );
-        assert_eq!(
-            spec(BuildingKind::Quarry).recipe.outputs,
-            &[(ResourceKind::Gravel, QUARRY_GRAVEL_RATE)]
-        );
-        assert_eq!(
-            spec(BuildingKind::PowerPlant).recipe.inputs,
-            &[(ResourceKind::Coal, PLANT_COAL_BURN)]
-        );
-        assert_eq!(
-            spec(BuildingKind::Factory).recipe.inputs,
-            &[] as &[(ResourceKind, f32)],
-            "the Factory's doctrine violation stays represented, not fixed"
-        );
-        assert_eq!(
-            spec(BuildingKind::Factory).recipe.outputs,
-            &[(ResourceKind::Goods, FACTORY_GOODS_RATE)]
-        );
-        assert_eq!(
-            spec(BuildingKind::HeatPlant).recipe.inputs,
-            &[(ResourceKind::Coal, HEAT_PLANT_COAL_BURN)]
-        );
+    fn one_frame_moves_exactly_what_the_recipe_claims() {
+        for kind in BuildingKind::ALL {
+            let observed = one_frame_yard_delta(kind);
+            let claimed = recipe_yard_delta(&spec(kind).recipe);
+            for resource in ResourceKind::ALL {
+                let i = resource as usize;
+                assert!(
+                    (observed[i] - claimed[i]).abs() < RATE_EPSILON,
+                    "{kind:?} / {resource:?}: one frame moved {}, the catalogue claims {}",
+                    observed[i],
+                    claimed[i]
+                );
+            }
+        }
     }
 
     #[test]

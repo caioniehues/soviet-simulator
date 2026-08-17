@@ -24,25 +24,12 @@ pub const COMMUTE_SPEED: f32 = 8.0;
 pub const MAX_COMMUTE_SECS: f32 = 120.0;
 
 impl BuildingKind {
-    /// Tiered vacancies, single tier for M2 (professor slots arrive later).
+    /// Tiered vacancies, single tier for M2 (professor slots arrive later),
+    /// read off the kind's catalogue row. The eight kinds standing at zero are
+    /// waiting on dispatch execution (M3.4) for their loading labour; drivers
+    /// stay abstracted for bulk freight (spec/vehicles.md lean).
     pub fn workers_needed(self) -> u32 {
-        match self {
-            BuildingKind::Mine => 6,
-            BuildingKind::Quarry => 4,
-            BuildingKind::PowerPlant => 8,
-            BuildingKind::Factory => 10,
-            BuildingKind::Dwelling => 0,
-            // Loading labour arrives with dispatch execution (M3.4);
-            // drivers stay abstracted for bulk freight (spec/vehicles.md lean).
-            BuildingKind::Warehouse
-            | BuildingKind::Depot
-            | BuildingKind::BusStop
-            | BuildingKind::ConstructionOffice
-            | BuildingKind::WaterPump
-            | BuildingKind::SewagePlant
-            | BuildingKind::HeatPlant
-            | BuildingKind::CustomsOffice => 0,
-        }
+        super::catalogue::spec(self).workers_needed
     }
 }
 

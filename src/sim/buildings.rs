@@ -48,43 +48,14 @@ pub enum BuildingKind {
 }
 
 impl BuildingKind {
+    // Both lookups read the kind's catalogue row (`catalogue::BUILDINGS`): the
+    // numbers and the reasons for them live there, one row per kind, so a new
+    // kind is a row rather than an edit here.
     pub fn footprint(self) -> Vec2 {
-        match self {
-            BuildingKind::Mine => Vec2::new(14.0, 14.0),
-            BuildingKind::Quarry => Vec2::new(16.0, 12.0),
-            BuildingKind::PowerPlant => Vec2::new(18.0, 14.0),
-            BuildingKind::Factory => Vec2::new(20.0, 16.0),
-            BuildingKind::Dwelling => Vec2::new(12.0, 10.0),
-            BuildingKind::Warehouse => Vec2::new(20.0, 12.0),
-            // Shed plus the two-row parking apron south of it.
-            BuildingKind::Depot => Vec2::new(22.0, 26.0),
-            BuildingKind::BusStop => Vec2::new(5.0, 3.0),
-            // Office hut plus the machine apron.
-            BuildingKind::ConstructionOffice => Vec2::new(20.0, 22.0),
-            BuildingKind::WaterPump => Vec2::new(10.0, 8.0),
-            BuildingKind::SewagePlant => Vec2::new(16.0, 12.0),
-            BuildingKind::HeatPlant => Vec2::new(18.0, 12.0),
-            // Gatehouse + inspection yard.
-            BuildingKind::CustomsOffice => Vec2::new(22.0, 14.0),
-        }
+        super::catalogue::spec(self).footprint
     }
     pub fn inventory_capacity(self) -> f32 {
-        match self {
-            BuildingKind::Mine | BuildingKind::Quarry => 60.0,
-            BuildingKind::PowerPlant => 40.0,
-            BuildingKind::Factory => 40.0,
-            // Goods delivered to residents land here before pantry pickup.
-            BuildingKind::Dwelling => 10.0,
-            BuildingKind::Warehouse => 120.0,
-            // Stores no cargo; the fuel tank arrives with B8.
-            BuildingKind::Depot => 0.0,
-            BuildingKind::BusStop => 0.0,
-            BuildingKind::ConstructionOffice => 0.0,
-            BuildingKind::WaterPump | BuildingKind::SewagePlant => 0.0,
-            BuildingKind::HeatPlant => 40.0,
-            // The export yard: goods wait here for the border sale.
-            BuildingKind::CustomsOffice => 120.0,
-        }
+        super::catalogue::spec(self).inventory_capacity
     }
 }
 

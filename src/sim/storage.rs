@@ -69,29 +69,17 @@ impl StoragePolicies {
 /// Recipe-derived default policies: producers hold back a working reserve and
 /// supply the rest; consumers demand up to a working band. Warehouses get a
 /// neutral all-resource band (min sum fits the shared capacity) the player
-/// tunes per store. Dwellings demand goods for pantry pickup.
+/// tunes per store. Dwellings demand goods for pantry pickup. A kind that
+/// stores no cargo has nothing to band and lists none.
+///
+/// The bands themselves are the kind's catalogue row, held there as raw
+/// (resource, min, max) triples because `StoragePolicies::with` is not `const`
+/// — folding them into the real type is this function's whole job.
 pub fn default_policies(kind: BuildingKind) -> StoragePolicies {
-    let p = StoragePolicies::default();
-    match kind {
-        BuildingKind::Mine => p.with(ResourceKind::Coal, 0.0, 0.05),
-        BuildingKind::Quarry => p.with(ResourceKind::Gravel, 0.0, 0.05),
-        BuildingKind::PowerPlant => p.with(ResourceKind::Coal, 0.6, 1.0),
-        BuildingKind::Factory => p.with(ResourceKind::Goods, 0.0, 0.1),
-        BuildingKind::Dwelling => p.with(ResourceKind::Goods, 0.5, 1.0),
-        BuildingKind::Warehouse => ResourceKind::ALL
-            .into_iter()
-            .fold(p, |acc, r| acc.with(r, 0.2, 0.6)),
-        // Store no cargo — nothing to band.
-        BuildingKind::Depot
-        | BuildingKind::BusStop
-        | BuildingKind::ConstructionOffice
-        | BuildingKind::WaterPump
-        | BuildingKind::SewagePlant => p,
-        BuildingKind::HeatPlant => p.with(ResourceKind::Coal, 0.6, 1.0),
-        // No bands: exports arrive by player-set haul policy; the border
-        // sale drains whatever lands here.
-        BuildingKind::CustomsOffice => p,
-    }
+    super::catalogue::spec(kind).default_policies.iter().fold(
+        StoragePolicies::default(),
+        |policies, &(resource, min_pct, max_pct)| policies.with(resource, min_pct, max_pct),
+    )
 }
 
 pub struct StorageSimPlugin;
