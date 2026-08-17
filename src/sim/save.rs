@@ -207,6 +207,7 @@ fn kind_to_u8(kind: BuildingKind) -> u8 {
         BuildingKind::Warehouse => 5,
         BuildingKind::Depot => 6,
         BuildingKind::BusStop => 7,
+        BuildingKind::ConstructionOffice => 8,
     }
 }
 
@@ -220,6 +221,7 @@ fn kind_from_u8(v: u8) -> Option<BuildingKind> {
         5 => BuildingKind::Warehouse,
         6 => BuildingKind::Depot,
         7 => BuildingKind::BusStop,
+        8 => BuildingKind::ConstructionOffice,
         _ => return None,
     })
 }
@@ -268,6 +270,7 @@ fn transport_class_to_u8(class: TransportClass) -> u8 {
         TransportClass::Bulk => 0,
         TransportClass::Covered => 1,
         TransportClass::Passenger => 2,
+        TransportClass::Machine => 3,
     }
 }
 
@@ -276,6 +279,7 @@ fn transport_class_from_u8(v: u8) -> Option<TransportClass> {
         0 => TransportClass::Bulk,
         1 => TransportClass::Covered,
         2 => TransportClass::Passenger,
+        3 => TransportClass::Machine,
         _ => return None,
     })
 }

@@ -56,7 +56,8 @@ fn shipped_resource(kind: BuildingKind, inventory: Option<&Inventory>) -> Resour
         | BuildingKind::Dwelling
         | BuildingKind::Warehouse
         | BuildingKind::Depot
-        | BuildingKind::BusStop => ResourceKind::Goods,
+        | BuildingKind::BusStop
+        | BuildingKind::ConstructionOffice => ResourceKind::Goods,
         BuildingKind::Mine | BuildingKind::PowerPlant => ResourceKind::Coal,
     }
 }
@@ -156,6 +157,8 @@ fn sync_truck_meshes(
         commands.entity(entity).insert(Name::new(match kind {
             crate::sim::vehicles::VehicleKind::Bus => "Bus",
             crate::sim::vehicles::VehicleKind::Truck => "Truck",
+            crate::sim::vehicles::VehicleKind::Excavator => "Excavator",
+            crate::sim::vehicles::VehicleKind::Crane => "Crane",
         }));
     }
 }
@@ -287,7 +290,75 @@ fn dress_vehicle(
         crate::sim::vehicles::VehicleKind::Truck => {
             dress_truck(commands, entity, pos, meshes, materials)
         }
+        crate::sim::vehicles::VehicleKind::Excavator => {
+            dress_machine(commands, entity, pos, false, meshes, materials)
+        }
+        crate::sim::vehicles::VehicleKind::Crane => {
+            dress_machine(commands, entity, pos, true, meshes, materials)
+        }
     }
+}
+
+/// Construction machine: ochre body on tracks; the crane variant carries a
+/// tall lattice jib, the excavator a low boom.
+fn dress_machine(
+    commands: &mut Commands,
+    entity: Entity,
+    pos: Vec3,
+    crane: bool,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    let ochre = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.72, 0.55, 0.18),
+        perceptual_roughness: 0.8,
+        ..default()
+    });
+    let track = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.10, 0.10, 0.11),
+        perceptual_roughness: 0.95,
+        ..default()
+    });
+    commands
+        .entity(entity)
+        .insert((
+            Transform::from_translation(pos + Vec3::Y * 0.4),
+            Visibility::default(),
+        ))
+        .with_children(|parent| {
+            for x in [-1.0, 1.0] {
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(0.7, 0.8, 3.4))),
+                    MeshMaterial3d(track.clone()),
+                    Transform::from_xyz(x, 0.0, 0.0),
+                ));
+            }
+            parent.spawn((
+                Mesh3d(meshes.add(Cuboid::new(2.2, 1.6, 2.4))),
+                MeshMaterial3d(ochre.clone()),
+                Transform::from_xyz(0.0, 1.0, 0.3),
+            ));
+            if crane {
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(0.5, 7.0, 0.5))),
+                    MeshMaterial3d(ochre.clone()),
+                    Transform::from_xyz(0.0, 1.8, 0.0),
+                ));
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(0.4, 0.4, 5.0))),
+                    MeshMaterial3d(ochre),
+                    Transform::from_xyz(0.0, 8.4, -1.8),
+                ));
+            } else {
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(0.5, 0.5, 3.6))),
+                    MeshMaterial3d(ochre)
+                        ,
+                    Transform::from_xyz(0.0, 2.0, -2.4)
+                        ,
+                ));
+            }
+        });
 }
 
 fn dress_truck(

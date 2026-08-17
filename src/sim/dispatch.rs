@@ -528,7 +528,10 @@ pub(crate) fn drive_toward(
             };
             // Standing at the goal already?
             if let Ok((_, goal_node)) = nodes.get(goal)
-                && vehicle.pos.distance_squared(goal_node.pos) < 1.0
+                // Standing radius exceeds the lane offset: a pawn parked on
+                // its lane at the goal node counts as arrived, or every idle
+                // tick becomes a request/poll round-trip (B6.3 machines).
+                && vehicle.pos.distance_squared(goal_node.pos) < 16.0
             {
                 vehicle.route = Vec::new();
                 vehicle.leg = 0;

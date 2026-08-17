@@ -24,6 +24,9 @@ pub enum TransportClass {
     /// No `ResourceKind` maps to it, so the freight dispatcher can never
     /// match a bus — transit drives its own fleet (`sim/transit.rs`).
     Passenger,
+    /// Construction machinery (B6): carries no cargo class at all — the
+    /// vehicle *is* the tool. Never matched by the freight dispatcher.
+    Machine,
 }
 
 impl ResourceKind {

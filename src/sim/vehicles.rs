@@ -32,6 +32,23 @@ pub enum VehicleKind {
     Truck,
     /// Passenger transit vehicle (B5): serves a `transit::TransitLine`.
     Bus,
+    /// Earthworks machine (B6): works `Skill::Groundworks` site phases.
+    Excavator,
+    /// Lifting machine (B6): works `Skill::Crane` site phases.
+    Crane,
+}
+
+impl VehicleKind {
+    /// Construction skill and work throughput per tick (W&R's
+    /// `$SKILL_CONSTRUCTION_*` numeric skill — more/better machines on a
+    /// site finish its phase faster; no matching machine stalls it).
+    pub fn construction_skill(self) -> Option<(super::construction::Skill, f32)> {
+        match self {
+            VehicleKind::Excavator => Some((super::construction::Skill::Groundworks, 0.4)),
+            VehicleKind::Crane => Some((super::construction::Skill::Crane, 0.5)),
+            VehicleKind::Truck | VehicleKind::Bus => None,
+        }
+    }
 }
 
 /// Physical parking slots per depot (W&R's rule: fleet size *is* the slot
@@ -142,6 +159,12 @@ pub enum VehicleEdit {
     /// Fiat bus purchase (B5): a Passenger-class asset in a depot slot —
     /// the freight dispatcher can never seize it.
     BuyBus { depot: Entity },
+    /// Fiat construction-machine purchase (B6): slotted at a construction
+    /// office; `kind` must carry a construction skill.
+    BuyMachine {
+        office: Entity,
+        kind: VehicleKind,
+    },
     /// Legacy shuttle, reimplemented as policy sugar (#35): sets a paired
     /// export band (0,0) on the source and an import band (0.9,1) on the sink
     /// for `resource`. The dispatcher does the hauling — no truck is seized,
@@ -189,21 +212,35 @@ fn apply_vehicle_edits(
     }
     for edit in queue.0.drain(..) {
         match edit {
-            VehicleEdit::BuyTruck { .. } | VehicleEdit::BuyBus { .. } => {
-                let (depot, kind, class) = match edit {
+            VehicleEdit::BuyTruck { .. }
+            | VehicleEdit::BuyBus { .. }
+            | VehicleEdit::BuyMachine { .. } => {
+                let (depot, kind, class, home_kind) = match edit {
                     VehicleEdit::BuyTruck { depot, class } => {
-                        (depot, VehicleKind::Truck, class)
+                        (depot, VehicleKind::Truck, class, BuildingKind::Depot)
                     }
-                    VehicleEdit::BuyBus { depot } => {
-                        (depot, VehicleKind::Bus, TransportClass::Passenger)
+                    VehicleEdit::BuyBus { depot } => (
+                        depot,
+                        VehicleKind::Bus,
+                        TransportClass::Passenger,
+                        BuildingKind::Depot,
+                    ),
+                    VehicleEdit::BuyMachine { office, kind } => {
+                        if kind.construction_skill().is_none() {
+                            warn!("BuyMachine dropped: {kind:?} has no construction skill");
+                            continue;
+                        }
+                        (
+                            office,
+                            kind,
+                            TransportClass::Machine,
+                            BuildingKind::ConstructionOffice,
+                        )
                     }
                     _ => unreachable!(),
                 };
-                if !buildings
-                    .get(depot)
-                    .is_ok_and(|b| b.kind == BuildingKind::Depot)
-                {
-                    warn!("vehicle purchase dropped: {depot:?} is not a depot");
+                if !buildings.get(depot).is_ok_and(|b| b.kind == home_kind) {
+                    warn!("vehicle purchase dropped: {depot:?} is not a {home_kind:?}");
                     continue;
                 }
                 let occupied = homed.entry(depot).or_default();

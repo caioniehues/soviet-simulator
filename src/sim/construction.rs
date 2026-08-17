@@ -140,16 +140,158 @@ impl ConstructionSite {
     }
 }
 
+/// Service state on a construction-machine asset: which site it works.
+/// Mirrors `dispatch::FreightJob` / `transit::BusDuty`.
+#[derive(Component, Debug)]
+pub struct MachineDuty {
+    pub site: Entity,
+}
+
 pub struct ConstructionSimPlugin;
 
 impl Plugin for ConstructionSimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(attach_sites).add_systems(
-            SimTick,
-            (advance_sites, update_site_policies)
-                .chain()
-                .in_set(SimStage::ProductionAndUtilities),
-        );
+        if !app.is_plugin_added::<super::roads::RoadSimPlugin>() {
+            app.add_plugins(super::roads::RoadSimPlugin);
+        }
+        if !app.is_plugin_added::<super::pathfinding::PathfindingSimPlugin>() {
+            app.add_plugins(super::pathfinding::PathfindingSimPlugin);
+        }
+        if !app.is_plugin_added::<super::traffic::TrafficSimPlugin>() {
+            app.add_plugins(super::traffic::TrafficSimPlugin);
+        }
+        app.add_observer(attach_sites)
+            .add_systems(
+                SimTick,
+                assign_machines.in_set(SimStage::AllocationAndDispatch),
+            )
+            .add_systems(
+                SimTick,
+                run_machines
+                    .in_set(SimStage::MovementAndTransfers)
+                    .after(super::traffic::LanePrep),
+            )
+            .add_systems(
+                SimTick,
+                (advance_sites, update_site_policies)
+                    .chain()
+                    .in_set(SimStage::ProductionAndUtilities),
+            );
+    }
+}
+
+/// Put idle machines onto the nearest site whose *current* phase wants their
+/// skill. Several machines may serve one site — throughputs add (the W&R
+/// duration law); a phase with no matching machine anywhere stays stalled.
+fn assign_machines(
+    mut commands: Commands,
+    fleet: Query<(
+        Entity,
+        &super::vehicles::VehicleAsset,
+        Has<super::vehicles::ActivePawn>,
+        Has<MachineDuty>,
+    )>,
+    sites: Query<(Entity, &Building, &ConstructionSite)>,
+    buildings: Query<&Building>,
+    nodes: Query<(Entity, &super::roads::RoadNode)>,
+) {
+    use super::vehicles::{ActiveVehicle, PawnOf, nearest_node};
+    for (asset, machine, on_road, on_duty) in &fleet {
+        if on_road || on_duty {
+            continue;
+        }
+        let Some((skill, _)) = machine.kind.construction_skill() else {
+            continue;
+        };
+        let Ok(office) = buildings.get(machine.home_depot) else {
+            continue;
+        };
+        let target = sites
+            .iter()
+            .filter(|(.., site)| site.phase().is_some_and(|p| p.skill == skill))
+            .map(|(e, b, _)| (e, b.pos.distance_squared(office.pos)))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(e, _)| e);
+        let Some(site) = target else { continue };
+        // Roll out from the office's road node, like any depot trip.
+        let Some(start) = nearest_node(office.pos, &nodes) else {
+            continue;
+        };
+        let pos = nodes.get(start).unwrap().1.pos;
+        commands.entity(asset).insert(MachineDuty { site });
+        commands.spawn((ActiveVehicle::at(pos), PawnOf(asset)));
+    }
+}
+
+/// Drive to the duty site over the B4 stack and, once parked, pour the
+/// machine's skill into the site's throughput each tick. Duty ends when the
+/// site completes, vanishes, or its current phase stops wanting this skill —
+/// the machine dead-heads home and parks.
+#[allow(clippy::too_many_arguments)]
+fn run_machines(
+    mut commands: Commands,
+    mut pawns: Query<(Entity, &mut super::vehicles::ActiveVehicle, &super::vehicles::PawnOf)>,
+    duties: Query<&MachineDuty>,
+    assets: Query<&super::vehicles::VehicleAsset>,
+    mut sites: Query<(&Building, &mut ConstructionSite)>,
+    buildings: Query<&Building, Without<ConstructionSite>>,
+    mut svc: ResMut<super::pathfinding::PathService>,
+    occupancy: Res<super::traffic::LaneOccupancy>,
+    nodes: Query<(Entity, &super::roads::RoadNode)>,
+    segments: Query<&super::roads::RoadSegment>,
+) {
+    use super::dispatch::{Progress, drive_toward};
+    use super::vehicles::nearest_node;
+    let dt = super::clock::SECS_PER_PASS as f32;
+    for (pawn, mut vehicle, pawn_of) in &mut pawns {
+        let Ok(duty) = duties.get(pawn_of.0) else {
+            continue;
+        };
+        let Ok(machine) = assets.get(pawn_of.0) else {
+            continue;
+        };
+        let Some((skill, rate)) = machine.kind.construction_skill() else {
+            continue;
+        };
+        let wanted = sites
+            .get(duty.site)
+            .ok()
+            .and_then(|(b, site)| site.phase().map(|p| (b.pos, p.skill)))
+            .filter(|(_, s)| *s == skill);
+        if let Some((site_pos, _)) = wanted {
+            let goal = || nearest_node(site_pos, &nodes);
+            match drive_toward(
+                pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments,
+            ) {
+                Progress::Arrived => {
+                    if let Ok((_, mut site)) = sites.get_mut(duty.site) {
+                        site.throughput += rate;
+                    }
+                }
+                Progress::Moving | Progress::NoPath => {}
+            }
+        } else {
+            // Done here (or wrong phase): head home and park.
+            let asset = pawn_of.0;
+            let home = || {
+                assets
+                    .get(asset)
+                    .ok()
+                    .and_then(|a| buildings.get(a.home_depot).ok())
+                    .and_then(|b| nearest_node(b.pos, &nodes))
+            };
+            let done = match drive_toward(
+                pawn, &mut vehicle, home, dt, &mut svc, &occupancy, &nodes, &segments,
+            ) {
+                Progress::Arrived => true,
+                Progress::NoPath => home().is_none(),
+                Progress::Moving => false,
+            };
+            if done {
+                commands.entity(pawn).despawn();
+                commands.entity(pawn_of.0).remove::<MachineDuty>();
+            }
+        }
     }
 }
 
@@ -450,6 +592,127 @@ mod tests {
             site.bottleneck,
             Some(Bottleneck::NoMachine),
             "material satisfied — the stall names the missing machine"
+        );
+    }
+
+    /// Road 0→100, office west, factory site east with its yard pre-stocked
+    /// (delivery is B6.2's test); returns (factory, office).
+    fn machine_world(app: &mut App) -> (Entity, Entity) {
+        use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue};
+        app.world_mut()
+            .resource_mut::<RoadEditQueue>()
+            .0
+            .push(RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            });
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            for (kind, pos) in [
+                (BuildingKind::ConstructionOffice, Vec3::new(0.0, 0.0, 20.0)),
+                (BuildingKind::Factory, Vec3::new(110.0, 0.0, 0.0)),
+            ] {
+                buildings.0.push(BuildingEdit::Place { kind, pos });
+            }
+        }
+        ticks(app, 2);
+        let world = app.world_mut();
+        let mut office = None;
+        let mut factory = None;
+        let mut q = world.query::<(Entity, &Building)>();
+        for (e, b) in q.iter(world) {
+            match b.kind {
+                BuildingKind::ConstructionOffice => office = Some(e),
+                BuildingKind::Factory => factory = Some(e),
+                _ => {}
+            }
+        }
+        let (office, factory) = (office.unwrap(), factory.unwrap());
+        // The office completes by fiat; the factory's yard holds its bill.
+        world.entity_mut(office).remove::<ConstructionSite>();
+        {
+            let mut yard = world.get_mut::<Inventory>(factory).unwrap();
+            yard.add(ResourceKind::Gravel, 10.0);
+            yard.add(ResourceKind::Goods, 12.0);
+        }
+        (factory, office)
+    }
+
+    fn machine_app() -> App {
+        use super::super::roads::RoadSimPlugin;
+        use super::super::vehicles::VehicleSimPlugin;
+        let mut a = App::new();
+        a.insert_resource(Time::<()>::default());
+        a.add_plugins((
+            SimPlugin,
+            RoadSimPlugin,
+            BuildingSimPlugin,
+            VehicleSimPlugin,
+            ConstructionSimPlugin,
+        ));
+        a
+    }
+
+    #[test]
+    fn machines_work_the_phases_and_the_building_activates() {
+        use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleKind};
+        let mut app = machine_app();
+        let (factory, office) = machine_world(&mut app);
+        {
+            let mut edits = app.world_mut().resource_mut::<VehicleEditQueue>();
+            edits.0.push(VehicleEdit::BuyMachine {
+                office,
+                kind: VehicleKind::Excavator,
+            });
+            edits.0.push(VehicleEdit::BuyMachine {
+                office,
+                kind: VehicleKind::Crane,
+            });
+        }
+        ticks(&mut app, 6500);
+        assert!(
+            app.world().get::<ConstructionSite>(factory).is_none(),
+            "excavator then crane must carry the site to activation"
+        );
+        let world = app.world_mut();
+        assert_eq!(
+            world
+                .query::<&super::super::vehicles::ActiveVehicle>()
+                .iter(world)
+                .count(),
+            0,
+            "machines dead-head home and park after the job"
+        );
+        assert_eq!(
+            world
+                .query::<&super::super::vehicles::VehicleAsset>()
+                .iter(world)
+                .count(),
+            2,
+            "the fleet survives, parked at the office"
+        );
+    }
+
+    #[test]
+    fn missing_crane_stalls_the_structure_phase_by_name() {
+        use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleKind};
+        let mut app = machine_app();
+        let (factory, office) = machine_world(&mut app);
+        app.world_mut()
+            .resource_mut::<VehicleEditQueue>()
+            .0
+            .push(VehicleEdit::BuyMachine {
+                office,
+                kind: VehicleKind::Excavator,
+            });
+        ticks(&mut app, 3000); // drive ~900 + earthworks 400 + margin
+        let site = app.world().get::<ConstructionSite>(factory).unwrap();
+        assert_eq!(site.phase().unwrap().kind, PhaseKind::Structure);
+        assert_eq!(
+            site.bottleneck,
+            Some(Bottleneck::NoMachine),
+            "no crane anywhere — the structure phase stalls with its name"
         );
     }
 

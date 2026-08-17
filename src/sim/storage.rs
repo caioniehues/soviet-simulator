@@ -82,7 +82,7 @@ pub fn default_policies(kind: BuildingKind) -> StoragePolicies {
             .into_iter()
             .fold(p, |acc, r| acc.with(r, 0.2, 0.6)),
         // Store no cargo — nothing to band.
-        BuildingKind::Depot | BuildingKind::BusStop => p,
+        BuildingKind::Depot | BuildingKind::BusStop | BuildingKind::ConstructionOffice => p,
     }
 }
 
