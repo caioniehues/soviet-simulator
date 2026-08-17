@@ -24,6 +24,7 @@ pub fn run() {
             sim::vehicles::VehicleSimPlugin,
             // DispatchSimPlugin auto-adds Pathfinding + Traffic.
             sim::dispatch::DispatchSimPlugin,
+            sim::transit::TransitSimPlugin,
             sim::wires::WireSimPlugin,
             sim::save::SaveSimPlugin,
         ))

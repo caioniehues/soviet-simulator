@@ -81,8 +81,8 @@ pub fn default_policies(kind: BuildingKind) -> StoragePolicies {
         BuildingKind::Warehouse => ResourceKind::ALL
             .into_iter()
             .fold(p, |acc, r| acc.with(r, 0.2, 0.6)),
-        // Stores no cargo — nothing to band.
-        BuildingKind::Depot => p,
+        // Store no cargo — nothing to band.
+        BuildingKind::Depot | BuildingKind::BusStop => p,
     }
 }
 

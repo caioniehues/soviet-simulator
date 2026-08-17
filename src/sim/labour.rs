@@ -34,7 +34,7 @@ impl BuildingKind {
             BuildingKind::Dwelling => 0,
             // Loading labour arrives with dispatch execution (M3.4);
             // drivers stay abstracted for bulk freight (spec/vehicles.md lean).
-            BuildingKind::Warehouse | BuildingKind::Depot => 0,
+            BuildingKind::Warehouse | BuildingKind::Depot | BuildingKind::BusStop => 0,
         }
     }
 }

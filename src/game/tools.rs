@@ -15,6 +15,8 @@ pub enum ToolMode {
     Wire,
     /// Click a source building, then a destination: creates a truck shuttle.
     Shuttle,
+    /// Click bus stops in order; right-click closes the loop into a line.
+    TransitLine,
 }
 
 /// Where the cursor ray hits the ground plane this frame, if it does.
@@ -54,12 +56,15 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
             ToolMode::Building(BuildingKind::Factory) => BuildingKind::Dwelling,
             ToolMode::Building(BuildingKind::Dwelling) => BuildingKind::Warehouse,
             ToolMode::Building(BuildingKind::Warehouse) => BuildingKind::Depot,
+            ToolMode::Building(BuildingKind::Depot) => BuildingKind::BusStop,
             _ => BuildingKind::Mine,
         }))
     } else if keys.just_pressed(KeyCode::Digit4) {
         Some(ToolMode::Wire)
     } else if keys.just_pressed(KeyCode::Digit5) {
         Some(ToolMode::Shuttle)
+    } else if keys.just_pressed(KeyCode::Digit6) {
+        Some(ToolMode::TransitLine)
     } else {
         None
     };

@@ -27,6 +27,9 @@ pub enum BuildingKind {
     /// Fleet home: physical parking slots bound the owned truck fleet
     /// (`vehicles::DEPOT_SLOTS`); the only place vehicles are acquired.
     Depot,
+    /// Transit stop (B5 bootstrap stub): a shelter that docks a road node;
+    /// bus lines are ordered loops of these (`transit::TransitLine`).
+    BusStop,
 }
 
 impl BuildingKind {
@@ -40,6 +43,7 @@ impl BuildingKind {
             BuildingKind::Warehouse => Vec2::new(20.0, 12.0),
             // Shed plus the two-row parking apron south of it.
             BuildingKind::Depot => Vec2::new(22.0, 26.0),
+            BuildingKind::BusStop => Vec2::new(5.0, 3.0),
         }
     }
     pub fn inventory_capacity(self) -> f32 {
@@ -52,6 +56,7 @@ impl BuildingKind {
             BuildingKind::Warehouse => 120.0,
             // Stores no cargo; the fuel tank arrives with B8.
             BuildingKind::Depot => 0.0,
+            BuildingKind::BusStop => 0.0,
         }
     }
 }

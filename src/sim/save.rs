@@ -206,6 +206,7 @@ fn kind_to_u8(kind: BuildingKind) -> u8 {
         BuildingKind::Dwelling => 4,
         BuildingKind::Warehouse => 5,
         BuildingKind::Depot => 6,
+        BuildingKind::BusStop => 7,
     }
 }
 
@@ -218,6 +219,7 @@ fn kind_from_u8(v: u8) -> Option<BuildingKind> {
         4 => BuildingKind::Dwelling,
         5 => BuildingKind::Warehouse,
         6 => BuildingKind::Depot,
+        7 => BuildingKind::BusStop,
         _ => return None,
     })
 }

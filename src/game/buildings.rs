@@ -20,6 +20,7 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::Dwelling => Color::srgb(0.58, 0.56, 0.52),
         BuildingKind::Warehouse => Color::srgb(0.52, 0.47, 0.40),
         BuildingKind::Depot => Color::srgb(0.48, 0.50, 0.46),
+        BuildingKind::BusStop => Color::srgb(0.55, 0.58, 0.52),
     }
 }
 
@@ -32,6 +33,7 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::Dwelling => 11.0,
         BuildingKind::Warehouse => 7.0,
         BuildingKind::Depot => 6.0,
+        BuildingKind::BusStop => 3.0,
     }
 }
 
@@ -326,6 +328,13 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             }
             v
         }
+        // Bus shelter: concrete slab roof on two posts, timber bench.
+        BuildingKind::BusStop => vec![
+            boxed(&m.rust, Vec3::new(0.4, 2.8, 0.4), Vec3::new(-1.8, 0.0, -1.0)),
+            boxed(&m.rust, Vec3::new(0.4, 2.8, 0.4), Vec3::new(1.8, 0.0, -1.0)),
+            boxed(&m.concrete, Vec3::new(5.0, 0.4, 3.0), Vec3::new(0.0, 2.8, -0.4)),
+            boxed(&m.timber, Vec3::new(4.0, 0.9, 0.8), Vec3::new(0.0, 0.0, -1.2)),
+        ],
     }
 }
 

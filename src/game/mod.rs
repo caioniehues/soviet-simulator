@@ -7,6 +7,7 @@ pub mod hud;
 pub mod roads;
 pub mod saveload;
 pub mod tools;
+pub mod transit;
 pub mod vehicles;
 pub mod wires;
 pub mod world;
@@ -25,6 +26,7 @@ impl Plugin for GamePlugin {
             buildings::BuildingToolPlugin,
             citizens::CitizenViewPlugin,
             vehicles::VehicleToolPlugin,
+            transit::TransitToolPlugin,
             wires::WireToolPlugin,
             saveload::SaveLoadPlugin,
             hud::HudPlugin,

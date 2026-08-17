@@ -16,6 +16,7 @@ pub mod save;
 pub mod stages;
 pub mod storage;
 pub mod traffic;
+pub mod transit;
 pub mod vehicles;
 pub mod wires;
 

@@ -471,6 +471,9 @@ fn tool_label(mode: ToolMode) -> String {
         ToolMode::Shuttle => {
             "HAUL POLICY - click source (export all), then destination (import to 90%)".into()
         }
+        ToolMode::TransitLine => {
+            "BUS LINE - click stops in order, right-click closes the loop".into()
+        }
     }
 }
 
