@@ -386,6 +386,9 @@ fn update_dispatch_readout(
     queue: Res<DispatchQueue>,
     board: Res<DeficitBoard>,
     stalls: Res<StallBoard>,
+    transit_lines: Query<&crate::sim::transit::TransitLine>,
+    duties: Query<&crate::sim::transit::BusDuty>,
+    stop_queues: Res<crate::sim::transit::StopQueues>,
     tick: Res<TickIndex>,
     fleet: Query<(&VehicleAsset, Has<ActivePawn>)>,
     buildings: Query<&Building>,
@@ -433,6 +436,15 @@ fn update_dispatch_readout(
     }
     if pending.len() > 4 {
         lines.push_str(&format!("\n  … and {} more", pending.len() - 4));
+    }
+    let line_count = transit_lines.iter().count();
+    if line_count > 0 {
+        let buses = duties.iter().count();
+        let aboard: usize = duties.iter().map(|d| d.riders.len()).sum();
+        let waiting: usize = stop_queues.0.values().map(|q| q.len()).sum();
+        lines.push_str(&format!(
+            "\nTRANSIT: {line_count} line(s), {buses} bus(es) out, {aboard} aboard, {waiting} waiting"
+        ));
     }
     if !stalls.0.is_empty() {
         let held: u32 = stalls.0.values().map(|s| s.vehicles).sum();

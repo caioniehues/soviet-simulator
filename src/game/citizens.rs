@@ -57,10 +57,22 @@ fn dress_new_pawns(
     }
 }
 
-fn sync_pawn_transforms(time: Res<Time>, mut pawns: Query<(&CommuterPawn, &mut Transform)>) {
+fn sync_pawn_transforms(
+    time: Res<Time>,
+    mut pawns: Query<(&CommuterPawn, &mut Transform, &mut Visibility)>,
+) {
     let ease = (time.delta_secs() * 14.0).min(1.0);
-    for (pawn, mut transform) in &mut pawns {
+    for (pawn, mut transform, mut visibility) in &mut pawns {
         let target = pawn.pos + Vec3::Y * 0.9;
         transform.translation = transform.translation.lerp(target, ease);
+        // A rider is inside the bus, not standing on its roof (B5.5).
+        let wanted = if matches!(pawn.phase, crate::sim::commute::CommutePhase::Ride { .. }) {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
+        if *visibility != wanted {
+            *visibility = wanted;
+        }
     }
 }

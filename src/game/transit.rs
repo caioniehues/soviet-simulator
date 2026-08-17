@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::buildings::{Building, BuildingKind};
-use crate::sim::transit::{TransitEdit, TransitEditQueue};
+use crate::sim::transit::{TransitEdit, TransitEditQueue, TransitLine};
 
 /// Click-picking radius around a stop's centre, metres.
 const PICK_RADIUS: f32 = 10.0;
@@ -21,7 +21,7 @@ pub struct TransitToolPlugin;
 impl Plugin for TransitToolPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LineDraft>()
-            .add_systems(Update, (drive_line_tool, preview_line_draft));
+            .add_systems(Update, (drive_line_tool, preview_line_draft, overlay_lines));
     }
 }
 
@@ -93,5 +93,31 @@ fn preview_line_draft(
     }
     if let (Some(last), Some(pos)) = (anchors.last(), cursor.0) {
         gizmos.line(*last, pos + lift, color);
+    }
+}
+
+/// Standing overlay: each live line traces its stop loop in its own hue so
+/// the network reads at a glance (B5.5).
+fn overlay_lines(lines: Query<&TransitLine>, buildings: Query<&Building>, mut gizmos: Gizmos) {
+    for line in &lines {
+        let hue = (line.id.0 as f32 * 71.0) % 360.0;
+        let color = Color::hsl(hue, 0.55, 0.55).with_alpha(0.8);
+        let lift = Vec3::Y * 1.2;
+        let anchors: Vec<Vec3> = line
+            .stops
+            .iter()
+            .filter_map(|&s| buildings.get(s).ok().map(|b| b.pos + lift))
+            .collect();
+        for a in &anchors {
+            gizmos.circle(
+                Isometry3d::new(*a, Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+                4.0,
+                color,
+            );
+        }
+        for i in 0..anchors.len() {
+            let next = (i + 1) % anchors.len();
+            gizmos.line(anchors[i], anchors[next], color);
+        }
     }
 }

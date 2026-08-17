@@ -143,13 +143,20 @@ struct CargoMound;
 /// look_to() points it along the heading. Cargo shows as a dark mound.
 fn sync_truck_meshes(
     mut commands: Commands,
-    added: Query<(Entity, &ActiveVehicle), Added<ActiveVehicle>>,
+    added: Query<(Entity, &ActiveVehicle, Option<&crate::sim::vehicles::PawnOf>), Added<ActiveVehicle>>,
+    fleet: Query<&VehicleAsset>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, vehicle) in &added {
-        dress_truck(&mut commands, entity, vehicle.pos, &mut meshes, &mut materials);
-        commands.entity(entity).insert(Name::new("Truck"));
+    for (entity, vehicle, pawn_of) in &added {
+        let kind = pawn_of
+            .and_then(|p| fleet.get(p.0).ok())
+            .map_or(crate::sim::vehicles::VehicleKind::Truck, |a| a.kind);
+        dress_vehicle(&mut commands, entity, kind, vehicle.pos, &mut meshes, &mut materials);
+        commands.entity(entity).insert(Name::new(match kind {
+            crate::sim::vehicles::VehicleKind::Bus => "Bus",
+            crate::sim::vehicles::VehicleKind::Truck => "Truck",
+        }));
     }
 }
 
@@ -175,14 +182,15 @@ fn sync_parked_trucks(
             .iter()
             .filter(|a| a.home_depot == asset.home_depot && a.id.0 < asset.id.0)
             .count() as u32;
-        dress_truck(
+        dress_vehicle(
             &mut commands,
             entity,
+            asset.kind,
             depot_slot_pos(depot.pos, slot),
             &mut meshes,
             &mut materials,
         );
-        commands.entity(entity).insert(Name::new("ParkedTruck"));
+        commands.entity(entity).insert(Name::new("ParkedVehicle"));
     }
 }
 
@@ -199,6 +207,85 @@ fn toggle_parked_visibility(
         };
         if *visibility != wanted {
             *visibility = wanted;
+        }
+    }
+}
+
+/// LiAZ-ish city bus: one long teal box with a window band, front on -Z.
+fn dress_bus(
+    commands: &mut Commands,
+    entity: Entity,
+    pos: Vec3,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    let body = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.24, 0.42, 0.44),
+        perceptual_roughness: 0.7,
+        ..default()
+    });
+    let glass = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.65, 0.72, 0.75),
+        perceptual_roughness: 0.3,
+        ..default()
+    });
+    let tire = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.08, 0.08, 0.09),
+        perceptual_roughness: 0.95,
+        ..default()
+    });
+    let wheel_mesh = meshes.add(Cylinder::new(0.55, 0.45));
+    commands
+        .entity(entity)
+        .insert((
+            Transform::from_translation(pos + Vec3::Y * 0.55),
+            Visibility::default(),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Mesh3d(meshes.add(Cuboid::new(2.3, 2.2, 6.4))),
+                MeshMaterial3d(body),
+                Transform::from_xyz(0.0, 1.25, 0.0),
+            ));
+            for x in [-1.16, 1.16] {
+                parent.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(0.05, 0.7, 5.6))),
+                    MeshMaterial3d(glass.clone()),
+                    Transform::from_xyz(x, 1.75, 0.0),
+                ));
+            }
+            // windshield
+            parent.spawn((
+                Mesh3d(meshes.add(Cuboid::new(1.9, 0.7, 0.05))),
+                MeshMaterial3d(glass),
+                Transform::from_xyz(0.0, 1.75, -3.2),
+            ));
+            for (x, z) in [(-1.1, -2.2), (1.1, -2.2), (-1.1, 2.2), (1.1, 2.2)] {
+                parent.spawn((
+                    Wheel,
+                    Mesh3d(wheel_mesh.clone()),
+                    MeshMaterial3d(tire.clone()),
+                    Transform::from_xyz(x, 0.0, z)
+                        .with_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)),
+                ));
+            }
+        });
+}
+
+fn dress_vehicle(
+    commands: &mut Commands,
+    entity: Entity,
+    kind: crate::sim::vehicles::VehicleKind,
+    pos: Vec3,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    match kind {
+        crate::sim::vehicles::VehicleKind::Bus => {
+            dress_bus(commands, entity, pos, meshes, materials)
+        }
+        crate::sim::vehicles::VehicleKind::Truck => {
+            dress_truck(commands, entity, pos, meshes, materials)
         }
     }
 }
