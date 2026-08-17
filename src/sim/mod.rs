@@ -3,6 +3,7 @@
 
 pub mod buildings;
 pub mod citizens;
+pub mod dispatch;
 pub mod clock;
 pub mod commute;
 pub mod households;

@@ -342,8 +342,11 @@ fn run_shuttles(
                     };
                     let phase = vehicle.phase;
                     depart(&mut vehicle, from, to, phase, &buildings, &nodes, &segments);
-                } else {
-                    advance_along_route(&mut vehicle, dt, &nodes, &segments);
+                } else if advance_along_route(&mut vehicle, dt, &nodes, &segments) {
+                    vehicle.phase = match vehicle.phase {
+                        ShuttlePhase::Outbound => ShuttlePhase::Unloading,
+                        _ => ShuttlePhase::Loading,
+                    };
                 }
             }
         }
@@ -380,29 +383,26 @@ fn depart(
     vehicle.phase = phase;
 }
 
-fn advance_along_route(
+/// Move along the cached route; returns `true` once the route is exhausted
+/// (arrived). Phase transitions are the caller's business.
+pub(crate) fn advance_along_route(
     vehicle: &mut ActiveVehicle,
     dt: f32,
     nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
-) {
+) -> bool {
     let mut budget = f32::MAX; // set from lane speed on the first leg below
     loop {
         let Some(leg) = vehicle.route.get(vehicle.leg).copied() else {
-            // Route exhausted: arrived.
-            vehicle.phase = match vehicle.phase {
-                ShuttlePhase::Outbound => ShuttlePhase::Unloading,
-                _ => ShuttlePhase::Loading,
-            };
-            return;
+            return true;
         };
         // A recompiled-away segment severs the route: hold and let the next
         // depart() recompute (M1 keeps this rare; no roads are auto-removed).
         let Ok(segment) = segments.get(leg.segment) else {
-            return;
+            return false;
         };
         let Some(lane) = segment.lanes.iter().find(|l| l.dir == leg.dir) else {
-            return;
+            return false;
         };
         if budget == f32::MAX {
             budget = TRUCK_SPEED * lane.speed_modifier * dt;
@@ -411,7 +411,7 @@ fn advance_along_route(
         if budget < remaining {
             vehicle.s += budget;
             place_on_leg(vehicle, segment, leg.dir, nodes);
-            return;
+            return false;
         }
         // Finish this leg and continue onto the next with the leftover budget.
         budget -= remaining;
@@ -455,6 +455,16 @@ pub fn nearest_node(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> Option<Ent
         .iter()
         .map(|(e, n)| (e, n.pos.distance_squared(pos)))
         .filter(|(_, d2)| *d2 <= DOCK_RADIUS * DOCK_RADIUS)
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(e, _)| e)
+}
+
+/// Nearest node with no dock-radius gate: re-entry point for a vehicle that
+/// is already out on the network (possibly mid-segment, far from any node).
+pub fn nearest_node_unbounded(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> Option<Entity> {
+    nodes
+        .iter()
+        .map(|(e, n)| (e, n.pos.distance_squared(pos)))
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(e, _)| e)
 }
