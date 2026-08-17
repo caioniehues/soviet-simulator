@@ -13,6 +13,22 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
+> ## ⚑ This ladder is now closed — see [`docs/charter-1.0.md`](docs/charter-1.0.md)
+>
+> Everything below B8/G1/P1 was an **open-ended** ladder. On 2026-08-17 the
+> wayfinder map [the Road to 1.0](https://github.com/caioniehues/soviet-simulator/issues/81)
+> replaced it with a **finite 16-rung charter**: a fixed cut line
+> (ship / post-1.0 / never), a braid rule, a polish definition, and a pinned
+> performance target. **The charter is the plan of record.** The B/G/P sections
+> below are kept as the historical record of what shipped and as the source
+> material the charter draws on — where they disagree with the charter, the
+> charter wins.
+>
+> The charter's rung order is R0 → R15; the old B9/B10/B11 content is
+> redistributed across it (B9 → R6, B10 → R12, B11 → post-1.0).
+
+---
+
 ## Bootstrap cycles
 
 - **Electricity ⇄ production:** power gates production, but a plant *is* a production building. B1 stubs the gate (plant burns fuel unstaffed); B2 closes the labour half, B8 the utility half.
@@ -116,7 +132,9 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B9 — Care of the State: Services `[ ]`
+### B9 — Care of the State: Services `[ ]` → **charter rung R6**
+
+*Scope confirmed and amended by [#94](https://github.com/caioniehues/soviet-simulator/issues/94): all four loops ship, education at **two tiers**, death ships, medicine is a 16th import-only resource.*
 
 **Destination** — no coverage auras, ever: education is enrolment with seat-time progression feeding worker qualification; sickness is an acute event cured by a dispatched, staffed, supplied hospital; waste is collected by the dispatcher and recycled, burned, or dumped.
 **Acceptance demo** — a school cohort graduates and unlocks skilled staffing; a sick worker is ambulanced, cured over days, returns to work; uncollected bins breed sickness; the incinerator feeds the grid.
@@ -128,7 +146,9 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B10 — The Border: Trade and the Calendar `[ ]`
+### B10 — The Border: Trade and the Calendar `[ ]` → **charter rung R12** (trimmed)
+
+*Trimmed by [#95](https://github.com/caioniehues/soviet-simulator/issues/95): two-way trade at **fixed prices** and a **single rouble** ship; the era calendar from 1917, dual currency, vehicle manufacture, fuel and voltage tiers are **post-1.0**. 1.0 sits in one fixed 1950s–60s era.*
 
 **Destination** — the outside world exists and time passes: dual-currency physical border trade (customs haul, no infinite edge), the calendar drives era progression from 1917, and the vehicle/goods catalogue changes by year — importing to bootstrap becomes a real strategy.
 **Acceptance demo** — import electricity to start your first plant; sell surplus for hard currency; watch the buyable catalogue change across decades; horses before lorries.
@@ -140,7 +160,9 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B11 — Order and Discontent `[ ]`
+### B11 — Order and Discontent `[ ]` → **post-1.0**
+
+*Ruled out of 1.0 by the cut line ([#90](https://github.com/caioniehues/soviet-simulator/issues/90)). The spec keeps; the 500k–1M identity ladder moves with it — 1.0's pinned target is **250k at 60 fps** ([#107](https://github.com/caioniehues/soviet-simulator/issues/107)).*
 
 **Destination** — the society pushes back: crime emerges from neglect and is cleared only by physical arrest→court→fed prison; the black market leaks state inventory under chronic shortage; aspirations complete the needs model.
 **Acceptance demo** — a neglected district's crime rises; an arrest consumes police capacity and a fed prison bed; chronic shortage visibly leaks goods; aspiration satisfaction becomes a long-run score.
@@ -155,6 +177,14 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 Systems rungs prove mechanics; polish rungs make them look and feel like the finished product. Same wayfinder-map discipline — each P-rung is charted, has an acceptance demo (always a recaptured video judged against the previous one), and closes. Anchored to B-rungs so art never waits until "later" again. Art direction: **W&R-like industrial realism** — gritty, weathered, Soviet-era material honesty — *studied from reference, never ripped*; assets are our own procedural meshes, CC0 libraries (ambientCG, Poly Haven, Kenney), and (once approved) generated models.
 
+### G1 — The Weight of the Plan `[x]` (game-feel ladder; anchored before B9 — decided 2026-08-17)
+
+**Why a G-ladder** — after B8 the sim was deep but unfelt: no pressure loop, debug-readout HUD, keyboard-cycled tools, and the planned-economy identity living in commit messages instead of on screen. G-rungs make the game *playable*; P-rungs stay art.
+**Destination** — the player is **the planner**: an authored First Five-Year Plan hands down quota ladders (coal → power → housing → factory output) on a deadline clock; fulfillment drives the next period's state allocation of materials, trucks, and recruits (miss the plan → a leaner, harder period — never game over); fiat purchases are replaced by an allocation-point budget; interaction moves to a mouse-driven toolbar (keys become shortcuts); the fullscreen Plan ledger (P key) is the game's signature screen.
+**Acceptance** — an unscripted 30-minute played session that holds interest (plus a capture for the record).
+**Phases** — G1.1 quota/allocation sim (plan periods, fulfillment, tranches); G1.2 toolbar UI rebuild; G1.3 Plan ledger + HUD redesign; G1.4 authored First Plan + playtest.
+**Out of scope** — money (B10 foreign currency), procedural endless plans (post-campaign mode, later), art passes (P-ladder).
+
 ### P1 — First Light `[x]` (anchor: after B1 — runs now, on the M1 scene)
 
 **Destination** — the M1 demo scene stops looking like a debug view: real lighting and atmosphere, materially-honest ground and roads, buildings with silhouettes and detail instead of colored boxes, trucks that read as trucks, HUD that reads as a designed interface. Zero asset spend: procedural detail + CC0 textures/models only.
@@ -162,27 +192,43 @@ Systems rungs prove mechanics; polish rungs make them look and feel like the fin
 **In scope** — art-direction doc (reference study, palette, material rules); lighting/atmosphere (sun angle, shadows, ambient, tonemapping, bloom/AO, distance fog, sky); terrain material (tiled CC0 ground with variation, road wear decals); building meshes v2 (multi-part procedural: walls/roofs/windows/chimneys, plant smoke VFX); road/wire pass (textured ribbons, catenary sag poles); truck model (CC0 or procedural v2, wheel spin); UI theme (font, panel styling, iconographic key legend).
 **Out of scope** — paid generation (separate spend decision), character art (P2), audio (P3).
 
-### P2 — Faces in the Crowd `[ ]` (anchor: after B2)
+### P2 — Faces in the Crowd `[ ]` → **charter rung R7**
 
-Citizens and dwellings get the same treatment: readable people at RTS zoom, animation states (walk/work/queue), dwelling architecture pass, day/night cycle with window glow.
+Bounded visible citizens with walk/queue/work states, day/night cycle, powered-state window glow, ambient life. Scope fixed by [#105](https://github.com/caioniehues/soviet-simulator/issues/105); **zero spend confirmed**.
 
-### P3 — The Republic Sounds `[ ]` (anchor: after B5)
+### P3 — The Republic Sounds `[ ]` → **charter rungs R3 + R9**
 
-The identity slice: tram/transit visual pass, full audio (ambient industry, vehicles, UI), weather/seasonal dressing first cut, camera feel (easing, cinematic zoom levels).
+Audio splits into three layers with **UI feedback first** ([#104](https://github.com/caioniehues/soviet-simulator/issues/104)) — the build currently refuses silently, which is its most unfinished interaction. Seasonal dressing lands with the terrain material at R9; camera feel splits between R1 and R14.
 
-### P4 — Ship Shape `[ ]` (anchor: pre-release fog)
+### P4 — Ship Shape `[ ]` → **exploded into charter rungs R11 + R14**
 
-Menus, settings, onboarding, loading, performance-scaled visual options, trailer-grade capture tooling. Charted when the frontier approaches.
+No longer one line of fog. [#89](https://github.com/caioniehues/soviet-simulator/issues/89) exploded it into **nine shell items with per-item acceptance bars** (~10–17 days after the audience cuts), and the audience decision ([#87](https://github.com/caioniehues/soviet-simulator/issues/87)) cut performance-scaled options, the trailer, localisation beyond EN, accessibility and telemetry. The keystone is an **app-state retrofit**, built first and alone.
 
 ---
 
-## Rungs 12+ (named fog — direction without fake precision)
+## The former fog rungs — now resolved
 
-- **Rail** — freight + passenger rail, signalling, stations; the dispatcher and transit models both extend.
-- **Seasons & Agriculture** — growing cycles, harvest logistics, food chains deepen; heating demand already seasonal from B8.
-- **Political Legitimacy** — loyalty, perceived fairness, the state's mandate as an emergent consequence of everything above.
+The three named fog rungs were the whole reason this ladder had no end. The
+charter settles all three:
 
-Each is charted only when the frontier reaches it.
+- **Rail** → **ships in 1.0 at a minimal freight stage** (charter R12,
+  [#91](https://github.com/caioniehues/soviet-simulator/issues/91)). It turned out
+  small: 3 buildings, 1 loco, 1 wagon, fixed consists, riding the existing lane
+  graph and dispatcher. Passenger rail, signals and electrification are post-1.0.
+- **Seasons & Agriculture** → **ships in 1.0** (charter R4 + R9,
+  [#93](https://github.com/caioniehues/soviet-simulator/issues/93)). Field-cycle
+  farming on the climate sinusoid that has driven heating demand invisibly since
+  B8 — the rung that finally makes seasons *felt*.
+- **Political Legitimacy** → **post-1.0 crown jewel**
+  ([#99](https://github.com/caioniehues/soviet-simulator/issues/99)). The most
+  *ours* system on the board, and the least specced; it earns its own design
+  effort rather than a rushed 1.0 rung.
+
+**New in 1.0 and not on the old ladder at all:** heightfield terrain with
+gameplay-grade water and **hydro dams** (charter R8 + R10,
+[#96](https://github.com/caioniehues/soviet-simulator/issues/96)) — the one
+deliberate exception to the charter's lean-systems posture, and its largest single
+item. W&R itself ships no hydro at all.
 
 ---
 
@@ -201,3 +247,11 @@ Each is charted only when the frontier reaches it.
 - **Local over global.** No feature ships if it forces a global recompute that could be local.
 - **Benchmark before scale.**
 - **Milestones are wayfinder maps.** Chart, then work; one map at a time.
+- **The charter is the cut line.** New system ideas do not join 1.0; they join the
+  post-1.0 list in [`docs/charter-1.0.md`](docs/charter-1.0.md) §6.
+- **The braid.** No two consecutive B-rungs without a G or P rung between them;
+  shell work counts as G. Systems rungs prove mechanics; the game has to be *felt*
+  at every step ([#88](https://github.com/caioniehues/soviet-simulator/issues/88)).
+- **Stranger-grade visuals.** Even though 1.0 ships to friends, the visual and
+  game-feel bar is "a stranger would not think this looks unfinished"
+  ([#87](https://github.com/caioniehues/soviet-simulator/issues/87)).
