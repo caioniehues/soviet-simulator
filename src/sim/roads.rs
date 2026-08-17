@@ -83,6 +83,30 @@ pub struct RoadSegment {
     pub lanes: Vec<Lane>,
 }
 
+impl RoadSegment {
+    /// Rebuild the derived geometry (length + lane buffer) from endpoint
+    /// positions. Shared by the dirty-segment pass and the save loader, so
+    /// lanes are never serialized — they are always derived. Does not bump
+    /// `modification_index`; that is the compile pass's business.
+    pub fn recompile(&mut self, a_pos: Vec3, b_pos: Vec3) {
+        self.length = a_pos.distance(b_pos);
+        let half = self.class.width() * 0.25;
+        let speed = self.class.speed_modifier();
+        self.lanes = vec![
+            Lane {
+                dir: LaneDir::Forward,
+                offset: half,
+                speed_modifier: speed,
+            },
+            Lane {
+                dir: LaneDir::Backward,
+                offset: -half,
+                speed_modifier: speed,
+            },
+        ];
+    }
+}
+
 /// Marks a segment whose lane buffer must be recompiled this tick.
 #[derive(Component)]
 pub struct DirtySegment;
@@ -123,9 +147,9 @@ pub struct GravelShortfall {
 }
 
 #[derive(Resource, Default)]
-struct RoadIds {
-    next_node: u64,
-    next_segment: u64,
+pub struct RoadIds {
+    pub next_node: u64,
+    pub next_segment: u64,
 }
 
 pub struct RoadSimPlugin;
@@ -361,21 +385,8 @@ fn compile_dirty_segments(
         let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
             continue;
         };
-        segment.length = a.pos.distance(b.pos);
-        let half = segment.class.width() * 0.25;
-        let speed = segment.class.speed_modifier();
-        segment.lanes = vec![
-            Lane {
-                dir: LaneDir::Forward,
-                offset: half,
-                speed_modifier: speed,
-            },
-            Lane {
-                dir: LaneDir::Backward,
-                offset: -half,
-                speed_modifier: speed,
-            },
-        ];
+        let (a_pos, b_pos) = (a.pos, b.pos);
+        segment.recompile(a_pos, b_pos);
         segment.modification_index = segment.modification_index.wrapping_add(1);
         commands.entity(entity).remove::<DirtySegment>();
     }

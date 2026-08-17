@@ -19,6 +19,7 @@ use super::buildings::Building;
 use super::citizens::{Citizen, CitizenLocation};
 use super::clock::{FRAMES_PER_GAME_DAY, FrameIndex};
 use super::labour::{COMMUTE_SPEED, Staffing};
+use super::needs::CitizenNeeds;
 use super::roads::{LaneDir, RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::vehicles::{RouteLeg, find_route, nearest_node};
@@ -69,19 +70,25 @@ fn departure_jitter(citizen: &Citizen) -> u32 {
 fn depart_commuters(
     mut commands: Commands,
     frame: Res<FrameIndex>,
-    mut citizens: Query<(Entity, &mut Citizen)>,
+    mut citizens: Query<(Entity, &mut Citizen, Option<&CitizenNeeds>)>,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
     let day = frame.0 % FRAMES_PER_GAME_DAY;
-    for (entity, mut citizen) in &mut citizens {
+    for (entity, mut citizen, needs) in &mut citizens {
         let (Some(home), Some(work)) = (citizen.home, citizen.work) else {
             continue;
         };
         let jitter = departure_jitter(&citizen);
         let (from, to, to_work) = match citizen.location {
             CitizenLocation::AtHome if day >= MORNING_FRAME + jitter && day < EVENING_FRAME => {
+                // Wellbeing gates the workday itself (M2.6): the per-day
+                // attendance roll lives in the needs pass; a citizen rolled
+                // out stays home the whole day.
+                if needs.is_some_and(|n| !n.attends) {
+                    continue;
+                }
                 (home, work, true)
             }
             CitizenLocation::AtWork if day >= EVENING_FRAME + jitter || day < MORNING_FRAME => {

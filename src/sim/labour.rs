@@ -94,9 +94,15 @@ impl Plugin for LabourSimPlugin {
 
 /// Newly placed workplaces get their labour ledger in the same command flush
 /// as the spawn — a workplace must never see a production tick unledgered.
-fn attach_staffing(add: On<Add, Building>, buildings: Query<&Building>, mut commands: Commands) {
-    if let Ok(building) = buildings.get(add.entity)
+fn attach_staffing(
+    add: On<Add, Building>,
+    buildings: Query<(&Building, Has<Staffing>)>,
+    mut commands: Commands,
+) {
+    // The `Has` guard keeps the save loader's restored roster intact.
+    if let Ok((building, has_staffing)) = buildings.get(add.entity)
         && building.kind.workers_needed() > 0
+        && !has_staffing
     {
         commands.entity(add.entity).insert(Staffing::default());
     }

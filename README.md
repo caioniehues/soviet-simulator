@@ -38,7 +38,7 @@ Acceptance video: `cargo run --release --bin capture -- frames screenshots/resul
 then ffmpeg (see `bevy.md`); latest render at `screenshots/result/0/video.mp4`
 (local, `screenshots/` is untracked).
 
-## Status — M2 "Hands" in progress (#22, M2.1–M2.5 done)
+## Status — M2 "Hands" in progress (#22, M2.1–M2.6 done)
 
 Nothing runs unstaffed anymore:
 
@@ -55,26 +55,35 @@ Nothing runs unstaffed anymore:
   mine/quarry extraction, plant burn/output, and factory rate (Liebig with
   the power gate); zero presence stops the building; inspect panel shows
   present/assigned/needed.
+- **Needs & attendance** (#28) — per-citizen food/rest satisfactions with
+  low-frequency decay; meals drain the household pantry (fiat refill until B3
+  shops); wellbeing recomputed from needs feeds a sticky per-day attendance
+  roll (CS1's `GetWorkProbability` coupling) — exhausted citizens skip
+  workdays and staffing falls.
+- **Save/load first cut** (#28) — custom serde-column format (postcard):
+  tables sorted by stable u64 id, entity refs as indices, derived road
+  geometry recompiled on load; `F5` quicksave / `F9` quickload
+  (`saves/quicksave.sav`); round-trip preserves the sim state hash.
 
-Left in M2: needs stage 1 + save/load first cut (#28), acceptance &
-benchmark gate (#29).
+Left in M2: acceptance & benchmark gate (#29).
 
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 40 sim tests
+cargo test           # 52 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
 `5` shuttle · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
-`[` `]` speed · WASD pan · Q/E rotate · wheel zoom.
+`[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
+wheel zoom.
 
 ## What's next
 
 P1 "First Light" done (#16, zero-spend). B2 staffing underway (above).
-Next: M2.6 needs + save/load → M2.7 acceptance gate → B3 dispatcher
-(see `ROADMAP.md`, including the parallel P-ladder).
+Next: M2.7 acceptance gate → B3 dispatcher (see `ROADMAP.md`, including the
+parallel P-ladder).
 
 ## Assets
 

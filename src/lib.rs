@@ -19,8 +19,10 @@ pub fn run() {
             sim::households::HouseholdSimPlugin,
             sim::labour::LabourSimPlugin,
             sim::commute::CommuteSimPlugin,
+            sim::needs::NeedsSimPlugin,
             sim::vehicles::VehicleSimPlugin,
             sim::wires::WireSimPlugin,
+            sim::save::SaveSimPlugin,
         ))
         .add_plugins(game::GamePlugin)
         .run();

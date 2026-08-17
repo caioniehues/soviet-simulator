@@ -54,9 +54,9 @@ pub enum WireEdit {
 }
 
 #[derive(Resource, Default)]
-struct WireIds {
-    next_pole: u64,
-    next_span: u64,
+pub struct WireIds {
+    pub next_pole: u64,
+    pub next_span: u64,
 }
 
 pub struct WireSimPlugin;

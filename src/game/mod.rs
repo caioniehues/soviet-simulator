@@ -5,6 +5,7 @@ pub mod camera;
 pub mod citizens;
 pub mod hud;
 pub mod roads;
+pub mod saveload;
 pub mod tools;
 pub mod vehicles;
 pub mod wires;
@@ -25,6 +26,7 @@ impl Plugin for GamePlugin {
             citizens::CitizenViewPlugin,
             vehicles::VehicleToolPlugin,
             wires::WireToolPlugin,
+            saveload::SaveLoadPlugin,
             hud::HudPlugin,
         ));
     }

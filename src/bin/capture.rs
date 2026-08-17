@@ -84,8 +84,13 @@ fn main() {
         SimPlugin,
         RoadSimPlugin,
         BuildingSimPlugin,
+        soviet_simulator::sim::households::HouseholdSimPlugin,
+        soviet_simulator::sim::labour::LabourSimPlugin,
+        soviet_simulator::sim::commute::CommuteSimPlugin,
+        soviet_simulator::sim::needs::NeedsSimPlugin,
         VehicleSimPlugin,
         WireSimPlugin,
+        soviet_simulator::sim::save::SaveSimPlugin,
     ))
     .add_plugins(GamePlugin);
 

@@ -61,8 +61,8 @@ pub struct SpawnHousehold {
 }
 
 #[derive(Resource, Default)]
-struct HouseholdIds {
-    next: u64,
+pub struct HouseholdIds {
+    pub next: u64,
 }
 
 /// The explicit, player-visible housing queue (spec households.md): FIFO of
@@ -81,8 +81,8 @@ pub struct RecruitmentPlan {
 /// Total households ever recruited — compared against the plan target so
 /// in-flight spawns (commands not yet flushed) are never double-counted.
 #[derive(Resource, Default)]
-struct RecruitmentLedger {
-    recruited: u32,
+pub struct RecruitmentLedger {
+    pub recruited: u32,
 }
 
 /// Household sizes are dealt from this cycle (deterministic, averages ~3).
@@ -113,8 +113,12 @@ impl Plugin for HouseholdSimPlugin {
     }
 }
 
-/// Newly placed dwelling buildings get their flat table.
-fn attach_flat_tables(mut commands: Commands, added: Query<(Entity, &Building), Added<Building>>) {
+/// Newly placed dwelling buildings get their flat table. `Without<Dwelling>`
+/// keeps the save loader's restored occupancy intact.
+fn attach_flat_tables(
+    mut commands: Commands,
+    added: Query<(Entity, &Building), (Added<Building>, Without<Dwelling>)>,
+) {
     for (entity, building) in &added {
         if building.kind == BuildingKind::Dwelling {
             commands.entity(entity).insert(Dwelling {

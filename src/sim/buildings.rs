@@ -79,8 +79,8 @@ pub enum BuildingEdit {
 }
 
 #[derive(Resource, Default)]
-struct BuildingIds {
-    next: u64,
+pub struct BuildingIds {
+    pub next: u64,
 }
 
 pub struct BuildingSimPlugin;

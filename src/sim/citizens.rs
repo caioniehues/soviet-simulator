@@ -58,7 +58,9 @@ impl Citizen {
 
 #[derive(Resource, Default)]
 pub struct CitizenIds {
-    next: u64,
+    /// Last allocated id; public so the save loader can restore the counter
+    /// (ADR 0004: ids are never reused, so max-seen is not enough).
+    pub next: u64,
 }
 
 impl CitizenIds {

@@ -108,8 +108,8 @@ pub enum VehicleEdit {
 }
 
 #[derive(Resource, Default)]
-struct VehicleIds {
-    next: u64,
+pub struct VehicleIds {
+    pub next: u64,
 }
 
 pub struct VehicleSimPlugin;
