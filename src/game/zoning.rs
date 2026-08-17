@@ -26,8 +26,8 @@ impl Plugin for ZoningToolPlugin {
 
 fn zone_color(kind: ZoneKind) -> Color {
     match kind {
-        ZoneKind::Residential => Color::srgb(0.35, 0.75, 0.35),
-        ZoneKind::Industrial => Color::srgb(0.75, 0.45, 0.20),
+        ZoneKind::Residential => super::palette::Role::ZoneResidential.color(),
+        ZoneKind::Industrial => super::palette::Role::ZoneIndustrial.color(),
     }
 }
 

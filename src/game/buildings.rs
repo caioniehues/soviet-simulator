@@ -4,29 +4,77 @@
 //! with chimney smoke on powered plants. Sim entities stay untouched; all
 //! visual parts are children of the building entity.
 
-use bevy::math::Affine2;
 use bevy::prelude::*;
 
+use super::palette::{self, Mat, Role};
 use super::tools::{GroundCursor, ToolMode};
-use super::world::load_tiled;
 use crate::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind, PowerOutput};
 
-fn kind_color(kind: BuildingKind) -> Color {
+/// Each kind's primary wall material, as a palette role plus a shade — the
+/// families read apart at RTS zoom (brick mine, concrete plant, timber depot)
+/// without any kind inventing a colour of its own. The old table held thirteen
+/// hand-picked greys, two of which (the blue pump, the pink heat plant) were
+/// saturation the art doc reserves for signals.
+fn kind_material(kind: BuildingKind) -> Mat {
+    let (role, shade) = match kind {
+        BuildingKind::Mine => (Role::SootBrick, 1.0),
+        BuildingKind::Quarry => (Role::Concrete, 0.8),
+        BuildingKind::PowerPlant => (Role::Concrete, 0.72),
+        BuildingKind::Factory => (Role::Concrete, 0.75),
+        BuildingKind::Dwelling => (Role::Concrete, 0.82),
+        BuildingKind::Warehouse => (Role::WornEarth, 0.9),
+        BuildingKind::Depot => (Role::Timber, 1.15),
+        BuildingKind::BusStop => (Role::Concrete, 0.85),
+        BuildingKind::ConstructionOffice => (Role::MachineOchre, 0.85),
+        BuildingKind::WaterPump => (Role::Concrete, 0.95),
+        BuildingKind::SewagePlant => (Role::Concrete, 0.65),
+        BuildingKind::HeatPlant => (Role::SootBrick, 1.2),
+        BuildingKind::CustomsOffice => (Role::Concrete, 0.7),
+    };
+    Mat::new(role).shade(shade)
+}
+
+/// Roofs: rusted steel over anything industrial, tarred concrete over
+/// anything civic. The old single rust roof was the other half of why every
+/// building read the same.
+fn roof_material(kind: BuildingKind) -> Mat {
     match kind {
-        BuildingKind::Mine => Color::srgb(0.43, 0.29, 0.23),
-        BuildingKind::Quarry => Color::srgb(0.60, 0.55, 0.45),
-        BuildingKind::PowerPlant => Color::srgb(0.60, 0.59, 0.55),
-        BuildingKind::Factory => Color::srgb(0.55, 0.52, 0.48),
-        BuildingKind::Dwelling => Color::srgb(0.58, 0.56, 0.52),
-        BuildingKind::Warehouse => Color::srgb(0.52, 0.47, 0.40),
-        BuildingKind::Depot => Color::srgb(0.48, 0.50, 0.46),
-        BuildingKind::BusStop => Color::srgb(0.55, 0.58, 0.52),
-        BuildingKind::ConstructionOffice => Color::srgb(0.56, 0.50, 0.38),
-        BuildingKind::WaterPump => Color::srgb(0.35, 0.50, 0.62),
-        BuildingKind::SewagePlant => Color::srgb(0.42, 0.46, 0.38),
-        BuildingKind::HeatPlant => Color::srgb(0.66, 0.40, 0.30),
-        BuildingKind::CustomsOffice => Color::srgb(0.50, 0.44, 0.36),
+        BuildingKind::Dwelling | BuildingKind::BusStop | BuildingKind::CustomsOffice => {
+            Mat::new(Role::Asphalt).shade(1.25)
+        }
+        BuildingKind::Quarry | BuildingKind::Depot | BuildingKind::ConstructionOffice => {
+            Mat::new(Role::Concrete).shade(0.55)
+        }
+        _ => Mat::new(Role::RustedSteel).shade(0.75).metallic(0.3),
     }
+}
+
+impl BuildingMaterials {
+    fn wall(
+        &mut self,
+        kind: BuildingKind,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Handle<StandardMaterial> {
+        self.walls
+            .entry(kind)
+            .or_insert_with(|| materials.add(kind_material(kind).build()))
+            .clone()
+    }
+
+    fn roof(
+        &mut self,
+        kind: BuildingKind,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Handle<StandardMaterial> {
+        self.roofs
+            .entry(kind)
+            .or_insert_with(|| materials.add(roof_material(kind).build()))
+            .clone()
+    }
+}
+
+fn kind_color(kind: BuildingKind) -> Color {
+    kind_material(kind).build().base_color
 }
 
 pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
@@ -48,8 +96,15 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
 }
 
 /// Shared palette materials (art-direction.md § Material rules).
+///
+/// `walls` and `roofs` are per kind and filled lazily the first time a kind
+/// is built. Before R0.2 every hall shared `brick` and every roof shared
+/// `rust`, which made a warehouse, a mine and a heat plant the same red mass
+/// at RTS zoom — the silhouettes differed but nothing else did.
 #[derive(Resource)]
 struct BuildingMaterials {
+    walls: std::collections::HashMap<BuildingKind, Handle<StandardMaterial>>,
+    roofs: std::collections::HashMap<BuildingKind, Handle<StandardMaterial>>,
     concrete: Handle<StandardMaterial>,
     brick: Handle<StandardMaterial>,
     rust: Handle<StandardMaterial>,
@@ -59,6 +114,12 @@ struct BuildingMaterials {
     yard: Handle<StandardMaterial>,
     smoke: [Handle<StandardMaterial>; 3],
 }
+
+/// The worn ground pad under a building. Marked because it is part of the
+/// building's entity tree but not part of its silhouette — `juice.rs` has to
+/// keep the selection outline off it.
+#[derive(Component)]
+pub struct YardPad;
 
 #[derive(Component)]
 struct SmokeStack {
@@ -96,40 +157,28 @@ fn setup_materials(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let opaque = |color: Color, rough: f32| StandardMaterial {
-        base_color: color,
-        perceptual_roughness: rough,
-        ..default()
-    };
-    let smoke = |alpha: f32| StandardMaterial {
-        base_color: Color::srgba(0.72, 0.72, 0.74, alpha),
-        alpha_mode: AlphaMode::Blend,
-        unlit: true,
-        ..default()
-    };
+    let smoke = |alpha: f32| Mat::new(Role::Smoke).unlit().alpha(alpha);
     commands.insert_resource(BuildingMaterials {
-        concrete: materials.add(opaque(Color::srgb(0.48, 0.47, 0.44), 0.95)),
-        brick: materials.add(opaque(Color::srgb(0.34, 0.21, 0.16), 0.95)),
-        rust: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.42, 0.25, 0.15),
-            perceptual_roughness: 0.8,
-            metallic: 0.35,
-            ..default()
-        }),
-        timber: materials.add(opaque(Color::srgb(0.37, 0.29, 0.20), 1.0)),
-        coal: materials.add(opaque(Color::srgb(0.10, 0.10, 0.11), 1.0)),
-        gravel: materials.add(opaque(Color::srgb(0.62, 0.60, 0.56), 1.0)),
-        yard: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.64, 0.58, 0.48),
-            base_color_texture: Some(load_tiled(&asset_server, "textures/dirt.png")),
-            perceptual_roughness: 1.0,
-            uv_transform: Affine2::from_scale(Vec2::splat(2.5)),
-            ..default()
-        }),
+        walls: default(),
+        roofs: default(),
+        concrete: Mat::new(Role::Concrete).shade(0.8).add_to(&mut materials),
+        brick: Mat::new(Role::SootBrick).shade(0.7).add_to(&mut materials),
+        rust: Mat::new(Role::RustedSteel)
+            .shade(0.7)
+            .roughness(0.8)
+            .metallic(0.35)
+            .add_to(&mut materials),
+        timber: Mat::new(Role::Timber).roughness(1.0).add_to(&mut materials),
+        coal: Mat::new(Role::Coal).roughness(1.0).add_to(&mut materials),
+        gravel: Mat::new(Role::Gravel).roughness(1.0).add_to(&mut materials),
+        yard: Mat::new(Role::WornEarth)
+            .textured(palette::load_tiled(&asset_server, "textures/dirt.png"), 2.5)
+            .roughness(1.0)
+            .add_to(&mut materials),
         smoke: [
-            materials.add(smoke(0.34)),
-            materials.add(smoke(0.18)),
-            materials.add(smoke(0.07)),
+            smoke(0.34).add_to(&mut materials),
+            smoke(0.18).add_to(&mut materials),
+            smoke(0.07).add_to(&mut materials),
         ],
     });
 }
@@ -197,16 +246,18 @@ fn chimney(m: &Handle<StandardMaterial>, radius: f32, height: f32, at: Vec3) -> 
     }
 }
 
-/// Silhouette per kind (art-direction.md § Silhouette language).
-fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
+/// Silhouette per kind (art-direction.md § Silhouette language). `wall` and
+/// `roof` are the kind's own materials; the rest of `m` is shared detail.
+fn parts(
+    kind: BuildingKind,
+    m: &BuildingMaterials,
+    wall: &Handle<StandardMaterial>,
+    roof: &Handle<StandardMaterial>,
+) -> Vec<Part> {
     match kind {
         BuildingKind::Mine => vec![
-            boxed(
-                &m.brick,
-                Vec3::new(9.0, 5.0, 8.0),
-                Vec3::new(-2.0, 0.0, 0.0),
-            ),
-            boxed(&m.rust, Vec3::new(9.6, 0.6, 8.6), Vec3::new(-2.0, 5.0, 0.0)),
+            boxed(wall, Vec3::new(9.0, 5.0, 8.0), Vec3::new(-2.0, 0.0, 0.0)),
+            boxed(roof, Vec3::new(9.6, 0.6, 8.6), Vec3::new(-2.0, 5.0, 0.0)),
             // headframe tower + angled brace
             boxed(&m.rust, Vec3::new(2.6, 9.0, 2.6), Vec3::new(4.5, 0.0, 2.0)),
             Part {
@@ -218,11 +269,7 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             pile(&m.coal, 3.2, 2.6, Vec3::new(-3.5, 0.0, 5.5)),
         ],
         BuildingKind::Quarry => vec![
-            boxed(
-                &m.timber,
-                Vec3::new(6.0, 3.0, 4.0),
-                Vec3::new(-4.0, 0.0, -3.0),
-            ),
+            boxed(wall, Vec3::new(6.0, 3.0, 4.0), Vec3::new(-4.0, 0.0, -3.0)),
             boxed(
                 &m.timber,
                 Vec3::new(6.6, 0.5, 4.6),
@@ -233,23 +280,15 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             pile(&m.gravel, 1.8, 1.4, Vec3::new(5.5, 0.0, -2.5)),
         ],
         BuildingKind::PowerPlant => vec![
-            boxed(
-                &m.concrete,
-                Vec3::new(13.0, 9.0, 10.0),
-                Vec3::new(-1.5, 0.0, 0.0),
-            ),
-            boxed(
-                &m.rust,
-                Vec3::new(13.6, 0.7, 10.6),
-                Vec3::new(-1.5, 9.0, 0.0),
-            ),
+            boxed(wall, Vec3::new(13.0, 9.0, 10.0), Vec3::new(-1.5, 0.0, 0.0)),
+            boxed(roof, Vec3::new(13.6, 0.7, 10.6), Vec3::new(-1.5, 9.0, 0.0)),
             chimney(&m.concrete, 1.3, 16.0, Vec3::new(5.6, 0.0, -2.5)),
             chimney(&m.concrete, 1.3, 16.0, Vec3::new(5.6, 0.0, 2.5)),
             boxed(&m.coal, Vec3::new(4.0, 2.2, 5.0), Vec3::new(-7.5, 0.0, 3.0)),
         ],
         BuildingKind::Factory => {
             let mut v = vec![
-                boxed(&m.concrete, Vec3::new(17.0, 7.0, 13.0), Vec3::ZERO),
+                boxed(wall, Vec3::new(17.0, 7.0, 13.0), Vec3::ZERO),
                 chimney(&m.brick, 0.9, 12.0, Vec3::new(7.5, 0.0, -5.0)),
             ];
             // sawtooth roof: four angled rust slabs
@@ -270,12 +309,8 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         // Khrushchyovka slab block: concrete bar, banded floors, low entry.
         BuildingKind::Dwelling => {
             let mut v = vec![
-                boxed(&m.concrete, Vec3::new(10.0, 11.0, 7.0), Vec3::ZERO),
-                boxed(
-                    &m.rust,
-                    Vec3::new(10.4, 0.4, 7.4),
-                    Vec3::new(0.0, 11.0, 0.0),
-                ),
+                boxed(wall, Vec3::new(10.0, 11.0, 7.0), Vec3::ZERO),
+                boxed(roof, Vec3::new(10.4, 0.4, 7.4), Vec3::new(0.0, 11.0, 0.0)),
                 boxed(
                     &m.timber,
                     Vec3::new(2.4, 2.6, 1.4),
@@ -296,8 +331,8 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         // down the flank, crates and a spill pile on the apron.
         BuildingKind::Warehouse => {
             let mut v = vec![
-                boxed(&m.brick, Vec3::new(17.0, 6.0, 9.0), Vec3::ZERO),
-                boxed(&m.rust, Vec3::new(17.8, 0.6, 9.8), Vec3::new(0.0, 6.0, 0.0)),
+                boxed(wall, Vec3::new(17.0, 6.0, 9.0), Vec3::ZERO),
+                boxed(roof, Vec3::new(17.8, 0.6, 9.8), Vec3::new(0.0, 6.0, 0.0)),
                 pile(&m.gravel, 2.2, 1.6, Vec3::new(7.0, 0.0, 6.5)),
             ];
             // three timber loading doors along the road-facing flank
@@ -321,16 +356,8 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         // trucks render there per slot (game/vehicles.rs).
         BuildingKind::Depot => {
             let mut v = vec![
-                boxed(
-                    &m.concrete,
-                    Vec3::new(19.0, 5.5, 8.0),
-                    Vec3::new(0.0, 0.0, -8.0),
-                ),
-                boxed(
-                    &m.rust,
-                    Vec3::new(19.8, 0.6, 8.8),
-                    Vec3::new(0.0, 5.5, -8.0),
-                ),
+                boxed(wall, Vec3::new(19.0, 5.5, 8.0), Vec3::new(0.0, 0.0, -8.0)),
+                boxed(roof, Vec3::new(19.8, 0.6, 8.8), Vec3::new(0.0, 5.5, -8.0)),
                 chimney(&m.rust, 1.1, 3.2, Vec3::new(8.0, 0.0, -1.5)),
             ];
             // open bay mouths along the south face of the bar
@@ -345,16 +372,8 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         }
         // Site office: timber hut, rust flagpole, gravel-coloured apron pad.
         BuildingKind::ConstructionOffice => vec![
-            boxed(
-                &m.timber,
-                Vec3::new(9.0, 4.0, 7.0),
-                Vec3::new(-4.0, 0.0, -6.0),
-            ),
-            boxed(
-                &m.rust,
-                Vec3::new(9.6, 0.5, 7.6),
-                Vec3::new(-4.0, 4.0, -6.0),
-            ),
+            boxed(wall, Vec3::new(9.0, 4.0, 7.0), Vec3::new(-4.0, 0.0, -6.0)),
+            boxed(roof, Vec3::new(9.6, 0.5, 7.6), Vec3::new(-4.0, 4.0, -6.0)),
             boxed(&m.rust, Vec3::new(0.3, 6.5, 0.3), Vec3::new(2.5, 0.0, -8.0)),
             boxed(
                 &m.concrete,
@@ -364,8 +383,8 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         ],
         // Pumphouse: brick box with an intake stack.
         BuildingKind::WaterPump => vec![
-            boxed(&m.brick, Vec3::new(7.0, 3.5, 5.5), Vec3::new(0.0, 0.0, 0.0)),
-            boxed(&m.rust, Vec3::new(7.6, 0.5, 6.1), Vec3::new(0.0, 3.5, 0.0)),
+            boxed(wall, Vec3::new(7.0, 3.5, 5.5), Vec3::new(0.0, 0.0, 0.0)),
+            boxed(roof, Vec3::new(7.6, 0.5, 6.1), Vec3::new(0.0, 3.5, 0.0)),
             chimney(&m.rust, 0.9, 3.0, Vec3::new(2.5, 0.0, -1.5)),
         ],
         // Treatment works: low concrete basin pair beside a shed.
@@ -393,11 +412,7 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
                 Vec3::new(12.0, 8.0, 9.0),
                 Vec3::new(-1.0, 0.0, 0.0),
             ),
-            boxed(
-                &m.rust,
-                Vec3::new(12.6, 0.7, 9.6),
-                Vec3::new(-1.0, 8.0, 0.0),
-            ),
+            boxed(roof, Vec3::new(12.6, 0.7, 9.6), Vec3::new(-1.0, 8.0, 0.0)),
             chimney(&m.concrete, 1.4, 14.0, Vec3::new(4.5, 0.0, -2.0)),
             boxed(&m.coal, Vec3::new(4.0, 2.2, 5.0), Vec3::new(-6.5, 0.0, 3.0)),
         ],
@@ -483,8 +498,10 @@ fn rise_construction_sites(
         if let Some(bottleneck) = site.bottleneck {
             let pulse = 0.5 + 0.5 * (time.elapsed_secs() * 3.0).sin();
             let color = match bottleneck {
-                Bottleneck::NoMaterial => Color::srgb(0.92, 0.62, 0.12),
-                Bottleneck::NoMachine => Color::srgb(0.45, 0.55, 0.75),
+                // A blocked site is the state's problem, not the world's:
+                // signal colours, the doc's one sanctioned saturation.
+                Bottleneck::NoMaterial => Role::SignalAttention.color(),
+                Bottleneck::NoMachine => Role::SignalOk.color(),
             }
             .with_alpha(0.3 + 0.5 * pulse);
             gizmos.circle(
@@ -509,10 +526,13 @@ fn sync_building_meshes(
     mut commands: Commands,
     added: Query<(Entity, &Building), Added<Building>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    palette: Res<BuildingMaterials>,
+    mut palette: ResMut<BuildingMaterials>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, building) in &added {
         let fp = building.kind.footprint();
+        let wall = palette.wall(building.kind, &mut materials);
+        let roof = palette.roof(building.kind, &mut materials);
         commands
             .entity(entity)
             .insert((
@@ -523,12 +543,16 @@ fn sync_building_meshes(
             .with_children(|parent| {
                 // worn yard pad anchoring the building to the field
                 parent.spawn((
+                    YardPad,
                     Mesh3d(meshes.add(Plane3d::default().mesh().size(fp.x + 8.0, fp.y + 8.0))),
                     MeshMaterial3d(palette.yard.clone()),
                     Transform::from_xyz(0.0, 0.04, 0.0),
                     Name::new("YardPad"),
                 ));
-                for (i, part) in parts(building.kind, &palette).into_iter().enumerate() {
+                for (i, part) in parts(building.kind, &palette, &wall, &roof)
+                    .into_iter()
+                    .enumerate()
+                {
                     parent.spawn((
                         Mesh3d(meshes.add(part.mesh)),
                         MeshMaterial3d(part.material),
@@ -559,7 +583,12 @@ fn emit_smoke(
         if output.0 <= 0.0 || stack.cooldown > 0.0 {
             continue;
         }
-        stack.cooldown = 0.55;
+        // Smoke reads as load (R0.5): a plant at full output puffs three
+        // times as often as one barely turning over. It used to run at a
+        // fixed rate whenever `PowerOutput > 0`, which made a struggling
+        // plant look identical to a healthy one.
+        let load = (output.0 / crate::sim::buildings::PLANT_OUTPUT_MW).clamp(0.15, 1.0);
+        stack.cooldown = 0.30 + 0.90 * (1.0 - load);
         for (i, tip) in stack.tips.iter().enumerate() {
             commands.spawn((
                 SmokePuff {

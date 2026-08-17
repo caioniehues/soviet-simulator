@@ -378,6 +378,61 @@ Record video: `screenshots/result/g1/video.mp4` (16 s: the border gatehouse
 bins run an infinite treasury — their scenarios predate the rouble).
 **Acceptance still open:** an unscripted 30-minute played session (#79).
 
+## Status — R0 "The State Document" complete (#110)
+
+The first rung of [the 1.0 charter](docs/charter-1.0.md). The ladder opens in
+felt-debt by design: after B8 the sim was deep and unfelt, and the playtest
+verdict was that the game "looks like something done by a child". R0 is the
+answer, and two of its five items are regressions against documents we had
+already written.
+
+- **The grounding pass** (#111) — SSAO, Bevy 0.19 contact shadows and TAA on
+  the RTS camera; an explicit four-cascade shadow config out to 900 m. P1 had
+  enabled shadows since First Light, but Bevy's default cascade covers 150 m
+  while the rig sits 15–500 m out, so at any playable zoom the ground fell
+  past the last cascade and no shadow ever landed. The sun also dropped to
+  ~30° so shadows throw clear of their own building. **Cost, measured:**
+  `bench_render` puts the whole stack at **0.05 ms/frame** (1.51 vs 1.46 ms
+  over 600 frames, 122 buildings, 1280×720, RX 7800 XT) — 0.3% of a 60 fps
+  budget, so it ships at full quality and the charter's "no user-facing
+  quality options" holds.
+- **The palette factory and the sky** (#112) — `game/palette.rs` is now the
+  only sanctioned way to build a `StandardMaterial`: a named `Role` from
+  `docs/art-direction.md` plus a builder that enforces the doc's rules
+  (roughness ≥ 0.75 outside glass and lamps, metallic ≤ 0.6, albedo clamped
+  to [0.05, 0.85]). Every colour in `src/game/` came onto it. The lawn-green
+  ground could not be fixed with a tint — reaching the doc's `#6b7050` from
+  the ambientCG source needs linear multipliers of (2.5, 1.5, 3.6) and
+  `Color::srgb` clamps at 1 — so `tools/bake_ground.py` bakes the palette
+  into the textures offline instead. A vertex-graded sky dome replaces the
+  flat clear colour, and the fog closes at 950 m so the world dissolves into
+  it rather than meeting it along a cut.
+- **The state document** (#113) — `game/ui.rs` holds the vocabulary: theme,
+  three type sizes, panel chrome, letter-spaced headers, hairline rules, and
+  **drawn meters replacing the ASCII bars**. `hud.rs` was restructured around
+  it: the key legend moved off the live-state panel onto its own surface
+  (`F1`), panels group by domain, and **the Plan's quotas now sit on the main
+  HUD** instead of only behind `P` — the game's central pressure had been the
+  one thing invisible while playing. The ledger and the toolbar draw from the
+  same vocabulary, so the interface reads as one document.
+- **The legibility of alarm** (#114) — an explicit `Severity`
+  (routine / attention / critical) that presentation *reads*. A critical line
+  is signal-fail red, bold and marked `!!`; `STARVING: Warehouse #3 …` used to
+  render identically to an idle-truck count, which is a functional defect.
+  `game/notify.rs` adds action-needed toasts (folding repeats rather than
+  stacking them) and a scrollable event log on `L`.
+- **First juice** (#115) — hover and selection outlines via `bevy_mod_outline`
+  (jump flood), replacing the flat red ground ellipse; a placement pop with
+  overshoot; a decaying-sine shake on the ground cursor when a placement is
+  refused; and chimney smoke whose rate follows actual plant output instead of
+  running flat whenever `PowerOutput > 0`.
+
+Record video: `screenshots/result/r0/video.mp4` (18 s: low over the empty
+field for the sky and the olive ground → buildings drop in and pop against
+the low sun → hover then selection outline → the warehouse starves and the
+critical line, toast and event log answer → the restyled Plan ledger).
+128 tests, clippy clean, the seven sim bench gates unbroken.
+
 ## Run
 
 ```
@@ -400,16 +455,21 @@ dispatcher cannot feed pulse a red ring.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2–B8 complete (above): staffing,
-dispatcher, traffic at scale, public transit, phased construction, housing
-and the plan, utilities on one solver. Next: B9 services per the ladder
-(see `ROADMAP.md`, including the parallel P-ladder).
+`docs/charter-1.0.md` is the plan of record — sixteen rungs, R0..R15, with a
+fixed cut line and a fixed acceptance bar. `ROADMAP.md` is history now.
+
+R0 "The State Document" is done (above). **Next: R1 "The Planner's Hands"** —
+placement snapping and a ghost preview that shows cost and refusal reason,
+one-level undo, tooltips, an inspect-depth panel answering "why is this not
+working", and camera easing with zoom-to-cursor. It lands before S15
+multiplies the cost of a bad placement.
 
 ## Assets
 
 | Asset | Source | Status |
 |---|---|---|
 | Buildings, trucks, poles, smoke | Multi-part procedural meshes (P1) | in use |
-| Ground/road textures | ambientCG (CC0): Grass001, Ground048, Asphalt010, Gravel022 | in use |
+| Ground/road textures | ambientCG (CC0): Grass001, Ground048, Asphalt010, Gravel022 | in use, **baked on-palette** by `tools/bake_ground.py`; sources kept as `*_src.png` |
+| Sky dome | Procedural vertex-graded hemisphere (R0.2) | in use |
 | HUD font | Fira Sans (OFL 1.1, license bundled) | in use |
 | Generated art pass | `/asset-gen` (paid) | deferred, post-demo decision |

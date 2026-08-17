@@ -111,10 +111,12 @@ struct FlyoutRoot(usize);
 #[derive(Component)]
 struct ToolButton(ToolAction);
 
-const BUTTON_BG: Color = Color::srgba(0.10, 0.11, 0.12, 0.95);
-const BUTTON_HOVER: Color = Color::srgba(0.18, 0.17, 0.15, 0.98);
-const BUTTON_ACTIVE: Color = Color::srgba(0.63, 0.35, 0.20, 0.95);
-const TEXT: Color = Color::srgb(0.92, 0.90, 0.82);
+// R0.3: the toolbar draws from the same vocabulary as every panel, so the
+// interface reads as one document rather than as a HUD plus a separate bar.
+const BUTTON_BG: Color = super::ui::Theme::PANEL;
+const BUTTON_HOVER: Color = Color::srgba(0.16, 0.16, 0.15, 0.96);
+const BUTTON_ACTIVE: Color = super::ui::Theme::ACCENT;
+const TEXT: Color = super::ui::Theme::INK;
 
 pub struct ToolbarPlugin;
 
@@ -158,7 +160,7 @@ fn button_bundle(font: &TextFont, label: &str) -> impl Bundle {
 fn spawn_toolbar(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = TextFont {
         font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
-        font_size: bevy::text::FontSize::Px(13.0),
+        font_size: bevy::text::FontSize::Px(super::ui::SIZE_HEADER),
         ..default()
     };
     commands

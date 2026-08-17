@@ -74,7 +74,7 @@ fn preview_line_draft(
     buildings: Query<&Building>,
     mut gizmos: Gizmos,
 ) {
-    let color = Color::srgb(0.25, 0.7, 0.9);
+    let color = super::palette::Role::TransitLine.color();
     let lift = Vec3::Y * 2.0;
     let anchors: Vec<Vec3> = draft
         .0

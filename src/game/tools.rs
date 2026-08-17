@@ -25,8 +25,9 @@ pub enum ToolMode {
 #[derive(Resource, Default, Clone, Copy, PartialEq, Debug)]
 pub struct GroundCursor(pub Option<Vec3>);
 
+/// The ground cursor puck. Public so `juice.rs` can shake it on a refusal.
 #[derive(Component)]
-struct CursorMarker;
+pub struct CursorMarker;
 
 pub struct ToolsPlugin;
 
@@ -120,11 +121,11 @@ fn spawn_cursor_marker(
     commands.spawn((
         CursorMarker,
         Mesh3d(meshes.add(Cylinder::new(1.5, 0.2))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.95, 0.85, 0.2),
-            unlit: true,
-            ..default()
-        })),
+        MeshMaterial3d(
+            super::palette::Mat::new(super::palette::Role::SignalOk)
+                .unlit()
+                .add_to(&mut materials),
+        ),
         Visibility::Hidden,
         Name::new("CursorMarker"),
     ));

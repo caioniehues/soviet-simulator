@@ -38,24 +38,29 @@ fn setup_materials(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    use super::world::load_tiled;
-    // CC0 surfaces (ambientCG Ground048 / Asphalt010), tinted per the
-    // art-direction palette; ribbon UVs tile along the segment length.
+    use super::palette::{self, Mat, Role};
+    // CC0 surfaces (ambientCG Ground048 / Asphalt010) through the palette
+    // factory; ribbon UVs tile along the segment length, so uv_scale stays 1.
     commands.insert_resource(RoadMaterials {
-        dirt: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.66, 0.60, 0.50),
-            base_color_texture: Some(load_tiled(&asset_server, "textures/dirt.png")),
-            normal_map_texture: Some(load_tiled(&asset_server, "textures/dirt_n.png")),
-            perceptual_roughness: 1.0,
-            ..default()
-        }),
-        paved: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.85, 0.85, 0.88),
-            base_color_texture: Some(load_tiled(&asset_server, "textures/asphalt.png")),
-            normal_map_texture: Some(load_tiled(&asset_server, "textures/asphalt_n.png")),
-            perceptual_roughness: 0.92,
-            ..default()
-        }),
+        dirt: Mat::new(Role::DirtRoad)
+            .textured(
+                palette::load_tiled(&asset_server, "textures/road_dirt.png"),
+                1.0,
+            )
+            .normal(palette::load_tiled(
+                &asset_server,
+                "textures/road_dirt_n.png",
+            ))
+            .roughness(1.0)
+            .add_to(&mut materials),
+        paved: Mat::new(Role::Asphalt)
+            .textured(
+                palette::load_tiled(&asset_server, "textures/asphalt.png"),
+                1.0,
+            )
+            .normal(palette::load_tiled(&asset_server, "textures/asphalt_n.png"))
+            .roughness(0.92)
+            .add_to(&mut materials),
     });
 }
 
@@ -109,7 +114,11 @@ fn drive_road_tool(
 fn preview_chain(chain: Res<ChainStart>, cursor: Res<GroundCursor>, mut gizmos: Gizmos) {
     if let (Some(start), Some(end)) = (chain.0, cursor.0) {
         let lift = Vec3::Y * 0.3;
-        gizmos.line(start + lift, end + lift, Color::srgb(0.95, 0.85, 0.2));
+        gizmos.line(
+            start + lift,
+            end + lift,
+            super::palette::Role::SignalOk.color(),
+        );
     }
 }
 

@@ -13,7 +13,8 @@ use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BuildingId(pub u64);
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+// Hash so presentation can cache a material per kind (game/buildings.rs).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BuildingKind {
     Mine,
     Quarry,

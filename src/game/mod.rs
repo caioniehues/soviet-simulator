@@ -4,11 +4,15 @@ pub mod buildings;
 pub mod camera;
 pub mod citizens;
 pub mod hud;
+pub mod juice;
+pub mod notify;
+pub mod palette;
 pub mod roads;
 pub mod saveload;
 pub mod toolbar;
 pub mod tools;
 pub mod transit;
+pub mod ui;
 pub mod vehicles;
 pub mod wires;
 pub mod world;
@@ -21,6 +25,8 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            ui::UiPlugin,
+            notify::NotifyPlugin,
             world::WorldPlugin,
             camera::CameraPlugin,
             tools::ToolsPlugin,
@@ -34,6 +40,8 @@ impl Plugin for GamePlugin {
             saveload::SaveLoadPlugin,
             zoning::ZoningToolPlugin,
             hud::HudPlugin,
-        ));
+        ))
+        // A second call: `add_plugins` takes at most 15 in one tuple.
+        .add_plugins(juice::JuicePlugin);
     }
 }

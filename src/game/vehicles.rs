@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 
+use super::palette::{Mat, Role};
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::PostSimEasing;
 use crate::sim::buildings::{Building, BuildingKind};
@@ -134,10 +135,10 @@ fn preview_shuttle_source(
     gizmos.circle(
         Isometry3d::new(anchor, Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         PICK_RADIUS,
-        Color::srgb(0.9, 0.7, 0.2),
+        Role::SignalOk.color(),
     );
     if let Some(pos) = cursor.0 {
-        gizmos.line(anchor, pos + Vec3::Y * 2.0, Color::srgb(0.9, 0.7, 0.2));
+        gizmos.line(anchor, pos + Vec3::Y * 2.0, Role::SignalOk.color());
     }
 }
 
@@ -243,21 +244,9 @@ fn dress_bus(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
-    let body = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.24, 0.42, 0.44),
-        perceptual_roughness: 0.7,
-        ..default()
-    });
-    let glass = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.65, 0.72, 0.75),
-        perceptual_roughness: 0.3,
-        ..default()
-    });
-    let tire = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.08, 0.08, 0.09),
-        perceptual_roughness: 0.95,
-        ..default()
-    });
+    let body = Mat::new(Role::CabGreen).add_to(materials);
+    let glass = Mat::new(Role::Glass).polished(0.3).add_to(materials);
+    let tire = Mat::new(Role::Coal).shade(0.6).add_to(materials);
     let wheel_mesh = meshes.add(Cylinder::new(0.55, 0.45));
     commands
         .entity(entity)
@@ -330,16 +319,10 @@ fn dress_machine(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
-    let ochre = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.72, 0.55, 0.18),
-        perceptual_roughness: 0.8,
-        ..default()
-    });
-    let track = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.10, 0.10, 0.11),
-        perceptual_roughness: 0.95,
-        ..default()
-    });
+    let ochre = Mat::new(Role::MachineOchre)
+        .roughness(0.8)
+        .add_to(materials);
+    let track = Mat::new(Role::Coal).shade(0.6).add_to(materials);
     commands
         .entity(entity)
         .insert((
@@ -388,26 +371,10 @@ fn dress_truck(
     materials: &mut Assets<StandardMaterial>,
 ) {
     {
-        let olive = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.36, 0.38, 0.24),
-            perceptual_roughness: 0.75,
-            ..default()
-        });
-        let boards = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.42, 0.30, 0.20),
-            perceptual_roughness: 0.9,
-            ..default()
-        });
-        let tire = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.08, 0.08, 0.09),
-            perceptual_roughness: 0.95,
-            ..default()
-        });
-        let load = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.12, 0.12, 0.13),
-            perceptual_roughness: 1.0,
-            ..default()
-        });
+        let olive = Mat::new(Role::CabGreen).shade(1.15).add_to(materials);
+        let boards = Mat::new(Role::Timber).shade(1.1).add_to(materials);
+        let tire = Mat::new(Role::Coal).shade(0.6).add_to(materials);
+        let load = Mat::new(Role::Coal).roughness(1.0).add_to(materials);
         let wheel_mesh = meshes.add(Cylinder::new(0.55, 0.45));
         commands
             .entity(entity)

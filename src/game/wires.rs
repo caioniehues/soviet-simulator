@@ -5,6 +5,7 @@
 use bevy::prelude::*;
 
 use super::buildings::kind_height;
+use super::palette::{Mat, Role};
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::buildings::{Building, Powered};
 use crate::sim::wires::{NetKind, WireEdit, WireEditQueue, WirePole, WireSpan};
@@ -21,9 +22,11 @@ pub struct ActiveNetKind(pub NetKind);
 
 pub fn net_color(kind: NetKind) -> Color {
     match kind {
-        NetKind::Power => Color::srgb(0.15, 0.13, 0.10),
-        NetKind::Water => Color::srgb(0.20, 0.45, 0.75),
-        NetKind::Heat => Color::srgb(0.75, 0.30, 0.15),
+        // Power cable is the one that reads as a real material — bare wire
+        // against the sky; water and heat are schematic overlay colours.
+        NetKind::Power => Role::Coal.color(),
+        NetKind::Water => Role::WaterLine.color(),
+        NetKind::Heat => Role::HeatLine.color(),
     }
 }
 
@@ -104,7 +107,7 @@ fn preview_wire_chain(chain: Res<WireChainStart>, cursor: Res<GroundCursor>, mut
     gizmos.line(
         from + Vec3::Y * POLE_HEIGHT,
         to + Vec3::Y * POLE_HEIGHT,
-        Color::srgb(0.9, 0.85, 0.3),
+        Role::SignalOk.color(),
     );
 }
 
@@ -115,11 +118,7 @@ fn sync_pole_meshes(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, pole) in &added {
-        let timber = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.35, 0.28, 0.20),
-            perceptual_roughness: 0.95,
-            ..default()
-        });
+        let timber = Mat::new(Role::Timber).add_to(&mut materials);
         commands
             .entity(entity)
             .insert((
@@ -183,9 +182,9 @@ fn draw_spans(
 fn draw_power_lamps(lamps: Query<(&Building, &Powered)>, mut gizmos: Gizmos) {
     for (building, powered) in &lamps {
         let color = if powered.0 {
-            Color::srgb(1.0, 0.85, 0.25)
+            Role::SignalOk.color()
         } else {
-            Color::srgb(0.55, 0.10, 0.08)
+            Role::SignalFail.color()
         };
         let anchor = building.pos + Vec3::Y * (kind_height(building.kind) + 2.0);
         gizmos.sphere(Isometry3d::from_translation(anchor), 0.8, color);

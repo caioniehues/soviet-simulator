@@ -1,11 +1,31 @@
-//! Legibility pass: HUD overlay (active tool, key legend, sim speed),
-//! inspect-click panel, yard/cargo fill bars, and time controls. Presentation
-//! only — reads sim state, writes nothing but `SimSpeed` (a player control,
-//! not sim state).
+//! The state document: HUD panels, the inspect panel, the fullscreen Plan
+//! ledger, fill bars and time controls. Presentation only — reads sim state,
+//! writes nothing but `SimSpeed` (a player control, not sim state).
+//!
+//! R0.3 restructured this file around three rules, because the old HUD was a
+//! debug readout that had grown four panels of undifferentiated text:
+//!
+//! 1. **Chrome comes from [`super::ui`]**, never from local colour literals.
+//!    Every panel here, the ledger included, is built from the same
+//!    vocabulary, so the interface reads as one document.
+//! 2. **State and hints are separate surfaces.** The key legend was pinned to
+//!    the top of the live-state panel, where it pushed the thing that changes
+//!    below the thing that never does; it is its own panel now, on `F1`.
+//! 3. **Every live line carries a [`Severity`]**, so a starving warehouse is
+//!    loud and an idle-truck count is not.
+//!
+//! The Plan's quotas also moved onto the main HUD as drawn meters. They were
+//! only visible behind `P`, which meant the game's central pressure was the
+//! one thing the player could not see while playing.
 
 use bevy::prelude::*;
 
+use super::notify::{Notice, NoticeBoard};
 use super::tools::{GroundCursor, ToolMode};
+use super::ui::{
+    Line, Meter, MeterLabel, Readout, SIZE_LEAD, Severity, Theme, header, panel, rule, spawn_meter,
+    spawn_readout, write_readout,
+};
 use crate::sim::buildings::{Building, BuildingKind, PowerOutput, Powered};
 use crate::sim::citizens::Citizen;
 use crate::sim::dispatch::{DeficitBoard, DispatchQueue, FreightJob, FreightPhase};
@@ -21,19 +41,45 @@ use crate::sim::vehicles::{
 };
 use crate::sim::{SimSpeed, TickIndex};
 
+/// The key legend, split off from live state and toggled with `F1`.
 #[derive(Component)]
-struct ToolReadout;
+struct HintPanel;
+
+/// Panel markers. A readout is found through its panel rather than by a
+/// unique component, so every panel shares one `Readout` implementation.
+#[derive(Component)]
+struct ToolPanel;
 
 #[derive(Component)]
-struct InspectReadout;
+struct PopulationPanel;
 
 #[derive(Component)]
-struct PopulationReadout;
+struct DispatchPanel;
 
-/// The fleet-legibility panel (#36): pending orders, busy/idle per depot,
-/// oldest starving deficit.
+/// The Plan panel's quota rows, pre-spawned to a fixed pool.
 #[derive(Component)]
-struct DispatchReadout;
+struct QuotaRow(usize);
+
+/// The same, inside the fullscreen ledger.
+#[derive(Component)]
+struct LedgerQuotaRow(usize);
+
+/// The ledger's overall-fulfilment meter.
+#[derive(Component)]
+struct LedgerFulfilment;
+
+/// The ledger's sheet node — the parent of its readout, so the ledger can
+/// find its own text and nobody else's.
+#[derive(Component)]
+struct LedgerSheet;
+
+/// Live text at the top of the Plan panel: period, deadline, treasury.
+#[derive(Component)]
+struct PlanReadout;
+
+/// The most quotas any authored period declares; rows past the live count are
+/// hidden rather than despawned.
+const MAX_QUOTA_ROWS: usize = 4;
 
 /// The inspect panel's chrome node; hidden while nothing is selected.
 #[derive(Component)]
@@ -62,76 +108,117 @@ impl Plugin for HudPlugin {
         app.init_resource::<Selected>()
             .init_resource::<BandFocus>()
             .add_systems(Startup, spawn_hud)
+            // Grouped by what they do, not by when they were written — the
+            // tuple has a 20-element ceiling and reads better split anyway.
             .add_systems(
                 Update,
                 (
                     drive_time_controls,
                     drive_recruitment_controls,
-                    update_population_readout,
-                    update_dispatch_readout,
                     drive_inspect_tool,
                     drive_depot_purchase,
                     drive_office_purchase,
                     drive_bus_purchase,
                     drive_demolition,
                     drive_band_tuning,
-                    hint_starving_deficits,
-                    hint_stalled_corridors,
+                    toggle_plan_ledger,
+                    toggle_hints,
+                ),
+            )
+            .add_systems(
+                Update,
+                (
+                    update_population_readout,
+                    update_dispatch_readout,
                     update_tool_readout,
                     update_inspect_readout,
-                    toggle_plan_ledger,
+                    update_plan_panel,
                     update_plan_ledger,
-                    draw_selection_ring,
+                    notice_refusals,
+                ),
+            )
+            .add_systems(
+                Update,
+                (
+                    hint_starving_deficits,
+                    hint_stalled_corridors,
                     draw_fill_bars,
                 ),
             );
     }
 }
 
-/// Panel chrome per the art direction: near-black concrete panel, thin rust
-/// accent along the left edge, Fira Sans (OFL, bundled).
-fn panel_node() -> (Node, BackgroundColor, BorderColor) {
-    (
-        Node {
-            position_type: PositionType::Absolute,
-            padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
-            border: UiRect::left(Val::Px(3.0)),
-            border_radius: BorderRadius::px(2.0, 6.0, 6.0, 2.0),
-            ..default()
-        },
-        BackgroundColor(Color::srgba(0.055, 0.06, 0.07, 0.86)),
-        BorderColor::all(Color::srgb(0.63, 0.35, 0.20)),
-    )
-}
+/// The persistent key legend. Separated from live state (rule 2 above) and
+/// written once at spawn — nothing here ever changes.
+const KEY_HINTS: &[(&str, &str)] = &[
+    ("1 / 2", "dirt / paved road"),
+    ("3", "building (repeat cycles kind)"),
+    ("4", "network (repeat cycles utility)"),
+    ("5 / 6 / 7", "haul policy / bus line / zone"),
+    ("Esc", "inspect"),
+    ("WASD / Q E / wheel", "pan, rotate, zoom"),
+    ("Space, [ ]", "pause, speed"),
+    ("P / L / F1", "plan ledger / event log / these keys"),
+];
 
-fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let font = TextFont {
-        font: asset_server.load("fonts/FiraSans-Regular.ttf").into(),
-        font_size: bevy::text::FontSize::Px(15.0),
-        ..default()
-    };
-    let (node, bg, border) = panel_node();
+fn spawn_hud(mut commands: Commands, theme: Res<Theme>) {
+    // ---- left column: what the tool is doing, then how to drive it.
     commands
         .spawn((
             Node {
+                position_type: PositionType::Absolute,
                 left: Val::Px(12.0),
                 top: Val::Px(10.0),
-                ..node
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
+                ..default()
             },
-            bg,
-            border,
-            Name::new("HudToolPanel"),
+            Name::new("HudLeftColumn"),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                ToolReadout,
-                Text::new(""),
-                font.clone(),
-                TextColor(Color::srgb(0.92, 0.90, 0.82)),
-            ));
+        .with_children(|column| {
+            column
+                .spawn((panel(), ToolPanel, Name::new("HudToolPanel")))
+                .with_children(|parent| {
+                    parent.spawn(header(&theme, "state"));
+                    spawn_readout(parent, &theme, 4);
+                });
+            column
+                .spawn((panel(), HintPanel, Name::new("HudHintPanel")))
+                .with_children(|parent| {
+                    parent.spawn(header(&theme, "controls"));
+                    for (keys, what) in KEY_HINTS {
+                        parent
+                            .spawn(Node {
+                                column_gap: Val::Px(10.0),
+                                ..default()
+                            })
+                            .with_children(|row| {
+                                row.spawn((
+                                    Node {
+                                        // Wide enough for the longest chord
+                                        // in KEY_HINTS; a narrower column
+                                        // wraps it over the next row.
+                                        min_width: Val::Px(150.0),
+                                        flex_shrink: 0.0,
+                                        ..default()
+                                    },
+                                    Text::new(*keys),
+                                    theme.font(super::ui::SIZE_BODY, true),
+                                    TextColor(Theme::INK),
+                                ));
+                                row.spawn((
+                                    Text::new(*what),
+                                    theme.font(super::ui::SIZE_BODY, false),
+                                    TextColor(Theme::INK_DIM),
+                                ));
+                            });
+                    }
+                });
         });
-    // Right-side column: population above dispatch, stacked by flex so a
-    // growing panel pushes the next down instead of overlapping it (G1.4).
+
+    // ---- right column: the Plan first, because it is the pressure; then the
+    // population it feeds and the fleet that moves it. Flex-stacked, so a
+    // growing panel pushes the next down instead of overlapping it.
     commands
         .spawn((
             Node {
@@ -139,54 +226,49 @@ fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
                 right: Val::Px(12.0),
                 top: Val::Px(10.0),
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::FlexEnd,
+                align_items: AlignItems::Stretch,
+                width: Val::Px(330.0),
                 row_gap: Val::Px(8.0),
                 ..default()
             },
             Name::new("HudRightColumn"),
         ))
         .with_children(|column| {
-            let (node, bg, border) = panel_node();
             column
-                .spawn((
-                    Node {
-                        position_type: PositionType::Relative,
-                        ..node
-                    },
-                    bg,
-                    border,
-                    Name::new("HudPopulationPanel"),
-                ))
+                .spawn((panel(), Name::new("HudPlanPanel")))
                 .with_children(|parent| {
-                    parent.spawn((
-                        PopulationReadout,
-                        Text::new(""),
-                        font.clone(),
-                        TextColor(Color::srgb(0.92, 0.90, 0.82)),
-                    ));
+                    parent.spawn(header(&theme, "the state plan"));
+                    parent
+                        .spawn((
+                            Text::new(""),
+                            theme.font(super::ui::SIZE_BODY, false),
+                            TextColor(Theme::INK),
+                            PlanReadout,
+                        ))
+                        .insert(Node::default());
+                    parent.spawn(rule());
+                    for i in 0..MAX_QUOTA_ROWS {
+                        spawn_meter(parent, &theme, "", 296.0, QuotaRow(i));
+                    }
                 });
-            let (node, bg, border) = panel_node();
             column
-                .spawn((
-                    Node {
-                        position_type: PositionType::Relative,
-                        ..node
-                    },
-                    bg,
-                    border,
-                    Name::new("HudDispatchPanel"),
-                ))
+                .spawn((panel(), PopulationPanel, Name::new("HudPopulationPanel")))
                 .with_children(|parent| {
-                    parent.spawn((
-                        DispatchReadout,
-                        Text::new(""),
-                        font.clone(),
-                        TextColor(Color::srgb(0.88, 0.87, 0.80)),
-                    ));
+                    parent.spawn(header(&theme, "population"));
+                    spawn_readout(parent, &theme, 10);
+                });
+            column
+                .spawn((panel(), DispatchPanel, Name::new("HudDispatchPanel")))
+                .with_children(|parent| {
+                    parent.spawn(header(&theme, "dispatch"));
+                    spawn_readout(parent, &theme, 14);
                 });
         });
-    // The Plan ledger (G1.4): the fullscreen signature screen, toggled with
-    // P. A state document, not a popup — the whole viewport dims behind it.
+
+    // ---- the Plan ledger (G1.4): the signature screen, on the same
+    // vocabulary as everything else. R0.3 restyled rather than restructured
+    // it — the layout was already right; what it lacked was drawn bars and a
+    // hierarchy, both of which the vocabulary now supplies.
     commands
         .spawn((
             Node {
@@ -200,62 +282,92 @@ fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
                 display: Display::None,
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.02, 0.025, 0.03, 0.82)),
+            BackgroundColor(Color::srgba(0.02, 0.025, 0.03, 0.86)),
+            // Above every other panel. Without this the dim backdrop covered
+            // the world but the HUD drew straight through the sheet — the
+            // ledger's own title was occluded by the controls panel.
+            GlobalZIndex(10),
             PlanLedgerPanel,
             Name::new("HudPlanLedger"),
         ))
         .with_children(|overlay| {
-            let (node, bg, _) = panel_node();
             overlay
                 .spawn((
                     Node {
-                        position_type: PositionType::Relative,
-                        min_width: Val::Px(520.0),
-                        padding: UiRect::all(Val::Px(28.0)),
+                        width: Val::Px(660.0),
+                        padding: UiRect::axes(Val::Px(34.0), Val::Px(28.0)),
                         border: UiRect::all(Val::Px(2.0)),
-                        ..node
+                        border_radius: BorderRadius::all(Val::Px(3.0)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(9.0),
+                        ..default()
                     },
-                    bg,
-                    BorderColor::all(Color::srgb(0.63, 0.35, 0.20)),
+                    BackgroundColor(Color::srgba(0.055, 0.060, 0.070, 0.98)),
+                    BorderColor::all(Theme::ACCENT),
+                    LedgerSheet,
                 ))
                 .with_children(|sheet| {
                     sheet.spawn((
-                        PlanLedgerReadout,
+                        Text::new(super::ui::letterspace("the state plan")),
+                        theme.font(SIZE_LEAD, true),
+                        TextColor(Theme::INK),
+                    ));
+                    sheet.spawn(rule());
+                    sheet.spawn((
                         Text::new(""),
-                        TextFont {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
-                            font_size: bevy::text::FontSize::Px(17.0),
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.93, 0.90, 0.80)),
+                        theme.font(super::ui::SIZE_BODY, false),
+                        TextColor(Theme::INK),
+                        PlanLedgerReadout,
+                    ));
+                    for i in 0..MAX_QUOTA_ROWS {
+                        spawn_meter(sheet, &theme, "", 592.0, LedgerQuotaRow(i));
+                    }
+                    sheet.spawn(rule());
+                    spawn_meter(sheet, &theme, "", 592.0, LedgerFulfilment);
+                    sheet.spawn(rule());
+                    spawn_readout(sheet, &theme, 5);
+                    sheet.spawn((
+                        Text::new("[P] close"),
+                        theme.font(super::ui::SIZE_BODY, false),
+                        TextColor(Theme::INK_DIM),
                     ));
                 });
         });
-    let (node, bg, border) = panel_node();
+
+    // ---- the inspect panel: bottom left, hidden until something is picked.
     commands
         .spawn((
             Node {
+                position_type: PositionType::Absolute,
                 left: Val::Px(12.0),
-                bottom: Val::Px(12.0),
+                bottom: Val::Px(56.0),
+                max_width: Val::Px(420.0),
                 display: Display::None,
-                ..node
+                ..panel().0
             },
-            bg,
-            border,
+            panel().1,
+            panel().2,
             InspectPanel,
             Name::new("HudInspectPanel"),
         ))
         .with_children(|parent| {
-            parent.spawn((
-                InspectReadout,
-                Text::new(""),
-                TextFont {
-                    font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
-                    ..font
-                },
-                TextColor(Color::srgb(0.95, 0.93, 0.85)),
-            ));
+            parent.spawn(header(&theme, "inspect"));
+            spawn_readout(parent, &theme, 22);
         });
+}
+
+/// `F1` hides the key legend once the player no longer needs it — the charter
+/// asks for a HUD a stranger can learn from, not one they must live with.
+fn toggle_hints(keys: Res<ButtonInput<KeyCode>>, mut panel: Query<&mut Node, With<HintPanel>>) {
+    if !keys.just_pressed(KeyCode::F1) {
+        return;
+    }
+    for mut node in &mut panel {
+        node.display = match node.display {
+            Display::None => Display::Flex,
+            _ => Display::None,
+        };
+    }
 }
 
 fn toggle_plan_ledger(
@@ -273,63 +385,200 @@ fn toggle_plan_ledger(
     }
 }
 
-/// ASCII progress bar — every glyph guaranteed in the bundled font.
-fn bar(progress: f32) -> String {
-    let filled = (progress.clamp(0.0, 1.0) * 20.0).round() as usize;
-    format!("[{}{}]", "#".repeat(filled), "-".repeat(20 - filled))
+/// Push a value into one of a panel's pre-spawned meter rows: caption on the
+/// label child, value and severity on the track child.
+fn set_meter_row(
+    children: &Children,
+    labels: &mut Query<&mut Text, With<MeterLabel>>,
+    meters: &mut Query<&mut Meter>,
+    caption: &str,
+    value: f32,
+    severity: Severity,
+) {
+    for child in children.iter() {
+        if let Ok(mut text) = labels.get_mut(child) {
+            if text.0 != caption {
+                text.0 = caption.to_string();
+            }
+        } else if let Ok(mut meter) = meters.get_mut(child)
+            && (meter.value != value || meter.severity != severity)
+        {
+            // Guarded so change detection stays honest: an untouched meter
+            // must not re-run `sync_meters` every frame.
+            meter.value = value;
+            meter.severity = severity;
+        }
+    }
 }
 
-fn update_plan_ledger(
+/// A quota's caption and how hard it is pressing. Behind on a quota with the
+/// deadline close is exactly the situation the game exists to create, so it
+/// gets the attention severity — and critical once the period cannot be
+/// recovered by ordinary means.
+fn quota_line(quota: &crate::sim::plan::Quota, days_left: u32) -> (String, f32, Severity) {
+    use crate::sim::plan::QuotaKind;
+    let caption = match quota.kind {
+        QuotaKind::Stockpile(kind, target) => {
+            format!("{kind:?}  {:.0} / {target:.0} t", quota.progress * target,)
+        }
+        QuotaKind::Housed(target) => format!(
+            "Households housed  {:.0} / {target}",
+            quota.progress * target as f32,
+        ),
+    };
+    // Pace: how far through the period we are versus how far through the
+    // quota. `PERIOD_DAYS` is the authored length, so this is honest even in
+    // the first period.
+    let elapsed = crate::sim::plan::PLAN_PERIOD_DAYS.saturating_sub(days_left) as f32
+        / crate::sim::plan::PLAN_PERIOD_DAYS as f32;
+    let severity = if quota.progress >= 1.0 {
+        Severity::Routine
+    } else if quota.progress + 0.35 < elapsed {
+        Severity::Critical
+    } else if quota.progress + 0.15 < elapsed {
+        Severity::Attention
+    } else {
+        Severity::Routine
+    };
+    (caption, quota.progress, severity)
+}
+
+/// The Plan panel on the main HUD (R0.3): the quotas the player is judged on,
+/// visible while playing rather than only behind `P`.
+fn update_plan_panel(
     plan: Option<Res<crate::sim::plan::StatePlan>>,
     treasury: Option<Res<crate::sim::plan::Treasury>>,
     frame: Res<crate::sim::clock::FrameIndex>,
-    panel: Query<&Node, With<PlanLedgerPanel>>,
-    mut readout: Query<&mut Text, With<PlanLedgerReadout>>,
+    mut readout: Query<&mut Text, (With<PlanReadout>, Without<MeterLabel>)>,
+    mut rows: Query<(&QuotaRow, &mut Node, &Children)>,
+    mut labels: Query<&mut Text, With<MeterLabel>>,
+    mut meters: Query<&mut Meter>,
 ) {
     let (Some(plan), Some(treasury)) = (plan, treasury) else {
         return;
     };
-    // Skip the string build while hidden.
+    let days_left = plan.days_left(frame.0);
+    if let Ok(mut text) = readout.single_mut() {
+        let next = format!(
+            "Period {}   {days_left} days left   {:.0} rbl",
+            plan.period, treasury.roubles,
+        );
+        if text.0 != next {
+            text.0 = next;
+        }
+    }
+    for (row, mut node, children) in &mut rows {
+        match plan.quotas.get(row.0) {
+            Some(quota) => {
+                node.display = Display::Flex;
+                let (caption, value, severity) = quota_line(quota, days_left);
+                set_meter_row(
+                    children,
+                    &mut labels,
+                    &mut meters,
+                    &caption,
+                    value,
+                    severity,
+                );
+            }
+            None => node.display = Display::None,
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn update_plan_ledger(
+    plan: Option<Res<crate::sim::plan::StatePlan>>,
+    treasury: Option<Res<crate::sim::plan::Treasury>>,
+    frame: Res<crate::sim::clock::FrameIndex>,
+    theme: Res<Theme>,
+    panel: Query<&Node, With<PlanLedgerPanel>>,
+    mut lead: Query<&mut Text, (With<PlanLedgerReadout>, Without<MeterLabel>)>,
+    mut rows: Query<(&LedgerQuotaRow, &mut Node, &Children), Without<PlanLedgerPanel>>,
+    fulfilment: Query<&Children, With<LedgerFulfilment>>,
+    sheets: Query<&Children, With<LedgerSheet>>,
+    readouts: Query<&Readout>,
+    mut labels: Query<&mut Text, With<MeterLabel>>,
+    mut meters: Query<&mut Meter>,
+    mut spans: Query<(&mut TextSpan, &mut TextColor, &mut TextFont)>,
+) {
+    let (Some(plan), Some(treasury)) = (plan, treasury) else {
+        return;
+    };
+    // Skip the whole rebuild while hidden.
     if !panel.iter().any(|n| n.display != Display::None) {
         return;
     }
-    let Ok(mut text) = readout.single_mut() else {
-        return;
-    };
-    use crate::sim::plan::{BASE_TRANCHE, FULFILLMENT_BONUS, QuotaKind};
+    use crate::sim::plan::{BASE_TRANCHE, FULFILLMENT_BONUS};
+    let days_left = plan.days_left(frame.0);
     let fulfillment = plan.fulfillment();
-    let mut next = format!(
-        "THE STATE PLAN — PERIOD {}\n\n{} days to the deadline\n\n",
-        plan.period,
-        plan.days_left(frame.0),
-    );
-    for quota in &plan.quotas {
-        let (label, target) = match quota.kind {
-            QuotaKind::Stockpile(kind, t) => (format!("{kind:?} stockpiled, t"), t),
-            QuotaKind::Housed(t) => ("Households housed".to_string(), t as f32),
+
+    if let Ok(mut text) = lead.single_mut() {
+        let next = format!(
+            "Period {}   \u{2014}   {days_left} days to the deadline",
+            plan.period
+        );
+        if text.0 != next {
+            text.0 = next;
+        }
+    }
+    for (row, mut node, children) in &mut rows {
+        match plan.quotas.get(row.0) {
+            Some(quota) => {
+                node.display = Display::Flex;
+                let (caption, value, severity) = quota_line(quota, days_left);
+                set_meter_row(
+                    children,
+                    &mut labels,
+                    &mut meters,
+                    &caption,
+                    value,
+                    severity,
+                );
+            }
+            None => node.display = Display::None,
+        }
+    }
+    if let Ok(children) = fulfilment.single() {
+        let severity = if fulfillment >= 1.0 {
+            Severity::Routine
+        } else if fulfillment < 0.5 {
+            Severity::Critical
+        } else {
+            Severity::Attention
         };
-        next.push_str(&format!(
-            "{label:<24} {} {:>5.0}% of {target:.0}\n",
-            bar(quota.progress),
-            quota.progress * 100.0,
-        ));
+        set_meter_row(
+            children,
+            &mut labels,
+            &mut meters,
+            &format!("FULFILMENT  {:.0}%", fulfillment * 100.0),
+            fulfillment,
+            severity,
+        );
     }
-    next.push_str(&format!(
-        "\nFULFILLMENT              {} {:>5.0}%\n\nTREASURY   {:.0} roubles\nNEXT TRANCHE (forecast)   {:.0} roubles\n",
-        bar(fulfillment),
-        fulfillment * 100.0,
-        treasury.roubles,
-        BASE_TRANCHE + FULFILLMENT_BONUS * fulfillment,
-    ));
+
+    let mut lines = vec![
+        Line::routine(format!("Treasury  {:.0} roubles", treasury.roubles)),
+        Line::dim(format!(
+            "Next tranche (forecast)  {:.0} roubles",
+            BASE_TRANCHE + FULFILLMENT_BONUS * fulfillment
+        )),
+    ];
     if let (Some(last), Some(tranche)) = (plan.last_fulfillment, plan.last_tranche) {
-        next.push_str(&format!(
-            "\nLAST PERIOD: fulfilled {:.0}%, granted {tranche:.0} roubles\n",
+        lines.push(Line::dim(format!(
+            "Last period: fulfilled {:.0}%, granted {tranche:.0} roubles",
             last * 100.0
-        ));
+        )));
     }
-    next.push_str("\n[P] close");
-    if text.0 != next {
-        text.0 = next;
+    // Only the ledger's own readout: an earlier version wrote to every
+    // `Readout` in the world, so the treasury lines appeared in the tool
+    // panel too.
+    if let Some(readout) = sheets
+        .iter()
+        .flat_map(|c| c.iter())
+        .find_map(|c| readouts.get(c).ok())
+    {
+        write_readout(readout, &theme, &lines, &mut spans);
     }
 }
 
@@ -381,84 +630,106 @@ fn update_population_readout(
     // drops these blocks rather than requiring every plugin.
     climate: Option<Res<crate::sim::heat::Climate>>,
     heated: Query<&crate::sim::heat::Heated>,
-    state_plan: Option<Res<crate::sim::plan::StatePlan>>,
-    treasury: Option<Res<crate::sim::plan::Treasury>>,
-    alloc_feedback: Option<Res<crate::sim::plan::AllocationFeedback>>,
-    frame: Res<crate::sim::clock::FrameIndex>,
-    mut readout: Query<&mut Text, With<PopulationReadout>>,
+    theme: Res<Theme>,
+    panel: Query<&Children, With<PopulationPanel>>,
+    readouts: Query<&Readout>,
+    mut spans: Query<(&mut TextSpan, &mut TextColor, &mut TextFont)>,
 ) {
-    let Ok(mut text) = readout.single_mut() else {
+    let Some(readout) = panel
+        .iter()
+        .flat_map(|c| c.iter())
+        .find_map(|c| readouts.get(c).ok())
+    else {
         return;
     };
     let total = households.iter().count();
     let housed = households.iter().filter(|h| h.dwelling.is_some()).count();
-    let mut next = format!(
-        "POPULATION {}\nhouseholds {housed}/{total} housed   queue {}\nplan target {}   (+/- adjusts)",
-        citizens.iter().count(),
-        queue.0.len(),
-        plan.target_households,
-    );
-    // The PLAN dashboard (B7.3): CS1's demand diagnostics surfaced as
-    // planner information — never wired to any spawner.
+    let homeless = queue.0.len();
     let vacancies: u32 = dwellings.iter().map(|d| d.free_flats()).sum();
     let jobs_open: u32 = staffed.iter().map(|(b, s)| s.vacancies(b.kind)).sum();
     let unemployed = citizens
         .iter()
         .filter(|c| c.work.is_none() && c.home.is_some())
         .count();
-    next.push_str(&format!(
-        "\nPLAN  homeless {} / flats free {vacancies}\n jobs open {jobs_open} / unemployed {unemployed}",
-        queue.0.len(),
-    ));
+
+    let mut lines = vec![
+        Line::routine(format!(
+            "{} citizens   {housed}/{total} households housed",
+            citizens.iter().count(),
+        )),
+        Line::dim(format!(
+            "recruitment target {}   (+/- adjusts)",
+            plan.target_households
+        )),
+    ];
+    // Homeless is the queue-as-demand signal: it is never routine, because
+    // the housing office cannot clear it without the player building.
+    lines.push(if homeless > 0 {
+        Line::attention(format!("homeless {homeless}   flats free {vacancies}"))
+    } else {
+        Line::dim(format!("homeless 0   flats free {vacancies}"))
+    });
+    lines.push(Line::dim(format!(
+        "jobs open {jobs_open}   unemployed {unemployed}"
+    )));
+
     let (zone_count, backlog) = crate::sim::zoning::unfulfilled_zones(&zones, &buildings);
     if zone_count > 0 {
-        next.push_str(&format!(
-            "\n districts {zone_count}, {backlog} not yet fulfilled"
-        ));
+        lines.push(Line::dim(format!(
+            "districts {zone_count}, {backlog} not yet fulfilled"
+        )));
     }
     if let Some((kind, zone_kind)) = zone_feedback.0 {
-        next.push_str(&format!("\n REFUSED: {kind:?} in a {zone_kind:?} district"));
+        lines.push(Line::critical(format!(
+            "REFUSED: {kind:?} in a {zone_kind:?} district"
+        )));
     }
-    // Season readout (B8.3): the sinusoid made legible, plus the count that
-    // actually hurts — homes drawing heat and not getting it.
     if let Some(climate) = climate {
         let cold_homes = heated.iter().filter(|h| !h.0).count();
-        next.push_str(&format!("\nSEASON  {:+.0}\u{b0}C", climate.temperature));
+        lines.push(Line::dim(format!(
+            "season {:+.0}\u{b0}C",
+            climate.temperature
+        )));
+        // A cold home in winter is the failure the heat network exists to
+        // prevent, and it is invisible from the outside — so it is loud here.
         if cold_homes > 0 {
-            next.push_str(&format!("   COLD HOMES {cold_homes}"));
+            lines.push(Line::critical(format!("{cold_homes} homes without heat")));
         }
     }
-    // The Plan block (G1.1, interim until the G1.4 ledger screen): quotas,
-    // deadline, the treasury, and any refused spend within the last day.
-    if let (Some(state_plan), Some(treasury)) = (state_plan, treasury) {
-        next.push_str(&format!(
-            "\nPLAN PERIOD {}   {} days left   {:.0} rbl",
-            state_plan.period,
-            state_plan.days_left(frame.0),
-            treasury.roubles,
-        ));
-        for quota in &state_plan.quotas {
-            let line = match quota.kind {
-                crate::sim::plan::QuotaKind::Stockpile(kind, target) => {
-                    format!(
-                        "\n  {kind:?} {target:.0} t — {:.0}%",
-                        quota.progress * 100.0
-                    )
-                }
-                crate::sim::plan::QuotaKind::Housed(target) => {
-                    format!("\n  {target} housed — {:.0}%", quota.progress * 100.0)
-                }
-            };
-            next.push_str(&line);
-        }
-    }
-    if let Some((when, what)) = alloc_feedback.and_then(|f| f.0)
-        && frame.0.wrapping_sub(when) < crate::sim::clock::FRAMES_PER_GAME_DAY
+    write_readout(readout, &theme, &lines, &mut spans);
+}
+
+/// The treasury refusal is an event, not a state: it fires once, so it wants
+/// a toast rather than a line that lingers for a game day.
+fn notice_refusals(
+    alloc_feedback: Option<Res<crate::sim::plan::AllocationFeedback>>,
+    road_feedback: Res<RoadBuildFeedback>,
+    zone_feedback: Res<crate::sim::zoning::ZoningFeedback>,
+    mut notices: ResMut<NoticeBoard>,
+    mut last_alloc: Local<Option<u32>>,
+) {
+    if zone_feedback.is_changed()
+        && let Some((kind, zone_kind)) = zone_feedback.0
     {
-        next.push_str(&format!("\n  NO FUNDS: {what} refused"));
+        notices.push(Notice::critical(format!(
+            "Refused: a {kind:?} may not stand in a {zone_kind:?} district"
+        )));
     }
-    if text.0 != next {
-        text.0 = next;
+    if let Some(feedback) = alloc_feedback
+        && let Some((when, what)) = feedback.0
+        && *last_alloc != Some(when)
+    {
+        *last_alloc = Some(when);
+        notices.push(Notice::critical(format!("No funds: {what} refused")));
+    }
+    if road_feedback.is_changed()
+        && let Some(shortfall) = road_feedback.0
+    {
+        notices.push(Notice::critical(format!(
+            "Not enough gravel delivered: paving needs {:.1} t, {:.1} t in nearby yards",
+            shortfall.needed,
+            shortfall.available.max(0.0),
+        )));
     }
 }
 
@@ -681,9 +952,20 @@ fn update_dispatch_readout(
     tick: Res<TickIndex>,
     fleet: Query<(&VehicleAsset, Has<ActivePawn>)>,
     buildings: Query<&Building>,
-    mut readout: Query<&mut Text, With<DispatchReadout>>,
+    theme: Res<Theme>,
+    mut notices: ResMut<NoticeBoard>,
+    panel: Query<&Children, With<DispatchPanel>>,
+    readouts: Query<&Readout>,
+    mut spans: Query<(&mut TextSpan, &mut TextColor, &mut TextFont)>,
+    mut notified: Local<std::collections::HashSet<Entity>>,
 ) {
-    let Ok(mut text) = readout.single_mut() else {
+    // Buildings that have recovered can alarm again.
+    notified.retain(|e| board.0.iter().any(|d| d.building == *e));
+    let Some(readout) = panel
+        .iter()
+        .flat_map(|c| c.iter())
+        .find_map(|c| readouts.get(c).ok())
+    else {
         return;
     };
     let (mut busy, mut idle) = (0, 0);
@@ -700,16 +982,25 @@ fn update_dispatch_readout(
         }
     }
     let waiting = queue.orders.iter().filter(|o| o.assigned.is_none()).count();
-    let mut lines = format!(
-        "DISPATCH   fleet {busy} busy / {idle} idle\norders {} in flight, {waiting} waiting",
-        queue.orders.len() - waiting,
-    );
+    let mut lines = vec![
+        Line::routine(format!("fleet {busy} busy / {idle} idle")),
+        // Orders waiting with no truck to take them is the fleet-shortage
+        // signal — routine while it is zero, attention the moment it is not.
+        if waiting > 0 {
+            Line::attention(format!(
+                "{} orders in flight, {waiting} waiting",
+                queue.orders.len() - waiting,
+            ))
+        } else {
+            Line::dim(format!("{} orders in flight", queue.orders.len()))
+        },
+    ];
     for (depot, (out, parked)) in &per_depot {
         if let Ok(building) = buildings.get(*depot) {
-            lines.push_str(&format!(
-                "\n  depot #{}: {parked} parked, {out} out",
+            lines.push(Line::dim(format!(
+                "depot #{}: {parked} parked, {out} out",
                 building.id.0
-            ));
+            )));
         }
     }
     // The queue is the planning signal: the oldest waiting orders read first.
@@ -719,16 +1010,19 @@ fn update_dispatch_readout(
         .filter(|o| o.assigned.is_none())
         .collect();
     pending.sort_by_key(|o| o.issued_tick);
-    for order in pending.iter().take(4) {
-        lines.push_str(&format!(
-            "\n  {:?} {:.0} t — waiting {:.1} h",
+    for order in pending.iter().take(3) {
+        lines.push(Line::dim(format!(
+            "{:?} {:.0} t \u{2014} waiting {:.1} h",
             order.resource,
             order.qty,
             game_hours(tick.0.saturating_sub(order.issued_tick)),
-        ));
+        )));
     }
-    if pending.len() > 4 {
-        lines.push_str(&format!("\n  … and {} more", pending.len() - 4));
+    if pending.len() > 3 {
+        lines.push(Line::dim(format!(
+            "\u{2026} and {} more",
+            pending.len() - 3
+        )));
     }
     let site_count = sites_q.iter().count();
     if site_count > 0 {
@@ -740,18 +1034,26 @@ fn update_dispatch_readout(
                 None => {}
             }
         }
-        lines.push_str(&format!(
-            "\nSITES: {site_count} building — {no_material} want material, {no_machine} want machines"
-        ));
+        // A site that is merely building is progress; a site that is *blocked*
+        // is the plan stalling, and the player is the only one who can unblock
+        // it.
+        let blocked = no_material + no_machine;
+        lines.push(if blocked > 0 {
+            Line::critical(format!(
+                "{blocked} of {site_count} sites blocked \u{2014} {no_material} want material, {no_machine} want machines"
+            ))
+        } else {
+            Line::dim(format!("{site_count} sites building"))
+        });
     }
     let line_count = transit_lines.iter().count();
     if line_count > 0 {
         let buses = duties.iter().count();
         let aboard: usize = duties.iter().map(|d| d.riders.len()).sum();
-        let waiting: usize = stop_queues.0.values().map(|q| q.len()).sum();
-        lines.push_str(&format!(
-            "\nTRANSIT: {line_count} line(s), {buses} bus(es) out, {aboard} aboard, {waiting} waiting"
-        ));
+        let queued: usize = stop_queues.0.values().map(|q| q.len()).sum();
+        lines.push(Line::dim(format!(
+            "transit: {line_count} line(s), {buses} out, {aboard} aboard, {queued} waiting"
+        )));
     }
     if !stalls.0.is_empty() {
         let held: u32 = stalls.0.values().map(|s| s.vehicles).sum();
@@ -761,46 +1063,67 @@ fn update_dispatch_readout(
             .map(|s| s.since_tick)
             .min()
             .unwrap_or(tick.0);
-        lines.push_str(&format!(
-            "\nSTALL: {held} trucks held on {} segment(s), oldest {:.1} h",
+        lines.push(Line::attention(format!(
+            "jam: {held} trucks held on {} segment(s), oldest {:.1} h",
             stalls.0.len(),
             game_hours(tick.0.saturating_sub(oldest)),
-        ));
+        )));
     }
+    // The defect R0.4 exists to fix: this line used to render in the same
+    // size and colour as the idle-fleet count above it.
     if let Some(starving) = board.0.iter().min_by_key(|d| d.since_tick) {
         let name = buildings
             .get(starving.building)
             .map(|b| format!("{:?} #{}", b.kind, b.id.0))
             .unwrap_or_else(|_| "?".into());
-        lines.push_str(&format!(
-            "\nSTARVING: {name} short {:.1} t {:?} for {:.1} h",
-            starving.deficit,
-            starving.resource,
-            game_hours(tick.0.saturating_sub(starving.since_tick)),
-        ));
+        let hours = game_hours(tick.0.saturating_sub(starving.since_tick));
+        lines.push(Line::critical(format!(
+            "STARVING: {name} short {:.1} t {:?} for {hours:.1} h",
+            starving.deficit, starving.resource,
+        )));
+        // One toast when it *crosses* an hour of starvation. Pushing every
+        // frame let the fold counter run to (×55) in the first capture — the
+        // fold is a safety net, not a substitute for firing once.
+        if hours >= 1.0 && !notified.contains(&starving.building) {
+            notified.insert(starving.building);
+            notices.push(Notice::critical(format!(
+                "{name} is starving \u{2014} short {:.1} t {:?}",
+                starving.deficit, starving.resource,
+            )));
+        }
     }
-    if text.0 != lines {
-        text.0 = lines;
-    }
+    write_readout(readout, &theme, &lines, &mut spans);
 }
 
-fn tool_label(mode: ToolMode) -> String {
+/// The tool's name and, separately, how to drive it — hierarchy needs the two
+/// apart, since the name is what changes and the instructions are not news.
+fn tool_label(mode: ToolMode) -> (String, String) {
     match mode {
-        ToolMode::Inspect => "INSPECT - click a building".into(),
-        ToolMode::Road(class) => {
-            format!("ROAD ({class:?}) - click-chain, right-click ends, X cuts, R rebuilds last cut")
-        }
-        ToolMode::Building(kind) => format!("BUILD ({kind:?}) - click places, 3 cycles kind"),
-        ToolMode::Wire => "WIRE - click-chain hops, right-click ends, X cuts".into(),
-        ToolMode::Shuttle => {
-            "HAUL POLICY - click source (export all), then destination (import to 90%)".into()
-        }
-        ToolMode::TransitLine => {
-            "BUS LINE - click stops in order, right-click closes the loop".into()
-        }
-        ToolMode::Zone(kind) => {
-            format!("ZONE ({kind:?}) - two clicks span a district, 7 cycles use, X erases")
-        }
+        ToolMode::Inspect => ("INSPECT".into(), "click a building".into()),
+        ToolMode::Road(class) => (
+            format!("ROAD \u{2014} {class:?}"),
+            "click-chain, right-click ends, X cuts, R rebuilds last cut".into(),
+        ),
+        ToolMode::Building(kind) => (
+            format!("BUILD \u{2014} {kind:?}"),
+            "click places, 3 cycles kind".into(),
+        ),
+        ToolMode::Wire => (
+            "NETWORK".into(),
+            "click-chain hops, right-click ends, X cuts, 4 cycles utility".into(),
+        ),
+        ToolMode::Shuttle => (
+            "HAUL POLICY".into(),
+            "click source (export all), then destination (import to 90%)".into(),
+        ),
+        ToolMode::TransitLine => (
+            "BUS LINE".into(),
+            "click stops in order, right-click closes the loop".into(),
+        ),
+        ToolMode::Zone(kind) => (
+            format!("ZONE \u{2014} {kind:?}"),
+            "two clicks span a district, 7 cycles use, X erases".into(),
+        ),
     }
 }
 
@@ -817,28 +1140,38 @@ fn update_tool_readout(
     mode: Res<ToolMode>,
     speed: Res<SimSpeed>,
     feedback: Res<RoadBuildFeedback>,
-    mut readout: Query<&mut Text, With<ToolReadout>>,
+    theme: Res<Theme>,
+    panel: Query<&Children, With<ToolPanel>>,
+    readouts: Query<&Readout>,
+    mut spans: Query<(&mut TextSpan, &mut TextColor, &mut TextFont)>,
 ) {
     if !mode.is_changed() && !speed.is_changed() && !feedback.is_changed() {
         return;
     }
-    let Ok(mut text) = readout.single_mut() else {
+    let Some(readout) = panel
+        .iter()
+        .flat_map(|c| c.iter())
+        .find_map(|c| readouts.get(c).ok())
+    else {
         return;
     };
-    text.0 = format!(
-        "{}   |   speed {}\n\
-         1 dirt road   2 paved road   3 building   4 wire   5 haul policy   Esc inspect\n\
-         WASD/arrows pan   Q/E rotate   wheel zoom   Space pause   [ ] speed",
-        tool_label(*mode),
-        speed_label(*speed),
-    );
+    let (tool, hint) = tool_label(*mode);
+    let mut lines = vec![
+        Line::routine(tool),
+        Line::dim(hint),
+        Line::dim(format!("speed {}", speed_label(*speed))),
+    ];
+    // A refusal has to be felt, not read: the toast fires from
+    // `notice_refusals`, the placement shakes in `game::juice`, and this line
+    // is the one that stays put so the player can re-read the number.
     if let Some(shortfall) = feedback.0 {
-        text.0.push_str(&format!(
-            "\nNOT ENOUGH GRAVEL DELIVERED: paving needs {:.1} t, {:.1} t in yards nearby",
+        lines.push(Line::critical(format!(
+            "REFUSED: paving needs {:.1} t gravel, {:.1} t in nearby yards",
             shortfall.needed,
             shortfall.available.max(0.0),
-        ));
+        )));
     }
+    write_readout(readout, &theme, &lines, &mut spans);
 }
 
 fn drive_inspect_tool(
@@ -885,6 +1218,7 @@ fn band_bar(current: f32, capacity: f32, min_pct: f32) -> String {
 }
 
 #[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 fn update_inspect_readout(
     selected: Res<Selected>,
     focus: Res<BandFocus>,
@@ -898,56 +1232,62 @@ fn update_inspect_readout(
     )>,
     fleet: Query<(&VehicleAsset, Has<ActivePawn>, Option<&FreightJob>)>,
     sites: Query<&crate::sim::construction::ConstructionSite>,
-    mut readout: Query<&mut Text, With<InspectReadout>>,
-    mut panel: Query<&mut Node, With<InspectPanel>>,
+    theme: Res<Theme>,
+    mut panel: Query<(&mut Node, &Children), With<InspectPanel>>,
+    readouts: Query<&Readout>,
+    mut spans: Query<(&mut TextSpan, &mut TextColor, &mut TextFont)>,
 ) {
-    let Ok(mut text) = readout.single_mut() else {
+    let Ok((mut panel, children)) = panel.single_mut() else {
         return;
     };
-    let Ok(mut panel) = panel.single_mut() else {
+    let Some(readout) = children.iter().find_map(|c| readouts.get(c).ok()) else {
         return;
     };
     let Some((building, inventory, powered, output, staffing, policies)) =
         selected.0.and_then(|e| buildings.get(e).ok())
     else {
-        if !text.0.is_empty() {
-            text.0.clear();
-        }
         if panel.display != Display::None {
             panel.display = Display::None;
+            write_readout(readout, &theme, &[], &mut spans);
         }
         return;
     };
     if panel.display != Display::Flex {
         panel.display = Display::Flex;
     }
-    let mut lines = format!(
-        "{:?} #{}\nyard {:.1} / {:.0} t",
-        building.kind,
-        building.id.0, // struct display: kind + stable id
-        inventory.total(),
-        inventory.capacity,
-    );
+
+    let mut lines = vec![
+        Line::routine(format!("{:?} #{}", building.kind, building.id.0)),
+        Line::dim(format!(
+            "yard {:.1} / {:.0} t",
+            inventory.total(),
+            inventory.capacity
+        )),
+    ];
     // A site names its phase, its bill, and — the whole point — its stall.
     if let Some(site) = selected.0.and_then(|e| sites.get(e).ok()) {
         if let Some(phase) = site.phase() {
-            lines.push_str(&format!(
-                "\nUNDER CONSTRUCTION {}/{} {:?}: work {:.0}%",
+            let mut text = format!(
+                "under construction {}/{} {:?}: work {:.0}%",
                 site.current + 1,
                 site.phases.len(),
                 phase.kind,
                 100.0 * phase.done / phase.work.max(1e-3),
-            ));
+            );
             if let Some((resource, need)) = phase.material {
-                lines.push_str(&format!("  {resource:?} {:.1}/{need:.1} t", phase.consumed));
+                text.push_str(&format!(
+                    "   {resource:?} {:.1}/{need:.1} t",
+                    phase.consumed
+                ));
             }
+            lines.push(Line::routine(text));
         }
         match site.bottleneck {
             Some(crate::sim::construction::Bottleneck::NoMaterial) => {
-                lines.push_str("\nSTALLED: NO MATERIAL")
+                lines.push(Line::critical("STALLED: no material"))
             }
             Some(crate::sim::construction::Bottleneck::NoMachine) => {
-                lines.push_str("\nSTALLED: NO MACHINE")
+                lines.push(Line::critical("STALLED: no machine"))
             }
             None => {}
         }
@@ -965,34 +1305,46 @@ fn update_inspect_readout(
             // Banded resource: bar against the band plus the bucket's role.
             Some(band) => {
                 any_band = true;
-                let role = if amount < band.min_pct * inventory.capacity - 1e-3 {
+                let below = amount < band.min_pct * inventory.capacity - 1e-3;
+                let role = if below {
                     "DEMANDING"
                 } else if amount > band.max_pct * inventory.capacity + 1e-3 {
-                    "SUPPLYING"
+                    "supplying"
                 } else {
                     "in band"
                 };
-                lines.push_str(&format!(
-                    "\n{marker} {kind:?} {} {amount:.1} t  {:.0}–{:.0}  {role}",
+                let text = format!(
+                    "{marker} {kind:?} {} {amount:.1} t  {:.0}\u{2013}{:.0}  {role}",
                     band_bar(amount, inventory.capacity, band.min_pct),
                     band.min_pct * inventory.capacity,
                     band.max_pct * inventory.capacity,
-                ));
+                );
+                // Below the min line is a bucket actively pulling on the
+                // dispatcher — attention, not noise.
+                lines.push(if below {
+                    Line::attention(text)
+                } else {
+                    Line::routine(text)
+                });
             }
             None if amount > 0.05 || (inventory.capacity > 0.0 && i == focus.0) => {
-                lines.push_str(&format!("\n{marker} {kind:?}: {amount:.1} t  (no band)"));
+                lines.push(Line::dim(format!(
+                    "{marker} {kind:?}: {amount:.1} t  (no band)"
+                )));
             }
             None => {}
         }
     }
     if any_band || inventory.capacity > 0.0 {
-        lines.push_str("\nB next resource   , . min -/+   Shift+, . max -/+");
+        lines.push(Line::dim(
+            "B next resource   , . min -/+   Shift+, . max -/+",
+        ));
     }
     if building.kind == BuildingKind::Depot {
         let mut parked = 0;
-        let mut trucks = String::new();
+        let mut trucks = Vec::new();
         for (asset, on_road, job) in &fleet {
-            if asset.home_depot != selected.0.unwrap() {
+            if Some(asset.home_depot) != selected.0 {
                 continue;
             }
             if !on_road {
@@ -1000,82 +1352,102 @@ fn update_inspect_readout(
             }
             let state = match job.map(|j| j.phase) {
                 None => "parked",
-                Some(FreightPhase::ToPickup) => "→ pickup",
+                Some(FreightPhase::ToPickup) => "\u{2192} pickup",
                 Some(FreightPhase::Loading) => "loading",
-                Some(FreightPhase::ToDropoff) => "→ dropoff",
+                Some(FreightPhase::ToDropoff) => "\u{2192} dropoff",
                 Some(FreightPhase::Unloading) => "unloading",
-                Some(FreightPhase::ReturnToDepot) => "→ home",
+                Some(FreightPhase::ReturnToDepot) => "\u{2192} home",
             };
-            trucks.push_str(&format!(
-                "\n  truck #{} {:?}: {state}",
+            trucks.push(Line::dim(format!(
+                "  truck #{} {:?}: {state}",
                 asset.id.0, asset.cargo_class
-            ));
+            )));
         }
-        lines.push_str(&format!(
-            "\nslots {parked}/{DEPOT_SLOTS} parked{trucks}\nT buy bulk truck   Y buy covered truck"
-        ));
+        lines.push(Line::routine(format!(
+            "slots {parked}/{DEPOT_SLOTS} parked"
+        )));
+        lines.extend(trucks);
+        lines.push(Line::dim("T buy bulk truck   Y buy covered truck"));
     }
     if let Some(staffing) = staffing {
-        lines.push_str(&format!(
-            "\nstaff {} present / {} assigned of {}",
+        let needed = building.kind.workers_needed();
+        let text = format!(
+            "staff {} present / {} assigned of {needed}",
             staffing.present,
             staffing.assigned.len(),
-            building.kind.workers_needed(),
-        ));
+        );
+        // A works with nobody in it produces nothing, and looks identical
+        // from the outside to one that is running.
+        lines.push(if needed > 0 && staffing.present == 0 {
+            Line::critical(text)
+        } else {
+            Line::dim(text)
+        });
     }
     if let Some(powered) = powered {
-        lines.push_str(if powered.0 { "\nPOWERED" } else { "\nNO POWER" });
+        lines.push(if powered.0 {
+            Line::dim("powered")
+        } else {
+            Line::critical("NO POWER")
+        });
     }
     if let Some(output) = output {
-        lines.push_str(&format!("\noutput {:.0} MW", output.0));
+        lines.push(Line::dim(format!("output {:.0} MW", output.0)));
     }
-    text.0 = lines;
-}
-
-fn draw_selection_ring(selected: Res<Selected>, buildings: Query<&Building>, mut gizmos: Gizmos) {
-    let Some(building) = selected.0.and_then(|e| buildings.get(e).ok()) else {
-        return;
-    };
-    gizmos.circle(
-        Isometry3d::new(
-            building.pos + Vec3::Y * 0.15,
-            Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
-        ),
-        building.kind.footprint().length() * 0.5 + 1.5,
-        Color::srgb(0.95, 0.95, 0.95),
-    );
+    write_readout(readout, &theme, &lines, &mut spans);
 }
 
 /// One horizontal bar per yard and per truck: dark backing line, colored fill
 /// proportional to inventory. Cheap, zoom-independent-enough legibility.
+/// Yard and cargo fill, drawn in the world above each building and truck.
+///
+/// These read as stray coloured lines in the R0 capture — a bright green that
+/// was in no palette, a near-black track that looked like a rendering fault.
+/// They are now on the palette and, more importantly, they *say* something:
+/// an empty yard is the same alarm colour as the starving line that names it.
 fn draw_fill_bars(
     buildings: Query<(&Building, &Inventory)>,
     trucks: Query<&ActiveVehicle>,
     mut gizmos: Gizmos,
 ) {
+    // Empty is critical, comfortable is quiet, full is the signal-ok gold the
+    // power lamps already use — the same three-step reading as `Severity`.
+    let fill_color = |fill: f32| {
+        if fill < 0.08 {
+            Severity::Critical.color()
+        } else if fill < 0.30 {
+            Severity::Attention.color()
+        } else if fill > 0.97 {
+            super::palette::Role::SignalOk.color()
+        } else {
+            Color::srgb(0.55, 0.62, 0.45)
+        }
+    };
     let mut bar = |center: Vec3, width: f32, fill: f32, color: Color| {
         let half = Vec3::X * (width * 0.5);
-        gizmos.line(center - half, center + half, Color::srgb(0.12, 0.12, 0.12));
+        // The track is the panel's sunk colour, so a bar reads as the same
+        // object as the meters in the HUD rather than as a black wire.
+        gizmos.line(center - half, center + half, Theme::PANEL_SUNK);
         if fill > 0.01 {
             let tip = center - half + Vec3::X * (width * fill.min(1.0));
-            gizmos.line(center - half + Vec3::Y * 0.15, tip + Vec3::Y * 0.15, color);
+            gizmos.line(center - half + Vec3::Y * 0.22, tip + Vec3::Y * 0.22, color);
         }
     };
     for (building, inventory) in &buildings {
-        let height = super::buildings::kind_height(building.kind) + 1.2;
+        if inventory.capacity <= 0.0 {
+            continue;
+        }
+        let fill = inventory.total() / inventory.capacity;
+        let height = super::buildings::kind_height(building.kind) + 2.4;
         bar(
             building.pos + Vec3::Y * height,
-            building.kind.footprint().x,
-            inventory.total() / inventory.capacity,
-            Color::srgb(0.30, 0.75, 0.35),
+            building.kind.footprint().x * 0.8,
+            fill,
+            fill_color(fill),
         );
     }
     for truck in &trucks {
-        bar(
-            truck.pos + Vec3::Y * 3.2,
-            4.0,
-            truck.cargo.total() / truck.cargo.capacity,
-            Color::srgb(0.85, 0.65, 0.20),
-        );
+        let fill = truck.cargo.total() / truck.cargo.capacity;
+        bar(truck.pos + Vec3::Y * 3.2, 4.0, fill, fill_color(fill));
     }
 }

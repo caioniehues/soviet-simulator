@@ -129,7 +129,7 @@ against the previous recording.
 
 | # | Rung | Type | Content |
 |---|---|---|---|
-| **R0** | **The State Document** | G+P | Grounding pass (SSAO + contact shadows + TAA + cascade tuning), sky/horizon gradient, **material factory enforcing the palette** (fixes the lawn-green violation), UI redraw to a drawn state-document system, HUD hierarchy, **critical warnings in signal-fail colour + toast**, refusal feedback, first juice. *Mandatory opening rung.* |
+| **R0** ✅ | **The State Document** | G+P | **Done** ([#110](https://github.com/caioniehues/soviet-simulator/issues/110)). Grounding pass (SSAO + contact shadows + TAA + cascade tuning), sky/horizon gradient, **material factory enforcing the palette** (fixes the lawn-green violation), UI redraw to a drawn state-document system, HUD hierarchy, **critical warnings in signal-fail colour + toast**, refusal feedback, first juice. *Mandatory opening rung.* |
 | **R1** | The Planner's Hands | G | Placement snapping + ghost preview showing cost and refusal reason, one-level undo, tooltips everywhere, inspect-depth panel ("why is this not working"), selection outlines, camera easing + zoom-to-cursor. *Before S15 multiplies the cost of bad placement.* |
 | **R2** | Real Matter | B | The S8 construction layer: Wood, Boards, Cement, Concrete, Bricks + 5 buildings; construction sites consume real materials. |
 | **R3** | The Sound of Work | P | Audio layers 1–2 (UI feedback, then ambience) + geometry weathering (base bands, window repetition, rust roof edges). |

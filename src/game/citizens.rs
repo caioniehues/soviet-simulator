@@ -31,17 +31,16 @@ fn setup_visuals(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let coat = |color: Color| StandardMaterial {
-        base_color: color,
-        perceptual_roughness: 1.0,
-        ..default()
-    };
+    use super::palette::{Mat, Role};
+    // Three drab coats, not three colours: the crowd should read as a crowd,
+    // and the doc reserves saturation for signals.
+    let coat = |role: Role, shade: f32| Mat::new(role).shade(shade).roughness(1.0);
     commands.insert_resource(PawnVisuals {
         mesh: meshes.add(Capsule3d::new(0.35, 1.1)),
         coats: [
-            materials.add(coat(Color::srgb(0.30, 0.28, 0.25))),
-            materials.add(coat(Color::srgb(0.35, 0.30, 0.22))),
-            materials.add(coat(Color::srgb(0.25, 0.27, 0.30))),
+            coat(Role::Cloth, 1.0).add_to(&mut materials),
+            coat(Role::Timber, 0.9).add_to(&mut materials),
+            coat(Role::Concrete, 0.45).add_to(&mut materials),
         ],
     });
 }

@@ -9,6 +9,7 @@ use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::view::Msaa;
 
+use super::palette::SKY_HORIZON;
 use super::world::GROUND_HALF;
 
 /// RTS camera rig: a focus point on the ground plus yaw/pitch/distance; the
@@ -55,13 +56,26 @@ fn spawn_camera(mut commands: Commands) {
         // haze that closes the world instead of a hard horizon line.
         Tonemapping::TonyMcMapface,
         Bloom::NATURAL,
+        // The sky dome sits at 3 km so it can never occlude the ±1024 m ground;
+        // the default 1000 m far plane would clip it away entirely.
+        Projection::Perspective(PerspectiveProjection {
+            far: 6000.0,
+            ..default()
+        }),
         DistanceFog {
-            color: Color::srgb(0.78, 0.82, 0.85),
+            // Exactly the dome's horizon colour, so distant ground fades into
+            // the sky with no visible seam.
+            color: SKY_HORIZON,
             directional_light_color: Color::srgba(1.0, 0.93, 0.82, 0.25),
             directional_light_exponent: 40.0,
+            // Closed in from 500–1600 m: the ground plane ends at ±1024 m, so
+            // the old range left its far edge only ~half fogged and the world
+            // met the sky along a hard cut. It now dissolves before it runs
+            // out, which is what "the world edge dissolves" was supposed to
+            // mean.
             falloff: FogFalloff::Linear {
-                start: 500.0,
-                end: 1600.0,
+                start: 260.0,
+                end: 950.0,
             },
         },
         // R0.1 grounding pass. Ambient occlusion seats geometry into the field

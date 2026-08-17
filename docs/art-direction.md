@@ -27,8 +27,37 @@ a mine is a headframe, a plant is its chimneys, a factory is a sawtooth roof.
 | Asphalt | `#3a3a3c` | paved roads |
 | Dirt road | `#8a7355` | dry mud, lighter than earth |
 | Signal ok | `#ffd34d` | power lamp lit |
-| Signal fail | `#a12a1c` | blackout, HUD warnings |
-| Sky/haze | `#c7d0d8` → `#8fa3b5` | fog + clear color gradient |
+| Signal attention | `#d98f2b` | the middle severity (R0.4): needs a look, not a stop |
+| Signal fail | `#a12a1c` | blackout, HUD warnings, refusals |
+| Sky/haze | `#c7d0d8` (horizon) → `#8fa3b5` (zenith) | sky dome gradient; fog colour is the horizon stop |
+
+Extended rows, added when the factory landed (R0.2) because the table above
+never named materials the game already draws:
+
+| Role | Color | Notes |
+|---|---|---|
+| Coal | `#1f1f22` | piles, tyres, tracks — the floor of the albedo clamp |
+| Gravel | `#8f8a80` | quarry heaps, aggregate loads |
+| Glass | `#7a8894` | cab windows; the one role allowed past the roughness floor |
+| Cloth | `#4a4640` | citizen coats — drab, never a costume colour |
+| Machine ochre | `#8a6a2e` | construction plant, so equipment reads apart from buildings |
+| Cab green | `#3f4f44` | vehicle cabs; drab industrial, not the old saturated teal |
+| Smoke | `#b8b8bc` | chimney puffs (unlit, alpha-graded) |
+
+## Enforcement (R0.2, [#112](https://github.com/caioniehues/soviet-simulator/issues/112))
+
+This table is **normative, not aspirational** — it had already drifted once, to
+the lawn-green ground it explicitly forbids. Two mechanisms hold it now:
+
+- `src/game/palette.rs` is the **only** sanctioned way to build a
+  `StandardMaterial`. Every colour in `src/game/` is a `Role` from this table,
+  and `Mat::build` applies the material rules below on the way out. Adding a
+  colour means adding a row here first.
+- Ground textures are **baked on-palette offline** by `tools/bake_ground.py`,
+  which rescales each CC0 photo's linear mean onto its role colour and halves
+  its chroma. This is not a stylistic preference: correcting ambientCG's grass
+  to `#6b7050` needs linear multipliers of (2.5, 1.5, 3.6), and a material
+  tint clamps at 1.0. Sources are kept beside the bakes as `*_src.png`.
 
 ## Material rules
 
