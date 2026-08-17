@@ -7,6 +7,7 @@ pub mod dispatch;
 pub mod clock;
 pub mod commute;
 pub mod construction;
+pub mod customs;
 pub mod households;
 pub mod heat;
 pub mod labour;

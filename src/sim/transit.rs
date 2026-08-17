@@ -118,7 +118,7 @@ impl Plugin for TransitSimPlugin {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn apply_transit_edits(
     mut commands: Commands,
     mut queue: ResMut<TransitEditQueue>,
@@ -126,7 +126,10 @@ fn apply_transit_edits(
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
     lines: Query<Entity, With<TransitLine>>,
-    fleet: Query<(Entity, &VehicleAsset, Has<ActivePawn>, Has<BusDuty>)>,
+    fleet: Query<
+        (Entity, &VehicleAsset, Has<ActivePawn>, Has<BusDuty>),
+        super::customs::Arrived,
+    >,
 ) {
     for edit in std::mem::take(&mut queue.0) {
         match edit {

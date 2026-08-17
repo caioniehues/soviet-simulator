@@ -25,6 +25,7 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::WaterPump => Color::srgb(0.35, 0.50, 0.62),
         BuildingKind::SewagePlant => Color::srgb(0.42, 0.46, 0.38),
         BuildingKind::HeatPlant => Color::srgb(0.66, 0.40, 0.30),
+        BuildingKind::CustomsOffice => Color::srgb(0.50, 0.44, 0.36),
     }
 }
 
@@ -42,6 +43,7 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::WaterPump => 4.0,
         BuildingKind::SewagePlant => 4.0,
         BuildingKind::HeatPlant => 11.0,
+        BuildingKind::CustomsOffice => 5.0,
     }
 }
 
@@ -370,6 +372,33 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             ),
             chimney(&m.concrete, 1.4, 14.0, Vec3::new(4.5, 0.0, -2.0)),
             boxed(&m.coal, Vec3::new(4.0, 2.2, 5.0), Vec3::new(-6.5, 0.0, 3.0)),
+        ],
+        // Border customs: gatehouse beside a barrier arm over the road,
+        // flag mast, inspection canopy — the republic's front door.
+        BuildingKind::CustomsOffice => vec![
+            boxed(
+                &m.brick,
+                Vec3::new(8.0, 4.5, 6.0),
+                Vec3::new(-5.0, 0.0, -2.0),
+            ),
+            boxed(
+                &m.concrete,
+                Vec3::new(8.6, 0.6, 6.6),
+                Vec3::new(-5.0, 4.5, -2.0),
+            ),
+            // canopy over the inspection lane
+            boxed(&m.rust, Vec3::new(0.5, 5.5, 0.5), Vec3::new(2.0, 0.0, -4.5)),
+            boxed(&m.rust, Vec3::new(0.5, 5.5, 0.5), Vec3::new(2.0, 0.0, 1.5)),
+            boxed(
+                &m.concrete,
+                Vec3::new(6.0, 0.5, 8.0),
+                Vec3::new(2.0, 5.5, -1.5),
+            ),
+            // barrier arm
+            boxed(&m.rust, Vec3::new(0.4, 1.2, 0.4), Vec3::new(6.5, 0.0, 2.5)),
+            boxed(&m.timber, Vec3::new(0.3, 0.3, 6.0), Vec3::new(6.5, 1.2, -0.5)),
+            // flag mast
+            chimney(&m.rust, 0.25, 8.0, Vec3::new(-9.5, 0.0, -5.5)),
         ],
         // Bus shelter: concrete slab roof on two posts, timber bench.
         BuildingKind::BusStop => vec![

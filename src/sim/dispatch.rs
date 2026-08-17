@@ -356,10 +356,14 @@ fn match_freight(
 /// Truck assignment (#34): each unassigned order gets an idle class-compatible
 /// truck from the nearest depot that has one. No idle truck ⇒ the order waits
 /// in the queue — bounded throughput is the point.
+#[allow(clippy::type_complexity)]
 fn assign_freight(
     mut commands: Commands,
     mut queue: ResMut<DispatchQueue>,
-    fleet: Query<(Entity, &VehicleAsset, Has<ActivePawn>, Has<FreightJob>)>,
+    fleet: Query<
+        (Entity, &VehicleAsset, Has<ActivePawn>, Has<FreightJob>),
+        super::customs::Arrived,
+    >,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
 ) {

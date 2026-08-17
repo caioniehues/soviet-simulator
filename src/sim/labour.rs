@@ -40,7 +40,8 @@ impl BuildingKind {
             | BuildingKind::ConstructionOffice
             | BuildingKind::WaterPump
             | BuildingKind::SewagePlant
-            | BuildingKind::HeatPlant => 0,
+            | BuildingKind::HeatPlant
+            | BuildingKind::CustomsOffice => 0,
         }
     }
 }

@@ -230,6 +230,7 @@ fn kind_to_u8(kind: BuildingKind) -> u8 {
         BuildingKind::WaterPump => 9,
         BuildingKind::SewagePlant => 10,
         BuildingKind::HeatPlant => 11,
+        BuildingKind::CustomsOffice => 12,
     }
 }
 
@@ -247,6 +248,7 @@ fn kind_from_u8(v: u8) -> Option<BuildingKind> {
         9 => BuildingKind::WaterPump,
         10 => BuildingKind::SewagePlant,
         11 => BuildingKind::HeatPlant,
+        12 => BuildingKind::CustomsOffice,
         _ => return None,
     })
 }

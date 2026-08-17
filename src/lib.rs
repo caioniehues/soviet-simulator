@@ -33,6 +33,7 @@ pub fn run() {
             sim::water::WaterSimPlugin,
             sim::heat::HeatSimPlugin,
             sim::plan::PlanSimPlugin,
+            sim::customs::CustomsSimPlugin,
             sim::wires::WireSimPlugin,
             sim::save::SaveSimPlugin,
         ))

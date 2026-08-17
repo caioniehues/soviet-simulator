@@ -40,6 +40,10 @@ pub enum BuildingKind {
     SewagePlant,
     /// District heating plant (B8.3): burns coal into heat pumped over Heat pipes.
     HeatPlant,
+    /// Border customs (G1.2, W&R-style pulled forward from B10): imported
+    /// vehicles enter the republic here and drive to their depot; goods
+    /// hauled here are sold abroad for roubles.
+    CustomsOffice,
 }
 
 impl BuildingKind {
@@ -59,6 +63,8 @@ impl BuildingKind {
             BuildingKind::WaterPump => Vec2::new(10.0, 8.0),
             BuildingKind::SewagePlant => Vec2::new(16.0, 12.0),
             BuildingKind::HeatPlant => Vec2::new(18.0, 12.0),
+            // Gatehouse + inspection yard.
+            BuildingKind::CustomsOffice => Vec2::new(22.0, 14.0),
         }
     }
     pub fn inventory_capacity(self) -> f32 {
@@ -75,6 +81,8 @@ impl BuildingKind {
             BuildingKind::ConstructionOffice => 0.0,
             BuildingKind::WaterPump | BuildingKind::SewagePlant => 0.0,
             BuildingKind::HeatPlant => 40.0,
+            // The export yard: goods wait here for the border sale.
+            BuildingKind::CustomsOffice => 120.0,
         }
     }
 }

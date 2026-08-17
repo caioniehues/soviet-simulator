@@ -183,14 +183,18 @@ impl Plugin for ConstructionSimPlugin {
 /// Put idle machines onto the nearest site whose *current* phase wants their
 /// skill. Several machines may serve one site — throughputs add (the W&R
 /// duration law); a phase with no matching machine anywhere stays stalled.
+#[allow(clippy::type_complexity)]
 fn assign_machines(
     mut commands: Commands,
-    fleet: Query<(
-        Entity,
-        &super::vehicles::VehicleAsset,
-        Has<super::vehicles::ActivePawn>,
-        Has<MachineDuty>,
-    )>,
+    fleet: Query<
+        (
+            Entity,
+            &super::vehicles::VehicleAsset,
+            Has<super::vehicles::ActivePawn>,
+            Has<MachineDuty>,
+        ),
+        super::customs::Arrived,
+    >,
     sites: Query<(Entity, &Building, &ConstructionSite)>,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &super::roads::RoadNode)>,

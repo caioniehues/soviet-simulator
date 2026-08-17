@@ -271,12 +271,35 @@ fn apply_vehicle_edits(
                 }
                 *occupied += 1;
                 ids.next += 1;
-                commands.spawn(VehicleAsset {
-                    id: VehicleId(ids.next),
-                    kind,
-                    home_depot: depot,
-                    cargo_class: class,
-                });
+                let asset = commands
+                    .spawn(VehicleAsset {
+                        id: VehicleId(ids.next),
+                        kind,
+                        home_depot: depot,
+                        cargo_class: class,
+                    })
+                    .id();
+                // The border (G1.2): with a customs office standing, the
+                // vehicle enters the republic there and spends real road
+                // time driving in; without one, bootstrap fiat delivery.
+                let depot_pos = buildings.get(depot).map(|b| b.pos).unwrap_or_default();
+                if let Some(border_pos) = buildings
+                    .iter()
+                    .filter(|b| b.kind == BuildingKind::CustomsOffice)
+                    .map(|b| b.pos)
+                    .min_by(|a, b| {
+                        a.distance_squared(depot_pos)
+                            .total_cmp(&b.distance_squared(depot_pos))
+                    })
+                {
+                    commands
+                        .entity(asset)
+                        .insert(super::customs::InTransitFromBorder {
+                            arrives: frame.0.wrapping_add(super::customs::border_transit_frames(
+                                border_pos, depot_pos,
+                            )),
+                        });
+                }
             }
             VehicleEdit::CreateShuttle { from, to, resource } => {
                 // Paired policy sugar: everything at the source is surplus,

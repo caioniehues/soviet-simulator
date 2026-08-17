@@ -88,6 +88,9 @@ pub fn default_policies(kind: BuildingKind) -> StoragePolicies {
         | BuildingKind::WaterPump
         | BuildingKind::SewagePlant => p,
         BuildingKind::HeatPlant => p.with(ResourceKind::Coal, 0.6, 1.0),
+        // No bands: exports arrive by player-set haul policy; the border
+        // sale drains whatever lands here.
+        BuildingKind::CustomsOffice => p,
     }
 }
 
