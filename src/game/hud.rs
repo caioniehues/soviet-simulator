@@ -42,11 +42,16 @@ struct InspectPanel;
 #[derive(Resource, Default)]
 struct Selected(Option<Entity>);
 
+/// Which resource the band-tuning keys act on for the selected storage.
+#[derive(Resource, Default)]
+struct BandFocus(usize);
+
 pub struct HudPlugin;
 
 impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Selected>()
+            .init_resource::<BandFocus>()
             .add_systems(Startup, spawn_hud)
             .add_systems(
                 Update,
@@ -57,6 +62,8 @@ impl Plugin for HudPlugin {
                     update_dispatch_readout,
                     drive_inspect_tool,
                     drive_depot_purchase,
+                    drive_band_tuning,
+                    hint_starving_deficits,
                     update_tool_readout,
                     update_inspect_readout,
                     draw_selection_ring,
@@ -258,6 +265,76 @@ fn drive_depot_purchase(
     info!("depot purchase queued: {class:?} truck at {depot:?}");
 }
 
+/// Player policy control (the B3 dial): with a storage selected, `B` cycles
+/// the focused resource, `,`/`.` lower/raise its min line by 5%, and with
+/// Shift the max line instead. Writing `StoragePolicies` here is player
+/// intent, not sim state — the same standing as `SimSpeed`.
+fn drive_band_tuning(
+    keys: Res<ButtonInput<KeyCode>>,
+    selected: Res<Selected>,
+    mut focus: ResMut<BandFocus>,
+    mut policies: Query<&mut StoragePolicies>,
+    inventories: Query<&Inventory>,
+) {
+    let Some(entity) = selected.0 else { return };
+    let Ok(mut policies) = policies.get_mut(entity) else {
+        return;
+    };
+    if inventories.get(entity).is_ok_and(|i| i.capacity <= 0.0) {
+        return; // depots store nothing — nothing to band
+    }
+    if keys.just_pressed(KeyCode::KeyB) {
+        focus.0 = (focus.0 + 1) % ResourceKind::COUNT;
+    }
+    let step = if keys.just_pressed(KeyCode::Comma) {
+        -0.05
+    } else if keys.just_pressed(KeyCode::Period) {
+        0.05
+    } else {
+        return;
+    };
+    let resource = ResourceKind::ALL[focus.0];
+    let band = policies.band(resource);
+    let (mut min, mut max) = band.map_or((0.0, 0.0), |b| (b.min_pct, b.max_pct));
+    let shift =
+        keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+    if shift {
+        max += step;
+    } else {
+        min += step;
+    }
+    policies.set(
+        resource,
+        Some(crate::sim::storage::StorageBand::new(min, max.max(min))),
+    );
+}
+
+/// A starving deficit is never invisible: the building the matcher cannot
+/// feed pulses a red ring (the starvation board drives it, so it clears the
+/// moment supply reaches the bucket).
+fn hint_starving_deficits(
+    time: Res<Time>,
+    board: Res<DeficitBoard>,
+    buildings: Query<&Building>,
+    mut gizmos: Gizmos,
+) {
+    let pulse = 0.5 + 0.5 * (time.elapsed_secs() * 4.0).sin();
+    let color = Color::srgb(0.9, 0.15, 0.1).with_alpha(0.25 + 0.6 * pulse);
+    for deficit in &board.0 {
+        let Ok(building) = buildings.get(deficit.building) else {
+            continue;
+        };
+        gizmos.circle(
+            Isometry3d::new(
+                building.pos + Vec3::Y * 0.2,
+                Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
+            ),
+            building.kind.footprint().length() * 0.5 + 2.5 + pulse,
+            color,
+        );
+    }
+}
+
 /// Ticks → game hours (600 frames per game day).
 fn game_hours(ticks: u32) -> f32 {
     ticks as f32 * 24.0 / crate::sim::clock::FRAMES_PER_GAME_DAY as f32
@@ -428,6 +505,7 @@ fn band_bar(current: f32, capacity: f32, min_pct: f32) -> String {
 #[allow(clippy::type_complexity)]
 fn update_inspect_readout(
     selected: Res<Selected>,
+    focus: Res<BandFocus>,
     buildings: Query<(
         &Building,
         &Inventory,
@@ -467,12 +545,19 @@ fn update_inspect_readout(
         inventory.total(),
         inventory.capacity,
     );
-    for kind in ResourceKind::ALL {
+    let mut any_band = false;
+    for (i, kind) in ResourceKind::ALL.into_iter().enumerate() {
         let amount = inventory.amount(kind);
         let band = policies.and_then(|p| p.band(kind));
+        let marker = if inventory.capacity > 0.0 && i == focus.0 {
+            ">"
+        } else {
+            " "
+        };
         match band {
             // Banded resource: bar against the band plus the bucket's role.
             Some(band) => {
+                any_band = true;
                 let role = if amount < band.min_pct * inventory.capacity - 1e-3 {
                     "DEMANDING"
                 } else if amount > band.max_pct * inventory.capacity + 1e-3 {
@@ -481,17 +566,20 @@ fn update_inspect_readout(
                     "in band"
                 };
                 lines.push_str(&format!(
-                    "\n  {kind:?} {} {amount:.1} t  {:.0}–{:.0}  {role}",
+                    "\n{marker} {kind:?} {} {amount:.1} t  {:.0}–{:.0}  {role}",
                     band_bar(amount, inventory.capacity, band.min_pct),
                     band.min_pct * inventory.capacity,
                     band.max_pct * inventory.capacity,
                 ));
             }
-            None if amount > 0.05 => {
-                lines.push_str(&format!("\n  {kind:?}: {amount:.1} t"));
+            None if amount > 0.05 || (inventory.capacity > 0.0 && i == focus.0) => {
+                lines.push_str(&format!("\n{marker} {kind:?}: {amount:.1} t  (no band)"));
             }
             None => {}
         }
+    }
+    if any_band || inventory.capacity > 0.0 {
+        lines.push_str("\nB next resource   , . min -/+   Shift+, . max -/+");
     }
     if building.kind == BuildingKind::Depot {
         let mut parked = 0;

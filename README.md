@@ -136,6 +136,11 @@ Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire 
 `[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
 wheel zoom.
 
+With a **depot** selected: `T` buy a bulk truck · `Y` buy a covered truck.
+With a **storage** selected: `B` cycles the focused resource · `,` `.`
+lower/raise its min band 5% · `Shift+,` `Shift+.` the max band. Buildings the
+dispatcher cannot feed pulse a red ring.
+
 ## What's next
 
 P1 "First Light" done (#16, zero-spend). B2 staffing and B3 dispatcher
