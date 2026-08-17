@@ -23,6 +23,10 @@ use super::stages::{SimStage, SimTick};
 /// current phase still needs material.
 pub const CONSUME_RATE: f32 = 0.2;
 
+/// Below this many outstanding tonnes a phase's bill counts as satisfied —
+/// float dribble from partial truckloads must never wedge a site.
+pub const MATERIAL_EPS: f32 = 0.01;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PhaseKind {
     Earthworks,
@@ -142,20 +146,64 @@ impl Plugin for ConstructionSimPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(attach_sites).add_systems(
             SimTick,
-            advance_sites.in_set(SimStage::ProductionAndUtilities),
+            (advance_sites, update_site_policies)
+                .chain()
+                .in_set(SimStage::ProductionAndUtilities),
         );
     }
 }
 
 /// Every building placed while phased construction is on starts as a site.
+/// The site's yard is re-sized to hold the whole material bill (a depot or
+/// bus stop stores nothing when finished, but its *site* receives gravel),
+/// and its storage policy demands the current phase's material — the
+/// ordinary dispatcher does the delivering (B6.2).
 fn attach_sites(add: On<Add, Building>, mut commands: Commands, buildings: Query<&Building>) {
     let entity = add.entity;
     let Ok(building) = buildings.get(entity) else {
         return;
     };
-    commands
-        .entity(entity)
-        .insert(ConstructionSite::for_kind(building.kind));
+    let site = ConstructionSite::for_kind(building.kind);
+    let bill_total: f32 = site
+        .phases
+        .iter()
+        .filter_map(|p| p.material.map(|(_, n)| n))
+        .sum();
+    // A truckload of headroom so one phase's rounding overshoot can never
+    // block the next phase's material out of the shared yard.
+    commands.entity(entity).insert((
+        site,
+        Inventory::new(bill_total.max(1.0) + super::vehicles::TRUCK_CARGO_CAPACITY),
+    ));
+}
+
+/// Keep the site's storage policy pointed at the current phase's material,
+/// demanding only what the phase still needs — stock and the outstanding
+/// bill drain in lockstep as the works consume, so total deliveries converge
+/// on the bill instead of filling the yard. Idempotent per tick.
+fn update_site_policies(
+    mut sites: Query<(&ConstructionSite, &Inventory, &mut super::storage::StoragePolicies)>,
+) {
+    for (site, yard, mut policies) in &mut sites {
+        let wanted = site.phase().and_then(|p| {
+            p.material
+                .map(|(r, _)| (r, p.material_outstanding()))
+        });
+        for resource in ResourceKind::ALL {
+            let band = match wanted {
+                Some((r, outstanding)) if r == resource && outstanding > MATERIAL_EPS => {
+                    let frac = (outstanding / yard.capacity.max(1e-3)).min(1.0);
+                    Some(super::storage::StorageBand::new(frac, frac))
+                }
+                _ => None,
+            };
+            if policies.band(resource).map(|b| (b.min_pct, b.max_pct))
+                != band.map(|b| (b.min_pct, b.max_pct))
+            {
+                policies.set(resource, band);
+            }
+        }
+    }
 }
 
 /// The site tick: fold yard material into the current phase, then apply the
@@ -163,24 +211,33 @@ fn attach_sites(add: On<Add, Building>, mut commands: Commands, buildings: Query
 /// stalls the phase with its name — never a silent wait.
 fn advance_sites(
     mut commands: Commands,
-    mut sites: Query<(Entity, &mut ConstructionSite, &mut Inventory)>,
+    mut sites: Query<(Entity, &Building, &mut ConstructionSite, &mut Inventory)>,
 ) {
-    for (entity, mut site, mut yard) in &mut sites {
+    for (entity, building, mut site, mut yard) in &mut sites {
+        // The construction yard becomes the working yard on activation:
+        // fresh capacity for the kind, default policy bands restored.
+        let activate = |commands: &mut Commands| {
+            commands.entity(entity).remove::<ConstructionSite>();
+            commands.entity(entity).insert((
+                Inventory::new(building.kind.inventory_capacity()),
+                super::storage::default_policies(building.kind),
+            ));
+        };
         let throughput = site.throughput;
         site.throughput = 0.0;
         let current = site.current;
         let Some(phase) = site.phases.get_mut(current) else {
-            commands.entity(entity).remove::<ConstructionSite>();
+            activate(&mut commands);
             continue;
         };
         // Materials first: the works absorb what the yard holds.
         let mut stall = None;
         if let Some((resource, need)) = phase.material
-            && phase.consumed < need
+            && need - phase.consumed > MATERIAL_EPS
         {
             let taken = yard.take(resource, CONSUME_RATE.min(need - phase.consumed));
             phase.consumed += taken;
-            if phase.consumed < need {
+            if need - phase.consumed > MATERIAL_EPS {
                 stall = Some(Bottleneck::NoMaterial);
             }
         }
@@ -193,12 +250,18 @@ fn advance_sites(
             }
         }
         let finished = phase.done >= phase.work;
+        if finished && let Some((resource, _)) = phase.material {
+            // Whatever excess landed on site is graded into the works — a
+            // finished phase never squats the shared yard against the next
+            // phase's deliveries.
+            yard.take(resource, f32::INFINITY);
+        }
         site.bottleneck = stall;
         if finished {
             site.current += 1;
             if site.complete() {
                 // Activation: the component's removal is the gate opening.
-                commands.entity(entity).remove::<ConstructionSite>();
+                activate(&mut commands);
             }
         }
     }
@@ -281,7 +344,7 @@ mod tests {
             .add(ResourceKind::Gravel, need + 1.0);
         ticks(&mut app, (need / CONSUME_RATE) as u32 + 5);
         let site = app.world().get::<ConstructionSite>(factory).unwrap();
-        assert!(site.phase().unwrap().material_outstanding() < 1e-3);
+        assert!(site.phase().unwrap().material_outstanding() <= MATERIAL_EPS);
         assert_eq!(
             site.bottleneck,
             Some(Bottleneck::NoMachine),
@@ -291,25 +354,128 @@ mod tests {
     }
 
     #[test]
+    fn dispatcher_hauls_the_phase_bill_to_the_site() {
+        use super::super::dispatch::{DeficitBoard, DispatchSimPlugin};
+        use super::super::resources::TransportClass;
+        use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
+        use super::super::storage::StorageSimPlugin;
+        use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
+        let mut app = App::new();
+        app.insert_resource(Time::<()>::default());
+        app.add_plugins((
+            SimPlugin,
+            RoadSimPlugin,
+            BuildingSimPlugin,
+            StorageSimPlugin,
+            VehicleSimPlugin,
+            DispatchSimPlugin,
+            ConstructionSimPlugin,
+        ));
+        // Quarry (gravel supplier) west, the new factory site east, depot
+        // with one bulk truck. The site itself orders its earthworks bill.
+        app.world_mut()
+            .resource_mut::<RoadEditQueue>()
+            .0
+            .push(RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            });
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            for (kind, pos) in [
+                (BuildingKind::Quarry, Vec3::new(-10.0, 0.0, 0.0)),
+                (BuildingKind::Factory, Vec3::new(110.0, 0.0, 0.0)),
+                (BuildingKind::Depot, Vec3::new(0.0, 0.0, 15.0)),
+            ] {
+                buildings.0.push(BuildingEdit::Place { kind, pos });
+            }
+        }
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let mut found = (None, None, None);
+        let mut q = world.query::<(Entity, &Building)>();
+        for (e, b) in q.iter(world) {
+            match b.kind {
+                BuildingKind::Quarry => found.0 = Some(e),
+                BuildingKind::Factory => found.1 = Some(e),
+                BuildingKind::Depot => found.2 = Some(e),
+                _ => {}
+            }
+        }
+        let (quarry, factory, depot) = (found.0.unwrap(), found.1.unwrap(), found.2.unwrap());
+        // The quarry site completes by fiat so it can supply: strip its site
+        // and stock it (quarries under construction don't extract).
+        // Quarry and depot complete by fiat (empty quarry: no supplier yet).
+        world.entity_mut(quarry).remove::<ConstructionSite>();
+        world.entity_mut(quarry).insert((
+            Inventory::new(60.0),
+            super::super::storage::default_policies(BuildingKind::Quarry),
+        ));
+        world.entity_mut(depot).remove::<ConstructionSite>();
+        world
+            .entity_mut(depot)
+            .insert(super::super::storage::default_policies(BuildingKind::Depot));
+        world
+            .resource_mut::<VehicleEditQueue>()
+            .0
+            .push(VehicleEdit::BuyTruck {
+                depot,
+                class: TransportClass::Bulk,
+            });
+        // No gravel anywhere: the site's demand starves visibly.
+        ticks(&mut app, 100);
+        let starving = app
+            .world()
+            .resource::<DeficitBoard>()
+            .0
+            .iter()
+            .any(|d| d.building == factory && d.resource == ResourceKind::Gravel);
+        assert!(starving, "an unsupplied site sits on the deficit board");
+        // Stock the quarry: the ordinary dispatcher takes it from here.
+        app.world_mut()
+            .get_mut::<Inventory>(quarry)
+            .unwrap()
+            .add(ResourceKind::Gravel, 50.0);
+        // Two round trips on the compressed freight timescale: the quarry's
+        // own extraction trickle costs the truck a first small haul.
+        ticks(&mut app, 5200);
+        let site = app.world().get::<ConstructionSite>(factory).unwrap();
+        assert!(
+            site.phase().unwrap().material_outstanding() <= MATERIAL_EPS,
+            "the dispatcher must land the earthworks bill, outstanding = {}",
+            site.phase().unwrap().material_outstanding()
+        );
+        assert_eq!(
+            site.bottleneck,
+            Some(Bottleneck::NoMachine),
+            "material satisfied — the stall names the missing machine"
+        );
+    }
+
+    #[test]
     fn throughput_completes_phases_and_removal_activates_the_building() {
         let mut app = app();
         let factory = place_factory(&mut app);
         app.world_mut().get_mut::<Powered>(factory).unwrap().0 = true;
-        {
-            let mut yard = app.world_mut().get_mut::<Inventory>(factory).unwrap();
-            yard.add(ResourceKind::Gravel, 30.0);
-            yard.add(ResourceKind::Goods, 30.0);
-        }
-        // Fake B6.3's parked fleet: pump throughput every tick until done.
+        // Fake B6.3's parked fleet: pump throughput every tick until done,
+        // topping the yard up with whatever the current phase bills.
         let mut budget = 3000;
         loop {
             {
                 let world = app.world_mut();
-                if let Some(mut site) = world.get_mut::<ConstructionSite>(factory) {
-                    site.throughput = 8.0;
-                } else {
-                    break;
+                let refill = match world.get::<ConstructionSite>(factory) {
+                    Some(site) => site.phase().and_then(|p| p.material.map(|(r, _)| r)),
+                    None => break,
+                };
+                if let Some(resource) = refill {
+                    world
+                        .get_mut::<Inventory>(factory)
+                        .unwrap()
+                        .add(resource, 1.0);
                 }
+                let mut site = world.get_mut::<ConstructionSite>(factory).unwrap();
+                site.throughput = 8.0;
             }
             ticks(&mut app, 1);
             budget -= 1;
