@@ -26,9 +26,12 @@ pub fn run() {
             // DispatchSimPlugin auto-adds Pathfinding + Traffic.
             sim::dispatch::DispatchSimPlugin,
             sim::transit::TransitSimPlugin,
+        ))
+        .add_plugins((
             sim::construction::ConstructionSimPlugin,
             sim::zoning::ZoningSimPlugin,
             sim::water::WaterSimPlugin,
+            sim::heat::HeatSimPlugin,
             sim::wires::WireSimPlugin,
             sim::save::SaveSimPlugin,
         ))

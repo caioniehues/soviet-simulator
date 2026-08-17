@@ -8,6 +8,7 @@ pub mod clock;
 pub mod commute;
 pub mod construction;
 pub mod households;
+pub mod heat;
 pub mod labour;
 pub mod needs;
 pub mod network;

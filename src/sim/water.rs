@@ -108,7 +108,7 @@ fn solve_water(
 mod tests {
     use super::super::SimPlugin;
     use super::super::buildings::{
-        BuildingEdit, BuildingEditQueue, BuildingSimPlugin, FACTORY_GOODS_RATE, Powered,
+        BuildingEdit, BuildingEditQueue, BuildingSimPlugin, Powered,
     };
     use super::super::resources::{Inventory, ResourceKind};
     use super::super::wires::{WireEdit, WireEditQueue, WireSimPlugin};

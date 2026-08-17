@@ -231,6 +231,8 @@ fn update_population_readout(
     zones: Query<&crate::sim::zoning::Zone>,
     buildings: Query<&Building>,
     zone_feedback: Res<crate::sim::zoning::ZoningFeedback>,
+    climate: Res<crate::sim::heat::Climate>,
+    heated: Query<&crate::sim::heat::Heated>,
     mut readout: Query<&mut Text, With<PopulationReadout>>,
 ) {
     let Ok(mut text) = readout.single_mut() else {
@@ -267,6 +269,13 @@ fn update_population_readout(
     }
     if let Some((kind, zone_kind)) = zone_feedback.0 {
         next.push_str(&format!("\n REFUSED: {kind:?} in a {zone_kind:?} district"));
+    }
+    // Season readout (B8.3): the sinusoid made legible, plus the count that
+    // actually hurts — homes drawing heat and not getting it.
+    let cold_homes = heated.iter().filter(|h| !h.0).count();
+    next.push_str(&format!("\nSEASON  {:+.0}\u{b0}C", climate.temperature));
+    if cold_homes > 0 {
+        next.push_str(&format!("   COLD HOMES {cold_homes}"));
     }
     if text.0 != next {
         text.0 = next;

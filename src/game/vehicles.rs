@@ -62,7 +62,7 @@ fn shipped_resource(kind: BuildingKind, inventory: Option<&Inventory>) -> Resour
         | BuildingKind::ConstructionOffice
         | BuildingKind::WaterPump
         | BuildingKind::SewagePlant => ResourceKind::Goods,
-        BuildingKind::Mine | BuildingKind::PowerPlant => ResourceKind::Coal,
+        BuildingKind::Mine | BuildingKind::PowerPlant | BuildingKind::HeatPlant => ResourceKind::Coal,
     }
 }
 

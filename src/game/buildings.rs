@@ -24,6 +24,7 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::ConstructionOffice => Color::srgb(0.56, 0.50, 0.38),
         BuildingKind::WaterPump => Color::srgb(0.35, 0.50, 0.62),
         BuildingKind::SewagePlant => Color::srgb(0.42, 0.46, 0.38),
+        BuildingKind::HeatPlant => Color::srgb(0.66, 0.40, 0.30),
     }
 }
 
@@ -40,6 +41,7 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::ConstructionOffice => 5.0,
         BuildingKind::WaterPump => 4.0,
         BuildingKind::SewagePlant => 4.0,
+        BuildingKind::HeatPlant => 11.0,
     }
 }
 
@@ -353,6 +355,21 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             boxed(&m.concrete, Vec3::new(6.0, 1.2, 6.0), Vec3::new(-4.0, 0.0, 0.0)),
             boxed(&m.concrete, Vec3::new(6.0, 1.2, 6.0), Vec3::new(3.0, 0.0, 0.0)),
             boxed(&m.timber, Vec3::new(4.5, 3.2, 3.5), Vec3::new(0.0, 0.0, -4.0)),
+        ],
+        // District heating plant: boiler house with tall stack for heat distribution.
+        BuildingKind::HeatPlant => vec![
+            boxed(
+                &m.brick,
+                Vec3::new(12.0, 8.0, 9.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+            ),
+            boxed(
+                &m.rust,
+                Vec3::new(12.6, 0.7, 9.6),
+                Vec3::new(-1.0, 8.0, 0.0),
+            ),
+            chimney(&m.concrete, 1.4, 14.0, Vec3::new(4.5, 0.0, -2.0)),
+            boxed(&m.coal, Vec3::new(4.0, 2.2, 5.0), Vec3::new(-6.5, 0.0, 3.0)),
         ],
         // Bus shelter: concrete slab roof on two posts, timber bench.
         BuildingKind::BusStop => vec![

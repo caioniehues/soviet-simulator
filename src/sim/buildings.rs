@@ -38,6 +38,8 @@ pub enum BuildingKind {
     /// Sewage treatment (B8.2): drainage capacity — a component without it
     /// backs up and shuts its water consumers.
     SewagePlant,
+    /// District heating plant (B8.3): burns coal into heat pumped over Heat pipes.
+    HeatPlant,
 }
 
 impl BuildingKind {
@@ -56,6 +58,7 @@ impl BuildingKind {
             BuildingKind::ConstructionOffice => Vec2::new(20.0, 22.0),
             BuildingKind::WaterPump => Vec2::new(10.0, 8.0),
             BuildingKind::SewagePlant => Vec2::new(16.0, 12.0),
+            BuildingKind::HeatPlant => Vec2::new(18.0, 12.0),
         }
     }
     pub fn inventory_capacity(self) -> f32 {
@@ -71,6 +74,7 @@ impl BuildingKind {
             BuildingKind::BusStop => 0.0,
             BuildingKind::ConstructionOffice => 0.0,
             BuildingKind::WaterPump | BuildingKind::SewagePlant => 0.0,
+            BuildingKind::HeatPlant => 40.0,
         }
     }
 }

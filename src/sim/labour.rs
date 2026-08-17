@@ -39,7 +39,8 @@ impl BuildingKind {
             | BuildingKind::BusStop
             | BuildingKind::ConstructionOffice
             | BuildingKind::WaterPump
-            | BuildingKind::SewagePlant => 0,
+            | BuildingKind::SewagePlant
+            | BuildingKind::HeatPlant => 0,
         }
     }
 }

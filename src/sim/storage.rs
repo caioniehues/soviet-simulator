@@ -87,6 +87,7 @@ pub fn default_policies(kind: BuildingKind) -> StoragePolicies {
         | BuildingKind::ConstructionOffice
         | BuildingKind::WaterPump
         | BuildingKind::SewagePlant => p,
+        BuildingKind::HeatPlant => p.with(ResourceKind::Coal, 0.6, 1.0),
     }
 }
 
