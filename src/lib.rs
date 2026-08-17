@@ -23,6 +23,7 @@ pub fn run() {
             sim::needs::NeedsSimPlugin,
             sim::vehicles::VehicleSimPlugin,
             sim::dispatch::DispatchSimPlugin,
+            sim::traffic::TrafficSimPlugin,
             sim::wires::WireSimPlugin,
             sim::save::SaveSimPlugin,
         ))

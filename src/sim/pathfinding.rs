@@ -21,6 +21,7 @@ use bevy::tasks::{AsyncComputeTaskPool, Task, block_on};
 
 use super::roads::{LaneDir, RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
+use super::traffic::SegmentTraffic;
 use super::vehicles::RouteLeg;
 
 /// Congestion scatter band (CS1 `PathFind.cs:969`): an edge's cost is scaled
@@ -60,8 +61,7 @@ pub struct GraphSnapshot {
 impl GraphSnapshot {
     fn build(
         nodes: &Query<(Entity, &RoadNode)>,
-        segments: &Query<(Entity, &RoadSegment)>,
-        congestion: impl Fn(&RoadSegment) -> f32,
+        segments: &Query<(Entity, &RoadSegment, Option<&SegmentTraffic>)>,
     ) -> Self {
         let mut index = HashMap::new();
         let mut positions = Vec::new();
@@ -70,7 +70,7 @@ impl GraphSnapshot {
             positions.push(node.pos);
         }
         let mut adjacency: Vec<Vec<SnapEdge>> = vec![Vec::new(); positions.len()];
-        for (seg_entity, segment) in segments.iter() {
+        for (seg_entity, segment, traffic) in segments.iter() {
             let (Some(&a), Some(&b)) = (index.get(&segment.a), index.get(&segment.b)) else {
                 continue;
             };
@@ -78,7 +78,7 @@ impl GraphSnapshot {
                 .lanes
                 .first()
                 .map_or(segment.class.speed_modifier(), |l| l.speed_modifier);
-            let c = congestion(segment).max(1.0);
+            let c = traffic.map_or(1.0, |t| t.cost_multiplier()).max(1.0);
             adjacency[a as usize].push(SnapEdge {
                 to: b,
                 segment: seg_entity,
@@ -302,11 +302,11 @@ pub fn refresh_snapshot(
     mut svc: ResMut<PathService>,
     ids: Res<super::roads::RoadIds>,
     nodes: Query<(Entity, &RoadNode)>,
-    segments: Query<(Entity, &RoadSegment)>,
+    segments: Query<(Entity, &RoadSegment, Option<&SegmentTraffic>)>,
 ) {
     let mod_sum: u64 = segments
         .iter()
-        .map(|(_, s)| s.modification_index as u64)
+        .map(|(_, s, _)| s.modification_index as u64)
         .sum::<u64>()
         .wrapping_add(svc.congestion_version);
     let key = (ids.next_node, ids.next_segment, nodes.iter().count(), mod_sum);
@@ -314,7 +314,7 @@ pub fn refresh_snapshot(
         return;
     }
     svc.snapshot_key = key;
-    svc.snapshot = Some(Arc::new(GraphSnapshot::build(&nodes, &segments, |_| 1.0)));
+    svc.snapshot = Some(Arc::new(GraphSnapshot::build(&nodes, &segments)));
 }
 
 /// Spawn solver tasks for new requests and harvest finished ones.
