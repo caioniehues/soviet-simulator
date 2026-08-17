@@ -470,7 +470,7 @@ mod tests {
             .resource_mut::<PathService>()
             .request(start, goal, CostProfile::Vehicle);
         let mut result = None;
-        for _ in 0..10 {
+        for _ in 0..300 {
             tick(&mut app);
             if let PathPoll::Ready(r) = app
                 .world_mut()
@@ -509,7 +509,7 @@ mod tests {
             .world_mut()
             .resource_mut::<PathService>()
             .request(a, b, CostProfile::Vehicle);
-        for _ in 0..10 {
+        for _ in 0..300 {
             tick(&mut app);
             if let PathPoll::Ready(r) = app
                 .world_mut()

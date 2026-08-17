@@ -154,7 +154,10 @@ fn apply_building_edits(
 /// Staffed buildings scale with the labour factor; a building with no
 /// `Staffing` ledger (headless fixtures without the labour plugin) runs free.
 fn extract_resources(
-    mut buildings: Query<(&Building, &mut Inventory, Option<&Staffing>)>,
+    mut buildings: Query<
+        (&Building, &mut Inventory, Option<&Staffing>),
+        Without<super::construction::ConstructionSite>,
+    >,
     citizens: Query<&Citizen>,
 ) {
     for (building, mut inventory, staffing) in &mut buildings {
@@ -177,12 +180,15 @@ fn extract_resources(
 /// The plant is an ordinary recipe building: no coal ⇒ no output; a skeleton
 /// crew burns and generates proportionally less (Liebig with the fuel gate).
 pub(crate) fn run_power_plants(
-    mut plants: Query<(
-        &Building,
-        &mut Inventory,
-        &mut PowerOutput,
-        Option<&Staffing>,
-    )>,
+    mut plants: Query<
+        (
+            &Building,
+            &mut Inventory,
+            &mut PowerOutput,
+            Option<&Staffing>,
+        ),
+        Without<super::construction::ConstructionSite>,
+    >,
     citizens: Query<&Citizen>,
 ) {
     for (building, mut inventory, mut output, staffing) in &mut plants {
@@ -207,7 +213,10 @@ pub(crate) fn run_power_plants(
 /// The factory produces only while its electricity gate holds and staff are
 /// present — the scarcest factor wins.
 pub(crate) fn run_factories(
-    mut factories: Query<(&Building, &mut Inventory, &Powered, Option<&Staffing>)>,
+    mut factories: Query<
+        (&Building, &mut Inventory, &Powered, Option<&Staffing>),
+        Without<super::construction::ConstructionSite>,
+    >,
     citizens: Query<&Citizen>,
 ) {
     for (building, mut inventory, powered, staffing) in &mut factories {

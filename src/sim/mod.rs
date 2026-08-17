@@ -6,6 +6,7 @@ pub mod citizens;
 pub mod dispatch;
 pub mod clock;
 pub mod commute;
+pub mod construction;
 pub mod households;
 pub mod labour;
 pub mod needs;
