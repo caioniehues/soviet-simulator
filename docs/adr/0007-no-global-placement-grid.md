@@ -1,5 +1,7 @@
 # Placement snaps to roads and angles, never to a global world grid
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 R1 "The Planner's Hands" makes placement snap, and the obvious move — a global N-metre
 lattice that buildings and road nodes both quantise to — is rejected deliberately, so
 nobody re-proposes it. R8 brings a heightfield terrain with road draping and grade gates;

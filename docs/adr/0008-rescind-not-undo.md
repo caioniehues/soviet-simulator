@@ -1,5 +1,7 @@
 # Undo is "rescind the order", available only before ground is broken
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 The charter's one rule is that nothing teleports and every effect has a physical cause,
 with fiat allowed only as an explicitly marked bootstrap. A conventional editor undo —
 remove the last placement, refund its cost, whatever state it had reached — is a fiat

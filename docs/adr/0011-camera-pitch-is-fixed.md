@@ -1,5 +1,7 @@
 # The RTS camera has no pitch control, deliberately
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 The rig exposes pan, yaw and zoom; pitch is fixed at −45° and no input system touches it.
 This reads as an omission and is not one, so it is recorded before someone "completes" the
 controller. A single pitch guarantees every building is seen from the angle its procedural

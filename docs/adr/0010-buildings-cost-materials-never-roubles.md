@@ -1,5 +1,7 @@
 # A building's placement cost is its material bill, never a rouble price
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 The charter's R1 line asks the ghost preview to show a placement's cost, and building
 placement turned out to have none — no funds gate exists, only zoning siting. The obvious
 fix, giving each building kind a rouble price, is rejected: the rouble is explicitly the

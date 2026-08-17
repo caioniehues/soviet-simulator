@@ -1,5 +1,7 @@
 # Placement rules live in one verdict function, called by both the ghost and the commit
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 R1's ghost preview must state a refusal *before* the click, which puts the same siting
 rules on two paths: the preview, running every frame on the presentation side, and
 `apply_building_edits`, running at the sim's `ApplyCommands` barrier. Duplicating the

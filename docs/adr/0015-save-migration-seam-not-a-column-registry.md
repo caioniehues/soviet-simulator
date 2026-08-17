@@ -1,5 +1,7 @@
 # The save gets a migration seam, not a per-domain column registry
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 `save.rs` is one 350-line `snapshot` and one 350-line `restore`, eleven row structs and
 fourteen hand-paired `to_u8`/`from_u8` functions, with symmetry between the two halves
 enforced only by hash-equality round-trip tests. Distributing the columns so each domain

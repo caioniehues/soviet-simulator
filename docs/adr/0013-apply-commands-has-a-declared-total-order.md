@@ -1,5 +1,7 @@
 # The edit appliers run in one declared total order
 
+**Status:** decided 2026-08-17, **not yet built** — groundwork, [#118](https://github.com/caioniehues/soviet-simulator/issues/118).
+
 Six appliers shared `SimStage::ApplyCommands` with exactly one ordering edge between them
 (zoning before buildings), so whether a wire placed this tick could snap to a building
 placed this tick was an emergent property of registration order rather than a decision.

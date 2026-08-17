@@ -1,5 +1,7 @@
 # The production gate is a component computed once, not four hand-written chains
 
+**Status:** decided 2026-08-17, **not yet built** — R1, [#117](https://github.com/caioniehues/soviet-simulator/issues/117).
+
 Four production sites each re-derived their own Liebig chain and returned a bare scalar:
 mine and quarry from staffing alone, the power plant from the minimum of staffing and fuel,
 the factory from power AND water AND staff, the heat plant from fuel alone. Every one

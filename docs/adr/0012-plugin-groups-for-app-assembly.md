@@ -1,5 +1,7 @@
 # App assembly is two `PluginGroup`s; binaries declare exclusions, never inclusions
 
+**Status:** decided 2026-08-17, **not yet built** — groundwork, [#118](https://github.com/caioniehues/soviet-simulator/issues/118).
+
 Eighteen bin targets each hand-typed the plugin list, and every one was a frozen snapshot of
 `lib.rs` from the day it was written — `capture.rs` ran 9 sim plugins against `lib.rs`'s 18,
 `bench_traffic` ran 4. `bevy.md` documented the gap as a human discipline ("any binary that

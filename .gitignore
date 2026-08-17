@@ -1,4 +1,8 @@
-.claude
+.claude/*
+# The agent roster and what those agents learn are project knowledge, not machine
+# state: they are the only record of why a specialist works the way it does.
+!.claude/agents/
+!.claude/agent-memory/
 CLAUDE.md
 bevy.md
 /target

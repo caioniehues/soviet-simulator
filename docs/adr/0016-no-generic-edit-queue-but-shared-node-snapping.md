@@ -1,5 +1,7 @@
 # No generic edit queue; node snapping is shared
 
+**Status:** decided 2026-08-17, **not yet built** — groundwork, [#118](https://github.com/caioniehues/soviet-simulator/issues/118).
+
 Six domains carry the identical shape — `XEditQueue(Vec<XEdit>)`, `XIds { next: u64 }`, and
 an `apply_x_edits` that drains, matches and increments. It reads as textbook duplication and
 every architecture review will propose collapsing it into one generic queue. It is rejected,

@@ -1,5 +1,7 @@
 # Band cadence is data (BandRegistry + phase buckets); ordering is schedule structure
 
+**Status:** decided 2026-08-16, **not built** — `BandRegistry`/`BandSweep` appear nowhere in `src/`. Every system needing a slower cadence hand-rolls a whole-system modulo gate instead, which is the full-population scan this ADR was written to avoid. No ticket yet.
+
 Two carried invariants collided: "the scheduler owns the modulo" (no CS1-style scattered cadence
 masks) and the nine-stage per-tick pipeline, which cuts across bands — so bands cannot be
 schedules. Resolution: one `SimTick` schedule with nine `SystemSet`s owns ordering (explicit
