@@ -137,12 +137,16 @@ fn sever_lost_workplaces(
 /// The planning pass: for every workplace with vacancies, build its
 /// travel-time reach map once (Dijkstra from its dock node), then bind
 /// unemployed housed citizens whose home docks inside the commute budget.
+/// A transit itinerary inside the same budget also qualifies (B5.4): a bus
+/// line genuinely extends the labour catchment — and deleting it shrinks it
+/// back for future assignments, while tenure holds for existing ones.
 fn plan_labour(
     mut citizens: Query<(Entity, &mut Citizen)>,
     mut workplaces: Query<(Entity, &Building, &mut Staffing)>,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
+    lines: Query<&super::transit::TransitLine>,
 ) {
     // (citizen, home dwelling) pool of housed unemployed this tick.
     let mut unemployed: Vec<(Entity, Entity)> = Vec::new();
@@ -178,10 +182,21 @@ fn plan_labour(
                     .ok()
                     .and_then(|b| nearest_node(b.pos, &nodes))
             });
-            let feasible = dock
+            let walk_ok = dock
                 .and_then(|node| reach.get(&node).copied())
                 .is_some_and(|t| t <= MAX_COMMUTE_SECS);
-            if !feasible {
+            let transit_ok = || {
+                buildings.get(home).is_ok_and(|home_b| {
+                    super::commute::best_itinerary(
+                        home_b.pos,
+                        building.pos,
+                        &lines,
+                        &buildings,
+                    )
+                    .is_some_and(|it| it.cost <= MAX_COMMUTE_SECS)
+                })
+            };
+            if !walk_ok && !transit_ok() {
                 return true;
             }
             let Ok((_, mut citizen)) = citizens.get_mut(citizen_entity) else {

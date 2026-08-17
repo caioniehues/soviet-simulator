@@ -206,8 +206,18 @@ fn depart_commuters(
         // time-plus-wait cost turns the trip multi-leg — walk to the board
         // stop, ride, walk on. Straight-line estimates keep this a cheap
         // per-departure scan; the actual legs are properly routed.
+        let walk_est = from_b.pos.distance(to_b.pos) / COMMUTE_SPEED;
         let transit = best_itinerary(from_b.pos, to_b.pos, &lines, &buildings)
-            .filter(|it| it.cost < from_b.pos.distance(to_b.pos) / COMMUTE_SPEED);
+            .filter(|it| it.cost < walk_est);
+        // Commute tolerance is behavioural, not just a planner gate (B5.4):
+        // a workday trip whose best mode blows the budget is refused — the
+        // citizen stays home, visibly absent. Deleting the only viable line
+        // degrades far workplaces exactly this way. The trip *home* is never
+        // refused — nobody sleeps at the factory over a schedule change.
+        let best_cost = transit.as_ref().map_or(walk_est, |it| it.cost);
+        if to_work && best_cost > super::labour::MAX_COMMUTE_SECS {
+            continue;
+        }
         let (walk_goal, transit_legs) = match &transit {
             Some(it) => {
                 let board_dock = buildings
@@ -678,6 +688,108 @@ mod tests {
         // Everyone assigned makes it to the mine before the evening window.
         ticks(&mut app, 440_u32.saturating_sub(6 + 30 * 15));
         assert_eq!(mine_presence(&mut app), 5, "riders arrive and staff the mine");
+    }
+
+    #[test]
+    fn far_workplace_staffs_only_while_the_line_runs() {
+        let mut app = transit_app();
+        // 1200 m: walking blows the 120 s budget (dirt ≈ 273 s) — only the
+        // bus line makes the mine reachable at all.
+        app.world_mut()
+            .resource_mut::<RoadEditQueue>()
+            .0
+            .push(RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(1200.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            });
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            for (kind, pos) in [
+                (BuildingKind::Dwelling, Vec3::new(0.0, 0.0, 15.0)),
+                (BuildingKind::Mine, Vec3::new(1200.0, 0.0, 15.0)),
+                (BuildingKind::BusStop, Vec3::new(5.0, 0.0, -8.0)),
+                (BuildingKind::BusStop, Vec3::new(1195.0, 0.0, -8.0)),
+                (BuildingKind::Depot, Vec3::new(0.0, 0.0, 35.0)),
+            ] {
+                buildings.0.push(BuildingEdit::Place { kind, pos });
+            }
+        }
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 2;
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let mut stops: Vec<(f32, Entity)> = Vec::new();
+        let mut depot = None;
+        let mut q = world.query::<(Entity, &super::super::buildings::Building)>();
+        for (e, b) in q.iter(world) {
+            match b.kind {
+                BuildingKind::BusStop => stops.push((b.pos.x, e)),
+                BuildingKind::Depot => depot = Some(e),
+                _ => {}
+            }
+        }
+        stops.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let depot = depot.unwrap();
+        world
+            .resource_mut::<VehicleEditQueue>()
+            .0
+            .push(VehicleEdit::BuyBus { depot });
+        world
+            .resource_mut::<TransitEditQueue>()
+            .0
+            .push(TransitEdit::CreateLine {
+                stops: vec![stops[0].1, stops[1].1],
+            });
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let line = world
+            .query_filtered::<Entity, With<TransitLine>>()
+            .single(world)
+            .unwrap();
+        app.world_mut()
+            .resource_mut::<TransitEditQueue>()
+            .0
+            .push(TransitEdit::AssignBus { line, depot });
+        // Day 1: the line makes the far mine feasible — workers are assigned
+        // and, at some point in the workday, present.
+        let mut peak = 0;
+        for _ in 0..30 {
+            ticks(&mut app, 15);
+            peak = peak.max(mine_presence(&mut app));
+        }
+        assert!(peak > 0, "transit-extended catchment must staff the far mine");
+        {
+            let world = app.world_mut();
+            let assigned = world
+                .query::<&Citizen>()
+                .iter(world)
+                .filter(|c| c.work.is_some())
+                .count();
+            assert_eq!(assigned, 5, "all five bind through the transit itinerary");
+        }
+        // Kill the line. Tenure holds, but the next workday's trip is beyond
+        // anyone's tolerance on foot — the mine stands unstaffed.
+        app.world_mut()
+            .resource_mut::<TransitEditQueue>()
+            .0
+            .push(TransitEdit::DeleteLine { line });
+        // run to deep into day 2's work window (frames ~750–1050)
+        let so_far = 4 + 30 * 15;
+        ticks(&mut app, 1040_u32.saturating_sub(so_far));
+        assert_eq!(
+            mine_presence(&mut app),
+            0,
+            "no line, no feasible commute — the far mine degrades to empty"
+        );
+        let world = app.world_mut();
+        let still_assigned = world
+            .query::<&Citizen>()
+            .iter(world)
+            .filter(|c| c.work.is_some())
+            .count();
+        assert_eq!(still_assigned, 5, "tenure survives the deleted line");
     }
 
     #[test]
