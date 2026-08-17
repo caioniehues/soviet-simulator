@@ -38,7 +38,7 @@ Acceptance video: `cargo run --release --bin capture -- frames screenshots/resul
 then ffmpeg (see `bevy.md`); latest render at `screenshots/result/0/video.mp4`
 (local, `screenshots/` is untracked).
 
-## Status — M2 "Hands" in progress (#22, M2.1–M2.6 done)
+## Status — M2 "Hands" complete (#22)
 
 Nothing runs unstaffed anymore:
 
@@ -65,7 +65,16 @@ Nothing runs unstaffed anymore:
   geometry recompiled on load; `F5` quicksave / `F9` quickload
   (`saves/quicksave.sav`); round-trip preserves the sim state hash.
 
-Left in M2: acceptance & benchmark gate (#29).
+Benchmark gate (`cargo run --release --bin bench_citizens`, #29): 50,000
+citizen identities housed, labour-planned, commuting on top of the 100-chain
+M1 load — **mean 0.36 ms/tick** (p95 0.49 ms) against the ≤2 ms gate.
+
+Acceptance video (#29): `cargo run --release --bin capture_m2 -- frames
+screenshots/result/2 450` then ffmpeg; latest render at
+`screenshots/result/2/video.mp4` (local, untracked). Three-day arc: day 1 the
+dwelling cluster staffs the chain and the lamp lights; cutting the commute
+spur (haul road untouched) idles the whole chain on day 2; rebuilding brings
+the workers — and the lamp — back on day 3.
 
 ## Run
 
@@ -81,9 +90,8 @@ wheel zoom.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2 staffing underway (above).
-Next: M2.7 acceptance gate → B3 dispatcher (see `ROADMAP.md`, including the
-parallel P-ladder).
+P1 "First Light" done (#16, zero-spend). B2 staffing complete (above).
+Next: B3 dispatcher (see `ROADMAP.md`, including the parallel P-ladder).
 
 ## Assets
 

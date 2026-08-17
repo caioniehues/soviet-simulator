@@ -31,7 +31,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B2 — Hands: Citizens and Labour `[ ]`
+### B2 — Hands: Citizens and Labour `[x]`
 
 **Destination** — nothing runs unstaffed anymore: persistent citizens with households live somewhere, are allocated to workplaces by a planning pass, commute over the road network, and their presence gates every building's output.
 **Acceptance demo** — dwellings house households; workers commute to the mine/plant/factory; production scales with staffing; pull the workers or block the commute and the chain degrades exactly as cutting the road did.
