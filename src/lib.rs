@@ -32,6 +32,7 @@ pub fn run() {
             sim::zoning::ZoningSimPlugin,
             sim::water::WaterSimPlugin,
             sim::heat::HeatSimPlugin,
+            sim::plan::PlanSimPlugin,
             sim::wires::WireSimPlugin,
             sim::save::SaveSimPlugin,
         ))

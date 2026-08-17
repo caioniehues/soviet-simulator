@@ -187,6 +187,10 @@ impl Plugin for VehicleSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VehicleEditQueue>()
             .init_resource::<VehicleIds>()
+            // Treasury lives in PlanSimPlugin; init here too so plugin-subset
+            // test apps still validate (init_resource is idempotent).
+            .init_resource::<super::plan::Treasury>()
+            .init_resource::<super::plan::AllocationFeedback>()
             .add_systems(
                 SimTick,
                 apply_vehicle_edits
@@ -196,6 +200,7 @@ impl Plugin for VehicleSimPlugin {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_vehicle_edits(
     mut commands: Commands,
     mut queue: ResMut<VehicleEditQueue>,
@@ -203,6 +208,9 @@ fn apply_vehicle_edits(
     buildings: Query<&Building>,
     mut policies: Query<&mut StoragePolicies>,
     fleet: Query<&VehicleAsset>,
+    frame: Res<super::clock::FrameIndex>,
+    mut budget: ResMut<super::plan::Treasury>,
+    mut feedback: ResMut<super::plan::AllocationFeedback>,
 ) {
     // Slot occupancy as of this tick, extended in-drain so purchases earlier
     // in the queue count against the slots.
@@ -246,6 +254,19 @@ fn apply_vehicle_edits(
                 let occupied = homed.entry(depot).or_default();
                 if *occupied >= DEPOT_SLOTS {
                     warn!("vehicle purchase dropped: depot {depot:?} has no free slot");
+                    continue;
+                }
+                // The Plan's purse (G1.1): every vehicle costs allocation
+                // points — a valid purchase the budget can't cover is
+                // refused, not queued.
+                let cost = match class {
+                    TransportClass::Passenger => super::plan::BUS_COST,
+                    TransportClass::Machine => super::plan::MACHINE_COST,
+                    _ => super::plan::TRUCK_COST,
+                };
+                if !budget.try_spend(cost) {
+                    feedback.0 = Some((frame.0, "vehicle"));
+                    warn!("vehicle purchase refused: {cost:.0} pts, {:.0} available", budget.roubles);
                     continue;
                 }
                 *occupied += 1;
@@ -503,6 +524,29 @@ mod tests {
             world.query::<&VehicleAsset>().iter(world).count(),
             DEPOT_SLOTS as usize,
             "a parked vehicle needs a physical slot"
+        );
+    }
+
+    #[test]
+    fn a_broke_treasury_refuses_the_purchase() {
+        let mut app = app();
+        app.world_mut()
+            .resource_mut::<super::super::plan::Treasury>()
+            .roubles = super::super::plan::TRUCK_COST + 0.5;
+        depot_with_trucks(&mut app, Vec3::ZERO, TransportClass::Bulk, 2);
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        assert_eq!(
+            world.query::<&VehicleAsset>().iter(world).count(),
+            1,
+            "the second truck exceeds the treasury and is refused"
+        );
+        assert!(
+            world
+                .resource::<super::super::plan::AllocationFeedback>()
+                .0
+                .is_some(),
+            "the refusal is surfaced for the HUD"
         );
     }
 

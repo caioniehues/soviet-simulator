@@ -13,6 +13,7 @@ pub mod labour;
 pub mod needs;
 pub mod network;
 pub mod pathfinding;
+pub mod plan;
 pub mod resources;
 pub mod roads;
 pub mod save;

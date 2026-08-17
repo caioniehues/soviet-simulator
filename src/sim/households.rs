@@ -99,6 +99,9 @@ impl Plugin for HouseholdSimPlugin {
             .init_resource::<HousingQueue>()
             .init_resource::<RecruitmentPlan>()
             .init_resource::<RecruitmentLedger>()
+            // See VehicleSimPlugin: plugin-subset test apps need these.
+            .init_resource::<super::plan::Treasury>()
+            .init_resource::<super::plan::AllocationFeedback>()
             .add_systems(
                 SimTick,
                 (attach_flat_tables, apply_household_spawns)
@@ -170,8 +173,18 @@ fn recruit_immigrants(
     plan: Res<RecruitmentPlan>,
     mut ledger: ResMut<RecruitmentLedger>,
     mut spawns: ResMut<HouseholdSpawnQueue>,
+    frame: Res<super::clock::FrameIndex>,
+    mut treasury: ResMut<super::plan::Treasury>,
+    mut feedback: ResMut<super::plan::AllocationFeedback>,
 ) {
     while ledger.recruited < plan.target_households {
+        // The Plan's purse (G1.1): each recruited household costs roubles.
+        // A target the treasury can't cover simply stops arriving — the
+        // target stands, recruitment resumes when funds do.
+        if !treasury.try_spend(super::plan::RECRUIT_COST) {
+            feedback.0 = Some((frame.0, "recruit"));
+            break;
+        }
         let size = RECRUIT_SIZES[ledger.recruited as usize % RECRUIT_SIZES.len()];
         spawns.0.push(SpawnHousehold { members: size });
         ledger.recruited += 1;

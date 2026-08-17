@@ -233,6 +233,10 @@ fn update_population_readout(
     zone_feedback: Res<crate::sim::zoning::ZoningFeedback>,
     climate: Res<crate::sim::heat::Climate>,
     heated: Query<&crate::sim::heat::Heated>,
+    state_plan: Res<crate::sim::plan::StatePlan>,
+    treasury: Res<crate::sim::plan::Treasury>,
+    alloc_feedback: Res<crate::sim::plan::AllocationFeedback>,
+    frame: Res<crate::sim::clock::FrameIndex>,
     mut readout: Query<&mut Text, With<PopulationReadout>>,
 ) {
     let Ok(mut text) = readout.single_mut() else {
@@ -276,6 +280,30 @@ fn update_population_readout(
     next.push_str(&format!("\nSEASON  {:+.0}\u{b0}C", climate.temperature));
     if cold_homes > 0 {
         next.push_str(&format!("   COLD HOMES {cold_homes}"));
+    }
+    // The Plan block (G1.1, interim until the G1.4 ledger screen): quotas,
+    // deadline, the treasury, and any refused spend within the last day.
+    next.push_str(&format!(
+        "\nPLAN PERIOD {}   {} days left   {:.0} rbl",
+        state_plan.period,
+        state_plan.days_left(frame.0),
+        treasury.roubles,
+    ));
+    for quota in &state_plan.quotas {
+        let line = match quota.kind {
+            crate::sim::plan::QuotaKind::Stockpile(kind, target) => {
+                format!("\n  {kind:?} {target:.0} t — {:.0}%", quota.progress * 100.0)
+            }
+            crate::sim::plan::QuotaKind::Housed(target) => {
+                format!("\n  {target} housed — {:.0}%", quota.progress * 100.0)
+            }
+        };
+        next.push_str(&line);
+    }
+    if let Some((when, what)) = alloc_feedback.0
+        && frame.0.wrapping_sub(when) < crate::sim::clock::FRAMES_PER_GAME_DAY
+    {
+        next.push_str(&format!("\n  NO FUNDS: {what} refused"));
     }
     if text.0 != next {
         text.0 = next;
