@@ -8,7 +8,6 @@
 use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
-use super::clock::SECS_PER_PASS;
 use super::dispatch::{Progress, drive_toward};
 use super::pathfinding::{PathService, PathfindingSimPlugin};
 use super::roads::{RoadNode, RoadSegment};
@@ -21,6 +20,10 @@ use super::vehicles::{
 /// Seats on a bus; boarding stops at capacity — the queue at the shelter is
 /// the overcrowding signal (B5.3).
 pub const BUS_CAPACITY: usize = 30;
+
+/// Bus cruise speed, metres per commute travel-second (3× walking pace —
+/// riding must genuinely beat the pavement or mode choice is a fiction).
+pub const BUS_SPEED: f32 = 24.0;
 /// Ticks a bus dwells at each stop for boarding/alighting.
 pub const BUS_DWELL_TICKS: u32 = 40;
 
@@ -69,9 +72,17 @@ pub struct BusDuty {
     pub next_stop: usize,
     /// Ticks left dwelling at a stop (0 = driving).
     pub dwell: u32,
-    /// Citizens aboard (B5.3). Bounded by `BUS_CAPACITY`.
-    pub riders: Vec<Entity>,
+    /// Riders aboard as (commuter pawn, alight stop). Bounded by
+    /// `BUS_CAPACITY` — a full bus boards nobody and the shelter queue is
+    /// the visible overcrowding signal.
+    pub riders: Vec<(Entity, Entity)>,
 }
+
+/// Waiting commuters per stop building, FIFO: (pawn, alight stop). Commuters
+/// join on reaching the shelter (`commute::advance_commuters`); buses drain
+/// it while dwelling.
+#[derive(Resource, Default)]
+pub struct StopQueues(pub bevy::platform::collections::HashMap<Entity, Vec<(Entity, Entity)>>);
 
 #[derive(Resource, Default)]
 pub struct TransitIds {
@@ -90,6 +101,7 @@ impl Plugin for TransitSimPlugin {
         }
         app.init_resource::<TransitEditQueue>()
             .init_resource::<TransitIds>()
+            .init_resource::<StopQueues>()
             .add_systems(
                 SimTick,
                 apply_transit_edits
@@ -196,6 +208,8 @@ fn run_buses(
     mut commands: Commands,
     mut pawns: Query<(Entity, &mut ActiveVehicle, &PawnOf)>,
     mut duties: Query<&mut BusDuty>,
+    mut riders_q: Query<&mut super::commute::CommuterPawn>,
+    mut queues: ResMut<StopQueues>,
     assets: Query<&VehicleAsset>,
     lines: Query<&TransitLine>,
     buildings: Query<&Building>,
@@ -204,7 +218,13 @@ fn run_buses(
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
-    let dt = SECS_PER_PASS as f32;
+    use super::commute::CommutePhase;
+    // Passenger transit runs on the commute travel-second timescale (one
+    // travel-second per tick, like pedestrians) — riding must genuinely beat
+    // walking. Freight keeps its own compressed scale (vehicles.rs). The
+    // movement engine budgets TRUCK_SPEED × dt, so the bus's cruise speed is
+    // expressed through dt.
+    let dt = BUS_SPEED / super::vehicles::TRUCK_SPEED;
     for (pawn, mut vehicle, pawn_of) in &mut pawns {
         let Ok(mut duty) = duties.get_mut(pawn_of.0) else {
             continue;
@@ -226,6 +246,37 @@ fn run_buses(
                 pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments,
             ) {
                 Progress::Arrived => {
+                    if let Some(stop) = stop {
+                        // Alight first — their seats free up for boarding.
+                        duty.riders.retain(|&(rider, alight)| {
+                            if alight != stop {
+                                return true;
+                            }
+                            if let Ok(mut r) = riders_q.get_mut(rider) {
+                                r.phase = CommutePhase::Resume;
+                            }
+                            false
+                        });
+                        // Board FIFO while seats remain; a rider whose alight
+                        // stop this line never serves stays queued for the
+                        // right line.
+                        if let Some(queue) = queues.0.get_mut(&stop) {
+                            let mut i = 0;
+                            while i < queue.len() && duty.riders.len() < BUS_CAPACITY {
+                                let (rider, alight) = queue[i];
+                                if line.stops.contains(&alight)
+                                    && let Ok(mut r) = riders_q.get_mut(rider)
+                                {
+                                    r.phase = CommutePhase::Ride { bus: pawn };
+                                    r.transit = None;
+                                    duty.riders.push((rider, alight));
+                                    queue.remove(i);
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                        }
+                    }
                     duty.dwell = BUS_DWELL_TICKS;
                     duty.next_stop = line.next_stop(duty.next_stop);
                 }
@@ -249,6 +300,12 @@ fn run_buses(
                 Progress::Moving => false,
             };
             if done {
+                // Anyone still aboard steps off at the depot and walks on.
+                for (rider, _) in duty.riders.drain(..) {
+                    if let Ok(mut r) = riders_q.get_mut(rider) {
+                        r.phase = CommutePhase::Resume;
+                    }
+                }
                 commands.entity(pawn).despawn();
                 commands.entity(pawn_of.0).remove::<BusDuty>();
             }
