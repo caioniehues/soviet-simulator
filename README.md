@@ -219,11 +219,59 @@ and the inspected far factory staffs up; the line is deleted mid-clip, the
 bus dead-heads home to its slot, and next morning the factory reads
 "0 present / 10 assigned" — the plan problem is the missing line.
 
+## Status — B6 "Building for Real" complete (#52)
+
+The construction stub is dead: a blueprint becomes a building only through
+the phase ladder, consuming delivered materials and machine-work — "we built
+it", never "we bought it".
+
+- **ConstructionSite** (#53) — every placed building starts as a 3-phase
+  site (earthworks → structure → finishing) with a footprint-area bill of
+  quantities; phased construction is plugin-opt-in (fixtures keep fiat
+  placement, the running game builds for real). The building is inert —
+  production, power, hiring all skip it — until the site completes;
+  component removal *is* activation. Bill v1 rides the existing resource
+  set (gravel pad, goods as structure stand-in) until B9/B10 industry.
+- **Materials via the dispatcher** (#54) — a site is just another storage:
+  its band tracks the current phase's outstanding tonnage, the ordinary
+  matcher/fleet deliver, finished phases fold leftovers into the works, and
+  an unsupplied site sits on the DeficitBoard like any starving yard.
+- **Office + machine fleet** (#55) — ConstructionOffice with slot-bound
+  excavators (`GROUNDWORKS`) and cranes (`CRANE`); idle machines
+  self-dispatch to the nearest site whose current phase wants their skill,
+  drive out over the full traffic stack, park, and add their skill to the
+  site's throughput — W&R's duration law: `phase_time = work / Σskill`,
+  never a timer. No matching machine anywhere ⇒ the phase stalls.
+- **Lifecycle + legibility** (#56) — inspect shows phase, work %, bill and
+  the *named* stall (`NO MATERIAL` amber ring / `NO MACHINE` grey ring,
+  pulsing); buildings visibly rise with real progress; dispatch panel SITES
+  line; office `T`/`Y` machine purchases, depot `U` bus purchase.
+- **Demolition first cut** (#57) — `Delete` demolishes the selected
+  building; everything self-heals: workers via the sever pass, households
+  evicted into the visible housing queue, transit lines prune dead shelters,
+  riders alight and walk, freight bound for the rubble writes off, machines
+  abandon cancelled sites. Explosives/rubble arrive with the demolition
+  office (later stage per spec).
+
+Benchmark gate (`cargo run --release --bin bench_sites`, #58): **100
+concurrent construction sites** — dispatcher hauling every bill while 200
+machines drive and work — at **mean 0.11 ms/tick** (p95 0.16 ms) against
+the 2 ms budget. All five prior gates re-run green.
+
+Acceptance video (#58): `cargo run --release --bin capture_m6 -- frames
+screenshots/result/6 480` then ffmpeg; latest render at
+`screenshots/result/6/video.mp4` (local, untracked). Arc: the gravel pad is
+hauled and graded and the squat frame rises; the structure phase starves —
+amber ring, "STALLED: NO MATERIAL" in the inspect panel; a goods shipment
+lands and the freshly bought crane drives out; the block climbs phase by
+phase and snaps to full height, activated, with both machines back on the
+office apron.
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 87 sim tests
+cargo test           # 95 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
@@ -231,17 +279,19 @@ Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire 
 `[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
 wheel zoom.
 
-With a **depot** selected: `T` buy a bulk truck · `Y` buy a covered truck.
+With a **depot** selected: `T` buy a bulk truck · `Y` covered truck · `U` bus.
+With a **construction office** selected: `T` buy an excavator · `Y` a crane.
+`Delete` demolishes the selected building.
 With a **storage** selected: `B` cycles the focused resource · `,` `.`
 lower/raise its min band 5% · `Shift+,` `Shift+.` the max band. Buildings the
 dispatcher cannot feed pulse a red ring.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2 staffing, B3 dispatcher, B4
-traffic-at-scale and B5 public transit complete (above). Next: B6
-construction per the ladder (see `ROADMAP.md`, including the parallel
-P-ladder).
+P1 "First Light" done (#16, zero-spend). B2–B6 complete (above): staffing,
+dispatcher, traffic at scale, public transit, phased construction. Next: B7
+housing-and-the-plan per the ladder (see `ROADMAP.md`, including the
+parallel P-ladder).
 
 ## Assets
 

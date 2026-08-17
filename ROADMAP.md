@@ -79,7 +79,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B6 — Building for Real: Phased Construction `[ ]`
+### B6 — Building for Real: Phased Construction `[x]`
 
 **Destination** — the construction stub dies: a blueprint becomes a building only through the phase ladder (groundworks → structure → wiring → rooftop), each phase consuming delivered materials and machine-work from a construction office's fleet.
 **Acceptance demo** — watch a building rise phase by phase; starve it of steel or the excavator and the site stalls with the bottleneck named on screen; roads and transit stops build through the same pipeline.
