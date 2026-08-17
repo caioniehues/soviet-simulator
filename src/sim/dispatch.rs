@@ -657,6 +657,11 @@ fn run_freight(
                 };
                 let o = queue.orders[i];
                 let Ok(mut yard) = yards.get_mut(o.to) else {
+                    // Destination demolished mid-haul (B6.5): the load is
+                    // written off with the building and the truck heads home.
+                    vehicle.cargo.take(o.resource, f32::INFINITY);
+                    completed.push(o.id.0);
+                    job.phase = FreightPhase::ReturnToDepot;
                     continue;
                 };
                 let carried = vehicle.cargo.amount(o.resource);

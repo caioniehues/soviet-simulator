@@ -106,7 +106,7 @@ impl Plugin for HouseholdSimPlugin {
             )
             .add_systems(
                 SimTick,
-                (recruit_immigrants, assign_housing)
+                (requeue_lost_dwellings, recruit_immigrants, assign_housing)
                     .chain()
                     .in_set(SimStage::AllocationAndDispatch),
             );
@@ -173,6 +173,29 @@ fn recruit_immigrants(
 }
 
 /// The housing office: strict FIFO — the head household gets the first
+/// A demolished dwelling (B6.5) evicts its households back into the housing
+/// queue — visible homelessness pressure, never a silent deletion of people.
+fn requeue_lost_dwellings(
+    mut queue: ResMut<HousingQueue>,
+    mut households: Query<(Entity, &mut Household)>,
+    mut citizens: Query<&mut Citizen>,
+    dwellings: Query<(), With<Dwelling>>,
+) {
+    for (entity, mut household) in &mut households {
+        if let Some(dwelling) = household.dwelling
+            && dwellings.get(dwelling).is_err()
+        {
+            household.dwelling = None;
+            for &member in &household.members {
+                if let Ok(mut citizen) = citizens.get_mut(member) {
+                    citizen.home = None;
+                }
+            }
+            queue.0.push_back(entity);
+        }
+    }
+}
+
 /// dwelling with a free flat; no flat anywhere means the whole queue waits
 /// (shortage stays a visible planning failure, never a deletion).
 pub(super) fn assign_housing(
@@ -277,6 +300,49 @@ mod tests {
                 kind: BuildingKind::Dwelling,
                 pos: Vec3::ZERO,
             });
+    }
+
+    #[test]
+    fn demolished_dwelling_requeues_its_households() {
+        let mut app = app();
+        place_dwelling(&mut app);
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 2;
+        ticks(&mut app, 4);
+        let world = app.world_mut();
+        let dwelling = world
+            .query_filtered::<Entity, With<Dwelling>>()
+            .single(world)
+            .unwrap();
+        let housed = world
+            .query::<&Household>()
+            .iter(world)
+            .filter(|h| h.dwelling.is_some())
+            .count();
+        assert_eq!(housed, 2);
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Demolish { building: dwelling });
+        ticks(&mut app, 3);
+        let world = app.world_mut();
+        let evicted = world
+            .query::<&Household>()
+            .iter(world)
+            .filter(|h| h.dwelling.is_none())
+            .count();
+        assert_eq!(evicted, 2, "eviction is visible homelessness, not deletion");
+        assert!(
+            world.resource::<HousingQueue>().0.len() >= 2,
+            "evicted households wait in the housing queue"
+        );
+        let homeless_citizens = world
+            .query::<&super::super::citizens::Citizen>()
+            .iter(world)
+            .filter(|c| c.home.is_none())
+            .count();
+        assert!(homeless_citizens > 0);
     }
 
     #[test]

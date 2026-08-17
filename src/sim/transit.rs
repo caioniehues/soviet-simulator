@@ -104,7 +104,8 @@ impl Plugin for TransitSimPlugin {
             .init_resource::<StopQueues>()
             .add_systems(
                 SimTick,
-                apply_transit_edits
+                (apply_transit_edits, prune_dead_stops)
+                    .chain()
                     .in_set(SimStage::ApplyCommands)
                     .after(ApplyCommandsFlush),
             )
@@ -198,6 +199,24 @@ fn apply_transit_edits(
     }
 }
 
+/// A demolished shelter (B6.5) drops out of every line; a line left with
+/// fewer than two stops dissolves and its buses head home.
+fn prune_dead_stops(
+    mut commands: Commands,
+    mut lines: Query<(Entity, &mut TransitLine)>,
+    stops: Query<&Building>,
+) {
+    for (entity, mut line) in &mut lines {
+        let before = line.stops.len();
+        line.stops.retain(|&s| stops.get(s).is_ok());
+        if line.stops.len() < 2 {
+            commands.entity(entity).despawn();
+        } else if line.stops.len() != before {
+            warn!("line {:?} lost a demolished stop", line.id);
+        }
+    }
+}
+
 /// The bus service loop, mirroring `run_freight`'s shape: drive to the next
 /// stop through the full B4 stack (async routes, car-following, congestion,
 /// stalls), dwell for boarding, advance the loop. A deleted line sends the
@@ -247,9 +266,11 @@ fn run_buses(
             ) {
                 Progress::Arrived => {
                     if let Some(stop) = stop {
-                        // Alight first — their seats free up for boarding.
+                        // Alight first — their seats free up for boarding. A
+                        // rider whose alight stop was demolished (B6.5) steps
+                        // off at the next dwell and walks the rest.
                         duty.riders.retain(|&(rider, alight)| {
-                            if alight != stop {
+                            if alight != stop && buildings.get(alight).is_ok() {
                                 return true;
                             }
                             if let Ok(mut r) = riders_q.get_mut(rider) {

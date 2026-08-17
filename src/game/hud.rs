@@ -65,6 +65,7 @@ impl Plugin for HudPlugin {
                     drive_depot_purchase,
                     drive_office_purchase,
                     drive_bus_purchase,
+                    drive_demolition,
                     drive_band_tuning,
                     hint_starving_deficits,
                     hint_stalled_corridors,
@@ -267,6 +268,27 @@ fn drive_depot_purchase(
     };
     edits.0.push(VehicleEdit::BuyTruck { depot, class });
     info!("depot purchase queued: {class:?} truck at {depot:?}");
+}
+
+/// `Delete` demolishes the selected building (B6.5) — physically gone,
+/// everything referencing it self-heals through the retention passes.
+fn drive_demolition(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut selected: ResMut<Selected>,
+    buildings: Query<&Building>,
+    mut edits: ResMut<crate::sim::buildings::BuildingEditQueue>,
+) {
+    if !keys.just_pressed(KeyCode::Delete) {
+        return;
+    }
+    let Some(building) = selected.0.filter(|&e| buildings.get(e).is_ok()) else {
+        return;
+    };
+    edits
+        .0
+        .push(crate::sim::buildings::BuildingEdit::Demolish { building });
+    selected.0 = None;
+    info!("demolition queued: {building:?}");
 }
 
 /// With a construction office selected: `T` buys an excavator, `Y` a crane.

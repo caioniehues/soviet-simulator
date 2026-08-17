@@ -796,11 +796,18 @@ mod tests {
     fn full_bus_leaves_the_overflow_standing_at_the_stop() {
         let mut app = transit_app();
         transit_town(&mut app);
-        // Stuff the bus with phantom riders whose alight stop is not on the
-        // line — no seat ever frees up, at either shelter.
+        // Stuff the bus with phantom riders whose alight target is a real
+        // building the line never serves (the depot) — no seat ever frees
+        // up, at either shelter.
         let world = app.world_mut();
+        let depot = world
+            .query::<(Entity, &super::super::buildings::Building)>()
+            .iter(world)
+            .find(|(_, b)| b.kind == BuildingKind::Depot)
+            .unwrap()
+            .0;
         let phantoms: Vec<(Entity, Entity)> = (0..super::super::transit::BUS_CAPACITY)
-            .map(|_| (world.spawn_empty().id(), world.spawn_empty().id()))
+            .map(|_| (world.spawn_empty().id(), depot))
             .collect();
         world
             .query::<&mut BusDuty>()

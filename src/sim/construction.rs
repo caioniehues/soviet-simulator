@@ -655,6 +655,38 @@ mod tests {
     }
 
     #[test]
+    fn demolition_cancels_a_site_and_releases_its_machine() {
+        use super::super::buildings::BuildingEdit;
+        use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleKind};
+        let mut app = machine_app();
+        let (factory, office) = machine_world(&mut app);
+        app.world_mut()
+            .resource_mut::<VehicleEditQueue>()
+            .0
+            .push(VehicleEdit::BuyMachine {
+                office,
+                kind: VehicleKind::Excavator,
+            });
+        ticks(&mut app, 400); // excavator en route to the site
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Demolish { building: factory });
+        ticks(&mut app, 2500); // machine notices, dead-heads home, parks
+        let world = app.world_mut();
+        assert!(world.get_entity(factory).is_err(), "site physically gone");
+        assert_eq!(
+            world
+                .query::<&super::super::vehicles::ActiveVehicle>()
+                .iter(world)
+                .count(),
+            0,
+            "the machine returns to its office slot"
+        );
+        assert_eq!(world.query::<&MachineDuty>().iter(world).count(), 0);
+    }
+
+    #[test]
     fn machines_work_the_phases_and_the_building_activates() {
         use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleKind};
         let mut app = machine_app();

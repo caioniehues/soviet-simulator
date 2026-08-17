@@ -99,6 +99,11 @@ pub struct BuildingEditQueue(pub Vec<BuildingEdit>);
 #[derive(Clone, Copy, Debug)]
 pub enum BuildingEdit {
     Place { kind: BuildingKind, pos: Vec3 },
+    /// Demolition first cut (B6.5): the building physically vanishes with
+    /// its render children; workers, households, transit lines and freight
+    /// orders self-heal through their own retention passes. Explosives and
+    /// sorted rubble arrive with the demolition office (spec, later stage).
+    Demolish { building: Entity },
 }
 
 #[derive(Resource, Default)]
@@ -131,26 +136,37 @@ fn apply_building_edits(
     mut commands: Commands,
     mut queue: ResMut<BuildingEditQueue>,
     mut ids: ResMut<BuildingIds>,
+    existing: Query<(), With<Building>>,
 ) {
     for edit in queue.0.drain(..) {
-        let BuildingEdit::Place { kind, pos } = edit;
-        ids.next += 1;
-        let mut entity = commands.spawn((
-            Building {
-                id: BuildingId(ids.next),
-                kind,
-                pos,
-            },
-            Inventory::new(kind.inventory_capacity()),
-        ));
-        match kind {
-            BuildingKind::PowerPlant => {
-                entity.insert(PowerOutput::default());
+        match edit {
+            BuildingEdit::Place { kind, pos } => {
+                ids.next += 1;
+                let mut entity = commands.spawn((
+                    Building {
+                        id: BuildingId(ids.next),
+                        kind,
+                        pos,
+                    },
+                    Inventory::new(kind.inventory_capacity()),
+                ));
+                match kind {
+                    BuildingKind::PowerPlant => {
+                        entity.insert(PowerOutput::default());
+                    }
+                    BuildingKind::Factory => {
+                        entity.insert(Powered::default());
+                    }
+                    _ => {}
+                }
             }
-            BuildingKind::Factory => {
-                entity.insert(Powered::default());
+            BuildingEdit::Demolish { building } => {
+                if existing.get(building).is_ok() {
+                    commands.entity(building).despawn();
+                } else {
+                    warn!("Demolish dropped: {building:?} is not a building");
+                }
             }
-            _ => {}
         }
     }
 }
