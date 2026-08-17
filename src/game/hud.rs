@@ -39,6 +39,13 @@ struct DispatchReadout;
 #[derive(Component)]
 struct InspectPanel;
 
+/// Fullscreen Plan ledger overlay (G1.4), toggled with `P`.
+#[derive(Component)]
+struct PlanLedgerPanel;
+
+#[derive(Component)]
+struct PlanLedgerReadout;
+
 /// Building picked with the Inspect tool.
 #[derive(Resource, Default)]
 pub struct Selected(pub Option<Entity>);
@@ -71,6 +78,8 @@ impl Plugin for HudPlugin {
                     hint_stalled_corridors,
                     update_tool_readout,
                     update_inspect_readout,
+                    toggle_plan_ledger,
+                    update_plan_ledger,
                     draw_selection_ring,
                     draw_fill_bars,
                 ),
@@ -120,45 +129,106 @@ fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
                 TextColor(Color::srgb(0.92, 0.90, 0.82)),
             ));
         });
-    let (node, bg, border) = panel_node();
+    // Right-side column: population above dispatch, stacked by flex so a
+    // growing panel pushes the next down instead of overlapping it (G1.4).
     commands
         .spawn((
             Node {
+                position_type: PositionType::Absolute,
                 right: Val::Px(12.0),
                 top: Val::Px(10.0),
-                ..node
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::FlexEnd,
+                row_gap: Val::Px(8.0),
+                ..default()
             },
-            bg,
-            border,
-            Name::new("HudPopulationPanel"),
+            Name::new("HudRightColumn"),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                PopulationReadout,
-                Text::new(""),
-                font.clone(),
-                TextColor(Color::srgb(0.92, 0.90, 0.82)),
-            ));
+        .with_children(|column| {
+            let (node, bg, border) = panel_node();
+            column
+                .spawn((
+                    Node {
+                        position_type: PositionType::Relative,
+                        ..node
+                    },
+                    bg,
+                    border,
+                    Name::new("HudPopulationPanel"),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        PopulationReadout,
+                        Text::new(""),
+                        font.clone(),
+                        TextColor(Color::srgb(0.92, 0.90, 0.82)),
+                    ));
+                });
+            let (node, bg, border) = panel_node();
+            column
+                .spawn((
+                    Node {
+                        position_type: PositionType::Relative,
+                        ..node
+                    },
+                    bg,
+                    border,
+                    Name::new("HudDispatchPanel"),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        DispatchReadout,
+                        Text::new(""),
+                        font.clone(),
+                        TextColor(Color::srgb(0.88, 0.87, 0.80)),
+                    ));
+                });
         });
-    let (node, bg, border) = panel_node();
+    // The Plan ledger (G1.4): the fullscreen signature screen, toggled with
+    // P. A state document, not a popup — the whole viewport dims behind it.
     commands
         .spawn((
             Node {
-                right: Val::Px(12.0),
-                top: Val::Px(96.0),
-                ..node
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                display: Display::None,
+                ..default()
             },
-            bg,
-            border,
-            Name::new("HudDispatchPanel"),
+            BackgroundColor(Color::srgba(0.02, 0.025, 0.03, 0.82)),
+            PlanLedgerPanel,
+            Name::new("HudPlanLedger"),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                DispatchReadout,
-                Text::new(""),
-                font.clone(),
-                TextColor(Color::srgb(0.88, 0.87, 0.80)),
-            ));
+        .with_children(|overlay| {
+            let (node, bg, _) = panel_node();
+            overlay
+                .spawn((
+                    Node {
+                        position_type: PositionType::Relative,
+                        min_width: Val::Px(520.0),
+                        padding: UiRect::all(Val::Px(28.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..node
+                    },
+                    bg,
+                    BorderColor::all(Color::srgb(0.63, 0.35, 0.20)),
+                ))
+                .with_children(|sheet| {
+                    sheet.spawn((
+                        PlanLedgerReadout,
+                        Text::new(""),
+                        TextFont {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
+                            font_size: bevy::text::FontSize::Px(17.0),
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.93, 0.90, 0.80)),
+                    ));
+                });
         });
     let (node, bg, border) = panel_node();
     commands
@@ -185,6 +255,81 @@ fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
                 TextColor(Color::srgb(0.95, 0.93, 0.85)),
             ));
         });
+}
+
+fn toggle_plan_ledger(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut panel: Query<&mut Node, With<PlanLedgerPanel>>,
+) {
+    if !keys.just_pressed(KeyCode::KeyP) {
+        return;
+    }
+    for mut node in &mut panel {
+        node.display = match node.display {
+            Display::None => Display::Flex,
+            _ => Display::None,
+        };
+    }
+}
+
+/// ASCII progress bar — every glyph guaranteed in the bundled font.
+fn bar(progress: f32) -> String {
+    let filled = (progress.clamp(0.0, 1.0) * 20.0).round() as usize;
+    format!("[{}{}]", "#".repeat(filled), "-".repeat(20 - filled))
+}
+
+fn update_plan_ledger(
+    plan: Option<Res<crate::sim::plan::StatePlan>>,
+    treasury: Option<Res<crate::sim::plan::Treasury>>,
+    frame: Res<crate::sim::clock::FrameIndex>,
+    panel: Query<&Node, With<PlanLedgerPanel>>,
+    mut readout: Query<&mut Text, With<PlanLedgerReadout>>,
+) {
+    let (Some(plan), Some(treasury)) = (plan, treasury) else {
+        return;
+    };
+    // Skip the string build while hidden.
+    if !panel.iter().any(|n| n.display != Display::None) {
+        return;
+    }
+    let Ok(mut text) = readout.single_mut() else {
+        return;
+    };
+    use crate::sim::plan::{BASE_TRANCHE, FULFILLMENT_BONUS, QuotaKind};
+    let fulfillment = plan.fulfillment();
+    let mut next = format!(
+        "THE STATE PLAN — PERIOD {}\n\n{} days to the deadline\n\n",
+        plan.period,
+        plan.days_left(frame.0),
+    );
+    for quota in &plan.quotas {
+        let (label, target) = match quota.kind {
+            QuotaKind::Stockpile(kind, t) => (format!("{kind:?} stockpiled, t"), t),
+            QuotaKind::Housed(t) => ("Households housed".to_string(), t as f32),
+        };
+        next.push_str(&format!(
+            "{label:<24} {} {:>5.0}% of {target:.0}\n",
+            bar(quota.progress),
+            quota.progress * 100.0,
+        ));
+    }
+    next.push_str(&format!(
+        "\nFULFILLMENT              {} {:>5.0}%\n\nTREASURY   {:.0} roubles\nNEXT TRANCHE (forecast)   {:.0} roubles\n",
+        bar(fulfillment),
+        fulfillment * 100.0,
+        treasury.roubles,
+        BASE_TRANCHE + FULFILLMENT_BONUS * fulfillment,
+    ));
+    if let (Some(last), Some(tranche)) = (plan.last_fulfillment, plan.last_tranche) {
+        next.push_str(&format!(
+            "\nLAST PERIOD: fulfilled {:.0}%, granted {tranche:.0} roubles\n",
+            last * 100.0
+        ));
+    }
+    next.push_str("\n[P] close");
+    if text.0 != next {
+        text.0 = next;
+    }
 }
 
 fn drive_time_controls(keys: Res<ButtonInput<KeyCode>>, mut speed: ResMut<SimSpeed>) {
