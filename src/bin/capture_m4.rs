@@ -31,7 +31,9 @@ use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
 use soviet_simulator::sim::roads::{
     LaneDir, RoadClass, RoadEdit, RoadEditQueue, RoadNode, RoadSegment, RoadSimPlugin,
 };
-use soviet_simulator::sim::vehicles::{ActiveVehicle, RouteLeg, VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
+use soviet_simulator::sim::vehicles::{
+    ActiveVehicle, RouteLeg, VehicleEdit, VehicleEditQueue, VehicleSimPlugin,
+};
 use soviet_simulator::sim::{SimPlugin, SimSpeed};
 
 const FPS: f64 = 30.0;
@@ -253,8 +255,7 @@ fn drive_script(world: &mut World) {
                         .get::<RoadSegment>(seg)
                         .unwrap()
                         .point_at(s_pos, LaneDir::Forward);
-                    let mut pawn =
-                        ActiveVehicle::at(pos + travel.cross(Vec3::Y) * 1.5);
+                    let mut pawn = ActiveVehicle::at(pos + travel.cross(Vec3::Y) * 1.5);
                     pawn.heading = travel;
                     pawn.route = vec![RouteLeg {
                         segment: seg,

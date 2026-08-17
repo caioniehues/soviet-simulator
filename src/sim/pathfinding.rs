@@ -309,7 +309,12 @@ pub fn refresh_snapshot(
         .map(|(_, s, _)| s.modification_index as u64)
         .sum::<u64>()
         .wrapping_add(svc.congestion_version);
-    let key = (ids.next_node, ids.next_segment, nodes.iter().count(), mod_sum);
+    let key = (
+        ids.next_node,
+        ids.next_segment,
+        nodes.iter().count(),
+        mod_sum,
+    );
     if svc.snapshot.is_some() && svc.snapshot_key == key {
         return;
     }
@@ -383,12 +388,7 @@ mod tests {
     /// time-like vehicle cost must pick the faster one appropriately.
     fn fork_world(app: &mut App) -> (Entity, Entity) {
         // direct dirt: 200 m at 0.55 → ~364 s-units
-        place(
-            app,
-            Vec3::ZERO,
-            Vec3::new(200.0, 0.0, 0.0),
-            RoadClass::Dirt,
-        );
+        place(app, Vec3::ZERO, Vec3::new(200.0, 0.0, 0.0), RoadClass::Dirt);
         // paved detour via (100, 120): 2 × ~156 m at 1.0 → ~312 s-units
         place(
             app,
@@ -403,7 +403,10 @@ mod tests {
             RoadClass::Dirt,
         );
         tick(app);
-        (node_at(app, Vec3::ZERO), node_at(app, Vec3::new(200.0, 0.0, 0.0)))
+        (
+            node_at(app, Vec3::ZERO),
+            node_at(app, Vec3::new(200.0, 0.0, 0.0)),
+        )
     }
 
     #[test]
@@ -465,18 +468,15 @@ mod tests {
     fn async_request_resolves_within_a_few_ticks() {
         let mut app = app();
         let (start, goal) = fork_world(&mut app);
-        let ticket = app
-            .world_mut()
-            .resource_mut::<PathService>()
-            .request(start, goal, CostProfile::Vehicle);
+        let ticket = app.world_mut().resource_mut::<PathService>().request(
+            start,
+            goal,
+            CostProfile::Vehicle,
+        );
         let mut result = None;
         for _ in 0..300 {
             tick(&mut app);
-            if let PathPoll::Ready(r) = app
-                .world_mut()
-                .resource_mut::<PathService>()
-                .poll(ticket)
-            {
+            if let PathPoll::Ready(r) = app.world_mut().resource_mut::<PathService>().poll(ticket) {
                 result = Some(r);
                 break;
             }
@@ -505,17 +505,13 @@ mod tests {
             node_at(&mut app, Vec3::ZERO),
             node_at(&mut app, Vec3::new(600.0, 0.0, 0.0)),
         );
-        let ticket = app
-            .world_mut()
-            .resource_mut::<PathService>()
-            .request(a, b, CostProfile::Vehicle);
+        let ticket =
+            app.world_mut()
+                .resource_mut::<PathService>()
+                .request(a, b, CostProfile::Vehicle);
         for _ in 0..300 {
             tick(&mut app);
-            if let PathPoll::Ready(r) = app
-                .world_mut()
-                .resource_mut::<PathService>()
-                .poll(ticket)
-            {
+            if let PathPoll::Ready(r) = app.world_mut().resource_mut::<PathService>().poll(ticket) {
                 assert!(r.is_none(), "islands must not route");
                 return;
             }

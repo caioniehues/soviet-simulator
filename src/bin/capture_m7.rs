@@ -198,10 +198,9 @@ fn drive_script(world: &mut World) {
                     }
                     _ => kind.inventory_capacity(),
                 };
-                world.entity_mut(entity).insert((
-                    Inventory::new(capacity),
-                    default_policies(kind),
-                ));
+                world
+                    .entity_mut(entity)
+                    .insert((Inventory::new(capacity), default_policies(kind)));
                 match kind {
                     BuildingKind::Quarry => {
                         world
@@ -244,7 +243,6 @@ fn drive_script(world: &mut World) {
             world
                 .resource_mut::<soviet_simulator::sim::households::RecruitmentPlan>()
                 .target_households = 24;
-
         }
         4 => *world.resource_mut::<SimSpeed>() = SimSpeed::Paused,
         ROLL_OUT => *world.resource_mut::<SimSpeed>() = SimSpeed::Quad,
@@ -270,7 +268,9 @@ fn drive_script(world: &mut World) {
                 .filter(|(_, b)| b.kind == BuildingKind::Dwelling)
                 .find(|(_, b)| b.pos.x > 50.0)
                 .map(|(e, _)| e);
-            world.resource_mut::<soviet_simulator::game::hud::Selected>().0 = site;
+            world
+                .resource_mut::<soviet_simulator::game::hud::Selected>()
+                .0 = site;
         }
         // Beat 4: the old block comes down — eviction feeds the queue,
         // never deletes anyone.

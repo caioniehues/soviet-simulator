@@ -149,7 +149,9 @@ fn main() {
     // full load: every district's truck out on its trips.
     println!("[bench] full load (fleet live):");
     let (mean, p95, orders) = run(DISTRICTS, true);
-    println!("[bench]   {orders} live orders: mean {mean:.4} ms  p95 {p95:.4} ms  (gate {GATE_MS} ms)");
+    println!(
+        "[bench]   {orders} live orders: mean {mean:.4} ms  p95 {p95:.4} ms  (gate {GATE_MS} ms)"
+    );
 
     if scaling >= 2.0 {
         println!("[bench] FAIL: dispatcher scaling {scaling:.2}x is not sub-linear");

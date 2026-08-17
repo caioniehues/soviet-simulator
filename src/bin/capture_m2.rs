@@ -209,11 +209,14 @@ fn drive_script(world: &mut World) {
                     .unwrap()
                     .add(ResourceKind::Coal, tonnes);
             }
-            world.resource_mut::<WireEditQueue>().0.push(WireEdit::Place {
-            kind: soviet_simulator::sim::wires::NetKind::Power,
-                from: Vec3::new(30.0, 0.0, 0.0),
-                to: Vec3::new(120.0, 0.0, 0.0),
-            });
+            world
+                .resource_mut::<WireEditQueue>()
+                .0
+                .push(WireEdit::Place {
+                    kind: soviet_simulator::sim::wires::NetKind::Power,
+                    from: Vec3::new(30.0, 0.0, 0.0),
+                    to: Vec3::new(120.0, 0.0, 0.0),
+                });
             let depot = get(BuildingKind::Depot);
             let mut vehicles = world.resource_mut::<VehicleEditQueue>();
             vehicles.0.push(VehicleEdit::BuyTruck {

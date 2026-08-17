@@ -13,9 +13,7 @@ use super::pathfinding::{PathService, PathfindingSimPlugin};
 use super::roads::{RoadNode, RoadSegment};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 use super::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
-use super::vehicles::{
-    ActivePawn, ActiveVehicle, PawnOf, VehicleAsset, VehicleKind, nearest_node,
-};
+use super::vehicles::{ActivePawn, ActiveVehicle, PawnOf, VehicleAsset, VehicleKind, nearest_node};
 
 /// Seats on a bus; boarding stops at capacity — the queue at the shelter is
 /// the overcrowding signal (B5.3).
@@ -126,10 +124,7 @@ fn apply_transit_edits(
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
     lines: Query<Entity, With<TransitLine>>,
-    fleet: Query<
-        (Entity, &VehicleAsset, Has<ActivePawn>, Has<BusDuty>),
-        super::customs::Arrived,
-    >,
+    fleet: Query<(Entity, &VehicleAsset, Has<ActivePawn>, Has<BusDuty>), super::customs::Arrived>,
 ) {
     for edit in std::mem::take(&mut queue.0) {
         match edit {
@@ -140,8 +135,7 @@ fn apply_transit_edits(
                 }
                 let all_docked_stops = stops.iter().all(|&stop| {
                     buildings.get(stop).is_ok_and(|b| {
-                        b.kind == BuildingKind::BusStop
-                            && nearest_node(b.pos, &nodes).is_some()
+                        b.kind == BuildingKind::BusStop && nearest_node(b.pos, &nodes).is_some()
                     })
                 });
                 if !all_docked_stops {
@@ -170,10 +164,7 @@ fn apply_transit_edits(
                 let Some((asset, home)) = fleet
                     .iter()
                     .find(|(_, a, on_road, on_duty)| {
-                        a.kind == VehicleKind::Bus
-                            && a.home_depot == depot
-                            && !on_road
-                            && !on_duty
+                        a.kind == VehicleKind::Bus && a.home_depot == depot && !on_road && !on_duty
                     })
                     .map(|(e, a, ..)| (e, a.home_depot))
                 else {
@@ -256,16 +247,20 @@ fn run_buses(
                 duty.dwell -= 1;
                 continue;
             }
-            let stop = line
-                .stops
-                .get(duty.next_stop % line.stops.len())
-                .copied();
+            let stop = line.stops.get(duty.next_stop % line.stops.len()).copied();
             let goal = || {
                 stop.and_then(|s| buildings.get(s).ok())
                     .and_then(|b| nearest_node(b.pos, &nodes))
             };
             match drive_toward(
-                pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments,
+                pawn,
+                &mut vehicle,
+                goal,
+                dt,
+                &mut svc,
+                &occupancy,
+                &nodes,
+                &segments,
             ) {
                 Progress::Arrived => {
                     if let Some(stop) = stop {
@@ -317,7 +312,14 @@ fn run_buses(
                     .and_then(|b| nearest_node(b.pos, &nodes))
             };
             let done = match drive_toward(
-                pawn, &mut vehicle, home, dt, &mut svc, &occupancy, &nodes, &segments,
+                pawn,
+                &mut vehicle,
+                home,
+                dt,
+                &mut svc,
+                &occupancy,
+                &nodes,
+                &segments,
             ) {
                 Progress::Arrived => true,
                 Progress::NoPath => home().is_none(),
@@ -348,7 +350,12 @@ mod tests {
     fn app() -> App {
         let mut a = App::new();
         a.insert_resource(Time::<()>::default());
-        a.add_plugins((SimPlugin, RoadSimPlugin, BuildingSimPlugin, TransitSimPlugin));
+        a.add_plugins((
+            SimPlugin,
+            RoadSimPlugin,
+            BuildingSimPlugin,
+            TransitSimPlugin,
+        ));
         a
     }
 
@@ -440,9 +447,7 @@ mod tests {
         app.world_mut()
             .resource_mut::<TransitEditQueue>()
             .0
-            .push(TransitEdit::CreateLine {
-                stops: vec![west],
-            });
+            .push(TransitEdit::CreateLine { stops: vec![west] });
         ticks(&mut app, 1);
         let world = app.world_mut();
         assert_eq!(world.query::<&TransitLine>().iter(world).count(), 0);
@@ -523,7 +528,10 @@ mod tests {
                 looped = true;
             }
         }
-        assert!(max_x > 150.0, "bus must reach the east stop, max_x = {max_x}");
+        assert!(
+            max_x > 150.0,
+            "bus must reach the east stop, max_x = {max_x}"
+        );
         assert!(looped, "arrival must advance the loop back toward stop 0");
         let world = app.world_mut();
         assert_eq!(

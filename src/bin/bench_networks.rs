@@ -121,9 +121,7 @@ fn main() {
         let plants: Vec<Entity> = world
             .query::<(Entity, &Building)>()
             .iter(world)
-            .filter(|(_, b)| {
-                matches!(b.kind, BuildingKind::PowerPlant | BuildingKind::HeatPlant)
-            })
+            .filter(|(_, b)| matches!(b.kind, BuildingKind::PowerPlant | BuildingKind::HeatPlant))
             .map(|(e, _)| e)
             .collect();
         for plant in plants {
@@ -176,8 +174,15 @@ fn main() {
     assert_eq!(dwellings, (DISTRICTS * DWELLINGS) as usize);
     assert_eq!(factories, (DISTRICTS * FACTORIES) as usize);
     assert_eq!(powered, dwellings + factories, "[bench] grid not fully lit");
-    assert_eq!(watered, dwellings + factories, "[bench] water cycle not closed");
-    assert_eq!(heated, dwellings, "[bench] heat not covering midwinter demand");
+    assert_eq!(
+        watered,
+        dwellings + factories,
+        "[bench] water cycle not closed"
+    );
+    assert_eq!(
+        heated, dwellings,
+        "[bench] heat not covering midwinter demand"
+    );
 
     let mut samples: Vec<f64> = Vec::with_capacity(MEASURE_TICKS as usize);
     for _ in 0..MEASURE_TICKS {

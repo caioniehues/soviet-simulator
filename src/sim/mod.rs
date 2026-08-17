@@ -3,13 +3,13 @@
 
 pub mod buildings;
 pub mod citizens;
-pub mod dispatch;
 pub mod clock;
 pub mod commute;
 pub mod construction;
 pub mod customs;
-pub mod households;
+pub mod dispatch;
 pub mod heat;
+pub mod households;
 pub mod labour;
 pub mod needs;
 pub mod network;

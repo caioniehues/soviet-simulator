@@ -177,9 +177,7 @@ fn drive_script(world: &mut World) {
                 let mut buildings = world.resource_mut::<BuildingEditQueue>();
                 build_world(&mut roads, &mut buildings);
             });
-            world
-                .resource_mut::<RecruitmentPlan>()
-                .target_households = 16; // ≈48 citizens: one busload plus overflow
+            world.resource_mut::<RecruitmentPlan>().target_households = 16; // ≈48 citizens: one busload plus overflow
         }
         3 => {
             // Line over the two shelters; one bus in the depot slot.
@@ -223,9 +221,7 @@ fn drive_script(world: &mut World) {
         for (e, b) in q.iter(world) {
             match b.kind {
                 BuildingKind::Depot => depot = Some(e),
-                BuildingKind::Factory if b.pos.z > 0.0 && b.pos.x < 710.0 => {
-                    factory = Some(e)
-                }
+                BuildingKind::Factory if b.pos.z > 0.0 && b.pos.x < 710.0 => factory = Some(e),
                 _ => {}
             }
         }
@@ -235,7 +231,9 @@ fn drive_script(world: &mut World) {
                 .0
                 .push(TransitEdit::AssignBus { line, depot });
         }
-        world.resource_mut::<soviet_simulator::game::hud::Selected>().0 = factory;
+        world
+            .resource_mut::<soviet_simulator::game::hud::Selected>()
+            .0 = factory;
     }
     if f.saturating_sub(WARMUP) == DELETE_AT {
         let line = {

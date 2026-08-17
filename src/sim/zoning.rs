@@ -21,10 +21,7 @@ impl ZoneKind {
     /// unzoned land — zoning constrains, it never demands.
     pub fn admits(self, kind: BuildingKind) -> bool {
         match self {
-            ZoneKind::Residential => matches!(
-                kind,
-                BuildingKind::Dwelling | BuildingKind::BusStop
-            ),
+            ZoneKind::Residential => matches!(kind, BuildingKind::Dwelling | BuildingKind::BusStop),
             ZoneKind::Industrial => !matches!(kind, BuildingKind::Dwelling),
         }
     }
@@ -140,10 +137,7 @@ pub(crate) fn siting_allowed(
 
 /// A zone with no admitted building inside is an unfulfilled plan — the
 /// dashboard's backlog number.
-pub fn unfulfilled_zones(
-    zones: &Query<&Zone>,
-    buildings: &Query<&Building>,
-) -> (usize, usize) {
+pub fn unfulfilled_zones(zones: &Query<&Zone>, buildings: &Query<&Building>) -> (usize, usize) {
     let total = zones.iter().count();
     let unfulfilled = zones
         .iter()
@@ -159,9 +153,7 @@ pub fn unfulfilled_zones(
 #[cfg(test)]
 mod tests {
     use super::super::SimPlugin;
-    use super::super::buildings::{
-        BuildingEdit, BuildingEditQueue, BuildingSimPlugin,
-    };
+    use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin};
     use super::*;
     use std::time::Duration;
 
@@ -267,7 +259,10 @@ mod tests {
             .iter()
             .filter(|(k, min, max)| {
                 !placed.iter().any(|(bk, bp)| {
-                    bp.x >= min.x && bp.x <= max.x && bp.z >= min.y && bp.z <= max.y
+                    bp.x >= min.x
+                        && bp.x <= max.x
+                        && bp.z >= min.y
+                        && bp.z <= max.y
                         && k.admits(*bk)
                 })
             })

@@ -101,7 +101,10 @@ impl LaneOccupancy {
     }
 }
 
-fn build_lane_occupancy(mut occupancy: ResMut<LaneOccupancy>, vehicles: Query<(Entity, &ActiveVehicle)>) {
+fn build_lane_occupancy(
+    mut occupancy: ResMut<LaneOccupancy>,
+    vehicles: Query<(Entity, &ActiveVehicle)>,
+) {
     occupancy.map.clear();
     for (entity, vehicle) in &vehicles {
         if let Some(leg) = vehicle.route.get(vehicle.leg) {
@@ -155,8 +158,8 @@ fn measure_density(
     let mut changed = false;
     for (entity, segment, traffic) in &mut segments {
         let count = load.get(&entity).copied().unwrap_or(0);
-        let capacity = ((segment.length * segment.lanes.len() as f32 / VEHICLE_FOOTPRINT_M)
-            .floor() as u32)
+        let capacity = ((segment.length * segment.lanes.len() as f32 / VEHICLE_FOOTPRINT_M).floor()
+            as u32)
             .max(1);
         let target = ((count * 100) / capacity).min(100) as u8;
         let blocked = count > capacity;
@@ -333,9 +336,17 @@ mod tests {
         // Two equal-length parallel routes 0 → 200: via z=0 midpoint and via
         // z=60 detour of identical geometry.
         place(&mut app, Vec3::ZERO, Vec3::new(100.0, 0.0, 30.0));
-        place(&mut app, Vec3::new(100.0, 0.0, 30.0), Vec3::new(200.0, 0.0, 0.0));
+        place(
+            &mut app,
+            Vec3::new(100.0, 0.0, 30.0),
+            Vec3::new(200.0, 0.0, 0.0),
+        );
         place(&mut app, Vec3::ZERO, Vec3::new(100.0, 0.0, -30.0));
-        place(&mut app, Vec3::new(100.0, 0.0, -30.0), Vec3::new(200.0, 0.0, 0.0));
+        place(
+            &mut app,
+            Vec3::new(100.0, 0.0, -30.0),
+            Vec3::new(200.0, 0.0, 0.0),
+        );
         ticks(&mut app, 1);
         // saturate the north pair
         let world = app.world_mut();

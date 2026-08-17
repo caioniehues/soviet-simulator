@@ -194,12 +194,16 @@ mod tests {
         for (building, policies) in q.iter(world) {
             match building.kind {
                 BuildingKind::PowerPlant => {
-                    let band = policies.band(ResourceKind::Coal).expect("plant demands coal");
+                    let band = policies
+                        .band(ResourceKind::Coal)
+                        .expect("plant demands coal");
                     assert_eq!(band.min_pct, 0.6);
                     assert_eq!(policies.band(ResourceKind::Goods), None);
                 }
                 BuildingKind::Mine => {
-                    let band = policies.band(ResourceKind::Coal).expect("mine supplies coal");
+                    let band = policies
+                        .band(ResourceKind::Coal)
+                        .expect("mine supplies coal");
                     assert_eq!(band.max_pct, 0.05);
                 }
                 _ => unreachable!(),
@@ -220,7 +224,10 @@ mod tests {
             .single(world)
             .expect("warehouse placed with inventory and policies");
         assert_eq!(building.kind, BuildingKind::Warehouse);
-        assert_eq!(inventory.capacity, BuildingKind::Warehouse.inventory_capacity());
+        assert_eq!(
+            inventory.capacity,
+            BuildingKind::Warehouse.inventory_capacity()
+        );
         for resource in ResourceKind::ALL {
             let band = policies.band(resource).expect("every resource banded");
             assert_eq!((band.min_pct, band.max_pct), (0.2, 0.6));

@@ -61,10 +61,7 @@ impl Plugin for CustomsSimPlugin {
 }
 
 /// Drain every customs yard at the dock rate, crediting the treasury.
-fn sell_exports(
-    mut offices: Query<(&Building, &mut Inventory)>,
-    mut treasury: ResMut<Treasury>,
-) {
+fn sell_exports(mut offices: Query<(&Building, &mut Inventory)>, mut treasury: ResMut<Treasury>) {
     for (building, mut inventory) in &mut offices {
         if building.kind != BuildingKind::CustomsOffice {
             continue;
@@ -108,7 +105,12 @@ mod tests {
     fn app() -> App {
         let mut a = App::new();
         a.insert_resource(Time::<()>::default());
-        a.add_plugins((SimPlugin, BuildingSimPlugin, PlanSimPlugin, CustomsSimPlugin));
+        a.add_plugins((
+            SimPlugin,
+            BuildingSimPlugin,
+            PlanSimPlugin,
+            CustomsSimPlugin,
+        ));
         a
     }
 
@@ -134,10 +136,8 @@ mod tests {
             });
         ticks(&mut app, 2);
         let world = app.world_mut();
-        let mut q = world.query_filtered::<
-            Has<super::super::construction::ConstructionSite>,
-            With<Building>,
-        >();
+        let mut q = world
+            .query_filtered::<Has<super::super::construction::ConstructionSite>, With<Building>>();
         assert!(
             !q.single(world).expect("customs placed"),
             "state infrastructure arrives finished"
@@ -186,7 +186,10 @@ mod tests {
             assert!(in_transit, "a fresh import is still on the road in");
         }
         // 120 m at 12 m/s of 1/60 s ticks = 600 frames.
-        ticks(&mut app, border_transit_frames(Vec3::new(120.0, 0.0, 0.0), Vec3::ZERO) + 2);
+        ticks(
+            &mut app,
+            border_transit_frames(Vec3::new(120.0, 0.0, 0.0), Vec3::ZERO) + 2,
+        );
         let world = app.world_mut();
         let mut q = world.query::<(&VehicleAsset, Has<InTransitFromBorder>)>();
         let (_, in_transit) = q.single(world).unwrap();
@@ -219,7 +222,11 @@ mod tests {
         let before = app.world().resource::<Treasury>().roubles;
         ticks(&mut app, 8);
         let world = app.world();
-        let sold = 10.0 - world.get::<Inventory>(customs).unwrap().amount(ResourceKind::Goods);
+        let sold = 10.0
+            - world
+                .get::<Inventory>(customs)
+                .unwrap()
+                .amount(ResourceKind::Goods);
         assert!(sold > 0.0, "the yard drains");
         let earned = world.resource::<Treasury>().roubles - before;
         assert!(

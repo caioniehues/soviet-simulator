@@ -79,11 +79,20 @@ fn main() {
                 (BuildingKind::Dwelling, Vec3::new(0.0, 0.0, z + 15.0)),
                 (BuildingKind::Dwelling, Vec3::new(-14.0, 0.0, z + 15.0)),
                 (BuildingKind::Factory, Vec3::new(CORRIDOR, 0.0, z + 15.0)),
-                (BuildingKind::Factory, Vec3::new(CORRIDOR + 14.0, 0.0, z + 15.0)),
+                (
+                    BuildingKind::Factory,
+                    Vec3::new(CORRIDOR + 14.0, 0.0, z + 15.0),
+                ),
                 (BuildingKind::Factory, Vec3::new(CORRIDOR, 0.0, z - 15.0)),
-                (BuildingKind::Factory, Vec3::new(CORRIDOR + 14.0, 0.0, z - 15.0)),
+                (
+                    BuildingKind::Factory,
+                    Vec3::new(CORRIDOR + 14.0, 0.0, z - 15.0),
+                ),
                 (BuildingKind::BusStop, Vec3::new(5.0, 0.0, z - 8.0)),
-                (BuildingKind::BusStop, Vec3::new(CORRIDOR - 5.0, 0.0, z - 8.0)),
+                (
+                    BuildingKind::BusStop,
+                    Vec3::new(CORRIDOR - 5.0, 0.0, z - 8.0),
+                ),
                 (BuildingKind::Depot, Vec3::new(0.0, 0.0, z + 40.0)),
             ] {
                 buildings.0.push(BuildingEdit::Place { kind, pos });

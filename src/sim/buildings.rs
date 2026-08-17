@@ -122,17 +122,25 @@ pub struct BuildingEditQueue(pub Vec<BuildingEdit>);
 
 #[derive(Clone, Copy, Debug)]
 pub enum BuildingEdit {
-    Place { kind: BuildingKind, pos: Vec3 },
+    Place {
+        kind: BuildingKind,
+        pos: Vec3,
+    },
     /// Place already built (G1.5): spawns carrying `Prebuilt`, which the
     /// construction observer honours by not attaching a site. For state-
     /// provided starting infrastructure (the border customs); player edits
     /// always use `Place`.
-    PlacePrebuilt { kind: BuildingKind, pos: Vec3 },
+    PlacePrebuilt {
+        kind: BuildingKind,
+        pos: Vec3,
+    },
     /// Demolition first cut (B6.5): the building physically vanishes with
     /// its render children; workers, households, transit lines and freight
     /// orders self-heal through their own retention passes. Explosives and
     /// sorted rubble arrive with the demolition office (spec, later stage).
-    Demolish { building: Entity },
+    Demolish {
+        building: Entity,
+    },
 }
 
 #[derive(Resource, Default)]

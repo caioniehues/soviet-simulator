@@ -478,11 +478,8 @@ fn compile_dirty_segments(
     )>,
     nodes: Query<&RoadNode>,
 ) {
-    let dirty: Vec<(Entity, Entity, Entity)> = set
-        .p1()
-        .iter()
-        .map(|(e, s)| (e, s.a, s.b))
-        .collect();
+    let dirty: Vec<(Entity, Entity, Entity)> =
+        set.p1().iter().map(|(e, s)| (e, s.a, s.b)).collect();
     // Tangents read the whole graph, so they are resolved before any segment
     // is rewritten — a compile never sees a half-updated neighbour.
     let mut solved: Vec<(Entity, Vec3, Vec3, Vec3, Vec3)> = Vec::with_capacity(dirty.len());
@@ -684,11 +681,7 @@ mod tests {
             .find(|s| s.id == SegmentId(1))
             .unwrap();
         assert!(aj.curve.len() > 2, "quantized polyline, not a chord");
-        let max_dev = aj
-            .curve
-            .iter()
-            .map(|p| p.z.abs())
-            .fold(0.0f32, f32::max);
+        let max_dev = aj.curve.iter().map(|p| p.z.abs()).fold(0.0f32, f32::max);
         assert!(
             max_dev > 0.5,
             "two-segment node must bend the curve off the chord, dev = {max_dev}"
@@ -719,11 +712,7 @@ mod tests {
             .iter(world)
             .find(|s| s.id == SegmentId(1))
             .unwrap();
-        let max_dev = aj
-            .curve
-            .iter()
-            .map(|p| p.z.abs())
-            .fold(0.0f32, f32::max);
+        let max_dev = aj.curve.iter().map(|p| p.z.abs()).fold(0.0f32, f32::max);
         assert!(
             max_dev < 1e-3,
             "junction arms stay chord-straight, dev = {max_dev}"

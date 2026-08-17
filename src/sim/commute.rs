@@ -92,12 +92,12 @@ impl Plugin for CommuteSimPlugin {
                 .in_set(SimStage::Routing)
                 .after(PathSystems),
         )
-            .add_systems(
-                SimTick,
-                (advance_commuters, tally_presence)
-                    .chain()
-                    .in_set(SimStage::MovementAndTransfers),
-            );
+        .add_systems(
+            SimTick,
+            (advance_commuters, tally_presence)
+                .chain()
+                .in_set(SimStage::MovementAndTransfers),
+        );
     }
 }
 
@@ -135,8 +135,7 @@ pub fn best_itinerary(
                 .filter_map(|&s| stop_pos(s).map(|p| (s, p.distance(target))))
                 .min_by(|a, b| a.1.total_cmp(&b.1))
         };
-        let (Some((board, d_walk1)), Some((alight, d_walk2))) = (nearest(from), nearest(to))
-        else {
+        let (Some((board, d_walk1)), Some((alight, d_walk2))) = (nearest(from), nearest(to)) else {
             continue;
         };
         if board == alight {
@@ -308,9 +307,10 @@ fn advance_commuters(
             }
             CommutePhase::Resume => {
                 // Re-plan the walk to the destination from where we stand.
-                let dest = citizens.get(pawn.citizen).ok().and_then(|c| {
-                    if pawn.to_work { c.work } else { c.home }
-                });
+                let dest = citizens
+                    .get(pawn.citizen)
+                    .ok()
+                    .and_then(|c| if pawn.to_work { c.work } else { c.home });
                 let goal = dest
                     .and_then(|d| buildings.get(d).ok())
                     .and_then(|b| nearest_node(b.pos, &nodes));
@@ -374,7 +374,11 @@ fn advance_commuters(
                 // Walk leg done with a transit ride still ahead: join the
                 // stop queue instead of finishing the trip.
                 if arrived && let Some((board, alight)) = pawn.transit {
-                    queues.0.entry(board).or_default().push((pawn_entity, alight));
+                    queues
+                        .0
+                        .entry(board)
+                        .or_default()
+                        .push((pawn_entity, alight));
                     pawn.phase = CommutePhase::Wait { ticks: 0 };
                     continue;
                 }
@@ -584,9 +588,7 @@ mod tests {
 
     // ---- B5.3 riders --------------------------------------------------
 
-    use super::super::transit::{
-        BusDuty, StopQueues, TransitEdit, TransitEditQueue, TransitLine,
-    };
+    use super::super::transit::{BusDuty, StopQueues, TransitEdit, TransitEditQueue, TransitLine};
     use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
 
     fn transit_app() -> App {
@@ -687,7 +689,11 @@ mod tests {
         assert!(rode, "at least one commuter must ride the bus");
         // Everyone assigned makes it to the mine before the evening window.
         ticks(&mut app, 440_u32.saturating_sub(6 + 30 * 15));
-        assert_eq!(mine_presence(&mut app), 5, "riders arrive and staff the mine");
+        assert_eq!(
+            mine_presence(&mut app),
+            5,
+            "riders arrive and staff the mine"
+        );
     }
 
     #[test]
@@ -759,7 +765,10 @@ mod tests {
             ticks(&mut app, 15);
             peak = peak.max(mine_presence(&mut app));
         }
-        assert!(peak > 0, "transit-extended catchment must staff the far mine");
+        assert!(
+            peak > 0,
+            "transit-extended catchment must staff the far mine"
+        );
         {
             let world = app.world_mut();
             let assigned = world

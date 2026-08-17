@@ -55,7 +55,10 @@ const CATEGORIES: &[Category] = &[
         tools: &[
             ("MINE", ToolAction::Building(BuildingKind::Mine)),
             ("QUARRY", ToolAction::Building(BuildingKind::Quarry)),
-            ("POWER PLANT", ToolAction::Building(BuildingKind::PowerPlant)),
+            (
+                "POWER PLANT",
+                ToolAction::Building(BuildingKind::PowerPlant),
+            ),
             ("FACTORY", ToolAction::Building(BuildingKind::Factory)),
             ("DWELLING", ToolAction::Building(BuildingKind::Dwelling)),
             ("WAREHOUSE", ToolAction::Building(BuildingKind::Warehouse)),
@@ -66,7 +69,10 @@ const CATEGORIES: &[Category] = &[
                 ToolAction::Building(BuildingKind::ConstructionOffice),
             ),
             ("WATER PUMP", ToolAction::Building(BuildingKind::WaterPump)),
-            ("SEWAGE WORKS", ToolAction::Building(BuildingKind::SewagePlant)),
+            (
+                "SEWAGE WORKS",
+                ToolAction::Building(BuildingKind::SewagePlant),
+            ),
             ("HEAT PLANT", ToolAction::Building(BuildingKind::HeatPlant)),
             ("CUSTOMS", ToolAction::Building(BuildingKind::CustomsOffice)),
         ],
@@ -204,13 +210,8 @@ fn spawn_toolbar(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 /// While the pointer touches any toolbar button, the world tools are parked
 /// (`GroundCursor` reads this via `UiHover`).
-fn track_ui_hover(
-    interactions: Query<&Interaction, With<Button>>,
-    mut hover: ResMut<UiHover>,
-) {
-    let over = interactions
-        .iter()
-        .any(|i| !matches!(i, Interaction::None));
+fn track_ui_hover(interactions: Query<&Interaction, With<Button>>, mut hover: ResMut<UiHover>) {
+    let over = interactions.iter().any(|i| !matches!(i, Interaction::None));
     if hover.0 != over {
         hover.0 = over;
     }

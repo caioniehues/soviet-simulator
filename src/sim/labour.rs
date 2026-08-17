@@ -211,31 +211,26 @@ fn plan_labour(
                     {
                         return false;
                     }
-                    super::commute::best_itinerary(
-                        home_b.pos,
-                        building.pos,
-                        &lines,
-                        &buildings,
-                    )
-                    .is_some_and(|it| {
-                        if it.cost > MAX_COMMUTE_SECS {
-                            return false;
-                        }
-                        let mut stop_dock = |stop: Entity| {
-                            *stop_dock_cache.entry(stop).or_insert_with(|| {
-                                buildings
-                                    .get(stop)
-                                    .ok()
-                                    .and_then(|b| nearest_node(b.pos, &nodes))
-                            })
-                        };
-                        let connected = |a: Option<Entity>, b: Option<Entity>| match (a, b) {
-                            (Some(a), Some(b)) => components.get(&a) == components.get(&b),
-                            _ => false,
-                        };
-                        connected(dock, stop_dock(it.board))
-                            && connected(stop_dock(it.alight), Some(work_node))
-                    })
+                    super::commute::best_itinerary(home_b.pos, building.pos, &lines, &buildings)
+                        .is_some_and(|it| {
+                            if it.cost > MAX_COMMUTE_SECS {
+                                return false;
+                            }
+                            let mut stop_dock = |stop: Entity| {
+                                *stop_dock_cache.entry(stop).or_insert_with(|| {
+                                    buildings
+                                        .get(stop)
+                                        .ok()
+                                        .and_then(|b| nearest_node(b.pos, &nodes))
+                                })
+                            };
+                            let connected = |a: Option<Entity>, b: Option<Entity>| match (a, b) {
+                                (Some(a), Some(b)) => components.get(&a) == components.get(&b),
+                                _ => false,
+                            };
+                            connected(dock, stop_dock(it.board))
+                                && connected(stop_dock(it.alight), Some(work_node))
+                        })
                 })
             };
             if !walk_ok && !transit_ok() {

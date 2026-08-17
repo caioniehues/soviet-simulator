@@ -22,6 +22,9 @@ use super::buildings::{Building, BuildingId, BuildingIds, BuildingKind, PowerOut
 use super::citizens::{Citizen, CitizenId, CitizenIds, CitizenLocation, EducationTier};
 use super::clock::{FrameIndex, TickIndex};
 use super::commute::CommuterPawn;
+use super::dispatch::{
+    DeficitBoard, DispatchQueue, FreightJob, FreightOrder, FreightPhase, OrderId,
+};
 use super::households::{
     Dwelling, Household, HouseholdId, HouseholdIds, HouseholdSpawnQueue, HousingQueue,
     RecruitmentLedger, RecruitmentPlan, SpawnHousehold,
@@ -31,9 +34,6 @@ use super::needs::CitizenNeeds;
 use super::resources::{Inventory, ResourceKind, TransportClass};
 use super::roads::{
     LastCut, NodeId, RoadBuildFeedback, RoadClass, RoadIds, RoadNode, RoadSegment, SegmentId,
-};
-use super::dispatch::{
-    DeficitBoard, DispatchQueue, FreightJob, FreightOrder, FreightPhase, OrderId,
 };
 use super::storage::{StorageBand, StoragePolicies};
 use super::vehicles::{ActivePawn, ActiveVehicle, VehicleAsset, VehicleId, VehicleIds};
@@ -641,9 +641,7 @@ pub fn snapshot(world: &mut World) -> SaveGame {
                 from: building_index.get(&order.from).copied()?,
                 to: building_index.get(&order.to).copied()?,
                 priority: order.priority,
-                assigned: order
-                    .assigned
-                    .and_then(|a| vehicle_index.get(&a).copied()),
+                assigned: order.assigned.and_then(|a| vehicle_index.get(&a).copied()),
                 issued_tick: order.issued_tick,
             })
         })
@@ -958,8 +956,7 @@ pub fn restore(world: &mut World, save: &SaveGame) {
         // Mid-trip truck: respawn the pawn where it was with its cargo; the
         // route is recomputed on the next drive tick (self-healing).
         if let Some(job) = &row.job {
-            let mut vehicle =
-                super::vehicles::ActiveVehicle::at(Vec3::from_array(job.pos));
+            let mut vehicle = super::vehicles::ActiveVehicle::at(Vec3::from_array(job.pos));
             vehicle.heading = Vec3::from_array(job.heading);
             for (i, kind) in ResourceKind::ALL.into_iter().enumerate() {
                 vehicle.cargo.add(kind, job.cargo[i]);
@@ -1151,11 +1148,11 @@ mod tests {
     use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin};
     use super::super::commute::CommuteSimPlugin;
     use super::super::dispatch::DispatchSimPlugin;
-    use super::super::storage::StorageSimPlugin;
     use super::super::households::HouseholdSimPlugin;
     use super::super::labour::LabourSimPlugin;
     use super::super::needs::NeedsSimPlugin;
     use super::super::roads::{RoadEdit, RoadEditQueue, RoadSimPlugin};
+    use super::super::storage::StorageSimPlugin;
     use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
     use super::super::wires::{WireEdit, WireEditQueue, WireSimPlugin};
     use super::*;

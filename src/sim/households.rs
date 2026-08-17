@@ -516,7 +516,10 @@ mod tests {
             .iter(world)
             .filter(|h| h.members.len() == 2)
             .count();
-        assert!(couples >= 3, "original 2s plus the new couple, got {couples}");
+        assert!(
+            couples >= 3,
+            "original 2s plus the new couple, got {couples}"
+        );
         assert_eq!(
             world.query::<&Household>().iter(world).count(),
             8,

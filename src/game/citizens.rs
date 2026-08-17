@@ -16,14 +16,13 @@ pub struct CitizenViewPlugin;
 
 impl Plugin for CitizenViewPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_visuals)
-            .add_systems(
-                Update,
-                (
-                    dress_new_pawns.before(crate::sim::SimDriver),
-                    sync_pawn_transforms,
-                ),
-            );
+        app.add_systems(Startup, setup_visuals).add_systems(
+            Update,
+            (
+                dress_new_pawns.before(crate::sim::SimDriver),
+                sync_pawn_transforms,
+            ),
+        );
     }
 }
 

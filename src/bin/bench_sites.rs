@@ -77,7 +77,10 @@ fn main() {
                 (BuildingKind::Quarry, Vec3::new(-10.0, 0.0, z)),
                 (BuildingKind::Warehouse, Vec3::new(0.0, 0.0, z - 20.0)),
                 (BuildingKind::Depot, Vec3::new(0.0, 0.0, z + 20.0)),
-                (BuildingKind::ConstructionOffice, Vec3::new(20.0, 0.0, z + 20.0)),
+                (
+                    BuildingKind::ConstructionOffice,
+                    Vec3::new(20.0, 0.0, z + 20.0),
+                ),
                 (BuildingKind::Factory, Vec3::new(130.0, 0.0, z)),
             ] {
                 buildings.0.push(BuildingEdit::Place { kind, pos });
@@ -99,9 +102,10 @@ fn main() {
                 continue; // the one genuine site per district
             }
             world.entity_mut(entity).remove::<ConstructionSite>();
-            world
-                .entity_mut(entity)
-                .insert((Inventory::new(kind.inventory_capacity().max(60.0)), default_policies(kind)));
+            world.entity_mut(entity).insert((
+                Inventory::new(kind.inventory_capacity().max(60.0)),
+                default_policies(kind),
+            ));
             match kind {
                 BuildingKind::Quarry => {
                     world

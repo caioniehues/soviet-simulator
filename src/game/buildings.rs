@@ -321,7 +321,11 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         // trucks render there per slot (game/vehicles.rs).
         BuildingKind::Depot => {
             let mut v = vec![
-                boxed(&m.concrete, Vec3::new(19.0, 5.5, 8.0), Vec3::new(0.0, 0.0, -8.0)),
+                boxed(
+                    &m.concrete,
+                    Vec3::new(19.0, 5.5, 8.0),
+                    Vec3::new(0.0, 0.0, -8.0),
+                ),
                 boxed(
                     &m.rust,
                     Vec3::new(19.8, 0.6, 8.8),
@@ -341,10 +345,22 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         }
         // Site office: timber hut, rust flagpole, gravel-coloured apron pad.
         BuildingKind::ConstructionOffice => vec![
-            boxed(&m.timber, Vec3::new(9.0, 4.0, 7.0), Vec3::new(-4.0, 0.0, -6.0)),
-            boxed(&m.rust, Vec3::new(9.6, 0.5, 7.6), Vec3::new(-4.0, 4.0, -6.0)),
+            boxed(
+                &m.timber,
+                Vec3::new(9.0, 4.0, 7.0),
+                Vec3::new(-4.0, 0.0, -6.0),
+            ),
+            boxed(
+                &m.rust,
+                Vec3::new(9.6, 0.5, 7.6),
+                Vec3::new(-4.0, 4.0, -6.0),
+            ),
             boxed(&m.rust, Vec3::new(0.3, 6.5, 0.3), Vec3::new(2.5, 0.0, -8.0)),
-            boxed(&m.concrete, Vec3::new(16.0, 0.3, 10.0), Vec3::new(0.0, 0.0, 5.0)),
+            boxed(
+                &m.concrete,
+                Vec3::new(16.0, 0.3, 10.0),
+                Vec3::new(0.0, 0.0, 5.0),
+            ),
         ],
         // Pumphouse: brick box with an intake stack.
         BuildingKind::WaterPump => vec![
@@ -354,9 +370,21 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
         ],
         // Treatment works: low concrete basin pair beside a shed.
         BuildingKind::SewagePlant => vec![
-            boxed(&m.concrete, Vec3::new(6.0, 1.2, 6.0), Vec3::new(-4.0, 0.0, 0.0)),
-            boxed(&m.concrete, Vec3::new(6.0, 1.2, 6.0), Vec3::new(3.0, 0.0, 0.0)),
-            boxed(&m.timber, Vec3::new(4.5, 3.2, 3.5), Vec3::new(0.0, 0.0, -4.0)),
+            boxed(
+                &m.concrete,
+                Vec3::new(6.0, 1.2, 6.0),
+                Vec3::new(-4.0, 0.0, 0.0),
+            ),
+            boxed(
+                &m.concrete,
+                Vec3::new(6.0, 1.2, 6.0),
+                Vec3::new(3.0, 0.0, 0.0),
+            ),
+            boxed(
+                &m.timber,
+                Vec3::new(4.5, 3.2, 3.5),
+                Vec3::new(0.0, 0.0, -4.0),
+            ),
         ],
         // District heating plant: boiler house with tall stack for heat distribution.
         BuildingKind::HeatPlant => vec![
@@ -396,16 +424,32 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             ),
             // barrier arm
             boxed(&m.rust, Vec3::new(0.4, 1.2, 0.4), Vec3::new(6.5, 0.0, 2.5)),
-            boxed(&m.timber, Vec3::new(0.3, 0.3, 6.0), Vec3::new(6.5, 1.2, -0.5)),
+            boxed(
+                &m.timber,
+                Vec3::new(0.3, 0.3, 6.0),
+                Vec3::new(6.5, 1.2, -0.5),
+            ),
             // flag mast
             chimney(&m.rust, 0.25, 8.0, Vec3::new(-9.5, 0.0, -5.5)),
         ],
         // Bus shelter: concrete slab roof on two posts, timber bench.
         BuildingKind::BusStop => vec![
-            boxed(&m.rust, Vec3::new(0.4, 2.8, 0.4), Vec3::new(-1.8, 0.0, -1.0)),
+            boxed(
+                &m.rust,
+                Vec3::new(0.4, 2.8, 0.4),
+                Vec3::new(-1.8, 0.0, -1.0),
+            ),
             boxed(&m.rust, Vec3::new(0.4, 2.8, 0.4), Vec3::new(1.8, 0.0, -1.0)),
-            boxed(&m.concrete, Vec3::new(5.0, 0.4, 3.0), Vec3::new(0.0, 2.8, -0.4)),
-            boxed(&m.timber, Vec3::new(4.0, 0.9, 0.8), Vec3::new(0.0, 0.0, -1.2)),
+            boxed(
+                &m.concrete,
+                Vec3::new(5.0, 0.4, 3.0),
+                Vec3::new(0.0, 2.8, -0.4),
+            ),
+            boxed(
+                &m.timber,
+                Vec3::new(4.0, 0.9, 0.8),
+                Vec3::new(0.0, 0.0, -1.2),
+            ),
         ],
     }
 }

@@ -232,7 +232,9 @@ fn drive_script(world: &mut World) {
                 .iter(world)
                 .find(|(_, b)| b.kind == BuildingKind::Dwelling)
                 .map(|(e, _)| e);
-            world.resource_mut::<soviet_simulator::game::hud::Selected>().0 = site;
+            world
+                .resource_mut::<soviet_simulator::game::hud::Selected>()
+                .0 = site;
         }
         4 => *world.resource_mut::<SimSpeed>() = SimSpeed::Paused,
         ROLL_OUT => *world.resource_mut::<SimSpeed>() = SimSpeed::Quad,

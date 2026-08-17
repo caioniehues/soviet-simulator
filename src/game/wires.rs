@@ -34,15 +34,15 @@ impl Plugin for WireToolPlugin {
         app.init_resource::<WireChainStart>()
             .init_resource::<ActiveNetKind>()
             .add_systems(
-            Update,
-            (
-                drive_wire_tool,
-                preview_wire_chain,
-                sync_pole_meshes,
-                draw_spans,
-                draw_power_lamps,
-            ),
-        );
+                Update,
+                (
+                    drive_wire_tool,
+                    preview_wire_chain,
+                    sync_pole_meshes,
+                    draw_spans,
+                    draw_power_lamps,
+                ),
+            );
     }
 }
 
@@ -168,7 +168,11 @@ fn draw_spans(
         // shallow sag so wires read as wires, not survey lines; pipes run
         // at grade in their utility colour
         let color = net_color(span.kind);
-        let sag = if span.kind == NetKind::Power { 1.0 } else { 0.0 };
+        let sag = if span.kind == NetKind::Power {
+            1.0
+        } else {
+            0.0
+        };
         let mid = (a + b) * 0.5 - Vec3::Y * (a.distance(b) * 0.04).min(2.0) * sag;
         gizmos.line(a, mid, color);
         gizmos.line(mid, b, color);

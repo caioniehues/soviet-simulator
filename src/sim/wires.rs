@@ -59,11 +59,7 @@ pub struct WireEditQueue(pub Vec<WireEdit>);
 pub enum WireEdit {
     /// Each endpoint snaps to a building, else an existing same-kind pole,
     /// else creates a new pole at the position.
-    Place {
-        from: Vec3,
-        to: Vec3,
-        kind: NetKind,
-    },
+    Place { from: Vec3, to: Vec3, kind: NetKind },
     /// Remove the span nearest to `pos` (within `POLE_SNAP_RADIUS` of its line).
     RemoveNear { pos: Vec3 },
 }
@@ -223,12 +219,8 @@ fn solve_power(
     let demands: Vec<(Entity, u64, PriorityClass, f32)> = consumers
         .iter()
         .filter_map(|(e, b, _)| match b.kind {
-            BuildingKind::Factory => {
-                Some((e, b.id.0, PriorityClass::Industry, FACTORY_DEMAND_MW))
-            }
-            BuildingKind::Dwelling => {
-                Some((e, b.id.0, PriorityClass::Housing, DWELLING_DEMAND_MW))
-            }
+            BuildingKind::Factory => Some((e, b.id.0, PriorityClass::Industry, FACTORY_DEMAND_MW)),
+            BuildingKind::Dwelling => Some((e, b.id.0, PriorityClass::Housing, DWELLING_DEMAND_MW)),
             _ => None,
         })
         .collect();

@@ -57,7 +57,11 @@ const DEPOT_POS: Vec3 = Vec3::new(-2.0, 0.0, 18.0);
 const DWELLINGS: u32 = 8;
 
 fn dwelling_pos(d: u32) -> Vec3 {
-    Vec3::new(40.0 + (d % 4) as f32 * 12.0, 0.0, 4.0 + (d / 4) as f32 * 12.0)
+    Vec3::new(
+        40.0 + (d % 4) as f32 * 12.0,
+        0.0,
+        4.0 + (d / 4) as f32 * 12.0,
+    )
 }
 
 #[derive(Resource)]
@@ -172,9 +176,10 @@ fn fiat_complete(world: &mut World) {
     };
     for (entity, kind) in found {
         world.entity_mut(entity).remove::<ConstructionSite>();
-        world
-            .entity_mut(entity)
-            .insert((Inventory::new(kind.inventory_capacity()), default_policies(kind)));
+        world.entity_mut(entity).insert((
+            Inventory::new(kind.inventory_capacity()),
+            default_policies(kind),
+        ));
         if kind == BuildingKind::Mine {
             // A worked seam: the yard starts with coal for the first hauls.
             world
@@ -204,11 +209,14 @@ fn drive_script(world: &mut World) {
     match clip {
         // Beat 1: the town site goes down east of the border road.
         TOWN_AT => {
-            world.resource_mut::<RoadEditQueue>().0.push(RoadEdit::Place {
-                from: CUSTOMS_POS + Vec3::new(12.0, 0.0, 0.0),
-                to: Vec3::new(70.0, 0.0, 0.0),
-                class: RoadClass::Dirt,
-            });
+            world
+                .resource_mut::<RoadEditQueue>()
+                .0
+                .push(RoadEdit::Place {
+                    from: CUSTOMS_POS + Vec3::new(12.0, 0.0, 0.0),
+                    to: Vec3::new(70.0, 0.0, 0.0),
+                    class: RoadClass::Dirt,
+                });
             let mut buildings = world.resource_mut::<BuildingEditQueue>();
             for (kind, pos) in [
                 (BuildingKind::Mine, MINE_POS),

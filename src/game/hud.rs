@@ -11,11 +11,11 @@ use crate::sim::citizens::Citizen;
 use crate::sim::dispatch::{DeficitBoard, DispatchQueue, FreightJob, FreightPhase};
 use crate::sim::households::{Household, HousingQueue, RecruitmentPlan};
 use crate::sim::labour::Staffing;
+use crate::sim::resources::TransportClass;
 use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::roads::{RoadBuildFeedback, RoadNode, RoadSegment};
-use crate::sim::traffic::StallBoard;
-use crate::sim::resources::TransportClass;
 use crate::sim::storage::StoragePolicies;
+use crate::sim::traffic::StallBoard;
 use crate::sim::vehicles::{
     ActivePawn, ActiveVehicle, DEPOT_SLOTS, VehicleAsset, VehicleEdit, VehicleEditQueue,
 };
@@ -401,10 +401,7 @@ fn update_population_readout(
     // The PLAN dashboard (B7.3): CS1's demand diagnostics surfaced as
     // planner information — never wired to any spawner.
     let vacancies: u32 = dwellings.iter().map(|d| d.free_flats()).sum();
-    let jobs_open: u32 = staffed
-        .iter()
-        .map(|(b, s)| s.vacancies(b.kind))
-        .sum();
+    let jobs_open: u32 = staffed.iter().map(|(b, s)| s.vacancies(b.kind)).sum();
     let unemployed = citizens
         .iter()
         .filter(|c| c.work.is_none() && c.home.is_some())
@@ -443,7 +440,10 @@ fn update_population_readout(
         for quota in &state_plan.quotas {
             let line = match quota.kind {
                 crate::sim::plan::QuotaKind::Stockpile(kind, target) => {
-                    format!("\n  {kind:?} {target:.0} t — {:.0}%", quota.progress * 100.0)
+                    format!(
+                        "\n  {kind:?} {target:.0} t — {:.0}%",
+                        quota.progress * 100.0
+                    )
                 }
                 crate::sim::plan::QuotaKind::Housed(target) => {
                     format!("\n  {target} housed — {:.0}%", quota.progress * 100.0)
@@ -587,8 +587,7 @@ fn drive_band_tuning(
     let resource = ResourceKind::ALL[focus.0];
     let band = policies.band(resource);
     let (mut min, mut max) = band.map_or((0.0, 0.0), |b| (b.min_pct, b.max_pct));
-    let shift =
-        keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+    let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
     if shift {
         max += step;
     } else {
@@ -656,8 +655,8 @@ fn hint_stalled_corridors(
             &chord
         };
         for w in points.windows(2) {
-            let side = (w[1] - w[0]).normalize_or_zero().cross(Vec3::Y)
-                * (segment.class.width() * 0.5);
+            let side =
+                (w[1] - w[0]).normalize_or_zero().cross(Vec3::Y) * (segment.class.width() * 0.5);
             gizmos.line(w[0] + lift, w[1] + lift, color);
             gizmos.line(w[0] + side + lift, w[1] + side + lift, color);
             gizmos.line(w[0] - side + lift, w[1] - side + lift, color);
@@ -714,7 +713,11 @@ fn update_dispatch_readout(
         }
     }
     // The queue is the planning signal: the oldest waiting orders read first.
-    let mut pending: Vec<_> = queue.orders.iter().filter(|o| o.assigned.is_none()).collect();
+    let mut pending: Vec<_> = queue
+        .orders
+        .iter()
+        .filter(|o| o.assigned.is_none())
+        .collect();
     pending.sort_by_key(|o| o.issued_tick);
     for order in pending.iter().take(4) {
         lines.push_str(&format!(
@@ -752,7 +755,12 @@ fn update_dispatch_readout(
     }
     if !stalls.0.is_empty() {
         let held: u32 = stalls.0.values().map(|s| s.vehicles).sum();
-        let oldest = stalls.0.values().map(|s| s.since_tick).min().unwrap_or(tick.0);
+        let oldest = stalls
+            .0
+            .values()
+            .map(|s| s.since_tick)
+            .min()
+            .unwrap_or(tick.0);
         lines.push_str(&format!(
             "\nSTALL: {held} trucks held on {} segment(s), oldest {:.1} h",
             stalls.0.len(),
@@ -931,10 +939,7 @@ fn update_inspect_readout(
                 100.0 * phase.done / phase.work.max(1e-3),
             ));
             if let Some((resource, need)) = phase.material {
-                lines.push_str(&format!(
-                    "  {resource:?} {:.1}/{need:.1} t",
-                    phase.consumed
-                ));
+                lines.push_str(&format!("  {resource:?} {:.1}/{need:.1} t", phase.consumed));
             }
         }
         match site.bottleneck {

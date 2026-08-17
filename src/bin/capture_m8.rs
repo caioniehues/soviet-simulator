@@ -72,7 +72,11 @@ struct FrameNo(u32);
 struct Saved(u32);
 
 fn dwelling_pos(d: u32) -> Vec3 {
-    Vec3::new(20.0 + (d % 4) as f32 * 12.0, 0.0, -18.0 + (d / 4) as f32 * 12.0)
+    Vec3::new(
+        20.0 + (d % 4) as f32 * 12.0,
+        0.0,
+        -18.0 + (d / 4) as f32 * 12.0,
+    )
 }
 
 const POWER_PLANT_POS: Vec3 = Vec3::new(-24.0, 0.0, -30.0);
@@ -234,11 +238,14 @@ fn drive_script(world: &mut World) {
 
     match f {
         1 => {
-            world.resource_mut::<RoadEditQueue>().0.push(RoadEdit::Place {
-                from: Vec3::new(-40.0, 0.0, 0.0),
-                to: Vec3::new(70.0, 0.0, 0.0),
-                class: RoadClass::Dirt,
-            });
+            world
+                .resource_mut::<RoadEditQueue>()
+                .0
+                .push(RoadEdit::Place {
+                    from: Vec3::new(-40.0, 0.0, 0.0),
+                    to: Vec3::new(70.0, 0.0, 0.0),
+                    class: RoadClass::Dirt,
+                });
             let mut buildings = world.resource_mut::<BuildingEditQueue>();
             for d in 0..DWELLINGS {
                 buildings.0.push(BuildingEdit::Place {
@@ -279,10 +286,13 @@ fn drive_script(world: &mut World) {
     match clip {
         // Beat 1: electricity. Plant down...
         POWER_AT => {
-            world.resource_mut::<BuildingEditQueue>().0.push(BuildingEdit::Place {
-                kind: BuildingKind::PowerPlant,
-                pos: POWER_PLANT_POS,
-            });
+            world
+                .resource_mut::<BuildingEditQueue>()
+                .0
+                .push(BuildingEdit::Place {
+                    kind: BuildingKind::PowerPlant,
+                    pos: POWER_PLANT_POS,
+                });
         }
         // ...wires strung — the block lights up.
         POWER_WIRES_AT => {
@@ -296,7 +306,9 @@ fn drive_script(world: &mut World) {
                 .iter(world)
                 .find(|(_, b)| b.kind == BuildingKind::Dwelling)
                 .map(|(e, _)| e);
-            world.resource_mut::<soviet_simulator::game::hud::Selected>().0 = home;
+            world
+                .resource_mut::<soviet_simulator::game::hud::Selected>()
+                .0 = home;
         }
         // Beat 2: the water cycle — both ends, then pipes.
         WATER_AT => {
@@ -324,10 +336,13 @@ fn drive_script(world: &mut World) {
         }
         // Beat 3: winter has teeth now — the heat plant answers.
         HEAT_AT => {
-            world.resource_mut::<BuildingEditQueue>().0.push(BuildingEdit::Place {
-                kind: BuildingKind::HeatPlant,
-                pos: HEAT_PLANT_POS,
-            });
+            world
+                .resource_mut::<BuildingEditQueue>()
+                .0
+                .push(BuildingEdit::Place {
+                    kind: BuildingKind::HeatPlant,
+                    pos: HEAT_PLANT_POS,
+                });
         }
         HEAT_PIPES_AT => {
             fiat_complete(world);
@@ -342,8 +357,7 @@ fn drive_script(world: &mut World) {
     // autumn to deep midwinter while the webs go up one by one.
     let t = (clip as f32 / total as f32).clamp(0.0, 1.0);
     if !world.resource::<Climate>().auto {
-        world.resource_mut::<Climate>().temperature =
-            TEMP_START + (TEMP_END - TEMP_START) * t;
+        world.resource_mut::<Climate>().temperature = TEMP_START + (TEMP_END - TEMP_START) * t;
     }
 
     // Hold the block; slight drift from the homes toward the plant row.

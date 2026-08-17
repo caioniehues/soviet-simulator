@@ -1,8 +1,13 @@
+use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
-use bevy::pbr::{DistanceFog, FogFalloff};
+use bevy::pbr::{
+    ContactShadows, DistanceFog, FogFalloff, ScreenSpaceAmbientOcclusion,
+    ScreenSpaceAmbientOcclusionQualityLevel,
+};
 use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
+use bevy::render::view::Msaa;
 
 use super::world::GROUND_HALF;
 
@@ -59,6 +64,26 @@ fn spawn_camera(mut commands: Commands) {
                 end: 1600.0,
             },
         },
+        // R0.1 grounding pass. Ambient occlusion seats geometry into the field
+        // and contact shadows draw the hard line where a wall meets the ground —
+        // without them every mesh reads as pasted onto the terrain.
+        ScreenSpaceAmbientOcclusion {
+            quality_level: ScreenSpaceAmbientOcclusionQualityLevel::Medium,
+            // Our walls are thin procedural slabs; the default 0.25 m over-occludes
+            // their far side at RTS zoom.
+            constant_object_thickness: 0.5,
+        },
+        ContactShadows {
+            // Longer than the 0.3 m default: at this zoom the useful contact is a
+            // building's whole footprint edge, not a millimetric crease.
+            length: 1.2,
+            thickness: 0.2,
+            ..default()
+        },
+        // TAA over MSAA: MSAA cannot antialias the specular and shadow aliasing
+        // that dominates here, and SSAO wants a stable image to accumulate over.
+        Msaa::Off,
+        TemporalAntiAliasing::default(),
         Name::new("RtsCamera"),
     ));
 }

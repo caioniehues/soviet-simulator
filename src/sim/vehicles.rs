@@ -12,9 +12,9 @@ use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
 use super::resources::{Inventory, ResourceKind, TransportClass};
-use super::storage::{StorageBand, StoragePolicies};
 use super::roads::{LaneDir, RoadNode, RoadSegment};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::storage::{StorageBand, StoragePolicies};
 use super::traffic::LaneOccupancy;
 
 /// Base speed on a 1.0-modifier lane, m/s. Effective speed is
@@ -161,10 +161,7 @@ pub enum VehicleEdit {
     BuyBus { depot: Entity },
     /// Fiat construction-machine purchase (B6): slotted at a construction
     /// office; `kind` must carry a construction skill.
-    BuyMachine {
-        office: Entity,
-        kind: VehicleKind,
-    },
+    BuyMachine { office: Entity, kind: VehicleKind },
     /// Legacy shuttle, reimplemented as policy sugar (#35): sets a paired
     /// export band (0,0) on the source and an import band (0.9,1) on the sink
     /// for `resource`. The dispatcher does the hauling — no truck is seized,
@@ -266,7 +263,10 @@ fn apply_vehicle_edits(
                 };
                 if !budget.try_spend(cost) {
                     feedback.0 = Some((frame.0, "vehicle"));
-                    warn!("vehicle purchase refused: {cost:.0} pts, {:.0} available", budget.roubles);
+                    warn!(
+                        "vehicle purchase refused: {cost:.0} pts, {:.0} available",
+                        budget.roubles
+                    );
                     continue;
                 }
                 *occupied += 1;

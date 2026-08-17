@@ -234,7 +234,11 @@ fn assign_machines(
 #[allow(clippy::too_many_arguments)]
 fn run_machines(
     mut commands: Commands,
-    mut pawns: Query<(Entity, &mut super::vehicles::ActiveVehicle, &super::vehicles::PawnOf)>,
+    mut pawns: Query<(
+        Entity,
+        &mut super::vehicles::ActiveVehicle,
+        &super::vehicles::PawnOf,
+    )>,
     duties: Query<&MachineDuty>,
     assets: Query<&super::vehicles::VehicleAsset>,
     mut sites: Query<(&Building, &mut ConstructionSite)>,
@@ -265,7 +269,14 @@ fn run_machines(
         if let Some((site_pos, _)) = wanted {
             let goal = || nearest_node(site_pos, &nodes);
             match drive_toward(
-                pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments,
+                pawn,
+                &mut vehicle,
+                goal,
+                dt,
+                &mut svc,
+                &occupancy,
+                &nodes,
+                &segments,
             ) {
                 Progress::Arrived => {
                     if let Ok((_, mut site)) = sites.get_mut(duty.site) {
@@ -285,7 +296,14 @@ fn run_machines(
                     .and_then(|b| nearest_node(b.pos, &nodes))
             };
             let done = match drive_toward(
-                pawn, &mut vehicle, home, dt, &mut svc, &occupancy, &nodes, &segments,
+                pawn,
+                &mut vehicle,
+                home,
+                dt,
+                &mut svc,
+                &occupancy,
+                &nodes,
+                &segments,
             ) {
                 Progress::Arrived => true,
                 Progress::NoPath => home().is_none(),
@@ -336,13 +354,16 @@ fn attach_sites(
 /// bill drain in lockstep as the works consume, so total deliveries converge
 /// on the bill instead of filling the yard. Idempotent per tick.
 fn update_site_policies(
-    mut sites: Query<(&ConstructionSite, &Inventory, &mut super::storage::StoragePolicies)>,
+    mut sites: Query<(
+        &ConstructionSite,
+        &Inventory,
+        &mut super::storage::StoragePolicies,
+    )>,
 ) {
     for (site, yard, mut policies) in &mut sites {
-        let wanted = site.phase().and_then(|p| {
-            p.material
-                .map(|(r, _)| (r, p.material_outstanding()))
-        });
+        let wanted = site
+            .phase()
+            .and_then(|p| p.material.map(|(r, _)| (r, p.material_outstanding())));
         for resource in ResourceKind::ALL {
             let band = match wanted {
                 Some((r, outstanding)) if r == resource && outstanding > MATERIAL_EPS => {
@@ -470,7 +491,9 @@ mod tests {
         app.world_mut().get_mut::<Powered>(factory).unwrap().0 = true;
         ticks(&mut app, 60);
         let world = app.world();
-        let site = world.get::<ConstructionSite>(factory).expect("site attached");
+        let site = world
+            .get::<ConstructionSite>(factory)
+            .expect("site attached");
         assert_eq!(site.phase().unwrap().kind, PhaseKind::Earthworks);
         assert_eq!(
             site.bottleneck,
@@ -478,7 +501,10 @@ mod tests {
             "empty yard names the stall"
         );
         assert_eq!(
-            world.get::<Inventory>(factory).unwrap().amount(ResourceKind::Goods),
+            world
+                .get::<Inventory>(factory)
+                .unwrap()
+                .amount(ResourceKind::Goods),
             0.0,
             "an unfinished factory produces nothing"
         );

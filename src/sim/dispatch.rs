@@ -15,12 +15,12 @@ use bevy::prelude::*;
 
 use super::buildings::Building;
 use super::clock::{SECS_PER_PASS, TickIndex};
+use super::pathfinding::{CostProfile, PathPoll, PathService, PathfindingSimPlugin};
 use super::resources::{Inventory, ResourceKind};
+use super::roads::LaneDir;
 use super::roads::{RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::storage::StoragePolicies;
-use super::pathfinding::{CostProfile, PathPoll, PathService, PathfindingSimPlugin};
-use super::roads::LaneDir;
 use super::traffic::{LaneOccupancy, LanePrep, REROUTE_AFTER, TrafficSimPlugin};
 use super::vehicles::{
     ActivePawn, ActiveVehicle, PawnOf, RouteLeg, TRUCK_CARGO_CAPACITY, TRUCK_TRANSFER_RATE,
@@ -387,7 +387,11 @@ fn assign_freight(
     let mut waiting: Vec<usize> = (0..queue.orders.len())
         .filter(|&i| queue.orders[i].assigned.is_none())
         .collect();
-    waiting.sort_by(|&a, &b| queue.orders[b].priority.total_cmp(&queue.orders[a].priority));
+    waiting.sort_by(|&a, &b| {
+        queue.orders[b]
+            .priority
+            .total_cmp(&queue.orders[a].priority)
+    });
     for i in waiting {
         let order = queue.orders[i];
         let class = order.resource.transport_class();
@@ -496,8 +500,7 @@ pub(crate) fn drive_toward(
                 PathPoll::Ready(Some(route)) => {
                     vehicle.pending_path = None;
                     let remaining = vehicle.route.get(vehicle.leg..).unwrap_or_default();
-                    let same_corridor =
-                        remaining.ends_with(&route) || route.ends_with(remaining);
+                    let same_corridor = remaining.ends_with(&route) || route.ends_with(remaining);
                     if !same_corridor && !route.is_empty() {
                         install_route(vehicle, route, nodes, segments);
                     }
@@ -604,8 +607,22 @@ fn run_freight(
             FreightPhase::ToPickup => {
                 let Some(i) = order else { continue };
                 let from = queue.orders[i].from;
-                let goal = || buildings.get(from).ok().and_then(|b| nearest_node(b.pos, &nodes));
-                match drive_toward(pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments) {
+                let goal = || {
+                    buildings
+                        .get(from)
+                        .ok()
+                        .and_then(|b| nearest_node(b.pos, &nodes))
+                };
+                match drive_toward(
+                    pawn,
+                    &mut vehicle,
+                    goal,
+                    dt,
+                    &mut svc,
+                    &occupancy,
+                    &nodes,
+                    &segments,
+                ) {
                     Progress::Arrived => job.phase = FreightPhase::Loading,
                     Progress::Moving => {}
                     // No route to the pickup: give the order back so another
@@ -646,8 +663,22 @@ fn run_freight(
                     continue;
                 };
                 let to = queue.orders[i].to;
-                let goal = || buildings.get(to).ok().and_then(|b| nearest_node(b.pos, &nodes));
-                match drive_toward(pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments) {
+                let goal = || {
+                    buildings
+                        .get(to)
+                        .ok()
+                        .and_then(|b| nearest_node(b.pos, &nodes))
+                };
+                match drive_toward(
+                    pawn,
+                    &mut vehicle,
+                    goal,
+                    dt,
+                    &mut svc,
+                    &occupancy,
+                    &nodes,
+                    &segments,
+                ) {
                     Progress::Arrived => job.phase = FreightPhase::Unloading,
                     // Severed with cargo aboard: hold and retry — the cargo
                     // stays physical, the delivery resumes when a path exists.
@@ -669,7 +700,9 @@ fn run_freight(
                     continue;
                 };
                 let carried = vehicle.cargo.amount(o.resource);
-                let taken = vehicle.cargo.take(o.resource, TRUCK_TRANSFER_RATE.min(carried));
+                let taken = vehicle
+                    .cargo
+                    .take(o.resource, TRUCK_TRANSFER_RATE.min(carried));
                 let fit = yard.add(o.resource, taken);
                 // Destination full: put the remainder back and wait.
                 vehicle.cargo.add(o.resource, taken - fit);
@@ -682,8 +715,7 @@ fn run_freight(
                         .orders
                         .iter_mut()
                         .filter(|n| {
-                            n.assigned.is_none()
-                                && Some(n.resource.transport_class()) == class
+                            n.assigned.is_none() && Some(n.resource.transport_class()) == class
                         })
                         .max_by(|a, b| a.priority.total_cmp(&b.priority));
                     if let Some(next) = next {
@@ -708,7 +740,16 @@ fn run_freight(
                 // A depot off the network cannot be driven to: the truck
                 // parks where it stands (asset teleports to its slot — fiat
                 // stub, matching the spawn side).
-                let done = match drive_toward(pawn, &mut vehicle, home, dt, &mut svc, &occupancy, &nodes, &segments) {
+                let done = match drive_toward(
+                    pawn,
+                    &mut vehicle,
+                    home,
+                    dt,
+                    &mut svc,
+                    &occupancy,
+                    &nodes,
+                    &segments,
+                ) {
                     Progress::Arrived => true,
                     Progress::NoPath => home().is_none(),
                     Progress::Moving => false,
@@ -737,9 +778,9 @@ mod tests {
     use super::super::buildings::{
         BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
     };
-    use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
-    use super::super::storage::{StorageSimPlugin, StoragePolicies};
     use super::super::resources::TransportClass;
+    use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
+    use super::super::storage::{StoragePolicies, StorageSimPlugin};
     use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
     use super::*;
     use std::time::Duration;
@@ -875,7 +916,11 @@ mod tests {
     fn distance_weight_prefers_the_near_supplier() {
         let mut app = app();
         place_road(&mut app, Vec3::ZERO, Vec3::new(300.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(-5.0, 0.0, 0.0));
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(-5.0, 0.0, 0.0),
+        );
         // Two stocked mines, one 10 m away, one 290 m away (same road).
         place(&mut app, BuildingKind::Mine, Vec3::new(10.0, 0.0, 10.0));
         place(&mut app, BuildingKind::Mine, Vec3::new(290.0, 0.0, 10.0));
@@ -906,7 +951,11 @@ mod tests {
         let mut app = app();
         place_road(&mut app, Vec3::ZERO, Vec3::new(60.0, 0.0, 0.0));
         place(&mut app, BuildingKind::Mine, Vec3::new(-5.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(65.0, 0.0, 5.0));
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(65.0, 0.0, 5.0),
+        );
         place(&mut app, BuildingKind::Factory, Vec3::new(5.0, 0.0, 10.0));
         place(&mut app, BuildingKind::Dwelling, Vec3::new(65.0, 0.0, -5.0));
         ticks(&mut app, 2);
@@ -934,8 +983,16 @@ mod tests {
         // A warehouse supplier (produces nothing, unlike a mine): surplus is
         // exactly 84 − 0.6 × 120 = 12 t, less than two truckloads.
         place(&mut app, BuildingKind::Warehouse, Vec3::new(-5.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(65.0, 0.0, 5.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(65.0, 0.0, -5.0));
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(65.0, 0.0, 5.0),
+        );
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(65.0, 0.0, -5.0),
+        );
         ticks(&mut app, 2);
         let warehouse = find(&mut app, BuildingKind::Warehouse);
         fill(&mut app, warehouse, ResourceKind::Coal, 84.0);
@@ -1040,8 +1097,16 @@ mod tests {
         let mut app = app();
         place_road(&mut app, Vec3::ZERO, Vec3::new(60.0, 0.0, 0.0));
         place(&mut app, BuildingKind::Mine, Vec3::new(65.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(-5.0, 0.0, 5.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(-5.0, 0.0, -5.0));
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(-5.0, 0.0, 5.0),
+        );
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(-5.0, 0.0, -5.0),
+        );
         place(&mut app, BuildingKind::Depot, Vec3::new(0.0, 0.0, 15.0));
         ticks(&mut app, 2);
         let (mine, depot) = (
@@ -1072,7 +1137,11 @@ mod tests {
         place_road(&mut app, Vec3::ZERO, Vec3::new(60.0, 0.0, 0.0));
         // Warehouse supplier: produces nothing, so emptying it stays empty.
         place(&mut app, BuildingKind::Warehouse, Vec3::new(65.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::PowerPlant, Vec3::new(-5.0, 0.0, 0.0));
+        place(
+            &mut app,
+            BuildingKind::PowerPlant,
+            Vec3::new(-5.0, 0.0, 0.0),
+        );
         place(&mut app, BuildingKind::Depot, Vec3::new(0.0, 0.0, 15.0));
         ticks(&mut app, 2);
         let (warehouse, depot) = (

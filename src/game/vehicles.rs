@@ -63,7 +63,9 @@ fn shipped_resource(kind: BuildingKind, inventory: Option<&Inventory>) -> Resour
         | BuildingKind::WaterPump
         | BuildingKind::SewagePlant
         | BuildingKind::CustomsOffice => ResourceKind::Goods,
-        BuildingKind::Mine | BuildingKind::PowerPlant | BuildingKind::HeatPlant => ResourceKind::Coal,
+        BuildingKind::Mine | BuildingKind::PowerPlant | BuildingKind::HeatPlant => {
+            ResourceKind::Coal
+        }
     }
 }
 
@@ -149,7 +151,14 @@ struct CargoMound;
 /// look_to() points it along the heading. Cargo shows as a dark mound.
 fn sync_truck_meshes(
     mut commands: Commands,
-    added: Query<(Entity, &ActiveVehicle, Option<&crate::sim::vehicles::PawnOf>), Added<ActiveVehicle>>,
+    added: Query<
+        (
+            Entity,
+            &ActiveVehicle,
+            Option<&crate::sim::vehicles::PawnOf>,
+        ),
+        Added<ActiveVehicle>,
+    >,
     fleet: Query<&VehicleAsset>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -158,7 +167,14 @@ fn sync_truck_meshes(
         let kind = pawn_of
             .and_then(|p| fleet.get(p.0).ok())
             .map_or(crate::sim::vehicles::VehicleKind::Truck, |a| a.kind);
-        dress_vehicle(&mut commands, entity, kind, vehicle.pos, &mut meshes, &mut materials);
+        dress_vehicle(
+            &mut commands,
+            entity,
+            kind,
+            vehicle.pos,
+            &mut meshes,
+            &mut materials,
+        );
         commands.entity(entity).insert(Name::new(match kind {
             crate::sim::vehicles::VehicleKind::Bus => "Bus",
             crate::sim::vehicles::VehicleKind::Truck => "Truck",
@@ -357,10 +373,8 @@ fn dress_machine(
             } else {
                 parent.spawn((
                     Mesh3d(meshes.add(Cuboid::new(0.5, 0.5, 3.6))),
-                    MeshMaterial3d(ochre)
-                        ,
-                    Transform::from_xyz(0.0, 2.0, -2.4)
-                        ,
+                    MeshMaterial3d(ochre),
+                    Transform::from_xyz(0.0, 2.0, -2.4),
                 ));
             }
         });

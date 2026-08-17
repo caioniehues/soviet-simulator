@@ -19,9 +19,7 @@ use soviet_simulator::sim::roads::{
 };
 use soviet_simulator::sim::stages::{SimStage, SimTick};
 use soviet_simulator::sim::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
-use soviet_simulator::sim::vehicles::{
-    ActiveVehicle, advance_along_route, nearest_node_unbounded,
-};
+use soviet_simulator::sim::vehicles::{ActiveVehicle, advance_along_route, nearest_node_unbounded};
 use soviet_simulator::sim::{SimPlugin, TickIndex};
 
 const VEHICLES: usize = 10_000;
@@ -86,11 +84,9 @@ fn drive_bench_traffic(
                     continue;
                 };
                 let mut seed = entity.index().index() as u64 + 1;
-                let goal =
-                    destinations.0[xorshift(&mut seed) as usize % destinations.0.len()];
+                let goal = destinations.0[xorshift(&mut seed) as usize % destinations.0.len()];
                 if goal != start {
-                    vehicle.pending_path =
-                        Some(svc.request(start, goal, CostProfile::Vehicle));
+                    vehicle.pending_path = Some(svc.request(start, goal, CostProfile::Vehicle));
                 }
                 continue;
             }
@@ -163,9 +159,7 @@ fn main() {
         let _ = i;
         world.spawn(v);
     }
-    world.insert_resource(Destinations(
-        node_list.iter().map(|(e, _)| *e).collect(),
-    ));
+    world.insert_resource(Destinations(node_list.iter().map(|(e, _)| *e).collect()));
 
     for _ in 0..WARMUP_TICKS {
         tick(&mut app);
@@ -195,7 +189,9 @@ fn main() {
     );
 
     if moving < VEHICLES / 2 {
-        println!("[bench] FAIL: only {moving} pawns en route — the driver is not exercising traffic");
+        println!(
+            "[bench] FAIL: only {moving} pawns en route — the driver is not exercising traffic"
+        );
         std::process::exit(1);
     }
     if mean > GATE_MS {

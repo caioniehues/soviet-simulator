@@ -107,9 +107,7 @@ fn solve_water(
 #[cfg(test)]
 mod tests {
     use super::super::SimPlugin;
-    use super::super::buildings::{
-        BuildingEdit, BuildingEditQueue, BuildingSimPlugin, Powered,
-    };
+    use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin, Powered};
     use super::super::resources::{Inventory, ResourceKind};
     use super::super::wires::{WireEdit, WireEditQueue, WireSimPlugin};
     use super::*;
@@ -164,7 +162,11 @@ mod tests {
         let mut app = app();
         place(&mut app, BuildingKind::WaterPump, Vec3::ZERO);
         place(&mut app, BuildingKind::Factory, Vec3::new(60.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::SewagePlant, Vec3::new(120.0, 0.0, 0.0));
+        place(
+            &mut app,
+            BuildingKind::SewagePlant,
+            Vec3::new(120.0, 0.0, 0.0),
+        );
         ticks(&mut app, 2);
         // pump → factory only: supplied but nowhere to drain
         pipe(&mut app, Vec3::ZERO, Vec3::new(60.0, 0.0, 0.0));
@@ -195,8 +197,16 @@ mod tests {
         a.add_plugins((SimPlugin, BuildingSimPlugin, WaterSimPlugin));
         let mut app = a;
         place(&mut app, BuildingKind::Factory, Vec3::ZERO);
-        place(&mut app, BuildingKind::WaterPump, Vec3::new(-60.0, 0.0, 0.0));
-        place(&mut app, BuildingKind::SewagePlant, Vec3::new(60.0, 0.0, 0.0));
+        place(
+            &mut app,
+            BuildingKind::WaterPump,
+            Vec3::new(-60.0, 0.0, 0.0),
+        );
+        place(
+            &mut app,
+            BuildingKind::SewagePlant,
+            Vec3::new(60.0, 0.0, 0.0),
+        );
         ticks(&mut app, 2);
         let factory = entity_of(&mut app, BuildingKind::Factory);
         app.world_mut().get_mut::<Powered>(factory).unwrap().0 = true;

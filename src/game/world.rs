@@ -3,6 +3,7 @@
 //! material instead of the flat debug green.
 
 use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
+use bevy::light::CascadeShadowConfigBuilder;
 use bevy::math::Affine2;
 use bevy::prelude::*;
 
@@ -99,13 +100,31 @@ fn spawn_world(
             shadow_maps_enabled: true,
             ..default()
         },
-        Transform::from_xyz(0.0, 400.0, 0.0).looking_to(Vec3::new(-0.55, -0.7, -0.45), Vec3::Y),
+        // The shadows were enabled since P1 but invisible in play: Bevy's default
+        // cascade covers 150 m, while the RTS rig sits 15–500 m out (camera.rs
+        // DIST_RANGE), so at any normal zoom the ground fell past the last cascade.
+        // Cover the whole fog-visible range instead, and push the first bound out
+        // so near cascades aren't wasted on the 10 m nobody plays at.
+        CascadeShadowConfigBuilder {
+            num_cascades: 4,
+            minimum_distance: 1.0,
+            maximum_distance: 900.0,
+            first_cascade_far_bound: 60.0,
+            overlap_proportion: 0.2,
+        }
+        .build(),
+        // ~30° elevation, same azimuth. The old direction sat at ~45°, which at
+        // this camera pitch dropped each building's shadow behind the building
+        // itself; a lower sun throws it clear onto the ground where it does the
+        // grounding work the art doc asks of it.
+        Transform::from_xyz(0.0, 400.0, 0.0).looking_to(Vec3::new(-0.670, -0.5, -0.548), Vec3::Y),
         Name::new("Sun"),
     ));
-    // Cool ambient fill against the warm key.
+    // Cool ambient *fill*, not flood: at 300 it washed the shadow side back to
+    // nearly lit and cancelled both the cast shadows and the SSAO.
     commands.insert_resource(GlobalAmbientLight {
         color: Color::srgb(0.75, 0.82, 0.95),
-        brightness: 300.0,
+        brightness: 130.0,
         ..default()
     });
 }

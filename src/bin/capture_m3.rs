@@ -220,10 +220,7 @@ fn drive_script(world: &mut World) {
                 .add(ResourceKind::Coal, 25.0);
             for warehouse in warehouses(world) {
                 let mut policies = StoragePolicies::default();
-                policies.set(
-                    ResourceKind::Coal,
-                    Some(StorageBand::new(0.15, 0.4)),
-                );
+                policies.set(ResourceKind::Coal, Some(StorageBand::new(0.15, 0.4)));
                 world.entity_mut(warehouse).insert(policies);
             }
             let depot = get(BuildingKind::Depot);
