@@ -14,6 +14,16 @@ is that the window feels short; the mitigation is on the same rung, since a ghos
 carrying the material bill and the refusal reason is what stops misplacements before the
 click.
 
+**Constraint on any future extension: rescind must never rewind an id counter.**
+`DockIndex` is keyed on `(next_node, next_building, node_count)` and the `PathService`
+snapshot on `(next_node, next_segment, count, mod_sum)`; both assume the counters only ever
+grow. Rewind one and a stale cache key can match a topology it no longer describes, which
+misroutes freight silently, with no error anywhere. Rescind as specified is safe because it
+only ever removes a site that never broke ground, so nothing is re-added and no counter
+moves — but the obvious "redo" someone adds later would break exactly this. Rescind is also
+keyed on `BuildingId`, never on a runtime `Entity`: `BuildingEdit::Demolish` already stores
+a raw `Entity`, which goes stale as soon as anything else despawns.
+
 Rescind stays distinct from the road tool's existing **rebuild** (`RoadEdit::RebuildLast`,
 restoring the last cut segment and re-paying its gravel). The two share an intuition and
 nothing else: rebuild re-pays material and acts on something that physically existed,
