@@ -172,15 +172,62 @@ line + red glow along the curve); a bypass built moments later is priced
 against the congestion and the fleet re-routes onto it; flow resumes, orders
 drain to zero, and the dead convoy is still there — never despawned.
 
+## Status — B5 "The Lines" complete (#45)
+
+Public transit is playable: player-drawn bus lines, depot-owned buses on the
+traffic network, citizens planning multi-leg trips, and mode choice that makes
+the line the labour supply when the network deserves it.
+
+- **Stops + lines** (#46) — `BusStop` shelter (docks a road node like any
+  yard), `TransitLine` as an ordered stop loop created at the command
+  barrier; the key-6 tool clicks stops in order and right-click closes the
+  loop; each line renders a coloured overlay.
+- **Buses** (#47) — `VehicleKind::Bus` with `TransportClass::Passenger` (no
+  resource maps to it, so the freight dispatcher can never seize one);
+  bought into depot slots, assigned to a line, and driven stop-to-stop
+  through the whole B4 stack — async routes, car-following, congestion,
+  stalls. Passenger transit runs on the commute travel-second timescale
+  (24 m/s cruise — riding genuinely beats the 8 m/s walk).
+- **Riders** (#48) — commuter trips become walk → queue → ride → walk:
+  `StopQueues` FIFO at shelters, boarding bounded by the 30-seat capacity
+  (the overflow stays visibly queued — overcrowding is a signal, not a
+  despawn), riders follow the bus and resume on foot after alighting; a
+  vanished bus or endless wait degrades to walking past a give-up threshold.
+- **Mode choice + degradation** (#49) — per-trip cost comparison (walk legs
+  + flat wait penalty + ride time, simutrans-flavoured weights); labour
+  feasibility accepts a transit itinerary inside the same 120 s commute
+  budget **only when its walk legs are road-connected** (component check —
+  a straight-line estimate never binds a worker to a phantom itinerary);
+  workday departures refuse over-budget trips, so deleting the only viable
+  line leaves the far factory unstaffed while tenure holds.
+- **Legibility** (#50) — TRANSIT line on the dispatch panel (lines, buses
+  out, aboard, waiting), per-line coloured loop overlay, a distinct teal bus
+  body, riders hidden while aboard, queues clustering at shelters.
+
+Benchmark gate (`cargo run --release --bin bench_transit`, #51): **5 000
+concurrent multi-leg transit trips** across 125 districts whose corridors
+exceed walking tolerance, deliberately undersized single-bus fleets so
+shelter queues are part of the load — **mean 0.26 ms/tick** (p95 0.69 ms)
+against the 2 ms band budget. All prior gates re-run green.
+
+Acceptance video (#51): `cargo run --release --bin capture_m5 -- frames
+screenshots/result/5 480` then ffmpeg; latest render at
+`screenshots/result/5/video.mp4` (local, untracked). Arc: commuters stream
+to the shelter and the single bus boards a full 30 — TRANSIT panel reads
+"30 aboard, 10 waiting" while the overflow stands at the stop; riders arrive
+and the inspected far factory staffs up; the line is deleted mid-clip, the
+bus dead-heads home to its slot, and next morning the factory reads
+"0 present / 10 assigned" — the plan problem is the missing line.
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 79 sim tests
+cargo test           # 87 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
-`5` haul policy (click source, then sink) · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
+`5` haul policy (click source, then sink) · `6` bus line (click stops, right-click closes) · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
 `[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
 wheel zoom.
 
@@ -191,9 +238,10 @@ dispatcher cannot feed pulse a red ring.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2 staffing, B3 dispatcher and B4
-traffic-at-scale complete (above). Next: B5 public transit per the ladder
-(see `ROADMAP.md`, including the parallel P-ladder).
+P1 "First Light" done (#16, zero-spend). B2 staffing, B3 dispatcher, B4
+traffic-at-scale and B5 public transit complete (above). Next: B6
+construction per the ladder (see `ROADMAP.md`, including the parallel
+P-ladder).
 
 ## Assets
 

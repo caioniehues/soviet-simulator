@@ -41,7 +41,7 @@ struct InspectPanel;
 
 /// Building picked with the Inspect tool.
 #[derive(Resource, Default)]
-struct Selected(Option<Entity>);
+pub struct Selected(pub Option<Entity>);
 
 /// Which resource the band-tuning keys act on for the selected storage.
 #[derive(Resource, Default)]

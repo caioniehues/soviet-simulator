@@ -67,7 +67,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B5 — The Lines: Public Transit `[ ]`
+### B5 — The Lines: Public Transit `[x]`
 
 **Destination** — the pillar becomes playable: player-drawn tram and bus lines with stops, schedules and depot-owned vehicles; citizens plan multi-leg trips (walk → stop → ride → walk) and mode choice makes transit culturally dominant when the network deserves it.
 **Acceptance demo** — draw a tram line past the dwellings and the factory; commuters visibly switch from walking/trucks to riding; delete the line and staffing at the far factory degrades; overcrowded trams leave people at stops.
