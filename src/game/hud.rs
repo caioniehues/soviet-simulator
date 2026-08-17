@@ -12,7 +12,8 @@ use crate::sim::dispatch::{DeficitBoard, DispatchQueue, FreightJob, FreightPhase
 use crate::sim::households::{Household, HousingQueue, RecruitmentPlan};
 use crate::sim::labour::Staffing;
 use crate::sim::resources::{Inventory, ResourceKind};
-use crate::sim::roads::RoadBuildFeedback;
+use crate::sim::roads::{RoadBuildFeedback, RoadNode, RoadSegment};
+use crate::sim::traffic::StallBoard;
 use crate::sim::resources::TransportClass;
 use crate::sim::storage::StoragePolicies;
 use crate::sim::vehicles::{
@@ -64,6 +65,7 @@ impl Plugin for HudPlugin {
                     drive_depot_purchase,
                     drive_band_tuning,
                     hint_starving_deficits,
+                    hint_stalled_corridors,
                     update_tool_readout,
                     update_inspect_readout,
                     draw_selection_ring,
@@ -335,14 +337,44 @@ fn hint_starving_deficits(
     }
 }
 
+/// A registered corridor stall is never invisible (spec traffic.md G4: jams
+/// are information, not garbage): the jammed segment glows pulsing red until
+/// its traffic moves again.
+fn hint_stalled_corridors(
+    time: Res<Time>,
+    board: Res<StallBoard>,
+    segments: Query<&RoadSegment>,
+    nodes: Query<&RoadNode>,
+    mut gizmos: Gizmos,
+) {
+    let pulse = 0.5 + 0.5 * (time.elapsed_secs() * 4.0).sin();
+    let color = Color::srgb(0.95, 0.2, 0.1).with_alpha(0.35 + 0.5 * pulse);
+    for &seg in board.0.keys() {
+        let Ok(segment) = segments.get(seg) else {
+            continue;
+        };
+        let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
+            continue;
+        };
+        let lift = Vec3::Y * 0.6;
+        gizmos.line(a.pos + lift, b.pos + lift, color);
+        let side = (b.pos - a.pos).normalize_or_zero().cross(Vec3::Y)
+            * (segment.class.width() * 0.5);
+        gizmos.line(a.pos + side + lift, b.pos + side + lift, color);
+        gizmos.line(a.pos - side + lift, b.pos - side + lift, color);
+    }
+}
+
 /// Ticks → game hours (600 frames per game day).
 fn game_hours(ticks: u32) -> f32 {
     ticks as f32 * 24.0 / crate::sim::clock::FRAMES_PER_GAME_DAY as f32
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_dispatch_readout(
     queue: Res<DispatchQueue>,
     board: Res<DeficitBoard>,
+    stalls: Res<StallBoard>,
     tick: Res<TickIndex>,
     fleet: Query<(&VehicleAsset, Has<ActivePawn>)>,
     buildings: Query<&Building>,
@@ -390,6 +422,15 @@ fn update_dispatch_readout(
     }
     if pending.len() > 4 {
         lines.push_str(&format!("\n  … and {} more", pending.len() - 4));
+    }
+    if !stalls.0.is_empty() {
+        let held: u32 = stalls.0.values().map(|s| s.vehicles).sum();
+        let oldest = stalls.0.values().map(|s| s.since_tick).min().unwrap_or(tick.0);
+        lines.push_str(&format!(
+            "\nSTALL: {held} trucks held on {} segment(s), oldest {:.1} h",
+            stalls.0.len(),
+            game_hours(tick.0.saturating_sub(oldest)),
+        ));
     }
     if let Some(starving) = board.0.iter().min_by_key(|d| d.since_tick) {
         let name = buildings

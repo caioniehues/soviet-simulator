@@ -661,6 +661,116 @@ mod tests {
             truck.pos.x
         );
         assert!(truck.blocked_ticks > 0);
+        // B4.4: with no alternative corridor, re-routes come back identical
+        // and are discarded — the counter climbs into a StallBoard entry and
+        // the truck is still alive (never despawn).
+        use super::super::traffic::{STALL_AFTER, StallBoard};
+        assert!(
+            truck.blocked_ticks >= STALL_AFTER,
+            "no-alternative reroutes must not reset the counter, held {}",
+            truck.blocked_ticks
+        );
+        let west = current.segment;
+        let board = app.world().resource::<StallBoard>();
+        let stall = board.0.get(&west).expect("held segment registers a stall");
+        assert!(stall.vehicles >= 1);
+    }
+
+    #[test]
+    fn blocked_truck_reroutes_around_a_jammed_corridor() {
+        let mut app = app();
+        // Direct corridor A(0,0)→J(100,0)→B(200,0); detour J→D(100,60)→B.
+        // The eastern direct segment is physically plugged at the mouth and
+        // saturated for density, so the held truck's re-route must take the
+        // detour once congestion prices in — and the delivery must complete.
+        {
+            let mut roads = app.world_mut().resource_mut::<RoadEditQueue>();
+            for (from, to) in [
+                (Vec3::ZERO, Vec3::new(100.0, 0.0, 0.0)),
+                (Vec3::new(100.0, 0.0, 0.0), Vec3::new(200.0, 0.0, 0.0)),
+                (Vec3::new(100.0, 0.0, 0.0), Vec3::new(100.0, 0.0, 60.0)),
+                (Vec3::new(100.0, 0.0, 60.0), Vec3::new(200.0, 0.0, 0.0)),
+            ] {
+                roads.0.push(RoadEdit::Place {
+                    from,
+                    to,
+                    class: RoadClass::Dirt,
+                });
+            }
+        }
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::Quarry,
+                pos: Vec3::new(-10.0, 0.0, 0.0),
+            });
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::Factory,
+                pos: Vec3::new(210.0, 0.0, 0.0),
+            });
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::Depot,
+                pos: Vec3::new(0.0, 0.0, 15.0),
+            });
+        }
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let mut found = (None, None, None);
+        let mut q = world.query::<(Entity, &Building)>();
+        for (e, b) in q.iter(world) {
+            match b.kind {
+                BuildingKind::Quarry => found.0 = Some(e),
+                BuildingKind::Factory => found.1 = Some(e),
+                BuildingKind::Depot => found.2 = Some(e),
+                _ => {}
+            }
+        }
+        let (quarry, factory, depot) = (found.0.unwrap(), found.1.unwrap(), found.2.unwrap());
+        world
+            .get_mut::<Inventory>(quarry)
+            .unwrap()
+            .add(ResourceKind::Gravel, 50.0);
+        // the direct eastern segment: both nodes on z ≈ 0, both x ≥ 100
+        let segs: Vec<(Entity, Entity, Entity)> = world
+            .query::<(Entity, &RoadSegment)>()
+            .iter(world)
+            .map(|(e, s)| (e, s.a, s.b))
+            .collect();
+        let east_direct = segs
+            .into_iter()
+            .find(|(_, a, b)| {
+                let pa = world.get::<RoadNode>(*a).unwrap().pos;
+                let pb = world.get::<RoadNode>(*b).unwrap().pos;
+                pa.x.min(pb.x) > 50.0 && pa.z.abs() < 1.0 && pb.z.abs() < 1.0
+            })
+            .expect("direct eastern segment exists")
+            .0;
+        {
+            let mut edits = world.resource_mut::<VehicleEditQueue>();
+            edits.0.push(VehicleEdit::BuyTruck {
+                depot,
+                class: TransportClass::Bulk,
+            });
+            edits.0.push(VehicleEdit::CreateShuttle {
+                from: quarry,
+                to: factory,
+                resource: ResourceKind::Gravel,
+            });
+        }
+        // 30 parked pawns: mouth physically blocked + density → 100 over time
+        for _ in 0..30 {
+            park_blocker(&mut app, east_direct, 0.0);
+        }
+        ticks(&mut app, 5000);
+        let delivered = app
+            .world()
+            .get::<Inventory>(factory)
+            .unwrap()
+            .amount(ResourceKind::Gravel);
+        assert!(
+            delivered >= TRUCK_CARGO_CAPACITY - 1e-2,
+            "re-route around the jam must complete the delivery, delivered = {delivered}"
+        );
     }
 
     #[test]

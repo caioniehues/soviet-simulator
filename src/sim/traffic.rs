@@ -43,6 +43,28 @@ impl SegmentTraffic {
     }
 }
 
+/// Held ticks before a blocked vehicle asks the solver for a better corridor
+/// (B4.4 wait → re-route). 90 ticks ≈ 1.5 s real, 3.6 game hours.
+pub const REROUTE_AFTER: u32 = 90;
+
+/// Held ticks before the vehicle registers a corridor stall on the
+/// `StallBoard` — the planning signal that replaces CS1's despawn-the-jam.
+pub const STALL_AFTER: u32 = 240;
+
+/// A vehicle held past `STALL_AFTER` on some segment. The board is the
+/// player-facing artefact of the never-despawn rule (spec traffic.md G4):
+/// a jam that re-routing cannot solve becomes visible pressure, not garbage.
+#[derive(Clone, Copy, Debug)]
+pub struct Stall {
+    pub vehicles: u32,
+    pub since_tick: u32,
+}
+
+/// Corridor stalls keyed by road segment. Entries clear themselves the
+/// moment no vehicle on the segment is over the stall threshold.
+#[derive(Resource, Default)]
+pub struct StallBoard(pub HashMap<Entity, Stall>);
+
 /// Marker for the occupancy build inside `MovementAndTransfers`; movement
 /// systems that respect car-following order themselves `.after(LanePrep)`.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -97,6 +119,7 @@ pub struct TrafficSimPlugin;
 impl Plugin for TrafficSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LaneOccupancy>()
+            .init_resource::<StallBoard>()
             .add_systems(
                 SimTick,
                 build_lane_occupancy
@@ -105,7 +128,7 @@ impl Plugin for TrafficSimPlugin {
             )
             .add_systems(
                 SimTick,
-                measure_density.in_set(SimStage::AccountingAndCausalHistory),
+                (measure_density, report_stalls).in_set(SimStage::AccountingAndCausalHistory),
             );
     }
 }
@@ -162,6 +185,34 @@ fn measure_density(
     }
     if changed {
         svc.congestion_version += 1;
+    }
+}
+
+/// Vehicles held past `STALL_AFTER` register on the board under their
+/// current segment; a segment with no such vehicle drops off immediately.
+fn report_stalls(
+    tick: Res<TickIndex>,
+    mut board: ResMut<StallBoard>,
+    vehicles: Query<&ActiveVehicle>,
+) {
+    let mut counts: HashMap<Entity, u32> = HashMap::new();
+    for vehicle in &vehicles {
+        if vehicle.blocked_ticks >= STALL_AFTER
+            && let Some(leg) = vehicle.route.get(vehicle.leg)
+        {
+            *counts.entry(leg.segment).or_default() += 1;
+        }
+    }
+    board.0.retain(|seg, _| counts.contains_key(seg));
+    for (seg, vehicles) in counts {
+        board
+            .0
+            .entry(seg)
+            .and_modify(|s| s.vehicles = vehicles)
+            .or_insert(Stall {
+                vehicles,
+                since_tick: tick.0,
+            });
     }
 }
 

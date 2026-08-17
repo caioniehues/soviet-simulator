@@ -20,10 +20,11 @@ use super::roads::{RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::storage::StoragePolicies;
 use super::pathfinding::{CostProfile, PathPoll, PathService, PathfindingSimPlugin};
-use super::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
+use super::roads::LaneDir;
+use super::traffic::{LaneOccupancy, LanePrep, REROUTE_AFTER, TrafficSimPlugin};
 use super::vehicles::{
-    ActivePawn, ActiveVehicle, PawnOf, TRUCK_CARGO_CAPACITY, TRUCK_TRANSFER_RATE, VehicleAsset,
-    advance_along_route, nearest_node, nearest_node_unbounded,
+    ActivePawn, ActiveVehicle, PawnOf, RouteLeg, TRUCK_CARGO_CAPACITY, TRUCK_TRANSFER_RATE,
+    VehicleAsset, advance_along_route, nearest_node, nearest_node_unbounded,
 };
 
 /// One resource is matched every this many ticks (round-robin across the
@@ -438,11 +439,36 @@ enum Progress {
 /// a lazy lookup — resolving the dock node costs an O(nodes) scan, so it runs
 /// only on the request tick, never per movement tick. Recovery re-enters at
 /// the nearest node — cargo stays aboard through a re-route.
+/// Install a freshly solved route: re-enter at the route's start node (the
+/// nearest node at request time) and restart the blocked counter.
+fn install_route(
+    vehicle: &mut ActiveVehicle,
+    route: Vec<RouteLeg>,
+    nodes: &Query<(Entity, &RoadNode)>,
+    segments: &Query<&RoadSegment>,
+) {
+    if let Some(first) = route.first()
+        && let Ok(seg) = segments.get(first.segment)
+    {
+        let entry = match first.dir {
+            LaneDir::Forward => seg.a,
+            LaneDir::Backward => seg.b,
+        };
+        if let Ok((_, n)) = nodes.get(entry) {
+            vehicle.pos = n.pos;
+        }
+    }
+    vehicle.route = route;
+    vehicle.leg = 0;
+    vehicle.s = 0.0;
+    vehicle.blocked_ticks = 0;
+}
+
 #[allow(clippy::too_many_arguments)]
 fn drive_toward(
     pawn: Entity,
     vehicle: &mut ActiveVehicle,
-    goal: impl FnOnce() -> Option<Entity>,
+    goal: impl Fn() -> Option<Entity>,
     dt: f32,
     svc: &mut PathService,
     occupancy: &LaneOccupancy,
@@ -453,6 +479,33 @@ fn drive_toward(
         .route
         .get(vehicle.leg)
         .is_some_and(|leg| segments.get(leg.segment).is_err());
+    // B4.4 wait → re-route: a vehicle held past the threshold asks the solver
+    // for a better corridor (the snapshot prices live congestion, so a real
+    // alternative wins). An answer that matches the jammed corridor is
+    // discarded — the counter keeps climbing toward the StallBoard threshold
+    // instead of resetting, and the truck never despawns.
+    if !severed && !vehicle.route.is_empty() && vehicle.blocked_ticks >= REROUTE_AFTER {
+        if let Some(ticket) = vehicle.pending_path {
+            match svc.poll(ticket) {
+                PathPoll::Pending => {}
+                PathPoll::Ready(None) => vehicle.pending_path = None,
+                PathPoll::Ready(Some(route)) => {
+                    vehicle.pending_path = None;
+                    let remaining = vehicle.route.get(vehicle.leg..).unwrap_or_default();
+                    let same_corridor =
+                        remaining.ends_with(&route) || route.ends_with(remaining);
+                    if !same_corridor && !route.is_empty() {
+                        install_route(vehicle, route, nodes, segments);
+                    }
+                }
+            }
+        } else if vehicle.blocked_ticks.is_multiple_of(REROUTE_AFTER)
+            && let Some(goal) = goal()
+            && let Some(start) = nearest_node_unbounded(vehicle.pos, nodes)
+        {
+            vehicle.pending_path = Some(svc.request(start, goal, CostProfile::Vehicle));
+        }
+    }
     if severed || vehicle.route.is_empty() {
         if let Some(ticket) = vehicle.pending_path {
             match svc.poll(ticket) {
@@ -463,22 +516,7 @@ fn drive_toward(
                 }
                 PathPoll::Ready(Some(route)) => {
                     vehicle.pending_path = None;
-                    // Solved against a snapshot: re-enter at the route's
-                    // start node (the nearest node at request time).
-                    if let Some(first) = route.first()
-                        && let Ok(seg) = segments.get(first.segment)
-                    {
-                        let entry = match first.dir {
-                            super::roads::LaneDir::Forward => seg.a,
-                            super::roads::LaneDir::Backward => seg.b,
-                        };
-                        if let Ok((_, n)) = nodes.get(entry) {
-                            vehicle.pos = n.pos;
-                        }
-                    }
-                    vehicle.route = route;
-                    vehicle.leg = 0;
-                    vehicle.s = 0.0;
+                    install_route(vehicle, route, nodes, segments);
                     if vehicle.route.is_empty() {
                         return Progress::Arrived;
                     }
