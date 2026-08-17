@@ -12,6 +12,7 @@ pub mod resources;
 pub mod roads;
 pub mod save;
 pub mod stages;
+pub mod storage;
 pub mod vehicles;
 pub mod wires;
 

@@ -162,6 +162,7 @@ fn kind_to_u8(kind: BuildingKind) -> u8 {
         BuildingKind::PowerPlant => 2,
         BuildingKind::Factory => 3,
         BuildingKind::Dwelling => 4,
+        BuildingKind::Warehouse => 5,
     }
 }
 
@@ -172,6 +173,7 @@ fn kind_from_u8(v: u8) -> Option<BuildingKind> {
         2 => BuildingKind::PowerPlant,
         3 => BuildingKind::Factory,
         4 => BuildingKind::Dwelling,
+        5 => BuildingKind::Warehouse,
         _ => return None,
     })
 }

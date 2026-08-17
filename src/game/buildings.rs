@@ -18,6 +18,7 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::PowerPlant => Color::srgb(0.60, 0.59, 0.55),
         BuildingKind::Factory => Color::srgb(0.55, 0.52, 0.48),
         BuildingKind::Dwelling => Color::srgb(0.58, 0.56, 0.52),
+        BuildingKind::Warehouse => Color::srgb(0.52, 0.47, 0.40),
     }
 }
 
@@ -28,6 +29,7 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::PowerPlant => 12.0,
         BuildingKind::Factory => 9.0,
         BuildingKind::Dwelling => 11.0,
+        BuildingKind::Warehouse => 7.0,
     }
 }
 
@@ -273,6 +275,30 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
                     Vec3::new(0.0, 2.4 + i as f32 * 2.4, 0.0),
                 ));
             }
+            v
+        }
+        // Long low storage shed: brick bar, shallow rust roof, loading doors
+        // down the flank, crates and a spill pile on the apron.
+        BuildingKind::Warehouse => {
+            let mut v = vec![
+                boxed(&m.brick, Vec3::new(17.0, 6.0, 9.0), Vec3::ZERO),
+                boxed(&m.rust, Vec3::new(17.8, 0.6, 9.8), Vec3::new(0.0, 6.0, 0.0)),
+                pile(&m.gravel, 2.2, 1.6, Vec3::new(7.0, 0.0, 6.5)),
+            ];
+            // three timber loading doors along the road-facing flank
+            for i in 0..3 {
+                v.push(boxed(
+                    &m.timber,
+                    Vec3::new(3.0, 3.6, 0.4),
+                    Vec3::new(-5.0 + i as f32 * 5.0, 0.0, 4.6),
+                ));
+            }
+            // crate stack by the west gable
+            v.push(boxed(
+                &m.timber,
+                Vec3::new(2.4, 1.6, 2.4),
+                Vec3::new(-8.0, 0.0, 6.2),
+            ));
             v
         }
     }

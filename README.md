@@ -76,6 +76,16 @@ dwelling cluster staffs the chain and the lamp lights; cutting the commute
 spur (haul road untouched) idles the whole chain on day 2; rebuilding brings
 the workers — and the lamp — back on day 3.
 
+## Status — M3 "The Dispatcher" underway (#30)
+
+Hauling becomes policy: target stock bands per storage, a shared dispatcher,
+and a finite depot-owned fleet (tickets #31–#37).
+
+- **Storage policy substrate** (#31) — transport classes on resources
+  (coal/gravel Bulk, goods Covered — the hard vehicle-compatibility gate),
+  per-resource min/max bands against yard capacity (below min = demand, above
+  max = supply), warehouse building kind, recipe-derived default policies.
+
 ## Run
 
 ```

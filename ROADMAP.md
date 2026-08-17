@@ -43,7 +43,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B3 — The Dispatcher: Logistics and the Fleet `[ ]`
+### B3 — The Dispatcher: Logistics and the Fleet `[~]`
 
 **Destination** — hauling becomes policy, not hand-wired shuttles: the player sets target stock levels per storage; a shared dispatcher matches deficits to supply and sends an owned, finite vehicle — no free trucks, ever.
 **Acceptance demo** — a multi-storage network self-balances to targets; all vehicles busy ⇒ deliveries queue visibly; a vehicle is a depot-parked asset you can count.

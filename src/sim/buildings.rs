@@ -21,6 +21,9 @@ pub enum BuildingKind {
     Factory,
     /// Residential block; carries a flat table (`households::Dwelling`).
     Dwelling,
+    /// Player-placeable storage: a big shared yard whose per-resource bands
+    /// (`storage::StoragePolicies`) drive the dispatcher.
+    Warehouse,
 }
 
 impl BuildingKind {
@@ -31,6 +34,7 @@ impl BuildingKind {
             BuildingKind::PowerPlant => Vec2::new(18.0, 14.0),
             BuildingKind::Factory => Vec2::new(20.0, 16.0),
             BuildingKind::Dwelling => Vec2::new(12.0, 10.0),
+            BuildingKind::Warehouse => Vec2::new(20.0, 12.0),
         }
     }
     pub fn inventory_capacity(self) -> f32 {
@@ -40,6 +44,7 @@ impl BuildingKind {
             BuildingKind::Factory => 40.0,
             // Goods delivered to residents land here before pantry pickup.
             BuildingKind::Dwelling => 10.0,
+            BuildingKind::Warehouse => 120.0,
         }
     }
 }

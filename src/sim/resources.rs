@@ -10,6 +10,18 @@ pub enum ResourceKind {
     Goods,
 }
 
+/// Transport class (spec/resources.md §B1): the hard compatibility gate CS1
+/// lacks. A resource moves only on a vehicle of its class — a mismatch is
+/// simply not an edge. Two classes cover the M1 commodity set; the W&R
+/// vocabulary has sixteen, added as the resources arrive.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TransportClass {
+    /// Loose bulk on a tipper: ore, coal, gravel (W&R `GRAVEL`).
+    Bulk,
+    /// Dry boxed goods on a covered bed (W&R `COVERED`).
+    Covered,
+}
+
 impl ResourceKind {
     pub const COUNT: usize = 3;
     pub const ALL: [ResourceKind; Self::COUNT] = [
@@ -22,6 +34,13 @@ impl ResourceKind {
             ResourceKind::Coal => 0,
             ResourceKind::Gravel => 1,
             ResourceKind::Goods => 2,
+        }
+    }
+
+    pub fn transport_class(self) -> TransportClass {
+        match self {
+            ResourceKind::Coal | ResourceKind::Gravel => TransportClass::Bulk,
+            ResourceKind::Goods => TransportClass::Covered,
         }
     }
 }
