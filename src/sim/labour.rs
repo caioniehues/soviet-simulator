@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use super::buildings::{Building, BuildingKind};
 use super::citizens::Citizen;
 use super::roads::{RoadNode, RoadSegment};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{SimStage, SimTick};
 use super::vehicles::nearest_node;
 
 /// Commute effective speed, m/s, before the road-class modifier (walk/bus
@@ -52,17 +52,36 @@ impl Staffing {
     }
 }
 
+/// Per-worker efficiency from health, CS1's 10–100% band.
+pub fn worker_efficiency(health: u8) -> f32 {
+    0.1 + 0.9 * (health as f32 / 100.0)
+}
+
+/// CS1's staffing curve (`PrivateBuildingAI.cs:397`), the concrete law W&R
+/// only gestures at: `rate = 2e − 200e/(staff% + 100)`. Full staffing at full
+/// health ⇒ 1.0; zero presence ⇒ 0 — nothing runs unstaffed (B2 destination).
+pub fn labour_factor(staffing: &Staffing, kind: BuildingKind, citizens: &Query<&Citizen>) -> f32 {
+    let needed = kind.workers_needed();
+    if needed == 0 {
+        return 1.0;
+    }
+    let staff_pct = (staffing.present.min(needed) as f32 / needed as f32) * 100.0;
+    let (mut e_sum, mut e_n) = (0.0, 0u32);
+    for &worker in &staffing.assigned {
+        if let Ok(citizen) = citizens.get(worker) {
+            e_sum += worker_efficiency(citizen.health);
+            e_n += 1;
+        }
+    }
+    let e = if e_n == 0 { 1.0 } else { e_sum / e_n as f32 };
+    (2.0 * e - 200.0 * e / (staff_pct + 100.0)).max(0.0)
+}
+
 pub struct LabourSimPlugin;
 
 impl Plugin for LabourSimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            SimTick,
-            attach_staffing
-                .in_set(SimStage::ApplyCommands)
-                .after(ApplyCommandsFlush),
-        )
-        .add_systems(
+        app.add_observer(attach_staffing).add_systems(
             SimTick,
             (sever_lost_workplaces, plan_labour)
                 .chain()
@@ -73,12 +92,13 @@ impl Plugin for LabourSimPlugin {
     }
 }
 
-/// Newly placed workplaces get their labour ledger.
-fn attach_staffing(mut commands: Commands, added: Query<(Entity, &Building), Added<Building>>) {
-    for (entity, building) in &added {
-        if building.kind.workers_needed() > 0 {
-            commands.entity(entity).insert(Staffing::default());
-        }
+/// Newly placed workplaces get their labour ledger in the same command flush
+/// as the spawn — a workplace must never see a production tick unledgered.
+fn attach_staffing(add: On<Add, Building>, buildings: Query<&Building>, mut commands: Commands) {
+    if let Ok(building) = buildings.get(add.entity)
+        && building.kind.workers_needed() > 0
+    {
+        commands.entity(add.entity).insert(Staffing::default());
     }
 }
 
@@ -338,6 +358,48 @@ mod tests {
         recruit(&mut app, 1);
         ticks(&mut app, 5);
         assert_eq!(employed_count(&mut app), 0);
+    }
+
+    #[test]
+    fn unstaffed_building_produces_nothing() {
+        use super::super::resources::{Inventory, ResourceKind};
+        let mut app = app();
+        place(&mut app, BuildingKind::Mine, Vec3::ZERO);
+        ticks(&mut app, 50);
+        let world = app.world_mut();
+        let coal = world
+            .query::<&Inventory>()
+            .single(world)
+            .unwrap()
+            .amount(ResourceKind::Coal);
+        assert_eq!(coal, 0.0, "no staff present ⇒ no extraction");
+    }
+
+    #[test]
+    fn output_scales_with_the_cs1_staffing_curve() {
+        use super::super::buildings::MINE_COAL_RATE;
+        use super::super::resources::{Inventory, ResourceKind};
+        let mut app = app();
+        place(&mut app, BuildingKind::Mine, Vec3::ZERO);
+        ticks(&mut app, 2);
+        // Half staffing at full health: 2·1 − 200·1/(50+100) = 0.6667.
+        {
+            let world = app.world_mut();
+            let mut q = world.query::<&mut Staffing>();
+            q.single_mut(world).unwrap().present = 3;
+        }
+        ticks(&mut app, 100);
+        let world = app.world_mut();
+        let coal = world
+            .query::<&Inventory>()
+            .single(world)
+            .unwrap()
+            .amount(ResourceKind::Coal);
+        let expected = 100.0 * MINE_COAL_RATE * (2.0 - 200.0 / 150.0);
+        assert!(
+            (coal - expected).abs() < 1e-2,
+            "coal = {coal}, expected {expected}"
+        );
     }
 
     #[test]

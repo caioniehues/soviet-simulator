@@ -10,6 +10,7 @@ use crate::sim::SimSpeed;
 use crate::sim::buildings::{Building, PowerOutput, Powered};
 use crate::sim::citizens::Citizen;
 use crate::sim::households::{Household, HousingQueue, RecruitmentPlan};
+use crate::sim::labour::Staffing;
 use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::roads::RoadBuildFeedback;
 use crate::sim::vehicles::ActiveVehicle;
@@ -280,6 +281,7 @@ fn update_inspect_readout(
         &Inventory,
         Option<&Powered>,
         Option<&PowerOutput>,
+        Option<&Staffing>,
     )>,
     mut readout: Query<&mut Text, With<InspectReadout>>,
     mut panel: Query<&mut Node, With<InspectPanel>>,
@@ -290,7 +292,7 @@ fn update_inspect_readout(
     let Ok(mut panel) = panel.single_mut() else {
         return;
     };
-    let Some((building, inventory, powered, output)) =
+    let Some((building, inventory, powered, output, staffing)) =
         selected.0.and_then(|e| buildings.get(e).ok())
     else {
         if !text.0.is_empty() {
@@ -316,6 +318,14 @@ fn update_inspect_readout(
         if amount > 0.05 {
             lines.push_str(&format!("\n  {kind:?}: {amount:.1} t"));
         }
+    }
+    if let Some(staffing) = staffing {
+        lines.push_str(&format!(
+            "\nstaff {} present / {} assigned of {}",
+            staffing.present,
+            staffing.assigned.len(),
+            building.kind.workers_needed(),
+        ));
     }
     if let Some(powered) = powered {
         lines.push_str(if powered.0 { "\nPOWERED" } else { "\nNO POWER" });

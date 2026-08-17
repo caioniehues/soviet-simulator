@@ -5,6 +5,8 @@
 
 use bevy::prelude::*;
 
+use super::citizens::Citizen;
+use super::labour::{Staffing, labour_factor};
 use super::resources::{Inventory, ResourceKind};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
@@ -132,44 +134,72 @@ fn apply_building_edits(
 
 /// Mines and quarries emit their commodity into their own yard inventory.
 /// A full yard halts extraction — physical stock, not a counter.
-fn extract_resources(mut buildings: Query<(&Building, &mut Inventory)>) {
-    for (building, mut inventory) in &mut buildings {
+/// Staffed buildings scale with the labour factor; a building with no
+/// `Staffing` ledger (headless fixtures without the labour plugin) runs free.
+fn extract_resources(
+    mut buildings: Query<(&Building, &mut Inventory, Option<&Staffing>)>,
+    citizens: Query<&Citizen>,
+) {
+    for (building, mut inventory, staffing) in &mut buildings {
+        let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
+        if f <= 0.0 {
+            continue;
+        }
         match building.kind {
             BuildingKind::Mine => {
-                inventory.add(ResourceKind::Coal, MINE_COAL_RATE);
+                inventory.add(ResourceKind::Coal, MINE_COAL_RATE * f);
             }
             BuildingKind::Quarry => {
-                inventory.add(ResourceKind::Gravel, QUARRY_GRAVEL_RATE);
+                inventory.add(ResourceKind::Gravel, QUARRY_GRAVEL_RATE * f);
             }
             _ => {}
         }
     }
 }
 
-/// The plant is an ordinary recipe building: no coal ⇒ no output. (Unstaffed
-/// by charter until B2.)
-pub(crate) fn run_power_plants(mut plants: Query<(&Building, &mut Inventory, &mut PowerOutput)>) {
-    for (building, mut inventory, mut output) in &mut plants {
+/// The plant is an ordinary recipe building: no coal ⇒ no output; a skeleton
+/// crew burns and generates proportionally less (Liebig with the fuel gate).
+pub(crate) fn run_power_plants(
+    mut plants: Query<(
+        &Building,
+        &mut Inventory,
+        &mut PowerOutput,
+        Option<&Staffing>,
+    )>,
+    citizens: Query<&Citizen>,
+) {
+    for (building, mut inventory, mut output, staffing) in &mut plants {
         if building.kind != BuildingKind::PowerPlant {
             continue;
         }
-        let burned = inventory.take(ResourceKind::Coal, PLANT_COAL_BURN);
-        output.0 = if burned >= PLANT_COAL_BURN * 0.999 {
-            PLANT_OUTPUT_MW
+        let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
+        if f <= 0.0 {
+            output.0 = 0.0;
+            continue;
+        }
+        let demand = PLANT_COAL_BURN * f;
+        let burned = inventory.take(ResourceKind::Coal, demand);
+        output.0 = if burned >= demand * 0.999 {
+            PLANT_OUTPUT_MW * f
         } else {
             0.0
         };
     }
 }
 
-/// The factory produces only while its electricity gate holds.
-pub(crate) fn run_factories(mut factories: Query<(&Building, &mut Inventory, &Powered)>) {
-    for (building, mut inventory, powered) in &mut factories {
+/// The factory produces only while its electricity gate holds and staff are
+/// present — the scarcest factor wins.
+pub(crate) fn run_factories(
+    mut factories: Query<(&Building, &mut Inventory, &Powered, Option<&Staffing>)>,
+    citizens: Query<&Citizen>,
+) {
+    for (building, mut inventory, powered, staffing) in &mut factories {
         if building.kind != BuildingKind::Factory {
             continue;
         }
-        if powered.0 {
-            inventory.add(ResourceKind::Goods, FACTORY_GOODS_RATE);
+        let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
+        if powered.0 && f > 0.0 {
+            inventory.add(ResourceKind::Goods, FACTORY_GOODS_RATE * f);
         }
     }
 }

@@ -330,6 +330,31 @@ mod tests {
     }
 
     #[test]
+    fn production_follows_the_workday() {
+        use super::super::resources::{Inventory, ResourceKind};
+        let mut app = app();
+        commuter_town(&mut app);
+        ticks(&mut app, 145); // assigned, but the morning window hasn't opened
+        {
+            let world = app.world_mut();
+            let coal = world
+                .query::<(&super::super::buildings::Building, &Inventory)>()
+                .iter(world)
+                .map(|(_, i)| i.amount(ResourceKind::Coal))
+                .sum::<f32>();
+            assert_eq!(coal, 0.0, "nobody at work yet ⇒ mine idle");
+        }
+        ticks(&mut app, 155); // workers walked in; the mine runs part-staffed
+        let world = app.world_mut();
+        let coal = world
+            .query::<(&super::super::buildings::Building, &Inventory)>()
+            .iter(world)
+            .map(|(_, i)| i.amount(ResourceKind::Coal))
+            .sum::<f32>();
+        assert!(coal > 0.0, "presence gates production on");
+    }
+
+    #[test]
     fn severing_the_route_mid_walk_aborts_the_trip() {
         let mut app = app();
         commuter_town(&mut app);

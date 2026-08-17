@@ -38,11 +38,32 @@ Acceptance video: `cargo run --release --bin capture -- frames screenshots/resul
 then ffmpeg (see `bevy.md`); latest render at `screenshots/result/0/video.mp4`
 (local, `screenshots/` is untracked).
 
+## Status — M2 "Hands" in progress (#22, M2.1–M2.5 done)
+
+Nothing runs unstaffed anymore:
+
+- **Citizens & households** (#23) — flat Citizen/Household tables, dwelling
+  kind (khrushchyovka), spawn queue.
+- **Housing** (#24) — plan-recruited immigration (+/- lever), FIFO housing
+  office, population HUD panel.
+- **Labour planning** (#25) — tiered vacancies, Dijkstra commute-feasibility
+  over the lane graph, fixed tenure surviving road cuts.
+- **Commutes** (#26) — transient commuter pawns walk the lane graph on a
+  jittered day cycle; arrival tallies per-building presence.
+- **Staffing gates production** (#27) — CS1 curve
+  `f = 2e − 200e/(staff%+100)` with health-based efficiency `e` multiplies
+  mine/quarry extraction, plant burn/output, and factory rate (Liebig with
+  the power gate); zero presence stops the building; inspect panel shows
+  present/assigned/needed.
+
+Left in M2: needs stage 1 + save/load first cut (#28), acceptance &
+benchmark gate (#29).
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 24 sim tests
+cargo test           # 40 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
@@ -51,8 +72,9 @@ Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire 
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). Next: B2 staffing →
-B3 dispatcher → … (see `ROADMAP.md`, including the new parallel P-ladder).
+P1 "First Light" done (#16, zero-spend). B2 staffing underway (above).
+Next: M2.6 needs + save/load → M2.7 acceptance gate → B3 dispatcher
+(see `ROADMAP.md`, including the parallel P-ladder).
 
 ## Assets
 
