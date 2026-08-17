@@ -1,8 +1,9 @@
 ---
 name: catalogue-implementer
 description: Implements the sim-side of the building catalogue — the BuildingSpec/Recipe tables, the per-kind lookups, save discriminants, and the generic production pass. Use for work under src/sim/. Behaviour-preserving by contract.
-tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP
-model: sonnet
+tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, SendMessage
+model: opus
+effort: high
 memory: project
 color: red
 skills:
@@ -61,6 +62,11 @@ Grep still wins for prose, comments and `//` markers. Use both; do not use grep 
 decide that a symbol has no remaining references.
 
 ## Reporting
+
+**Write the report file first, then message the lead.** The file is the durable channel —
+it survives a usage limit, a crash, and the end of the session, and a finding held only in
+your context is a finding lost. `SendMessage` to `main` is the notification, not the report:
+keep it to a few lines.
 
 Report what you changed, what you verified (with the actual command output), and
 anything you found but did not act on. Never claim a test passed without running it.

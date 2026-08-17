@@ -1,8 +1,9 @@
 ---
 name: presentation-implementer
 description: Implements the presentation-side of the building catalogue — materials, roof and height lookups, the toolbar BUILD category, the tool key cycle. Use for work under src/game/. Behaviour-preserving by contract.
-tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP
-model: sonnet
+tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, SendMessage
+model: opus
+effort: high
 memory: project
 color: blue
 skills:
@@ -56,6 +57,10 @@ project.
 Grep still wins for prose and comments. Never conclude "no other call site" from grep alone.
 
 ## Reporting
+
+**Write the report file first, then message the lead.** The file is the durable channel —
+it survives a usage limit and the end of the session. `SendMessage` to `main` is the
+notification, not the report.
 
 Report what changed, what you ran, and the real output. Never claim a visual is unchanged
 unless something rendered it. If blocked or red for two attempts, stop and report verbatim.

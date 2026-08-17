@@ -2,6 +2,7 @@
 //! driver. See architecture/simulation-clock.md and ADRs 0001–0002.
 
 pub mod buildings;
+pub mod catalogue;
 pub mod citizens;
 pub mod clock;
 pub mod commute;

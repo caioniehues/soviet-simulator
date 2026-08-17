@@ -212,7 +212,8 @@ Engineering posture (cheap to settle, expensive to drift):
 **Game installs (primary sources, already mined by specs — mine further per
 decision):**
 - W&R: `~/.local/share/Steam/steamapps/common/SovietRepublic/media_soviet/`
-  — `buildings_types/*.ini` (1472 files; `$TYPE_*` taxonomy, `$PRODUCTION`/
+  — `buildings_types/*.ini` (488 files, in a directory of 1472 counting `.bbox`,
+  `.fire` and mesh siblings; `$TYPE_*` taxonomy, `$PRODUCTION`/
   `$CONSUMPTION` chains, `$CONNECTION_*` network grammar), plus dlc1–4
   folders (biomes etc.), campaign1/2 (scenario grammar).
 - CS1: `~/.local/share/Steam/steamapps/common/Cities_Skylines/` (compiled;

@@ -1,8 +1,9 @@
 ---
 name: prototype-researcher
 description: Researches how other simulation games and Bevy itself model data-driven entity catalogues — Factorio prototypes, Workers & Resources .ini files, Bevy asset/reflection patterns. Use when a catalogue design question needs an answer grounded in a primary source rather than an opinion. Returns cited findings, never code.
-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, ToolSearch, LSP
-model: sonnet
+tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, ToolSearch, LSP, SendMessage
+model: opus
+effort: high
 memory: project
 color: green
 ---

@@ -1,8 +1,9 @@
 ---
 name: refactor-reviewer
 description: Adversarial reviewer for the building-catalogue refactor. Tries to prove a phase changed observable behaviour. Use as the gate between phases — it signs off or it names the regression. Never writes production code.
-tools: Read, Grep, Glob, Bash, ToolSearch, LSP
-model: sonnet
+tools: Read, Grep, Glob, Bash, ToolSearch, LSP, SendMessage
+model: opus
+effort: high
 memory: project
 color: yellow
 ---
