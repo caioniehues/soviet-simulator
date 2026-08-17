@@ -119,11 +119,12 @@ fn node_components(
     let mut label: HashMap<Entity, u32> = HashMap::new();
     let mut next = 0u32;
     for (start, _) in nodes.iter() {
-        if label.contains_key(&start) {
+        if let std::collections::hash_map::Entry::Vacant(entry) = label.entry(start) {
+            entry.insert(next);
+        } else {
             continue;
         }
         let mut stack = vec![start];
-        label.insert(start, next);
         while let Some(node) = stack.pop() {
             let Ok((_, n)) = nodes.get(node) else {
                 continue;
@@ -155,7 +156,7 @@ fn match_freight(
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
-    if tick.0 % MATCH_INTERVAL != 0 {
+    if !tick.0.is_multiple_of(MATCH_INTERVAL) {
         return;
     }
     let resource = ResourceKind::ALL[queue.cursor % ResourceKind::COUNT];
