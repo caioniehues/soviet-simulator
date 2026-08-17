@@ -55,7 +55,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B4 — Streets Alive: Traffic at Scale `[ ]`
+### B4 — Streets Alive: Traffic at Scale `[x]`
 
 **Destination** — movement gets real at scale, five rungs earlier than the Unity track dared: background hierarchical pathfinding with ref-counted shared paths, emergent congestion from local lane rules, stall-as-planning-signal instead of despawn.
 **Acceptance demo** — a congested junction backs up visibly; a stalled corridor is a dashboard signal, not a vanished truck; thousands of vehicles at 60 fps.

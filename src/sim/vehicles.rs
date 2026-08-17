@@ -233,7 +233,7 @@ fn apply_vehicle_edits(
 /// the next lane's mouth is clear — followers pile up at footprint spacing
 /// and jams emerge from that alone. A tick spent held behind traffic bumps
 /// `blocked_ticks`; free running resets it.
-pub(crate) fn advance_along_route(
+pub fn advance_along_route(
     me: Entity,
     vehicle: &mut ActiveVehicle,
     dt: f32,

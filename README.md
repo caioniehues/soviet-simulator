@@ -124,11 +124,59 @@ fleet rolls out and the warehouses fill to their bands; draining one warehouse
 makes the dispatcher refill it; draining everything at once outruns the fleet
 and the order queue grows on the DISPATCH panel.
 
+## Status — B4 "Streets Alive" complete (#38)
+
+Traffic gets real at scale: async pathfinding, emergent congestion, jams as
+car-following, stalls as planning signal, curved roads.
+
+- **Pathfinding engine** (#39) — BFS replaced by cost-aware A* over a packed
+  CSR snapshot of the lane graph, solved on the `AsyncComputeTaskPool` (never
+  the sim thread): trucks submit a request, hold in place, and install the
+  route when the ticket resolves. Cost is time-like (`length / speed_mod ×
+  congestion`) with a CS1-style scatter band so identical trips spread over
+  near-equal corridors; walkers keep a deterministic plain-distance profile.
+  Snapshot refresh keys on graph id counters + modification indices +
+  congestion version — a route solved against a stale snapshot is still
+  valid, just possibly suboptimal.
+- **Congestion** (#40) — vehicles stamp load onto their current segment; a
+  low-pass pass (±5 per 15-tick interval, CS1's confirmed shape) turns it
+  into a 0–100 density scalar that multiplies routing cost up to 2×.
+  A saturated corridor genuinely prices traffic onto the detour.
+- **Lane reservation + car-following** (#41) — per-lane occupancy rebuilt
+  each movement pass; a follower's advance is capped by the gap to its
+  leader (8 m footprint) and junction crossing waits for a clear mouth, so
+  queues and spillback emerge from local rules alone — no queue objects.
+- **Wait / re-route / stall** (#42) — a truck held past 90 ticks asks the
+  solver for a better corridor (identical answers are discarded so the
+  counter keeps climbing); held past 240 ticks it registers a corridor stall
+  on the **StallBoard**: HUD STALL line + pulsing red glow along the jammed
+  segment's curve. Nothing ever despawns — a jam is information.
+- **Curved roads** (#43) — segments compile a quantized cubic-bezier
+  centreline with node-fan tangents (two-segment through-nodes smooth
+  Catmull-style; endpoints and junctions stay chord-straight). Motion, arc
+  length, and the render ribbon all read the same polyline; saves are
+  unchanged because geometry re-derives on load.
+
+Benchmark gate (`cargo run --release --bin bench_traffic`, #44): **10 000
+simultaneous vehicles** on a 24×24 grid (1104 segments), full pipeline —
+async routing churn, occupancy, congestion — at **mean 1.12 ms/tick** (p95
+1.47 ms) against the 16 ms (60 fps) budget. Prior gates still green
+(bench_chain 0.075 ms, bench_citizens 0.37 ms, bench_dispatch 1.34×/0.34 ms).
+
+Acceptance video (#44): `cargo run --release --bin capture_m4 -- frames
+screenshots/result/4 480` then ffmpeg; latest render at
+`screenshots/result/4/video.mp4` (local, untracked). Arc: freight flows over
+an S-curved corridor; a breakdown convoy jams the middle bend and the fleet
+queues behind it at footprint spacing; the corridor registers a STALL (HUD
+line + red glow along the curve); a bypass built moments later is priced
+against the congestion and the fleet re-routes onto it; flow resumes, orders
+drain to zero, and the dead convoy is still there — never despawned.
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 67 sim tests
+cargo test           # 79 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
@@ -143,9 +191,9 @@ dispatcher cannot feed pulse a red ring.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2 staffing and B3 dispatcher
-complete (above). Next: B4 per the ladder (see `ROADMAP.md`, including the
-parallel P-ladder).
+P1 "First Light" done (#16, zero-spend). B2 staffing, B3 dispatcher and B4
+traffic-at-scale complete (above). Next: B5 public transit per the ladder
+(see `ROADMAP.md`, including the parallel P-ladder).
 
 ## Assets
 

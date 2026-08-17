@@ -353,15 +353,26 @@ fn hint_stalled_corridors(
         let Ok(segment) = segments.get(seg) else {
             continue;
         };
-        let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
-            continue;
-        };
         let lift = Vec3::Y * 0.6;
-        gizmos.line(a.pos + lift, b.pos + lift, color);
-        let side = (b.pos - a.pos).normalize_or_zero().cross(Vec3::Y)
-            * (segment.class.width() * 0.5);
-        gizmos.line(a.pos + side + lift, b.pos + side + lift, color);
-        gizmos.line(a.pos - side + lift, b.pos - side + lift, color);
+        // Trace the compiled centreline so the glow hugs a curved ribbon;
+        // chord fallback for a segment that has not compiled yet.
+        let chord;
+        let points: &[Vec3] = if segment.curve.len() >= 2 {
+            &segment.curve
+        } else {
+            let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
+                continue;
+            };
+            chord = [a.pos, b.pos];
+            &chord
+        };
+        for w in points.windows(2) {
+            let side = (w[1] - w[0]).normalize_or_zero().cross(Vec3::Y)
+                * (segment.class.width() * 0.5);
+            gizmos.line(w[0] + lift, w[1] + lift, color);
+            gizmos.line(w[0] + side + lift, w[1] + side + lift, color);
+            gizmos.line(w[0] - side + lift, w[1] - side + lift, color);
+        }
     }
 }
 
