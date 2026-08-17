@@ -799,13 +799,19 @@ pub fn restore(world: &mut World, save: &SaveGame) {
             length: 0.0,
             modification_index: row.modification_index,
             lanes: Vec::new(),
+            curve: Vec::new(),
         };
         let (a_pos, b_pos) = (
             Vec3::from_array(save.nodes[row.a as usize].pos),
             Vec3::from_array(save.nodes[row.b as usize].pos),
         );
-        segment.recompile(a_pos, b_pos);
-        world.entity_mut(entity).insert(segment);
+        // Chord-straight for now; the DirtySegment below re-derives the
+        // node-fan curve on the first compile pass (geometry is never stored).
+        let chord = (b_pos - a_pos).normalize_or_zero();
+        segment.recompile(a_pos, b_pos, chord, chord);
+        world
+            .entity_mut(entity)
+            .insert((segment, super::roads::DirtySegment));
         for node in [a, b] {
             world
                 .get_mut::<RoadNode>(node)

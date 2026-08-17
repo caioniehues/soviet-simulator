@@ -542,7 +542,7 @@ fn drive_toward(
             return Progress::Moving;
         }
     }
-    if advance_along_route(pawn, vehicle, dt, occupancy, nodes, segments) {
+    if advance_along_route(pawn, vehicle, dt, occupancy, segments) {
         // Clear the spent route so the next phase starts with a fresh one.
         vehicle.route = Vec::new();
         vehicle.leg = 0;

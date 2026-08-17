@@ -124,10 +124,17 @@ fn sync_segment_meshes(
     existing: Query<&Mesh3d>,
 ) {
     for (entity, segment) in &changed {
-        let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
-            continue;
+        // Prefer the compiled centreline curve; fall back to the chord for a
+        // segment that has not hit the compile pass yet.
+        let points: Vec<Vec3> = if segment.curve.len() >= 2 {
+            segment.curve.clone()
+        } else {
+            let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
+                continue;
+            };
+            vec![a.pos, b.pos]
         };
-        let mesh = ribbon(a.pos, b.pos, segment.class.width());
+        let mesh = ribbon(&points, segment.class.width());
         if let Ok(old) = existing.get(entity) {
             if meshes.insert(&old.0, mesh).is_err() {
                 warn!("road mesh update failed for {entity:?}");
@@ -147,21 +154,43 @@ fn sync_segment_meshes(
     }
 }
 
-fn ribbon(a: Vec3, b: Vec3, width: f32) -> Mesh {
-    let dir = (b - a).normalize_or_zero();
-    let side = dir.cross(Vec3::Y) * (width * 0.5);
+/// Ribbon strip along the segment's centreline polyline (B4.5): one pair of
+/// verts per curve point, side vectors from the local tangent (central
+/// difference at interior points so joints between quads stay watertight).
+fn ribbon(points: &[Vec3], width: f32) -> Mesh {
     let lift = Vec3::Y * 0.05;
-    let corners = [
-        a - side + lift,
-        a + side + lift,
-        b + side + lift,
-        b - side + lift,
-    ];
-    let positions: Vec<[f32; 3]> = corners.iter().map(|v| v.to_array()).collect();
-    let normals = vec![[0.0, 1.0, 0.0]; 4];
-    // v tiles along the segment so the surface texture doesn't stretch
-    let v_reps = (a.distance(b) / 16.0).max(1.0);
-    let uvs = vec![[0.0, 0.0], [1.0, 0.0], [1.0, v_reps], [0.0, v_reps]];
+    let half = width * 0.5;
+    let n = points.len();
+    let mut positions: Vec<[f32; 3]> = Vec::with_capacity(n * 2);
+    let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(n * 2);
+    let mut walked = 0.0;
+    for i in 0..n {
+        let tangent = if i == 0 {
+            points[1] - points[0]
+        } else if i == n - 1 {
+            points[n - 1] - points[n - 2]
+        } else {
+            points[i + 1] - points[i - 1]
+        }
+        .normalize_or_zero();
+        let side = tangent.cross(Vec3::Y) * half;
+        positions.push((points[i] - side + lift).to_array());
+        positions.push((points[i] + side + lift).to_array());
+        if i > 0 {
+            walked += points[i - 1].distance(points[i]);
+        }
+        // v tiles along the ribbon so the surface texture doesn't stretch
+        let v = walked / 16.0;
+        uvs.push([0.0, v]);
+        uvs.push([1.0, v]);
+    }
+    let normals = vec![[0.0, 1.0, 0.0]; n * 2];
+    let mut indices: Vec<u32> = Vec::with_capacity((n - 1) * 6);
+    for i in 0..(n as u32 - 1) {
+        let (l0, r0, l1, r1) = (i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 3);
+        // counter-clockwise seen from +Y, or the ribbon is back-face culled
+        indices.extend([l0, r0, r1, l0, r1, l1]);
+    }
     Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
@@ -169,6 +198,5 @@ fn ribbon(a: Vec3, b: Vec3, width: f32) -> Mesh {
     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
     .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-    // counter-clockwise seen from +Y, or the ribbon is back-face culled
-    .with_inserted_indices(Indices::U32(vec![0, 1, 2, 0, 2, 3]))
+    .with_inserted_indices(Indices::U32(indices))
 }

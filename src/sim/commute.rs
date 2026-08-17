@@ -145,7 +145,6 @@ fn advance_commuters(
     mut commands: Commands,
     mut pawns: Query<(Entity, &mut CommuterPawn)>,
     mut citizens: Query<&mut Citizen>,
-    nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
     for (pawn_entity, mut pawn) in &mut pawns {
@@ -171,12 +170,12 @@ fn advance_commuters(
             let remaining = segment.length - pawn.s;
             if budget < remaining {
                 pawn.s += budget;
-                place_on_leg(&mut pawn, segment, leg.dir, &nodes);
+                place_on_leg(&mut pawn, segment, leg.dir);
                 break;
             }
             budget -= remaining;
             pawn.s = segment.length;
-            place_on_leg(&mut pawn, segment, leg.dir, &nodes);
+            place_on_leg(&mut pawn, segment, leg.dir);
             pawn.leg += 1;
             pawn.s = 0.0;
         }
@@ -195,24 +194,12 @@ fn advance_commuters(
     }
 }
 
-fn place_on_leg(
-    pawn: &mut CommuterPawn,
-    segment: &RoadSegment,
-    dir: LaneDir,
-    nodes: &Query<(Entity, &RoadNode)>,
-) {
-    let (Ok((_, a)), Ok((_, b))) = (nodes.get(segment.a), nodes.get(segment.b)) else {
-        return;
-    };
-    let (start, end) = match dir {
-        LaneDir::Forward => (a.pos, b.pos),
-        LaneDir::Backward => (b.pos, a.pos),
-    };
-    let travel = (end - start).normalize_or_zero();
+fn place_on_leg(pawn: &mut CommuterPawn, segment: &RoadSegment, dir: LaneDir) {
+    let (pos, travel) = segment.point_at(pawn.s, dir);
     // Pedestrians keep to the verge, outside the vehicle lane.
     let verge = segment.class.width() * 0.5 + 0.6;
     pawn.heading = travel;
-    pawn.pos = start + travel * pawn.s.min(segment.length) + travel.cross(Vec3::Y) * verge;
+    pawn.pos = pos + travel.cross(Vec3::Y) * verge;
 }
 
 /// Presence is recomputed from citizen locations every tick — production

@@ -238,7 +238,6 @@ pub(crate) fn advance_along_route(
     vehicle: &mut ActiveVehicle,
     dt: f32,
     occupancy: &LaneOccupancy,
-    nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
 ) -> bool {
     let mut budget = f32::MAX; // set from lane speed on the first leg below
@@ -264,13 +263,13 @@ pub(crate) fn advance_along_route(
             // Leader ahead in reservation range: creep up to its reserved
             // space and hold — the whole leftover budget is forfeited.
             vehicle.s += gap;
-            place_on_leg(vehicle, segment, leg.dir, nodes);
+            place_on_leg(vehicle, segment, leg.dir);
             vehicle.blocked_ticks += 1;
             return false;
         }
         if budget < remaining {
             vehicle.s += budget;
-            place_on_leg(vehicle, segment, leg.dir, nodes);
+            place_on_leg(vehicle, segment, leg.dir);
             vehicle.blocked_ticks = 0;
             return false;
         }
@@ -280,41 +279,28 @@ pub(crate) fn advance_along_route(
             && !occupancy.entry_free(next.segment, next.dir, me)
         {
             vehicle.s = segment.length;
-            place_on_leg(vehicle, segment, leg.dir, nodes);
+            place_on_leg(vehicle, segment, leg.dir);
             vehicle.blocked_ticks += 1;
             return false;
         }
         // Continue onto the next leg with the leftover budget.
         budget -= remaining;
         vehicle.s = segment.length;
-        place_on_leg(vehicle, segment, leg.dir, nodes);
+        place_on_leg(vehicle, segment, leg.dir);
         vehicle.leg += 1;
         vehicle.s = 0.0;
     }
 }
 
-fn place_on_leg(
-    vehicle: &mut ActiveVehicle,
-    segment: &RoadSegment,
-    dir: LaneDir,
-    nodes: &Query<(Entity, &RoadNode)>,
-) {
-    let (Ok((_, a)), Ok((_, b))) = (nodes.get(segment.a), nodes.get(segment.b)) else {
-        return;
-    };
-    let (start, end) = match dir {
-        LaneDir::Forward => (a.pos, b.pos),
-        LaneDir::Backward => (b.pos, a.pos),
-    };
-    let travel = (end - start).normalize_or_zero();
-    let right = travel.cross(Vec3::Y);
+fn place_on_leg(vehicle: &mut ActiveVehicle, segment: &RoadSegment, dir: LaneDir) {
+    let (pos, travel) = segment.point_at(vehicle.s, dir);
     let offset = segment
         .lanes
         .iter()
         .find(|l| l.dir == dir)
         .map_or(0.0, |l| l.offset);
     vehicle.heading = travel;
-    vehicle.pos = start + travel * vehicle.s.min(segment.length) + right * offset;
+    vehicle.pos = pos + travel.cross(Vec3::Y) * offset;
 }
 
 /// A yard docks only onto a road node within this range: cutting a building's

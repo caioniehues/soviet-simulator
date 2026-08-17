@@ -1,7 +1,10 @@
 //! Authoritative road graph (spec/roads.md, M1 charter Q10): player-drawn
 //! centerlines compile into the one unified lane graph — node/segment/per-lane
 //! buffer. The lane network *is* the routing graph; there is no separate
-//! abstract routing layer. M1 segments are straight; curves arrive in B4.
+//! abstract routing layer. Segments carry a compiled bezier centreline
+//! (B4.5): tangents fan from the nodes — a two-segment through-node smooths
+//! Catmull-style, endpoints and junctions stay chord-straight — and motion,
+//! rendering and length all read the same quantized polyline.
 
 use bevy::prelude::*;
 
@@ -70,6 +73,11 @@ pub struct Lane {
     pub speed_modifier: f32,
 }
 
+/// Curve quantization: one polyline point roughly every this many metres.
+pub const CURVE_STEP_M: f32 = 8.0;
+/// Sample-count clamp so a kilometre segment cannot balloon the polyline.
+pub const MAX_CURVE_SAMPLES: usize = 33;
+
 /// Edge between two nodes with its compiled lane buffer.
 #[derive(Component, Debug)]
 pub struct RoadSegment {
@@ -81,15 +89,36 @@ pub struct RoadSegment {
     /// Bumped on every recompile; cached routes compare it (spec/roads.md).
     pub modification_index: u32,
     pub lanes: Vec<Lane>,
+    /// Quantized centreline polyline a → b (≥ 2 points once compiled).
+    /// Motion, rendering and `length` all derive from this one artefact.
+    pub curve: Vec<Vec3>,
 }
 
 impl RoadSegment {
-    /// Rebuild the derived geometry (length + lane buffer) from endpoint
-    /// positions. Shared by the dirty-segment pass and the save loader, so
-    /// lanes are never serialized — they are always derived. Does not bump
+    /// Rebuild the derived geometry (curve + length + lane buffer) from the
+    /// endpoint positions and the unit travel tangents at each end (`tan_a`
+    /// pointing into the segment at `a`, `tan_b` pointing out of it at `b`).
+    /// Shared by the dirty-segment pass and the save loader, so geometry is
+    /// never serialized — it is always derived. Does not bump
     /// `modification_index`; that is the compile pass's business.
-    pub fn recompile(&mut self, a_pos: Vec3, b_pos: Vec3) {
-        self.length = a_pos.distance(b_pos);
+    pub fn recompile(&mut self, a_pos: Vec3, b_pos: Vec3, tan_a: Vec3, tan_b: Vec3) {
+        let chord = a_pos.distance(b_pos);
+        // Cubic bezier with node-fan handles at a third of the chord: chord
+        // tangents on both ends degenerate to the exact straight line.
+        let c1 = a_pos + tan_a * (chord / 3.0);
+        let c2 = b_pos - tan_b * (chord / 3.0);
+        let samples = ((chord / CURVE_STEP_M).ceil() as usize + 1).clamp(2, MAX_CURVE_SAMPLES);
+        self.curve = (0..samples)
+            .map(|i| {
+                let t = i as f32 / (samples - 1) as f32;
+                let u = 1.0 - t;
+                a_pos * (u * u * u)
+                    + c1 * (3.0 * u * u * t)
+                    + c2 * (3.0 * u * t * t)
+                    + b_pos * (t * t * t)
+            })
+            .collect();
+        self.length = self.curve.windows(2).map(|w| w[0].distance(w[1])).sum();
         let half = self.class.width() * 0.25;
         let speed = self.class.speed_modifier();
         self.lanes = vec![
@@ -104,6 +133,41 @@ impl RoadSegment {
                 speed_modifier: speed,
             },
         ];
+    }
+
+    /// Position and unit travel tangent at arc length `s` along the given
+    /// travel direction. `s` is clamped into the segment.
+    pub fn point_at(&self, s: f32, dir: LaneDir) -> (Vec3, Vec3) {
+        let flip = |p: Vec3, t: Vec3| match dir {
+            LaneDir::Forward => (p, t),
+            LaneDir::Backward => (p, -t),
+        };
+        let s = match dir {
+            LaneDir::Forward => s,
+            LaneDir::Backward => self.length - s,
+        }
+        .clamp(0.0, self.length);
+        let mut walked = 0.0;
+        for w in self.curve.windows(2) {
+            let step = w[1] - w[0];
+            let len = step.length();
+            if walked + len >= s && len > 1e-6 {
+                let t = (s - walked) / len;
+                return flip(w[0] + step * t, step / len);
+            }
+            walked += len;
+        }
+        // Walked off the end (fp rounding) or uncompiled: sit at the final
+        // point with the final window's tangent.
+        let p = self.curve.last().copied().unwrap_or(Vec3::ZERO);
+        let tan = self
+            .curve
+            .windows(2)
+            .next_back()
+            .map(|w| (w[1] - w[0]).normalize_or_zero())
+            .filter(|t| *t != Vec3::ZERO)
+            .unwrap_or(Vec3::X);
+        flip(p, tan)
     }
 }
 
@@ -301,6 +365,7 @@ fn place_segment(world: &mut World, from: Vec3, to: Vec3, class: RoadClass) {
                 length: 0.0,
                 modification_index: 0,
                 lanes: Vec::new(),
+                curve: Vec::new(),
             },
             DirtySegment,
         ))
@@ -376,17 +441,67 @@ fn point_to_segment_distance(p: Vec3, a: Vec3, b: Vec3) -> f32 {
     p.distance(a + ab * t)
 }
 
+/// Unit travel direction *into* segment `this` at `node` (whose far endpoint
+/// sits at `far_pos`). A two-segment through-node smooths Catmull-style —
+/// the tangent aims from the neighbour's far endpoint at our own — while
+/// endpoints and junctions (≥3 fan arms) keep the plain chord.
+fn node_fan_tangent(
+    node: Entity,
+    this: Entity,
+    far_pos: Vec3,
+    nodes: &Query<&RoadNode>,
+    segments: &Query<&RoadSegment>,
+) -> Vec3 {
+    let chord = |node_pos: Vec3| (far_pos - node_pos).normalize_or_zero();
+    let Ok(n) = nodes.get(node) else {
+        return Vec3::X;
+    };
+    if n.segments.len() == 2
+        && let Some(&other) = n.segments.iter().find(|&&s| s != this)
+        && let Ok(o) = segments.get(other)
+        && let Ok(neighbour_far) = nodes.get(if o.a == node { o.b } else { o.a })
+    {
+        let smoothed = (far_pos - neighbour_far.pos).normalize_or_zero();
+        if smoothed != Vec3::ZERO {
+            return smoothed;
+        }
+    }
+    chord(n.pos)
+}
+
+#[allow(clippy::type_complexity)]
 fn compile_dirty_segments(
     mut commands: Commands,
-    mut dirty: Query<(Entity, &mut RoadSegment), With<DirtySegment>>,
+    mut set: ParamSet<(
+        Query<&RoadSegment>,
+        Query<(Entity, &mut RoadSegment), With<DirtySegment>>,
+    )>,
     nodes: Query<&RoadNode>,
 ) {
-    for (entity, mut segment) in &mut dirty {
-        let (Ok(a), Ok(b)) = (nodes.get(segment.a), nodes.get(segment.b)) else {
+    let dirty: Vec<(Entity, Entity, Entity)> = set
+        .p1()
+        .iter()
+        .map(|(e, s)| (e, s.a, s.b))
+        .collect();
+    // Tangents read the whole graph, so they are resolved before any segment
+    // is rewritten — a compile never sees a half-updated neighbour.
+    let mut solved: Vec<(Entity, Vec3, Vec3, Vec3, Vec3)> = Vec::with_capacity(dirty.len());
+    for (entity, a, b) in dirty {
+        let (Ok(an), Ok(bn)) = (nodes.get(a), nodes.get(b)) else {
             continue;
         };
-        let (a_pos, b_pos) = (a.pos, b.pos);
-        segment.recompile(a_pos, b_pos);
+        let (a_pos, b_pos) = (an.pos, bn.pos);
+        let tan_a = node_fan_tangent(a, entity, b_pos, &nodes, &set.p0());
+        // travel tangent at b = the reverse of the into-segment fan at b
+        let tan_b = -node_fan_tangent(b, entity, a_pos, &nodes, &set.p0());
+        solved.push((entity, a_pos, b_pos, tan_a, tan_b));
+    }
+    for (entity, a_pos, b_pos, tan_a, tan_b) in solved {
+        let mut segments = set.p1();
+        let Ok((_, mut segment)) = segments.get_mut(entity) else {
+            continue;
+        };
+        segment.recompile(a_pos, b_pos, tan_a, tan_b);
         segment.modification_index = segment.modification_index.wrapping_add(1);
         commands.entity(entity).remove::<DirtySegment>();
     }
@@ -539,6 +654,81 @@ mod tests {
         let survivor = world.query::<&RoadSegment>().single(world).unwrap();
         // 1-ring recompile bumped the surviving neighbor
         assert_eq!(survivor.modification_index, 2);
+    }
+
+    #[test]
+    fn through_node_smooths_into_a_curve_and_a_junction_straightens_it() {
+        let mut app = app();
+        // A(0,0,0) — J(100,0,0) — B(200,0,60): the bend at J should smooth.
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            },
+        );
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::new(100.0, 0.0, 0.0),
+                to: Vec3::new(200.0, 0.0, 60.0),
+                class: RoadClass::Dirt,
+            },
+        );
+        tick(&mut app);
+        let world = app.world_mut();
+        let aj = world
+            .query::<&RoadSegment>()
+            .iter(world)
+            .find(|s| s.id == SegmentId(1))
+            .unwrap();
+        assert!(aj.curve.len() > 2, "quantized polyline, not a chord");
+        let max_dev = aj
+            .curve
+            .iter()
+            .map(|p| p.z.abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_dev > 0.5,
+            "two-segment node must bend the curve off the chord, dev = {max_dev}"
+        );
+        assert!(aj.length > 100.0, "arc length exceeds the chord");
+        // point_at endpoints and direction flip
+        let (p0, _) = aj.point_at(0.0, LaneDir::Forward);
+        let (p1, t1) = aj.point_at(aj.length, LaneDir::Forward);
+        assert!(p0.distance(Vec3::ZERO) < 1e-2);
+        assert!(p1.distance(Vec3::new(100.0, 0.0, 0.0)) < 1e-2);
+        let (bp, bt) = aj.point_at(0.0, LaneDir::Backward);
+        assert!(bp.distance(Vec3::new(100.0, 0.0, 0.0)) < 1e-2);
+        assert!(bt.dot(t1) < 0.0, "backward travel flips the tangent");
+        // A third arm turns J into a junction: the fan collapses to chords
+        // and AJ straightens out again (1-ring recompile).
+        push(
+            &mut app,
+            RoadEdit::Place {
+                from: Vec3::new(100.0, 0.0, 0.0),
+                to: Vec3::new(100.0, 0.0, -80.0),
+                class: RoadClass::Dirt,
+            },
+        );
+        tick(&mut app);
+        let world = app.world_mut();
+        let aj = world
+            .query::<&RoadSegment>()
+            .iter(world)
+            .find(|s| s.id == SegmentId(1))
+            .unwrap();
+        let max_dev = aj
+            .curve
+            .iter()
+            .map(|p| p.z.abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_dev < 1e-3,
+            "junction arms stay chord-straight, dev = {max_dev}"
+        );
+        assert!((aj.length - 100.0).abs() < 1e-2);
     }
 
     #[test]
