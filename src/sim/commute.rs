@@ -20,9 +20,10 @@ use super::citizens::{Citizen, CitizenLocation};
 use super::clock::{FRAMES_PER_GAME_DAY, FrameIndex};
 use super::labour::{COMMUTE_SPEED, Staffing};
 use super::needs::CitizenNeeds;
+use super::pathfinding::{CostProfile, PathService, PathSystems, PathfindingSimPlugin};
 use super::roads::{LaneDir, RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
-use super::vehicles::{RouteLeg, find_route, nearest_node};
+use super::vehicles::{RouteLeg, nearest_node};
 
 /// Morning departures begin at this frame of the day (06:00 of the 600-frame
 /// day), evening departures at `EVENING_FRAME`. Each citizen adds a personal
@@ -50,7 +51,15 @@ pub struct CommuteSimPlugin;
 
 impl Plugin for CommuteSimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SimTick, depart_commuters.in_set(SimStage::Routing))
+        if !app.is_plugin_added::<PathfindingSimPlugin>() {
+            app.add_plugins(PathfindingSimPlugin);
+        }
+        app.add_systems(
+            SimTick,
+            depart_commuters
+                .in_set(SimStage::Routing)
+                .after(PathSystems),
+        )
             .add_systems(
                 SimTick,
                 (advance_commuters, tally_presence)
@@ -70,10 +79,10 @@ fn departure_jitter(citizen: &Citizen) -> u32 {
 fn depart_commuters(
     mut commands: Commands,
     frame: Res<FrameIndex>,
+    svc: Res<PathService>,
     mut citizens: Query<(Entity, &mut Citizen, Option<&CitizenNeeds>)>,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
-    segments: Query<&RoadSegment>,
 ) {
     let day = frame.0 % FRAMES_PER_GAME_DAY;
     for (entity, mut citizen, needs) in &mut citizens {
@@ -105,7 +114,10 @@ fn depart_commuters(
         ) else {
             continue;
         };
-        let Some(route) = find_route(start, goal, &nodes, &segments) else {
+        // Walkers route synchronously on the shared snapshot (stable
+        // distance cost, no congestion jitter — spec/pathfinding.md); the
+        // request/poll round-trip would only delay every departure a tick.
+        let Some(route) = svc.route_now(start, goal, CostProfile::Pedestrian, citizen.id.0) else {
             continue;
         };
         let pos = nodes.get(start).unwrap().1.pos;

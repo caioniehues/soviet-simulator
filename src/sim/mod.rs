@@ -9,6 +9,7 @@ pub mod commute;
 pub mod households;
 pub mod labour;
 pub mod needs;
+pub mod pathfinding;
 pub mod resources;
 pub mod roads;
 pub mod save;

@@ -19,9 +19,10 @@ use super::resources::{Inventory, ResourceKind};
 use super::roads::{RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::storage::StoragePolicies;
+use super::pathfinding::{CostProfile, PathPoll, PathService, PathfindingSimPlugin};
 use super::vehicles::{
     ActivePawn, ActiveVehicle, PawnOf, TRUCK_CARGO_CAPACITY, TRUCK_TRANSFER_RATE, VehicleAsset,
-    advance_along_route, find_route, nearest_node, nearest_node_unbounded,
+    advance_along_route, nearest_node, nearest_node_unbounded,
 };
 
 /// One resource is matched every this many ticks (round-robin across the
@@ -124,6 +125,9 @@ pub struct DispatchSimPlugin;
 
 impl Plugin for DispatchSimPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<PathfindingSimPlugin>() {
+            app.add_plugins(PathfindingSimPlugin);
+        }
         app.init_resource::<DispatchQueue>()
             .init_resource::<DeficitBoard>()
             .init_resource::<DockIndex>()
@@ -419,14 +423,17 @@ enum Progress {
 }
 
 /// Ensure a route toward the goal exists (recomputing after a severed
-/// segment) and advance along it. `goal` is a lazy lookup — resolving the
-/// dock node costs an O(nodes) scan, so it runs only on the (re)routing tick,
-/// never per movement tick. Recovery re-enters at the nearest node — cargo
-/// stays aboard through a re-route.
+/// segment) and advance along it. Routing is asynchronous (B4.1): needing a
+/// route submits a background request and the truck holds in place —
+/// `Progress::Moving` — until the ticket resolves on a later tick. `goal` is
+/// a lazy lookup — resolving the dock node costs an O(nodes) scan, so it runs
+/// only on the request tick, never per movement tick. Recovery re-enters at
+/// the nearest node — cargo stays aboard through a re-route.
 fn drive_toward(
     vehicle: &mut ActiveVehicle,
     goal: impl FnOnce() -> Option<Entity>,
     dt: f32,
+    svc: &mut PathService,
     nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
 ) -> Progress {
@@ -435,30 +442,54 @@ fn drive_toward(
         .get(vehicle.leg)
         .is_some_and(|leg| segments.get(leg.segment).is_err());
     if severed || vehicle.route.is_empty() {
-        let Some(goal) = goal() else {
-            return Progress::NoPath;
-        };
-        // Standing at the goal already?
-        if let Ok((_, goal_node)) = nodes.get(goal)
-            && vehicle.pos.distance_squared(goal_node.pos) < 1.0
-        {
-            vehicle.route = Vec::new();
-            vehicle.leg = 0;
-            vehicle.s = 0.0;
-            return Progress::Arrived;
-        }
-        let Some(start) = nearest_node_unbounded(vehicle.pos, nodes) else {
-            return Progress::NoPath;
-        };
-        let Some(route) = find_route(start, goal, nodes, segments) else {
-            return Progress::NoPath;
-        };
-        vehicle.pos = nodes.get(start).unwrap().1.pos;
-        vehicle.route = route;
-        vehicle.leg = 0;
-        vehicle.s = 0.0;
-        if vehicle.route.is_empty() {
-            return Progress::Arrived;
+        if let Some(ticket) = vehicle.pending_path {
+            match svc.poll(ticket) {
+                PathPoll::Pending => return Progress::Moving,
+                PathPoll::Ready(None) => {
+                    vehicle.pending_path = None;
+                    return Progress::NoPath;
+                }
+                PathPoll::Ready(Some(route)) => {
+                    vehicle.pending_path = None;
+                    // Solved against a snapshot: re-enter at the route's
+                    // start node (the nearest node at request time).
+                    if let Some(first) = route.first()
+                        && let Ok(seg) = segments.get(first.segment)
+                    {
+                        let entry = match first.dir {
+                            super::roads::LaneDir::Forward => seg.a,
+                            super::roads::LaneDir::Backward => seg.b,
+                        };
+                        if let Ok((_, n)) = nodes.get(entry) {
+                            vehicle.pos = n.pos;
+                        }
+                    }
+                    vehicle.route = route;
+                    vehicle.leg = 0;
+                    vehicle.s = 0.0;
+                    if vehicle.route.is_empty() {
+                        return Progress::Arrived;
+                    }
+                }
+            }
+        } else {
+            let Some(goal) = goal() else {
+                return Progress::NoPath;
+            };
+            // Standing at the goal already?
+            if let Ok((_, goal_node)) = nodes.get(goal)
+                && vehicle.pos.distance_squared(goal_node.pos) < 1.0
+            {
+                vehicle.route = Vec::new();
+                vehicle.leg = 0;
+                vehicle.s = 0.0;
+                return Progress::Arrived;
+            }
+            let Some(start) = nearest_node_unbounded(vehicle.pos, nodes) else {
+                return Progress::NoPath;
+            };
+            vehicle.pending_path = Some(svc.request(start, goal, CostProfile::Vehicle));
+            return Progress::Moving;
         }
     }
     if advance_along_route(vehicle, dt, nodes, segments) {
@@ -484,6 +515,7 @@ fn run_freight(
     assets: Query<&VehicleAsset>,
     buildings: Query<&Building>,
     mut yards: Query<&mut Inventory, With<Building>>,
+    mut svc: ResMut<PathService>,
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
@@ -515,7 +547,7 @@ fn run_freight(
                 let Some(i) = order else { continue };
                 let from = queue.orders[i].from;
                 let goal = || buildings.get(from).ok().and_then(|b| nearest_node(b.pos, &nodes));
-                match drive_toward(&mut vehicle, goal, dt, &nodes, &segments) {
+                match drive_toward(&mut vehicle, goal, dt, &mut svc, &nodes, &segments) {
                     Progress::Arrived => job.phase = FreightPhase::Loading,
                     Progress::Moving => {}
                     // No route to the pickup: give the order back so another
@@ -557,7 +589,7 @@ fn run_freight(
                 };
                 let to = queue.orders[i].to;
                 let goal = || buildings.get(to).ok().and_then(|b| nearest_node(b.pos, &nodes));
-                match drive_toward(&mut vehicle, goal, dt, &nodes, &segments) {
+                match drive_toward(&mut vehicle, goal, dt, &mut svc, &nodes, &segments) {
                     Progress::Arrived => job.phase = FreightPhase::Unloading,
                     // Severed with cargo aboard: hold and retry — the cargo
                     // stays physical, the delivery resumes when a path exists.
@@ -613,7 +645,7 @@ fn run_freight(
                 // A depot off the network cannot be driven to: the truck
                 // parks where it stands (asset teleports to its slot — fiat
                 // stub, matching the spawn side).
-                let done = match drive_toward(&mut vehicle, home, dt, &nodes, &segments) {
+                let done = match drive_toward(&mut vehicle, home, dt, &mut svc, &nodes, &segments) {
                     Progress::Arrived => true,
                     Progress::NoPath => home().is_none(),
                     Progress::Moving => false,

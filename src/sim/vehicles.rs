@@ -6,7 +6,7 @@
 //! dispatcher replaces; routing is plain BFS until the packed search mirror
 //! lands (ADR 0005).
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use bevy::prelude::*;
 
@@ -100,6 +100,9 @@ pub struct ActiveVehicle {
     /// Metres travelled along the current leg.
     pub s: f32,
     pub cargo: Inventory,
+    /// Outstanding background path request (B4.1). Transient — never saved;
+    /// a loaded pawn with an empty route simply re-requests.
+    pub pending_path: Option<super::pathfinding::PathTicket>,
 }
 
 impl ActiveVehicle {
@@ -112,6 +115,7 @@ impl ActiveVehicle {
             leg: 0,
             s: 0.0,
             cargo: Inventory::new(TRUCK_CARGO_CAPACITY),
+            pending_path: None,
         }
     }
 }
@@ -299,62 +303,6 @@ pub fn nearest_node_unbounded(pos: Vec3, nodes: &Query<(Entity, &RoadNode)>) -> 
         .map(|(e, n)| (e, n.pos.distance_squared(pos)))
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(e, _)| e)
-}
-
-/// Unweighted BFS over node adjacency — fine at M1 scale; the B3 dispatcher
-/// brings cost-aware search over the packed mirror (ADR 0005).
-pub fn find_route(
-    start: Entity,
-    goal: Entity,
-    nodes: &Query<(Entity, &RoadNode)>,
-    segments: &Query<&RoadSegment>,
-) -> Option<Vec<RouteLeg>> {
-    if start == goal {
-        return Some(Vec::new());
-    }
-    let mut prev: HashMap<Entity, (Entity, RouteLeg)> = HashMap::new();
-    let mut queue = VecDeque::from([start]);
-    while let Some(node) = queue.pop_front() {
-        let Ok((_, n)) = nodes.get(node) else {
-            continue;
-        };
-        for &seg_entity in &n.segments {
-            let Ok(segment) = segments.get(seg_entity) else {
-                continue;
-            };
-            let (next, dir) = if segment.a == node {
-                (segment.b, LaneDir::Forward)
-            } else {
-                (segment.a, LaneDir::Backward)
-            };
-            if next == start || prev.contains_key(&next) {
-                continue;
-            }
-            prev.insert(
-                next,
-                (
-                    node,
-                    RouteLeg {
-                        segment: seg_entity,
-                        dir,
-                    },
-                ),
-            );
-            if next == goal {
-                let mut legs = Vec::new();
-                let mut at = goal;
-                while at != start {
-                    let (parent, leg) = prev[&at];
-                    legs.push(leg);
-                    at = parent;
-                }
-                legs.reverse();
-                return Some(legs);
-            }
-            queue.push_back(next);
-        }
-    }
-    None
 }
 
 #[cfg(test)]
