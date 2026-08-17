@@ -59,6 +59,8 @@ fn main() {
         CommuteSimPlugin,
         NeedsSimPlugin,
         VehicleSimPlugin,
+        soviet_simulator::sim::storage::StorageSimPlugin,
+        soviet_simulator::sim::dispatch::DispatchSimPlugin,
         WireSimPlugin,
     ));
 

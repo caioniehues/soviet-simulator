@@ -42,6 +42,8 @@ fn main() {
         RoadSimPlugin,
         BuildingSimPlugin,
         VehicleSimPlugin,
+        soviet_simulator::sim::storage::StorageSimPlugin,
+        soviet_simulator::sim::dispatch::DispatchSimPlugin,
         WireSimPlugin,
     ));
 

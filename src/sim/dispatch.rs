@@ -20,9 +20,8 @@ use super::roads::{RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::storage::StoragePolicies;
 use super::vehicles::{
-    ActivePawn, ActiveVehicle, PawnOf, ShuttleAssignment, TRUCK_CARGO_CAPACITY,
-    TRUCK_TRANSFER_RATE, VehicleAsset, advance_along_route, find_route, nearest_node,
-    nearest_node_unbounded,
+    ActivePawn, ActiveVehicle, PawnOf, TRUCK_CARGO_CAPACITY, TRUCK_TRANSFER_RATE, VehicleAsset,
+    advance_along_route, find_route, nearest_node, nearest_node_unbounded,
 };
 
 /// One resource is matched every this many ticks (round-robin across the
@@ -287,10 +286,7 @@ fn match_freight(
 fn assign_freight(
     mut commands: Commands,
     mut queue: ResMut<DispatchQueue>,
-    fleet: Query<
-        (Entity, &VehicleAsset, Has<ActivePawn>, Has<FreightJob>),
-        Without<ShuttleAssignment>,
-    >,
+    fleet: Query<(Entity, &VehicleAsset, Has<ActivePawn>, Has<FreightJob>)>,
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
 ) {
@@ -353,18 +349,7 @@ fn assign_freight(
             order: order.id,
             phase: FreightPhase::ToPickup,
         });
-        commands.spawn((
-            ActiveVehicle {
-                pos,
-                heading: Vec3::X,
-                phase: super::vehicles::ShuttlePhase::Loading,
-                route: Vec::new(),
-                leg: 0,
-                s: 0.0,
-                cargo: Inventory::new(TRUCK_CARGO_CAPACITY),
-            },
-            PawnOf(asset),
-        ));
+        commands.spawn((ActiveVehicle::at(pos), PawnOf(asset)));
         if idle.is_empty() {
             return;
         }

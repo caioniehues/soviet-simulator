@@ -207,7 +207,9 @@ fn tool_label(mode: ToolMode) -> String {
         }
         ToolMode::Building(kind) => format!("BUILD ({kind:?}) - click places, 3 cycles kind"),
         ToolMode::Wire => "WIRE - click-chain hops, right-click ends, X cuts".into(),
-        ToolMode::Shuttle => "SHUTTLE - click source building, then destination".into(),
+        ToolMode::Shuttle => {
+            "HAUL POLICY - click source (export all), then destination (import to 90%)".into()
+        }
     }
 }
 

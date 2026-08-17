@@ -89,6 +89,8 @@ fn main() {
         soviet_simulator::sim::commute::CommuteSimPlugin,
         soviet_simulator::sim::needs::NeedsSimPlugin,
         VehicleSimPlugin,
+        soviet_simulator::sim::storage::StorageSimPlugin,
+        soviet_simulator::sim::dispatch::DispatchSimPlugin,
         WireSimPlugin,
         soviet_simulator::sim::save::SaveSimPlugin,
     ))

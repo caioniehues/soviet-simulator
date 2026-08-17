@@ -9,8 +9,7 @@ use crate::sim::PostSimEasing;
 use crate::sim::buildings::{Building, BuildingKind};
 use crate::sim::resources::ResourceKind;
 use crate::sim::vehicles::{
-    ActivePawn, ActiveVehicle, ShuttleAssignment, VehicleAsset, VehicleEdit, VehicleEditQueue,
-    depot_slot_pos,
+    ActivePawn, ActiveVehicle, VehicleAsset, VehicleEdit, VehicleEditQueue, depot_slot_pos,
 };
 
 /// Click-picking radius around a building's centre, metres.
@@ -29,7 +28,6 @@ impl Plugin for VehicleToolPlugin {
             (
                 drive_shuttle_tool,
                 preview_shuttle_source,
-                hint_blocked_shuttles,
                 sync_truck_meshes,
                 sync_parked_trucks,
                 toggle_parked_visibility,
@@ -120,33 +118,6 @@ fn preview_shuttle_source(
     );
     if let Some(pos) = cursor.0 {
         gizmos.line(anchor, pos + Vec3::Y * 2.0, Color::srgb(0.9, 0.7, 0.2));
-    }
-}
-
-/// A shuttle whose truck can't be dispatched (usually: no road path between
-/// its yards) shows as a pulsing red line between them, so a parked
-/// assignment is never invisible.
-fn hint_blocked_shuttles(
-    time: Res<Time>,
-    blocked: Query<&ShuttleAssignment, (With<VehicleAsset>, Without<ActivePawn>)>,
-    buildings: Query<&Building>,
-    mut gizmos: Gizmos,
-) {
-    let pulse = 0.55 + 0.45 * (time.elapsed_secs() * 4.0).sin();
-    let color = Color::srgb(0.9, 0.15, 0.1).with_alpha(pulse);
-    for order in &blocked {
-        let (Ok(from), Ok(to)) = (buildings.get(order.from), buildings.get(order.to)) else {
-            continue;
-        };
-        let (a, b) = (from.pos + Vec3::Y * 3.0, to.pos + Vec3::Y * 3.0);
-        gizmos.line(a, b, color);
-        for anchor in [a, b] {
-            gizmos.circle(
-                Isometry3d::new(anchor, Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-                3.0,
-                color,
-            );
-        }
     }
 }
 

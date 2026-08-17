@@ -11,8 +11,8 @@ use std::collections::{HashMap, VecDeque};
 use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
-use super::clock::SECS_PER_PASS;
 use super::resources::{Inventory, ResourceKind, TransportClass};
+use super::storage::{StorageBand, StoragePolicies};
 use super::roads::{LaneDir, RoadNode, RoadSegment};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
@@ -62,15 +62,6 @@ pub fn depot_slot_pos(depot_pos: Vec3, index: u32) -> Vec3 {
         )
 }
 
-/// Standing order stub: haul `resource` from one building's yard to another's.
-/// Replaced wholesale by the B3 dispatcher.
-#[derive(Component, Clone, Copy, Debug)]
-pub struct ShuttleAssignment {
-    pub from: Entity,
-    pub to: Entity,
-    pub resource: ResourceKind,
-}
-
 /// Pawn → asset link. A proper relationship pair so despawn cleanup and
 /// referential integrity come from the engine; creation/destruction still
 /// goes through the named command barriers only.
@@ -96,27 +87,33 @@ pub struct RouteLeg {
     pub dir: LaneDir,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ShuttlePhase {
-    Loading,
-    Outbound,
-    Unloading,
-    Returning,
-}
-
-/// The live pawn: authoritative motion + trip state + carried stock.
-/// Presentation eases rendered transforms toward `pos` (ADR 0003).
+/// The live pawn: authoritative motion + carried stock. Trip *state* lives on
+/// the asset (`dispatch::FreightJob`); presentation eases rendered transforms
+/// toward `pos` (ADR 0003).
 #[derive(Component, Debug)]
 pub struct ActiveVehicle {
     pub pos: Vec3,
     /// Unit travel direction, for presentation orientation.
     pub heading: Vec3,
-    pub phase: ShuttlePhase,
     pub route: Vec<RouteLeg>,
     pub leg: usize,
     /// Metres travelled along the current leg.
     pub s: f32,
     pub cargo: Inventory,
+}
+
+impl ActiveVehicle {
+    /// A fresh pawn standing at `pos` with an empty truck bed.
+    pub fn at(pos: Vec3) -> Self {
+        Self {
+            pos,
+            heading: Vec3::X,
+            route: Vec::new(),
+            leg: 0,
+            s: 0.0,
+            cargo: Inventory::new(TRUCK_CARGO_CAPACITY),
+        }
+    }
 }
 
 #[derive(Resource, Default)]
@@ -130,9 +127,10 @@ pub enum VehicleEdit {
         depot: Entity,
         class: TransportClass,
     },
-    /// Standing haul order: seizes an idle class-compatible truck from the
-    /// fleet (a purchase earlier in the same queue counts). No idle truck ⇒
-    /// the edit is dropped with a warning — no free trucks, ever.
+    /// Legacy shuttle, reimplemented as policy sugar (#35): sets a paired
+    /// export band (0,0) on the source and an import band (0.9,1) on the sink
+    /// for `resource`. The dispatcher does the hauling — no truck is seized,
+    /// no standing order exists.
     CreateShuttle {
         from: Entity,
         to: Entity,
@@ -156,12 +154,7 @@ impl Plugin for VehicleSimPlugin {
                 apply_vehicle_edits
                     .in_set(SimStage::ApplyCommands)
                     .after(ApplyCommandsFlush),
-            )
-            .add_systems(
-                SimTick,
-                dispatch_shuttles.in_set(SimStage::AllocationAndDispatch),
-            )
-            .add_systems(SimTick, run_shuttles.in_set(SimStage::MovementAndTransfers));
+            );
     }
 }
 
@@ -170,17 +163,14 @@ fn apply_vehicle_edits(
     mut queue: ResMut<VehicleEditQueue>,
     mut ids: ResMut<VehicleIds>,
     buildings: Query<&Building>,
-    fleet: Query<(Entity, &VehicleAsset, Has<ShuttleAssignment>, Has<ActivePawn>)>,
+    mut policies: Query<&mut StoragePolicies>,
+    fleet: Query<&VehicleAsset>,
 ) {
-    // Slot occupancy and idle pool as of this tick, extended in-drain so a
-    // purchase earlier in the queue is visible to a shuttle order after it.
+    // Slot occupancy as of this tick, extended in-drain so purchases earlier
+    // in the queue count against the slots.
     let mut homed: HashMap<Entity, u32> = HashMap::new();
-    let mut idle: Vec<(Entity, TransportClass)> = Vec::new();
-    for (entity, asset, assigned, on_road) in &fleet {
+    for asset in &fleet {
         *homed.entry(asset.home_depot).or_default() += 1;
-        if !assigned && !on_road {
-            idle.push((entity, asset.cargo_class));
-        }
     }
     for edit in queue.0.drain(..) {
         match edit {
@@ -199,188 +189,30 @@ fn apply_vehicle_edits(
                 }
                 *occupied += 1;
                 ids.next += 1;
-                let asset = commands
-                    .spawn(VehicleAsset {
-                        id: VehicleId(ids.next),
-                        kind: VehicleKind::Truck,
-                        home_depot: depot,
-                        cargo_class: class,
-                    })
-                    .id();
-                idle.push((asset, class));
+                commands.spawn(VehicleAsset {
+                    id: VehicleId(ids.next),
+                    kind: VehicleKind::Truck,
+                    home_depot: depot,
+                    cargo_class: class,
+                });
             }
             VehicleEdit::CreateShuttle { from, to, resource } => {
-                let class = resource.transport_class();
-                let Some(slot) = idle.iter().position(|&(_, c)| c == class) else {
-                    warn!("CreateShuttle dropped: no idle {class:?} truck in the fleet");
-                    continue;
-                };
-                let (asset, _) = idle.swap_remove(slot);
-                commands
-                    .entity(asset)
-                    .insert(ShuttleAssignment { from, to, resource });
-            }
-        }
-    }
-}
-
-/// Assets with a standing order and no live pawn get one, spawned at the road
-/// node nearest the source yard. The spawn flushes at the post-Commit barrier,
-/// so the pawn participates from the next tick.
-fn dispatch_shuttles(
-    mut commands: Commands,
-    idle: Query<(Entity, &ShuttleAssignment), (With<VehicleAsset>, Without<ActivePawn>)>,
-    buildings: Query<&Building>,
-    nodes: Query<(Entity, &RoadNode)>,
-    segments: Query<&RoadSegment>,
-) {
-    for (asset, order) in &idle {
-        let (Ok(from_b), Ok(to_b)) = (buildings.get(order.from), buildings.get(order.to)) else {
-            continue;
-        };
-        let (Some(start), Some(goal)) = (
-            nearest_node(from_b.pos, &nodes),
-            nearest_node(to_b.pos, &nodes),
-        ) else {
-            continue;
-        };
-        // No path yet: leave the asset parked and retry next tick.
-        if find_route(start, goal, &nodes, &segments).is_none() {
-            continue;
-        }
-        let pos = nodes.get(start).unwrap().1.pos;
-        commands.spawn((
-            ActiveVehicle {
-                pos,
-                heading: Vec3::X,
-                phase: ShuttlePhase::Loading,
-                route: Vec::new(),
-                leg: 0,
-                s: 0.0,
-                cargo: Inventory::new(TRUCK_CARGO_CAPACITY),
-            },
-            PawnOf(asset),
-        ));
-    }
-}
-
-/// The whole shuttle loop: dock-load at the source, drive out, dock-unload at
-/// the destination, drive back. Blocked states (empty source, full
-/// destination, severed route) wait in place — capacity exhaustion is a
-/// planning signal, never a delete.
-fn run_shuttles(
-    mut pawns: Query<(&mut ActiveVehicle, &PawnOf)>,
-    assignments: Query<&ShuttleAssignment>,
-    buildings: Query<&Building>,
-    mut yards: Query<&mut Inventory, With<Building>>,
-    nodes: Query<(Entity, &RoadNode)>,
-    segments: Query<&RoadSegment>,
-) {
-    let dt = SECS_PER_PASS as f32;
-    for (mut vehicle, pawn_of) in &mut pawns {
-        // M1 has no tool that removes assignments or buildings; if either is
-        // gone the pawn simply holds position (cargo is physical stock).
-        let Ok(order) = assignments.get(pawn_of.0) else {
-            continue;
-        };
-        match vehicle.phase {
-            ShuttlePhase::Loading => {
-                let Ok(mut yard) = yards.get_mut(order.from) else {
-                    continue;
-                };
-                let space = vehicle.cargo.capacity - vehicle.cargo.total();
-                let got = yard.take(order.resource, TRUCK_TRANSFER_RATE.min(space));
-                vehicle.cargo.add(order.resource, got);
-                if vehicle.cargo.capacity - vehicle.cargo.total() < 1e-3 {
-                    depart(
-                        &mut vehicle,
-                        order.from,
-                        order.to,
-                        ShuttlePhase::Outbound,
-                        &buildings,
-                        &nodes,
-                        &segments,
-                    );
+                // Paired policy sugar: everything at the source is surplus,
+                // the sink demands up to 90% of its yard. The dispatcher
+                // notices both on its next matching frame for the resource.
+                if let Ok(mut source) = policies.get_mut(from) {
+                    source.set(resource, Some(StorageBand::new(0.0, 0.0)));
+                } else {
+                    warn!("CreateShuttle: source {from:?} has no storage policies");
                 }
-            }
-            ShuttlePhase::Unloading => {
-                let Ok(mut yard) = yards.get_mut(order.to) else {
-                    continue;
-                };
-                let carried = vehicle.cargo.amount(order.resource);
-                let taken = vehicle
-                    .cargo
-                    .take(order.resource, TRUCK_TRANSFER_RATE.min(carried));
-                let fit = yard.add(order.resource, taken);
-                // Destination yard full: put the remainder back and wait.
-                vehicle.cargo.add(order.resource, taken - fit);
-                if vehicle.cargo.total() < 1e-3 {
-                    depart(
-                        &mut vehicle,
-                        order.to,
-                        order.from,
-                        ShuttlePhase::Returning,
-                        &buildings,
-                        &nodes,
-                        &segments,
-                    );
-                }
-            }
-            ShuttlePhase::Outbound | ShuttlePhase::Returning => {
-                // A cut road severs the cached route mid-drive: re-route toward
-                // the same destination (from the source node — an M1 stub; lane
-                // re-entry arrives with the B3 dispatcher). No path yet means
-                // hold and retry next tick, so a rebuild resumes the trip.
-                let severed = vehicle
-                    .route
-                    .get(vehicle.leg)
-                    .is_some_and(|leg| segments.get(leg.segment).is_err());
-                if severed {
-                    let (from, to) = match vehicle.phase {
-                        ShuttlePhase::Outbound => (order.from, order.to),
-                        _ => (order.to, order.from),
-                    };
-                    let phase = vehicle.phase;
-                    depart(&mut vehicle, from, to, phase, &buildings, &nodes, &segments);
-                } else if advance_along_route(&mut vehicle, dt, &nodes, &segments) {
-                    vehicle.phase = match vehicle.phase {
-                        ShuttlePhase::Outbound => ShuttlePhase::Unloading,
-                        _ => ShuttlePhase::Loading,
-                    };
+                if let Ok(mut sink) = policies.get_mut(to) {
+                    sink.set(resource, Some(StorageBand::new(0.9, 1.0)));
+                } else {
+                    warn!("CreateShuttle: sink {to:?} has no storage policies");
                 }
             }
         }
     }
-}
-
-/// Compute a fresh route and switch phase; if the graph has no path right
-/// now, stay docked and retry next tick.
-fn depart(
-    vehicle: &mut ActiveVehicle,
-    from: Entity,
-    to: Entity,
-    phase: ShuttlePhase,
-    buildings: &Query<&Building>,
-    nodes: &Query<(Entity, &RoadNode)>,
-    segments: &Query<&RoadSegment>,
-) {
-    let (Ok(from_b), Ok(to_b)) = (buildings.get(from), buildings.get(to)) else {
-        return;
-    };
-    let (Some(start), Some(goal)) = (
-        nearest_node(from_b.pos, nodes),
-        nearest_node(to_b.pos, nodes),
-    ) else {
-        return;
-    };
-    let Some(route) = find_route(start, goal, nodes, segments) else {
-        return;
-    };
-    vehicle.pos = nodes.get(start).unwrap().1.pos;
-    vehicle.route = route;
-    vehicle.leg = 0;
-    vehicle.s = 0.0;
-    vehicle.phase = phase;
 }
 
 /// Move along the cached route; returns `true` once the route is exhausted
@@ -531,7 +363,9 @@ mod tests {
     use super::super::buildings::{
         BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
     };
+    use super::super::dispatch::DispatchSimPlugin;
     use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
+    use super::super::storage::StorageSimPlugin;
     use super::*;
     use std::time::Duration;
 
@@ -542,7 +376,9 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            StorageSimPlugin,
             VehicleSimPlugin,
+            DispatchSimPlugin,
         ));
         a
     }
@@ -556,8 +392,35 @@ mod tests {
         }
     }
 
-    /// Straight dirt road x∈[0,100], quarry near x=0, factory near x=100,
-    /// quarry yard pre-filled, one shuttle assigned. Returns (quarry, factory).
+    /// Place a depot at `pos` and buy `trucks` of `class`; returns the depot.
+    fn depot_with_trucks(app: &mut App, pos: Vec3, class: TransportClass, trucks: u32) -> Entity {
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Place {
+                kind: BuildingKind::Depot,
+                pos,
+            });
+        ticks(app, 2);
+        let world = app.world_mut();
+        let mut q = world.query::<(Entity, &Building)>();
+        let depot = q
+            .iter(world)
+            .find(|(_, b)| b.kind == BuildingKind::Depot)
+            .unwrap()
+            .0;
+        for _ in 0..trucks {
+            world
+                .resource_mut::<VehicleEditQueue>()
+                .0
+                .push(VehicleEdit::BuyTruck { depot, class });
+        }
+        depot
+    }
+
+    /// Straight dirt road x∈[0,100], quarry near x=0 (pre-filled with gravel),
+    /// factory near x=100, docked depot with one bulk truck, legacy shuttle
+    /// sugar quarry → factory. Returns (quarry, factory).
     fn shuttle_world(app: &mut App) -> (Entity, Entity) {
         app.world_mut()
             .resource_mut::<RoadEditQueue>()
@@ -578,9 +441,9 @@ mod tests {
         });
         buildings.0.push(BuildingEdit::Place {
             kind: BuildingKind::Depot,
-            pos: Vec3::new(50.0, 0.0, 50.0),
+            pos: Vec3::new(0.0, 0.0, 15.0),
         });
-        ticks(app, 2); // place + let spawns land
+        ticks(app, 2);
         let world = app.world_mut();
         let mut found = (None, None, None);
         let mut q = world.query::<(Entity, &Building)>();
@@ -610,37 +473,55 @@ mod tests {
         (quarry, factory)
     }
 
-    /// Place a depot at `pos` and buy `trucks` of `class`; returns the depot.
-    fn depot_with_trucks(app: &mut App, pos: Vec3, class: TransportClass, trucks: u32) -> Entity {
-        app.world_mut()
-            .resource_mut::<BuildingEditQueue>()
-            .0
-            .push(BuildingEdit::Place {
-                kind: BuildingKind::Depot,
-                pos,
-            });
-        ticks(app, 2);
+    #[test]
+    fn purchases_stop_at_the_slot_count() {
+        let mut app = app();
+        depot_with_trucks(&mut app, Vec3::ZERO, TransportClass::Bulk, DEPOT_SLOTS + 3);
+        ticks(&mut app, 2);
         let world = app.world_mut();
-        let mut q = world.query::<(Entity, &Building)>();
-        let depot = q
-            .iter(world)
-            .find(|(_, b)| b.kind == BuildingKind::Depot)
-            .unwrap()
-            .0;
-        for _ in 0..trucks {
-            world
-                .resource_mut::<VehicleEditQueue>()
-                .0
-                .push(VehicleEdit::BuyTruck { depot, class });
-        }
-        depot
+        assert_eq!(
+            world.query::<&VehicleAsset>().iter(world).count(),
+            DEPOT_SLOTS as usize,
+            "a parked vehicle needs a physical slot"
+        );
     }
 
     #[test]
-    fn dispatcher_spawns_a_linked_pawn_for_the_idle_asset() {
+    fn create_shuttle_sets_the_paired_policy_bands() {
+        let mut app = app();
+        let (quarry, factory) = shuttle_world(&mut app);
+        ticks(&mut app, 1);
+        let world = app.world();
+        let source = world.get::<StoragePolicies>(quarry).unwrap();
+        let band = source.band(ResourceKind::Gravel).expect("export band set");
+        assert_eq!((band.min_pct, band.max_pct), (0.0, 0.0));
+        let sink = world.get::<StoragePolicies>(factory).unwrap();
+        let band = sink.band(ResourceKind::Gravel).expect("import band set");
+        assert_eq!((band.min_pct, band.max_pct), (0.9, 1.0));
+    }
+
+    #[test]
+    fn shuttle_sugar_hauls_a_truckload_through_the_dispatcher() {
+        let mut app = app();
+        let (_, factory) = shuttle_world(&mut app);
+        // match + assign + drive 100 m out/back on dirt + dock both ends
+        ticks(&mut app, 2600);
+        let delivered = app
+            .world()
+            .get::<Inventory>(factory)
+            .unwrap()
+            .amount(ResourceKind::Gravel);
+        assert!(
+            delivered >= TRUCK_CARGO_CAPACITY - 1e-2,
+            "delivered = {delivered}"
+        );
+    }
+
+    #[test]
+    fn dispatched_pawn_is_linked_and_dies_with_its_asset() {
         let mut app = app();
         shuttle_world(&mut app);
-        ticks(&mut app, 3); // create asset, dispatch, flush
+        ticks(&mut app, 40); // matching frame + assignment + spawn flush
         let world = app.world_mut();
         let (pawn, pawn_of) = world.query::<(Entity, &PawnOf)>().single(world).unwrap();
         let asset = pawn_of.0;
@@ -655,206 +536,19 @@ mod tests {
     }
 
     #[test]
-    fn no_pawn_is_dispatched_without_a_road() {
-        let mut app = app();
-        // buildings + assignment but zero road nodes
-        let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
-        buildings.0.push(BuildingEdit::Place {
-            kind: BuildingKind::Quarry,
-            pos: Vec3::ZERO,
-        });
-        buildings.0.push(BuildingEdit::Place {
-            kind: BuildingKind::Factory,
-            pos: Vec3::new(100.0, 0.0, 0.0),
-        });
-        depot_with_trucks(&mut app, Vec3::new(50.0, 0.0, 50.0), TransportClass::Bulk, 1);
-        let world = app.world_mut();
-        let mut q = world.query::<(Entity, &Building)>();
-        let mut found = (None, None);
-        for (e, b) in q.iter(world) {
-            match b.kind {
-                BuildingKind::Quarry => found.0 = Some(e),
-                BuildingKind::Factory => found.1 = Some(e),
-                _ => {}
-            }
-        }
-        world
-            .resource_mut::<VehicleEditQueue>()
-            .0
-            .push(VehicleEdit::CreateShuttle {
-                from: found.0.unwrap(),
-                to: found.1.unwrap(),
-                resource: ResourceKind::Gravel,
-            });
-        ticks(&mut app, 5);
-        let world = app.world_mut();
-        assert_eq!(world.query::<&ActiveVehicle>().iter(world).count(), 0);
-    }
-
-    #[test]
-    fn purchases_stop_at_the_slot_count() {
-        let mut app = app();
-        depot_with_trucks(
-            &mut app,
-            Vec3::ZERO,
-            TransportClass::Bulk,
-            DEPOT_SLOTS + 3,
-        );
-        ticks(&mut app, 2);
-        let world = app.world_mut();
-        assert_eq!(
-            world.query::<&VehicleAsset>().iter(world).count(),
-            DEPOT_SLOTS as usize,
-            "a parked vehicle needs a physical slot"
-        );
-    }
-
-    #[test]
-    fn shuttle_without_an_idle_truck_is_dropped() {
-        let mut app = app();
-        // Two buildings, a depot — but zero trucks bought.
-        let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
-        buildings.0.push(BuildingEdit::Place {
-            kind: BuildingKind::Quarry,
-            pos: Vec3::ZERO,
-        });
-        buildings.0.push(BuildingEdit::Place {
-            kind: BuildingKind::Factory,
-            pos: Vec3::new(60.0, 0.0, 0.0),
-        });
-        depot_with_trucks(&mut app, Vec3::new(30.0, 0.0, 50.0), TransportClass::Bulk, 0);
-        let world = app.world_mut();
-        let mut q = world.query::<(Entity, &Building)>();
-        let pair: Vec<Entity> = q
-            .iter(world)
-            .filter(|(_, b)| b.kind != BuildingKind::Depot)
-            .map(|(e, _)| e)
-            .collect();
-        world
-            .resource_mut::<VehicleEditQueue>()
-            .0
-            .push(VehicleEdit::CreateShuttle {
-                from: pair[0],
-                to: pair[1],
-                resource: ResourceKind::Gravel,
-            });
-        ticks(&mut app, 3);
-        let world = app.world_mut();
-        assert_eq!(world.query::<&VehicleAsset>().iter(world).count(), 0);
-        assert_eq!(world.query::<&ShuttleAssignment>().iter(world).count(), 0);
-    }
-
-    #[test]
-    fn transport_class_gates_the_seizure() {
-        let mut app = app();
-        let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
-        buildings.0.push(BuildingEdit::Place {
-            kind: BuildingKind::Quarry,
-            pos: Vec3::ZERO,
-        });
-        buildings.0.push(BuildingEdit::Place {
-            kind: BuildingKind::Factory,
-            pos: Vec3::new(60.0, 0.0, 0.0),
-        });
-        // The only truck in the fleet is a covered bed; gravel needs bulk.
-        depot_with_trucks(
-            &mut app,
-            Vec3::new(30.0, 0.0, 50.0),
-            TransportClass::Covered,
-            1,
-        );
-        let world = app.world_mut();
-        let mut q = world.query::<(Entity, &Building)>();
-        let pair: Vec<Entity> = q
-            .iter(world)
-            .filter(|(_, b)| b.kind != BuildingKind::Depot)
-            .map(|(e, _)| e)
-            .collect();
-        world
-            .resource_mut::<VehicleEditQueue>()
-            .0
-            .push(VehicleEdit::CreateShuttle {
-                from: pair[0],
-                to: pair[1],
-                resource: ResourceKind::Gravel,
-            });
-        ticks(&mut app, 3);
-        let world = app.world_mut();
-        assert_eq!(world.query::<&VehicleAsset>().iter(world).count(), 1);
-        assert_eq!(
-            world.query::<&ShuttleAssignment>().iter(world).count(),
-            0,
-            "a covered truck must never take a bulk order"
-        );
-    }
-
-    #[test]
-    fn shuttle_delivers_a_full_truckload_to_the_destination_yard() {
-        let mut app = app();
-        let (_, factory) = shuttle_world(&mut app);
-        // load 10 t at 0.5 t/frame = 20 ticks; drive 100 m at 12 × 0.55 m/s
-        // ≈ 909 ticks; unload 20 ticks. 1100 ticks covers one full delivery.
-        ticks(&mut app, 1100);
-        let delivered = app
-            .world_mut()
-            .get::<Inventory>(factory)
-            .unwrap()
-            .amount(ResourceKind::Gravel);
-        assert!(
-            delivered >= TRUCK_CARGO_CAPACITY - 1e-2,
-            "delivered = {delivered}"
-        );
-    }
-
-    #[test]
-    fn cut_road_holds_the_truck_and_rebuild_resumes_the_delivery() {
-        let mut app = app();
-        let (_, factory) = shuttle_world(&mut app);
-        ticks(&mut app, 100); // mid-drive, outbound
-        {
-            let world = app.world_mut();
-            let vehicle = world.query::<&ActiveVehicle>().single(world).unwrap();
-            assert_eq!(vehicle.phase, ShuttlePhase::Outbound);
-        }
-        app.world_mut()
-            .resource_mut::<RoadEditQueue>()
-            .0
-            .push(RoadEdit::RemoveNear {
-                pos: Vec3::new(50.0, 0.0, 0.0),
-            });
-        ticks(&mut app, 200); // severed: holds, nothing delivered
-        assert_eq!(
-            app.world()
-                .get::<Inventory>(factory)
-                .unwrap()
-                .amount(ResourceKind::Gravel),
-            0.0
-        );
-        app.world_mut()
-            .resource_mut::<RoadEditQueue>()
-            .0
-            .push(RoadEdit::RebuildLast);
-        ticks(&mut app, 1200); // reroute + full drive + unload
-        let delivered = app
-            .world()
-            .get::<Inventory>(factory)
-            .unwrap()
-            .amount(ResourceKind::Gravel);
-        assert!(
-            delivered >= TRUCK_CARGO_CAPACITY - 1e-2,
-            "delivered = {delivered}"
-        );
-    }
-
-    #[test]
     fn moving_pawn_rides_the_forward_lane_offset() {
         let mut app = app();
         shuttle_world(&mut app);
-        ticks(&mut app, 100); // load (20) + well into the outbound drive
+        // truck starts at the depot's west node and drives east to the quarry
+        // pickup... which is also the west node; so it loads, then hauls east.
+        ticks(&mut app, 120); // load (20) + well into the eastbound drive
         let world = app.world_mut();
         let vehicle = world.query::<&ActiveVehicle>().single(world).unwrap();
-        assert_eq!(vehicle.phase, ShuttlePhase::Outbound);
-        assert!(vehicle.pos.x > 0.0 && vehicle.pos.x < 100.0);
+        assert!(
+            vehicle.pos.x > 0.0 && vehicle.pos.x < 100.0,
+            "x = {}",
+            vehicle.pos.x
+        );
         // dirt road: width 6 → forward-lane offset magnitude 1.5, laterally in z
         assert!(
             (vehicle.pos.z.abs() - 1.5).abs() < 1e-3,

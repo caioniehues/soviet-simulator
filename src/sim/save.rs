@@ -32,13 +32,18 @@ use super::resources::{Inventory, ResourceKind, TransportClass};
 use super::roads::{
     LastCut, NodeId, RoadBuildFeedback, RoadClass, RoadIds, RoadNode, RoadSegment, SegmentId,
 };
-use super::vehicles::{ActiveVehicle, ShuttleAssignment, VehicleAsset, VehicleId, VehicleIds};
+use super::dispatch::{
+    DeficitBoard, DispatchQueue, FreightJob, FreightOrder, FreightPhase, OrderId,
+};
+use super::storage::{StorageBand, StoragePolicies};
+use super::vehicles::{ActivePawn, ActiveVehicle, VehicleAsset, VehicleId, VehicleIds};
 use super::wires::{PoleId, SpanId, WireIds, WirePole, WireSpan};
 
 /// Bumped whenever a column layout changes — postcard is not self-describing,
 /// so an old file must be rejected, never misparsed. v2: VehicleRow gained
-/// home_depot + class (M3.2).
-pub const SAVE_VERSION: u32 = 2;
+/// home_depot + class (M3.2). v3: storage-policy bands per building, the
+/// freight order queue, and mid-trip vehicle state (M3.5).
+pub const SAVE_VERSION: u32 = 3;
 /// Quicksave path, relative to the working directory.
 pub const QUICKSAVE_PATH: &str = "saves/quicksave.sav";
 
@@ -60,6 +65,8 @@ pub struct SaveGame {
     pub next_pole: u64,
     pub next_span: u64,
     pub next_vehicle: u64,
+    pub next_order: u64,
+    pub match_cursor: u32,
     pub recruit_target: u32,
     pub recruited: u32,
     pub last_cut: Option<([f32; 3], [f32; 3], u8)>,
@@ -75,6 +82,7 @@ pub struct SaveGame {
     pub poles: Vec<PoleRow>,
     pub spans: Vec<SpanRow>,
     pub vehicles: Vec<VehicleRow>,
+    pub orders: Vec<OrderRow>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -89,6 +97,8 @@ pub struct BuildingRow {
     pub dwelling: Option<(u32, u32)>,
     /// (assigned citizen indices in roster order, present tally).
     pub staffing: Option<(Vec<u32>, u32)>,
+    /// Per-resource storage bands (min_pct, max_pct), dense over ResourceKind.
+    pub bands: Vec<Option<(f32, f32)>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -156,8 +166,33 @@ pub struct VehicleRow {
     pub home_depot: u32,
     /// Transport-class discriminant.
     pub class: u8,
-    /// (from building idx, to building idx, resource discriminant).
-    pub assignment: Option<(u32, u32, u8)>,
+    /// Mid-trip state, if the truck is out on an order.
+    pub job: Option<JobRow>,
+}
+
+/// A truck's in-flight trip: enough to respawn the pawn where it was with the
+/// cargo it carried. The route is derived state — recomputed on load from the
+/// pawn's position (self-healing after road edits).
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct JobRow {
+    pub order: u64,
+    pub phase: u8,
+    pub pos: [f32; 3],
+    pub heading: [f32; 3],
+    pub cargo: [f32; ResourceKind::COUNT],
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct OrderRow {
+    pub id: u64,
+    pub resource: u8,
+    pub qty: f32,
+    pub from: u32,
+    pub to: u32,
+    pub priority: f32,
+    /// Index into the sorted vehicle table.
+    pub assigned: Option<u32>,
+    pub issued_tick: u32,
 }
 
 // -- discriminant maps (append-only; order is serialized) -------------------
@@ -239,6 +274,26 @@ fn transport_class_from_u8(v: u8) -> Option<TransportClass> {
         1 => TransportClass::Covered,
         _ => return None,
     })
+}
+
+fn phase_to_u8(phase: FreightPhase) -> u8 {
+    match phase {
+        FreightPhase::ToPickup => 0,
+        FreightPhase::Loading => 1,
+        FreightPhase::ToDropoff => 2,
+        FreightPhase::Unloading => 3,
+        FreightPhase::ReturnToDepot => 4,
+    }
+}
+
+fn phase_from_u8(v: u8) -> FreightPhase {
+    match v {
+        1 => FreightPhase::Loading,
+        2 => FreightPhase::ToDropoff,
+        3 => FreightPhase::Unloading,
+        4 => FreightPhase::ReturnToDepot,
+        _ => FreightPhase::ToPickup,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +389,15 @@ pub fn snapshot(world: &mut World) -> SaveGame {
                         .collect();
                     (roster, s.present)
                 }),
+                bands: ResourceKind::ALL
+                    .into_iter()
+                    .map(|r| {
+                        world
+                            .get::<StoragePolicies>(entity)
+                            .and_then(|p| p.band(r))
+                            .map(|b| (b.min_pct, b.max_pct))
+                    })
+                    .collect(),
             }
         })
         .collect();
@@ -460,34 +524,70 @@ pub fn snapshot(world: &mut World) -> SaveGame {
     span_rows.sort_unstable_by_key(|row| row.id);
 
     let mut vehicle_rows: Vec<VehicleRow> = Vec::new();
+    let mut vehicle_index: HashMap<Entity, u32> = HashMap::new();
     {
-        let mut q = world.query::<(Entity, &VehicleAsset)>();
-        let assets: Vec<(u64, Entity, Entity, TransportClass)> = q
+        let mut assets: Vec<(u64, Entity)> = world
+            .query::<(Entity, &VehicleAsset)>()
             .iter(world)
-            .map(|(e, v)| (v.id.0, e, v.home_depot, v.cargo_class))
+            .map(|(e, v)| (v.id.0, e))
             .collect();
-        for (id, entity, home_depot, class) in assets {
+        assets.sort_unstable();
+        for (i, &(_, entity)) in assets.iter().enumerate() {
+            vehicle_index.insert(entity, i as u32);
+        }
+        for (id, entity) in assets {
+            let asset = world.get::<VehicleAsset>(entity).unwrap();
             // An asset whose depot vanished cannot be re-homed on load; the
             // sim never removes buildings yet, so this is only defensive.
-            let Some(&home_depot) = building_index.get(&home_depot) else {
+            let Some(&home_depot) = building_index.get(&asset.home_depot) else {
                 continue;
             };
-            let assignment = world.get::<ShuttleAssignment>(entity).and_then(|a| {
-                Some((
-                    building_index.get(&a.from).copied()?,
-                    building_index.get(&a.to).copied()?,
-                    resource_to_u8(a.resource),
-                ))
+            let class = transport_class_to_u8(asset.cargo_class);
+            // Mid-trip state: the job on the asset plus the live pawn's
+            // position and cargo (the route is derived, recomputed on load).
+            let job = world.get::<FreightJob>(entity).and_then(|job| {
+                let pawn = world.get::<ActivePawn>(entity)?.pawn()?;
+                let vehicle = world.get::<ActiveVehicle>(pawn)?;
+                let mut cargo = [0.0; ResourceKind::COUNT];
+                for (i, kind) in ResourceKind::ALL.into_iter().enumerate() {
+                    cargo[i] = vehicle.cargo.amount(kind);
+                }
+                Some(JobRow {
+                    order: job.order.0,
+                    phase: phase_to_u8(job.phase),
+                    pos: vehicle.pos.to_array(),
+                    heading: vehicle.heading.to_array(),
+                    cargo,
+                })
             });
             vehicle_rows.push(VehicleRow {
                 id,
                 home_depot,
-                class: transport_class_to_u8(class),
-                assignment,
+                class,
+                job,
             });
         }
     }
-    vehicle_rows.sort_unstable_by_key(|row| row.id);
+
+    let queue = world.resource::<DispatchQueue>();
+    let order_rows: Vec<OrderRow> = queue
+        .orders
+        .iter()
+        .filter_map(|order| {
+            Some(OrderRow {
+                id: order.id.0,
+                resource: resource_to_u8(order.resource),
+                qty: order.qty,
+                from: building_index.get(&order.from).copied()?,
+                to: building_index.get(&order.to).copied()?,
+                priority: order.priority,
+                assigned: order
+                    .assigned
+                    .and_then(|a| vehicle_index.get(&a).copied()),
+                issued_tick: order.issued_tick,
+            })
+        })
+        .collect();
 
     SaveGame {
         version: SAVE_VERSION,
@@ -501,6 +601,8 @@ pub fn snapshot(world: &mut World) -> SaveGame {
         next_pole: world.resource::<WireIds>().next_pole,
         next_span: world.resource::<WireIds>().next_span,
         next_vehicle: world.resource::<VehicleIds>().next,
+        next_order: world.resource::<DispatchQueue>().next_order,
+        match_cursor: world.resource::<DispatchQueue>().cursor as u32,
         recruit_target: world.resource::<RecruitmentPlan>().target_households,
         recruited: world.resource::<RecruitmentLedger>().recruited,
         last_cut: world
@@ -517,6 +619,7 @@ pub fn snapshot(world: &mut World) -> SaveGame {
         poles: pole_rows,
         spans: span_rows,
         vehicles: vehicle_rows,
+        orders: order_rows,
     }
 }
 
@@ -613,6 +716,13 @@ pub fn restore(world: &mut World, save: &SaveGame) {
                 present: *present,
             });
         }
+        let mut policies = StoragePolicies::default();
+        for (i, resource) in ResourceKind::ALL.into_iter().enumerate() {
+            if let Some(Some((min, max))) = row.bands.get(i) {
+                policies.set(resource, Some(StorageBand::new(*min, *max)));
+            }
+        }
+        target.insert(policies);
         target.insert((
             Building {
                 id: BuildingId(row.id),
@@ -727,6 +837,7 @@ pub fn restore(world: &mut World, save: &SaveGame) {
         }
     }
 
+    let mut vehicle_ents: Vec<Entity> = Vec::with_capacity(save.vehicles.len());
     for row in &save.vehicles {
         let (Some(&home_depot), Some(cargo_class)) = (
             building_ents.get(row.home_depot as usize),
@@ -734,22 +845,57 @@ pub fn restore(world: &mut World, save: &SaveGame) {
         ) else {
             continue;
         };
-        let mut entity = world.spawn(VehicleAsset {
-            id: VehicleId(row.id),
-            kind: super::vehicles::VehicleKind::Truck,
-            home_depot,
-            cargo_class,
-        });
-        if let Some((from, to, resource)) = row.assignment
-            && let (Some(&from), Some(&to), Some(resource)) = (
-                building_ents.get(from as usize),
-                building_ents.get(to as usize),
-                resource_from_u8(resource),
-            )
-        {
-            entity.insert(ShuttleAssignment { from, to, resource });
+        let asset = world
+            .spawn(VehicleAsset {
+                id: VehicleId(row.id),
+                kind: super::vehicles::VehicleKind::Truck,
+                home_depot,
+                cargo_class,
+            })
+            .id();
+        vehicle_ents.push(asset);
+        // Mid-trip truck: respawn the pawn where it was with its cargo; the
+        // route is recomputed on the next drive tick (self-healing).
+        if let Some(job) = &row.job {
+            let mut vehicle =
+                super::vehicles::ActiveVehicle::at(Vec3::from_array(job.pos));
+            vehicle.heading = Vec3::from_array(job.heading);
+            for (i, kind) in ResourceKind::ALL.into_iter().enumerate() {
+                vehicle.cargo.add(kind, job.cargo[i]);
+            }
+            world.spawn((vehicle, super::vehicles::PawnOf(asset)));
+            world.entity_mut(asset).insert(FreightJob {
+                order: OrderId(job.order),
+                phase: phase_from_u8(job.phase),
+            });
         }
     }
+
+    {
+        let orders: Vec<FreightOrder> = save
+            .orders
+            .iter()
+            .filter_map(|row| {
+                Some(FreightOrder {
+                    id: OrderId(row.id),
+                    resource: resource_from_u8(row.resource)?,
+                    qty: row.qty,
+                    from: *building_ents.get(row.from as usize)?,
+                    to: *building_ents.get(row.to as usize)?,
+                    priority: row.priority,
+                    assigned: row
+                        .assigned
+                        .and_then(|i| vehicle_ents.get(i as usize).copied()),
+                    issued_tick: row.issued_tick,
+                })
+            })
+            .collect();
+        let mut queue = world.resource_mut::<DispatchQueue>();
+        queue.orders = orders;
+        queue.next_order = save.next_order;
+        queue.cursor = save.match_cursor as usize;
+    }
+    world.resource_mut::<DeficitBoard>().0.clear();
 
     world.resource_mut::<FrameIndex>().0 = save.frame;
     world.resource_mut::<TickIndex>().0 = save.tick;
@@ -877,6 +1023,8 @@ mod tests {
     use super::super::SimPlugin;
     use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin};
     use super::super::commute::CommuteSimPlugin;
+    use super::super::dispatch::DispatchSimPlugin;
+    use super::super::storage::StorageSimPlugin;
     use super::super::households::HouseholdSimPlugin;
     use super::super::labour::LabourSimPlugin;
     use super::super::needs::NeedsSimPlugin;
@@ -897,7 +1045,9 @@ mod tests {
             LabourSimPlugin,
             CommuteSimPlugin,
             NeedsSimPlugin,
+            StorageSimPlugin,
             VehicleSimPlugin,
+            DispatchSimPlugin,
             WireSimPlugin,
             SaveSimPlugin,
         ));
@@ -934,7 +1084,7 @@ mod tests {
             for (kind, pos) in [
                 (BuildingKind::Dwelling, Vec3::new(0.0, 0.0, 15.0)),
                 (BuildingKind::Mine, Vec3::new(100.0, 0.0, 15.0)),
-                (BuildingKind::PowerPlant, Vec3::new(150.0, 0.0, 15.0)),
+                (BuildingKind::PowerPlant, Vec3::new(115.0, 0.0, 30.0)),
                 (BuildingKind::Factory, Vec3::new(200.0, 0.0, 15.0)),
                 (BuildingKind::Depot, Vec3::new(60.0, 0.0, 60.0)),
             ] {
@@ -948,7 +1098,7 @@ mod tests {
             .resource_mut::<WireEditQueue>()
             .0
             .push(WireEdit::Place {
-                from: Vec3::new(150.0, 0.0, 15.0),
+                from: Vec3::new(115.0, 0.0, 30.0),
                 to: Vec3::new(200.0, 0.0, 15.0),
             });
         ticks(app, 3);
@@ -1062,6 +1212,66 @@ mod tests {
         bad.version = 99;
         assert!(from_bytes(&to_bytes(&bad)).is_err());
         std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn mid_trip_save_keeps_the_cargo_and_the_order() {
+        let mut app = app();
+        full_town(&mut app);
+        // Stock the mine so the dispatcher has real tonnage to move (the
+        // unstaffed mine produces nothing on its own this early).
+        ticks(&mut app, 1);
+        {
+            let world = app.world_mut();
+            let mine = world
+                .query::<(Entity, &Building)>()
+                .iter(world)
+                .find(|(_, b)| b.kind == BuildingKind::Mine)
+                .unwrap()
+                .0;
+            world
+                .get_mut::<Inventory>(mine)
+                .unwrap()
+                .add(ResourceKind::Coal, 40.0);
+        }
+        // Run until some truck is out with a freight job (the sugar policies
+        // feed the plant from the mine).
+        let mut out = false;
+        for _ in 0..40 {
+            ticks(&mut app, 50);
+            let world = app.world_mut();
+            let loaded = world
+                .query::<&super::super::vehicles::ActiveVehicle>()
+                .iter(world)
+                .any(|v| v.cargo.total() > 1.0);
+            if loaded {
+                out = true;
+                break;
+            }
+        }
+        assert!(out, "a loaded truck must be mid-trip for this test to bite");
+        let saved = snapshot(app.world_mut());
+        assert!(
+            saved.vehicles.iter().any(|v| v.job.is_some()),
+            "trip state saved"
+        );
+        assert!(!saved.orders.is_empty(), "orders in flight saved");
+        let hash_before = state_hash(app.world_mut());
+        restore(app.world_mut(), &saved);
+        assert_eq!(
+            state_hash(app.world_mut()),
+            hash_before,
+            "mid-trip round trip is hash-identical"
+        );
+        // The restored world keeps hauling: cargo aboard is not lost.
+        let world = app.world_mut();
+        let carried: f32 = world
+            .query::<&super::super::vehicles::ActiveVehicle>()
+            .iter(world)
+            .map(|v| v.cargo.total())
+            .sum();
+        assert!(carried > 1.0, "cargo stayed aboard through the load");
+        ticks(&mut app, 100);
     }
 
     #[test]
