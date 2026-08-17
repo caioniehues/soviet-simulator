@@ -337,7 +337,7 @@ fn update_tool_readout(
     };
     text.0 = format!(
         "{}   |   speed {}\n\
-         1 dirt road   2 paved road   3 building   4 wire   5 shuttle   Esc inspect\n\
+         1 dirt road   2 paved road   3 building   4 wire   5 haul policy   Esc inspect\n\
          WASD/arrows pan   Q/E rotate   wheel zoom   Space pause   [ ] speed",
         tool_label(*mode),
         speed_label(*speed),

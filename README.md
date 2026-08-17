@@ -76,10 +76,10 @@ dwelling cluster staffs the chain and the lamp lights; cutting the commute
 spur (haul road untouched) idles the whole chain on day 2; rebuilding brings
 the workers — and the lamp — back on day 3.
 
-## Status — M3 "The Dispatcher" underway (#30)
+## Status — M3 "The Dispatcher" complete (#30)
 
-Hauling becomes policy: target stock bands per storage, a shared dispatcher,
-and a finite depot-owned fleet (tickets #31–#37).
+Hauling is policy, not hand-wired shuttles: target stock bands per storage, a
+shared dispatcher, and a finite depot-owned fleet (tickets #31–#37).
 
 - **Storage policy substrate** (#31) — transport classes on resources
   (coal/gravel Bulk, goods Covered — the hard vehicle-compatibility gate),
@@ -90,23 +90,57 @@ and a finite depot-owned fleet (tickets #31–#37).
   assets acquired only by fiat purchase (manufacture is B10); shuttles seize
   an idle class-compatible truck instead of minting one — no free trucks;
   parked trucks render countable on the apron; fleet save columns (save v2).
+- **Dispatcher matching** (#33) — medium-frequency bucket scan (no offer
+  objects): below-min deficits matched to above-max surpluses by resource +
+  transport class + route existence (O(1) per pair via per-pass road
+  components); published score rule `priority / (1 + d²·w)` with a distance
+  weight that actually bites (CS1 ships 1e-7 there — the confirmed cause of
+  its cross-map hauling); resources round-robined across matching frames;
+  unmatched deficits persist on a starvation board.
+- **Freight execution** (#34) — each order gets an idle class-compatible truck
+  from the nearest depot (none free ⇒ the order waits — bounded throughput is
+  the point); trip machine ToPickup → Loading → ToDropoff → Unloading →
+  ReturnToDepot with the dock transfer rate as the loading bottleneck;
+  matched supply is earmarked so two orders never load the same tonnes;
+  severed pre-load trips requeue the order, loaded trucks hold and resume.
+- **Shuttles retired** (#35) — `CreateShuttle` is now paired-policy sugar
+  (source exports everything, sink imports to 90%); the M1 chain runs on the
+  dispatcher alone; save v3 adds policy bands, orders in flight, and mid-trip
+  truck state (hash-identical round trip mid-haul).
+- **Dispatch readout** (#36) — DISPATCH panel: fleet busy/idle, per-depot
+  parked/out, waiting orders with age, oldest starving deficit; storage
+  inspect shows per-resource band bars with role (DEMANDING/SUPPLYING/in
+  band); depot inspect lists slot occupancy and each truck's trip phase.
+
+Benchmark gate (`cargo run --release --bin bench_dispatch`, #37): dispatcher
+cost **1.42× at 2× storages** (sub-linear gate < 2×); full load **1498 live
+freight orders at mean 0.74 ms/tick** (p95 1.35 ms) against the ≤2 ms budget.
+M1/M2 gates still green (bench_chain 0.13 ms, bench_citizens 0.41 ms).
+
+Acceptance video (#37): `cargo run --release --bin capture_m3 -- frames
+screenshots/result/3 480` then ffmpeg; latest render at
+`screenshots/result/3/video.mp4` (local, untracked). Arc: the parked two-truck
+fleet rolls out and the warehouses fill to their bands; draining one warehouse
+makes the dispatcher refill it; draining everything at once outruns the fleet
+and the order queue grows on the DISPATCH panel.
 
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 52 sim tests
+cargo test           # 67 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
-`5` shuttle · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
+`5` haul policy (click source, then sink) · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
 `[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
 wheel zoom.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2 staffing complete (above).
-Next: B3 dispatcher (see `ROADMAP.md`, including the parallel P-ladder).
+P1 "First Light" done (#16, zero-spend). B2 staffing and B3 dispatcher
+complete (above). Next: B4 per the ladder (see `ROADMAP.md`, including the
+parallel P-ladder).
 
 ## Assets
 
