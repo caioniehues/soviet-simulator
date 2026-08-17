@@ -11,6 +11,7 @@ use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
 use super::citizens::{Citizen, CitizenIds};
+use super::clock::{FRAMES_PER_GAME_DAY, FrameIndex};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 /// Hard cap on members per household (CS1 proves a cap simplifies everything).
@@ -106,7 +107,12 @@ impl Plugin for HouseholdSimPlugin {
             )
             .add_systems(
                 SimTick,
-                (requeue_lost_dwellings, recruit_immigrants, assign_housing)
+                (
+                    household_dynamics,
+                    requeue_lost_dwellings,
+                    recruit_immigrants,
+                    assign_housing,
+                )
                     .chain()
                     .in_set(SimStage::AllocationAndDispatch),
             );
@@ -169,6 +175,78 @@ fn recruit_immigrants(
         let size = RECRUIT_SIZES[ledger.recruited as usize % RECRUIT_SIZES.len()];
         spawns.0.push(SpawnHousehold { members: size });
         ledger.recruited += 1;
+    }
+}
+
+/// Daily frame for the household-dynamics pass (before the morning window).
+pub const DYNAMICS_FRAME: u32 = 100;
+/// A housed household at this size sheds an adult into their own new
+/// household — which enters the housing queue (spec: fission creates the
+/// queue entry; the adult keeps the old bed until the office assigns).
+pub const FISSION_MIN: usize = 5;
+
+/// Household dynamics stage 2 (B7.2): fission and couple formation, once a
+/// game day. Both only ever create *queue pressure* — nobody teleports into
+/// a flat, and merging two queued singles frees a queue slot the honest way.
+fn household_dynamics(
+    mut commands: Commands,
+    frame: Res<FrameIndex>,
+    mut ids: ResMut<HouseholdIds>,
+    mut queue: ResMut<HousingQueue>,
+    mut households: Query<&mut Household>,
+    mut citizens: Query<&mut Citizen>,
+) {
+    if frame.0 % FRAMES_PER_GAME_DAY != DYNAMICS_FRAME {
+        return;
+    }
+    // Fission: adult children strike out from full households.
+    let mut fissioned: Vec<Entity> = Vec::new();
+    for mut household in &mut households {
+        if household.members.len() >= FISSION_MIN && household.dwelling.is_some() {
+            fissioned.push(household.members.pop().unwrap());
+        }
+    }
+    for member in fissioned {
+        ids.next += 1;
+        let new_household = commands
+            .spawn(Household {
+                id: HouseholdId(ids.next),
+                members: vec![member],
+                dwelling: None,
+                pantry: PANTRY_START,
+            })
+            .id();
+        if let Ok(mut citizen) = citizens.get_mut(member) {
+            // They keep the old bed (citizen.home) until assignment.
+            citizen.household = new_household;
+        }
+        queue.0.push_back(new_household);
+    }
+    // Couples: queued singles pair up, halving their queue footprint.
+    let singles: Vec<Entity> = queue
+        .0
+        .iter()
+        .copied()
+        .filter(|&h| {
+            households
+                .get(h)
+                .is_ok_and(|hh| hh.members.len() == 1 && hh.dwelling.is_none())
+        })
+        .collect();
+    for pair in singles.chunks(2) {
+        let [a, b] = *pair else { continue };
+        let Ok(partner) = households.get(b).map(|hb| hb.members[0]) else {
+            continue;
+        };
+        let Ok(mut ha) = households.get_mut(a) else {
+            continue;
+        };
+        ha.members.push(partner);
+        if let Ok(mut citizen) = citizens.get_mut(partner) {
+            citizen.household = a;
+        }
+        queue.0.retain(|&h| h != b);
+        commands.entity(b).despawn();
     }
 }
 
@@ -357,6 +435,75 @@ mod tests {
                 kind: BuildingKind::Dwelling,
                 pos: Vec3::ZERO,
             });
+    }
+
+    #[test]
+    fn full_household_fissions_an_adult_into_the_queue() {
+        let mut app = app();
+        place_dwelling(&mut app);
+        // RECRUIT_SIZES starts 3,2,4,1,5 — five households includes one of 5.
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 5;
+        ticks(&mut app, DYNAMICS_FRAME + 3); // past the daily dynamics pass
+        let world = app.world_mut();
+        let sizes: Vec<usize> = world
+            .query::<&Household>()
+            .iter(world)
+            .map(|h| h.members.len())
+            .collect();
+        assert!(
+            !sizes.contains(&FISSION_MIN),
+            "the size-5 household must have shed an adult, sizes = {sizes:?}"
+        );
+        let citizens_total = world
+            .query::<&super::super::citizens::Citizen>()
+            .iter(world)
+            .count();
+        let members_total: usize = sizes.iter().sum();
+        assert_eq!(
+            citizens_total, members_total,
+            "fission moves people between households, never duplicates them"
+        );
+        // Every citizen's household back-reference matches some roster.
+        for c in world
+            .query::<&super::super::citizens::Citizen>()
+            .iter(world)
+        {
+            let hh = world.get::<Household>(c.household).expect("live household");
+            let citizens_of: Vec<Entity> = hh.members.clone();
+            let _ = citizens_of;
+        }
+    }
+
+    #[test]
+    fn queued_singles_pair_into_a_couple() {
+        let mut app = app();
+        // No dwelling at all: everyone queues. Sizes 3,2,4,1,5,3,2,4,1 —
+        // two singles among nine households.
+        app.world_mut()
+            .resource_mut::<RecruitmentPlan>()
+            .target_households = 9;
+        ticks(&mut app, DYNAMICS_FRAME + 3);
+        let world = app.world_mut();
+        let singles = world
+            .query::<&Household>()
+            .iter(world)
+            .filter(|h| h.members.len() == 1)
+            .count();
+        assert_eq!(singles, 0, "the two queued singles must have paired");
+        let couples = world
+            .query::<&Household>()
+            .iter(world)
+            .filter(|h| h.members.len() == 2)
+            .count();
+        assert!(couples >= 3, "original 2s plus the new couple, got {couples}");
+        assert_eq!(
+            world.query::<&Household>().iter(world).count(),
+            8,
+            "pairing merges two households into one"
+        );
+        assert_eq!(world.resource::<HousingQueue>().0.len(), 8);
     }
 
     #[test]
