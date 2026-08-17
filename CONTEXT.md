@@ -74,6 +74,20 @@ line a street rather than scattering. See ADR 0007.
 A new road segment's endpoint grabbing an existing road node within a radius, so the road
 topology never acquires near-miss junctions. See ADR 0007.
 
+## Production and policy
+
+**Binding constraint**:
+The scarcest of the factors a building needs to produce — staff, power, water, fuel — and
+therefore the one thing fixing it would require. Named by the gate, not inferred by the
+reader. See ADR 0014.
+_Avoid_: bottleneck, blocker
+
+**Policy**:
+A value the player authors, a sim system reads as a decision input, and the save persists —
+storage bands and the recruitment target today. Distinct from a **player control** like
+simulation speed, which no sim decision reads and no save carries. See ADR 0003.
+_Avoid_: setting, preference, config
+
 ## The world
 
 **Site**:

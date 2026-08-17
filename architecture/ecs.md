@@ -20,8 +20,10 @@ doc records how they land on Bevy 0.19.
 
 ## Stable identity
 
-Per-family `u64` monotonic counters (`CitizenId`, `BuildingId`, `VehicleId`, …) allocated from a
-serialized `IdAllocator` resource. **IDs are never reused; runtime `Entity` refs are never
+Per-family `u64` monotonic counters (`CitizenId`, `BuildingId`, `VehicleId`, …). *As built these
+are one small counter resource per family (`BuildingIds`, `RoadIds`, `VehicleIds`, …), each
+serialized so a load restores the allocator rather than inferring it from max-seen — not the single
+`IdAllocator` resource this section originally named.* **IDs are never reused; runtime `Entity` refs are never
 serialized.** Loading resolves stable IDs to fresh entities in a dedicated remap pass. This closes
 CS1's slot-reuse hazard and gives the band buckets their churn-stable key (ADR 0004). Everything
 else about save/load — format, column serde, versioning — is deferred to its own ticket.
@@ -89,14 +91,18 @@ the sim moves to its own world (the clock doc's dedicated-thread door).
 
 ## Spatial indices and simulation graphs
 
-- **`petgraph` is the authoritative typed topology store** — road/lane, rail, pedestrian, transit,
-  electricity, water, sewage, heating. Right for the *editable authority* side; wrong for hot
-  search. The packed search mirror from the carried pathfinding doc is built later as a derived
-  structure (ADR 0005).
-- **Spatial lookup is a hand-rolled uniform grid** — rebuildable, topology/version-stamped, one
-  for mostly-static members (buildings, workplaces, services; updates on construction/demolition)
-  and one for moving members (pawns; updates from authoritative positions). `kiddo` stays in
-  reserve until a benchmark shows the grid losing.
+- **Intended: a typed topology authority separate from a packed search mirror** — road/lane, rail,
+  pedestrian, transit, electricity, water, sewage, heating. Right for the *editable authority*
+  side; wrong for hot search. **As built, none of this exists**: topology is plain ECS
+  (`RoadNode.segments: Vec<Entity>`) and nearest-node lookups are linear scans. `petgraph` was
+  named here as the store and was never used; the crate has been dropped. See ADR 0005, which
+  carried the same claim and was corrected — reading either document as fact once produced a wrong
+  claim in a later ADR.
+- **Intended: hand-rolled uniform grids for spatial lookup** — rebuildable, topology/version-stamped,
+  one for mostly-static members (buildings, workplaces, services) and one for moving members
+  (pawns). **As built, also absent**: lookups are linear scans with a distance filter. `kiddo` was
+  held in reserve and has likewise been dropped; the trigger for building either structure is a
+  benchmark showing the scans losing, not a date.
 - Every cache carries a version stamp and can be rebuilt from authoritative data. World scans are
   forbidden in gameplay systems unless a benchmark records the bounded population and cadence that
   make one safe.
