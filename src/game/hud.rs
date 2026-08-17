@@ -13,8 +13,11 @@ use crate::sim::households::{Household, HousingQueue, RecruitmentPlan};
 use crate::sim::labour::Staffing;
 use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::roads::RoadBuildFeedback;
+use crate::sim::resources::TransportClass;
 use crate::sim::storage::StoragePolicies;
-use crate::sim::vehicles::{ActivePawn, ActiveVehicle, DEPOT_SLOTS, VehicleAsset};
+use crate::sim::vehicles::{
+    ActivePawn, ActiveVehicle, DEPOT_SLOTS, VehicleAsset, VehicleEdit, VehicleEditQueue,
+};
 use crate::sim::{SimSpeed, TickIndex};
 
 #[derive(Component)]
@@ -53,6 +56,7 @@ impl Plugin for HudPlugin {
                     update_population_readout,
                     update_dispatch_readout,
                     drive_inspect_tool,
+                    drive_depot_purchase,
                     update_tool_readout,
                     update_inspect_readout,
                     draw_selection_ring,
@@ -225,6 +229,33 @@ fn update_population_readout(
     if text.0 != next {
         text.0 = next;
     }
+}
+
+/// Fiat truck purchase (manufacture is B10): with a depot selected in the
+/// Inspect tool, `T` buys a bulk tipper, `Y` a covered bed. The slot gate
+/// lives sim-side — a full apron drops the edit with a warn.
+fn drive_depot_purchase(
+    keys: Res<ButtonInput<KeyCode>>,
+    selected: Res<Selected>,
+    buildings: Query<&Building>,
+    mut edits: ResMut<VehicleEditQueue>,
+) {
+    let Some(depot) = selected.0.filter(|&e| {
+        buildings
+            .get(e)
+            .is_ok_and(|b| b.kind == BuildingKind::Depot)
+    }) else {
+        return;
+    };
+    let class = if keys.just_pressed(KeyCode::KeyT) {
+        TransportClass::Bulk
+    } else if keys.just_pressed(KeyCode::KeyY) {
+        TransportClass::Covered
+    } else {
+        return;
+    };
+    edits.0.push(VehicleEdit::BuyTruck { depot, class });
+    info!("depot purchase queued: {class:?} truck at {depot:?}");
 }
 
 /// Ticks → game hours (600 frames per game day).
@@ -485,7 +516,9 @@ fn update_inspect_readout(
                 asset.id.0, asset.cargo_class
             ));
         }
-        lines.push_str(&format!("\nslots {parked}/{DEPOT_SLOTS} parked{trucks}"));
+        lines.push_str(&format!(
+            "\nslots {parked}/{DEPOT_SLOTS} parked{trucks}\nT buy bulk truck   Y buy covered truck"
+        ));
     }
     if let Some(staffing) = staffing {
         lines.push_str(&format!(

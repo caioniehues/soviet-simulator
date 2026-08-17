@@ -867,6 +867,7 @@ pub fn restore(world: &mut World, save: &SaveGame) {
             world.entity_mut(asset).insert(FreightJob {
                 order: OrderId(job.order),
                 phase: phase_from_u8(job.phase),
+                stalled: 0,
             });
         }
     }

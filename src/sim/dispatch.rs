@@ -98,10 +98,26 @@ pub enum FreightPhase {
     ReturnToDepot,
 }
 
+/// Ticks of zero loading progress with an empty bed before the truck gives
+/// the order back (a dried-up supplier must not absorb the fleet forever).
+pub const LOAD_STALL_TICKS: u32 = 600;
+
 #[derive(Component, Clone, Copy, Debug)]
 pub struct FreightJob {
     pub order: OrderId,
     pub phase: FreightPhase,
+    /// Consecutive empty-bed loading ticks with no tonnage moving.
+    pub stalled: u32,
+}
+
+impl FreightJob {
+    pub fn new(order: OrderId) -> Self {
+        Self {
+            order,
+            phase: FreightPhase::ToPickup,
+            stalled: 0,
+        }
+    }
 }
 
 pub struct DispatchSimPlugin;
@@ -388,10 +404,7 @@ fn assign_freight(
             continue;
         };
         let pos = nodes.get(start).unwrap().1.pos;
-        commands.entity(asset).insert(FreightJob {
-            order: order.id,
-            phase: FreightPhase::ToPickup,
-        });
+        commands.entity(asset).insert(FreightJob::new(order.id));
         commands.spawn((ActiveVehicle::at(pos), PawnOf(asset)));
         if idle.is_empty() {
             return;
@@ -525,6 +538,16 @@ fn run_freight(
                 // has (partial fulfilment is normal, never an error).
                 if full || (got < 1e-6 && vehicle.cargo.total() > 1e-3) {
                     job.phase = FreightPhase::ToDropoff;
+                    job.stalled = 0;
+                } else if got < 1e-6 {
+                    // Empty bed at an empty yard: wait a while, then hand the
+                    // order back rather than absorbing the fleet forever.
+                    job.stalled += 1;
+                    if job.stalled >= LOAD_STALL_TICKS {
+                        requeue(&mut queue, i, &mut job);
+                    }
+                } else {
+                    job.stalled = 0;
                 }
             }
             FreightPhase::ToDropoff => {
@@ -557,7 +580,25 @@ fn run_freight(
                 vehicle.cargo.add(o.resource, taken - fit);
                 if vehicle.cargo.total() < 1e-3 {
                     completed.push(o.id.0);
-                    job.phase = FreightPhase::ReturnToDepot;
+                    // Chain: take the hottest waiting compatible order right
+                    // from the dock instead of dead-heading home first.
+                    let class = assets.get(pawn_of.0).map(|a| a.cargo_class).ok();
+                    let next = queue
+                        .orders
+                        .iter_mut()
+                        .filter(|n| {
+                            n.assigned.is_none()
+                                && Some(n.resource.transport_class()) == class
+                        })
+                        .max_by(|a, b| a.priority.total_cmp(&b.priority));
+                    if let Some(next) = next {
+                        next.assigned = Some(pawn_of.0);
+                        job.order = next.id;
+                        job.phase = FreightPhase::ToPickup;
+                        job.stalled = 0;
+                    } else {
+                        job.phase = FreightPhase::ReturnToDepot;
+                    }
                 }
             }
             FreightPhase::ReturnToDepot => {
@@ -928,6 +969,50 @@ mod tests {
             1,
             "one truck ⇒ exactly one order in flight; the rest wait visibly"
         );
+    }
+
+    #[test]
+    fn empty_supplier_stalls_out_and_the_order_requeues() {
+        let mut app = app();
+        place_road(&mut app, Vec3::ZERO, Vec3::new(60.0, 0.0, 0.0));
+        // Warehouse supplier: produces nothing, so emptying it stays empty.
+        place(&mut app, BuildingKind::Warehouse, Vec3::new(65.0, 0.0, 0.0));
+        place(&mut app, BuildingKind::PowerPlant, Vec3::new(-5.0, 0.0, 0.0));
+        place(&mut app, BuildingKind::Depot, Vec3::new(0.0, 0.0, 15.0));
+        ticks(&mut app, 2);
+        let (warehouse, depot) = (
+            find(&mut app, BuildingKind::Warehouse),
+            find(&mut app, BuildingKind::Depot),
+        );
+        fill(&mut app, warehouse, ResourceKind::Coal, 84.0);
+        app.world_mut()
+            .resource_mut::<VehicleEditQueue>()
+            .0
+            .push(VehicleEdit::BuyTruck {
+                depot,
+                class: TransportClass::Bulk,
+            });
+        // Let the order match, then empty the supplier before the truck loads.
+        ticks(&mut app, MATCH_INTERVAL + 5);
+        {
+            let world = app.world_mut();
+            let mut inventory = world.get_mut::<Inventory>(warehouse).unwrap();
+            let coal = inventory.amount(ResourceKind::Coal);
+            inventory.take(ResourceKind::Coal, coal);
+        }
+        // Drive there (~545), stall out (600), hand the order back, head
+        // home. The lone truck then legitimately retries the still-waiting
+        // order, so sample for the moment the order sits unassigned.
+        let mut requeued = false;
+        for _ in 0..30 {
+            ticks(&mut app, 100);
+            let queue = app.world().resource::<DispatchQueue>();
+            if !queue.orders.is_empty() && queue.orders.iter().all(|o| o.assigned.is_none()) {
+                requeued = true;
+                break;
+            }
+        }
+        assert!(requeued, "the stalled truck must hand the order back");
     }
 
     #[test]

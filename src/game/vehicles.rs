@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::PostSimEasing;
 use crate::sim::buildings::{Building, BuildingKind};
-use crate::sim::resources::ResourceKind;
+use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::vehicles::{
     ActivePawn, ActiveVehicle, VehicleAsset, VehicleEdit, VehicleEditQueue, depot_slot_pos,
 };
@@ -37,9 +37,19 @@ impl Plugin for VehicleToolPlugin {
     }
 }
 
-/// What a source yard of this kind ships. The B3 dispatcher replaces this
-/// with real order matching.
-fn shipped_resource(kind: BuildingKind) -> ResourceKind {
+/// What a source ships when the haul-policy tool pairs it with a sink: its
+/// biggest stock if it holds anything, else the kind's canonical product.
+fn shipped_resource(kind: BuildingKind, inventory: Option<&Inventory>) -> ResourceKind {
+    if let Some(inventory) = inventory {
+        let stocked = ResourceKind::ALL
+            .into_iter()
+            .map(|r| (r, inventory.amount(r)))
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .filter(|(_, amount)| *amount > 0.05);
+        if let Some((resource, _)) = stocked {
+            return resource;
+        }
+    }
     match kind {
         BuildingKind::Quarry => ResourceKind::Gravel,
         BuildingKind::Factory
@@ -67,6 +77,7 @@ fn drive_shuttle_tool(
     cursor: Res<GroundCursor>,
     buttons: Res<ButtonInput<MouseButton>>,
     buildings: Query<(Entity, &Building)>,
+    inventories: Query<&Inventory>,
     mut pending: ResMut<PendingShuttleSource>,
     mut edits: ResMut<VehicleEditQueue>,
 ) {
@@ -86,8 +97,8 @@ fn drive_shuttle_tool(
         Some(source) if source != hit => {
             let resource = buildings
                 .get(source)
-                .map(|(_, b)| shipped_resource(b.kind))
-                .unwrap_or(shipped_resource(kind));
+                .map(|(_, b)| shipped_resource(b.kind, inventories.get(source).ok()))
+                .unwrap_or_else(|_| shipped_resource(kind, None));
             edits.0.push(VehicleEdit::CreateShuttle {
                 from: source,
                 to: hit,
