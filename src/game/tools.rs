@@ -17,6 +17,8 @@ pub enum ToolMode {
     Shuttle,
     /// Click bus stops in order; right-click closes the loop into a line.
     TransitLine,
+    /// Two clicks span a land-use district; repeat presses cycle the use.
+    Zone(crate::sim::zoning::ZoneKind),
 }
 
 /// Where the cursor ray hits the ground plane this frame, if it does.
@@ -66,6 +68,12 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
         Some(ToolMode::Shuttle)
     } else if keys.just_pressed(KeyCode::Digit6) {
         Some(ToolMode::TransitLine)
+    } else if keys.just_pressed(KeyCode::Digit7) {
+        use crate::sim::zoning::ZoneKind;
+        Some(ToolMode::Zone(match *mode {
+            ToolMode::Zone(ZoneKind::Residential) => ZoneKind::Industrial,
+            _ => ZoneKind::Residential,
+        }))
     } else {
         None
     };

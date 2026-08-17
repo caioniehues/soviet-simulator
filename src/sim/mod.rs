@@ -20,6 +20,7 @@ pub mod traffic;
 pub mod transit;
 pub mod vehicles;
 pub mod wires;
+pub mod zoning;
 
 pub use clock::{FrameIndex, SimSpeed, TickIndex};
 pub use stages::{PostSimEasing, SimStage, SimTick};

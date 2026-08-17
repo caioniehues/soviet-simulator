@@ -117,6 +117,9 @@ impl Plugin for BuildingSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BuildingEditQueue>()
             .init_resource::<BuildingIds>()
+            // The zoning feedback channel lives here so the siting gate works
+            // headless even without the zoning plugin (no zones = free land).
+            .init_resource::<super::zoning::ZoningFeedback>()
             .add_systems(
                 SimTick,
                 apply_building_edits
@@ -132,15 +135,25 @@ impl Plugin for BuildingSimPlugin {
     }
 }
 
-fn apply_building_edits(
+pub(crate) fn apply_building_edits(
     mut commands: Commands,
     mut queue: ResMut<BuildingEditQueue>,
     mut ids: ResMut<BuildingIds>,
     existing: Query<(), With<Building>>,
+    zones: Query<&super::zoning::Zone>,
+    mut zoning_feedback: ResMut<super::zoning::ZoningFeedback>,
 ) {
     for edit in queue.0.drain(..) {
         match edit {
             BuildingEdit::Place { kind, pos } => {
+                // The general plan gates siting (B7.3): a mismatched district
+                // refuses the blueprint with feedback; unzoned land is free.
+                if let Err(zone_kind) = super::zoning::siting_allowed(kind, pos, &zones) {
+                    warn!("Place dropped: {kind:?} not admitted in a {zone_kind:?} district");
+                    zoning_feedback.0 = Some((kind, zone_kind));
+                    continue;
+                }
+                zoning_feedback.0 = None;
                 ids.next += 1;
                 let mut entity = commands.spawn((
                     Building {

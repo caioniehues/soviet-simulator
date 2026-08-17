@@ -11,6 +11,7 @@ pub mod transit;
 pub mod vehicles;
 pub mod wires;
 pub mod world;
+pub mod zoning;
 
 /// Root plugin: every feature plugin under `src/game/` registers here,
 /// keeping `lib.rs` the single App-wiring point.
@@ -29,6 +30,7 @@ impl Plugin for GamePlugin {
             transit::TransitToolPlugin,
             wires::WireToolPlugin,
             saveload::SaveLoadPlugin,
+            zoning::ZoningToolPlugin,
             hud::HudPlugin,
         ));
     }

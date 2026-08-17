@@ -220,11 +220,17 @@ fn drive_recruitment_controls(keys: Res<ButtonInput<KeyCode>>, mut plan: ResMut<
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_population_readout(
     citizens: Query<&Citizen>,
     households: Query<&Household>,
     queue: Res<HousingQueue>,
     plan: Res<RecruitmentPlan>,
+    dwellings: Query<&crate::sim::households::Dwelling>,
+    staffed: Query<(&Building, &Staffing)>,
+    zones: Query<&crate::sim::zoning::Zone>,
+    buildings: Query<&Building>,
+    zone_feedback: Res<crate::sim::zoning::ZoningFeedback>,
     mut readout: Query<&mut Text, With<PopulationReadout>>,
 ) {
     let Ok(mut text) = readout.single_mut() else {
@@ -232,12 +238,36 @@ fn update_population_readout(
     };
     let total = households.iter().count();
     let housed = households.iter().filter(|h| h.dwelling.is_some()).count();
-    let next = format!(
+    let mut next = format!(
         "POPULATION {}\nhouseholds {housed}/{total} housed   queue {}\nplan target {}   (+/- adjusts)",
         citizens.iter().count(),
         queue.0.len(),
         plan.target_households,
     );
+    // The PLAN dashboard (B7.3): CS1's demand diagnostics surfaced as
+    // planner information — never wired to any spawner.
+    let vacancies: u32 = dwellings.iter().map(|d| d.free_flats()).sum();
+    let jobs_open: u32 = staffed
+        .iter()
+        .map(|(b, s)| s.vacancies(b.kind))
+        .sum();
+    let unemployed = citizens
+        .iter()
+        .filter(|c| c.work.is_none() && c.home.is_some())
+        .count();
+    next.push_str(&format!(
+        "\nPLAN  homeless {} / flats free {vacancies}\n jobs open {jobs_open} / unemployed {unemployed}",
+        queue.0.len(),
+    ));
+    let (zone_count, backlog) = crate::sim::zoning::unfulfilled_zones(&zones, &buildings);
+    if zone_count > 0 {
+        next.push_str(&format!(
+            "\n districts {zone_count}, {backlog} not yet fulfilled"
+        ));
+    }
+    if let Some((kind, zone_kind)) = zone_feedback.0 {
+        next.push_str(&format!("\n REFUSED: {kind:?} in a {zone_kind:?} district"));
+    }
     if text.0 != next {
         text.0 = next;
     }
@@ -570,6 +600,9 @@ fn tool_label(mode: ToolMode) -> String {
         }
         ToolMode::TransitLine => {
             "BUS LINE - click stops in order, right-click closes the loop".into()
+        }
+        ToolMode::Zone(kind) => {
+            format!("ZONE ({kind:?}) - two clicks span a district, 7 cycles use, X erases")
         }
     }
 }
