@@ -267,6 +267,7 @@ fn transport_class_to_u8(class: TransportClass) -> u8 {
     match class {
         TransportClass::Bulk => 0,
         TransportClass::Covered => 1,
+        TransportClass::Passenger => 2,
     }
 }
 
@@ -274,6 +275,7 @@ fn transport_class_from_u8(v: u8) -> Option<TransportClass> {
     Some(match v {
         0 => TransportClass::Bulk,
         1 => TransportClass::Covered,
+        2 => TransportClass::Passenger,
         _ => return None,
     })
 }
@@ -853,10 +855,17 @@ pub fn restore(world: &mut World, save: &SaveGame) {
         ) else {
             continue;
         };
+        // Kind derives from the class: only buses carry passengers, so no
+        // extra save column is needed.
+        let kind = if cargo_class == TransportClass::Passenger {
+            super::vehicles::VehicleKind::Bus
+        } else {
+            super::vehicles::VehicleKind::Truck
+        };
         let asset = world
             .spawn(VehicleAsset {
                 id: VehicleId(row.id),
-                kind: super::vehicles::VehicleKind::Truck,
+                kind,
                 home_depot,
                 cargo_class,
             })

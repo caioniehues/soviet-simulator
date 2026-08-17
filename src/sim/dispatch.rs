@@ -426,7 +426,7 @@ fn assign_freight(
     }
 }
 
-enum Progress {
+pub(crate) enum Progress {
     Arrived,
     Moving,
     NoPath,
@@ -465,7 +465,7 @@ fn install_route(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn drive_toward(
+pub(crate) fn drive_toward(
     pawn: Entity,
     vehicle: &mut ActiveVehicle,
     goal: impl Fn() -> Option<Entity>,

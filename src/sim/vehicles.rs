@@ -30,6 +30,8 @@ pub struct VehicleId(pub u64);
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum VehicleKind {
     Truck,
+    /// Passenger transit vehicle (B5): serves a `transit::TransitLine`.
+    Bus,
 }
 
 /// Physical parking slots per depot (W&R's rule: fleet size *is* the slot
@@ -137,6 +139,9 @@ pub enum VehicleEdit {
         depot: Entity,
         class: TransportClass,
     },
+    /// Fiat bus purchase (B5): a Passenger-class asset in a depot slot —
+    /// the freight dispatcher can never seize it.
+    BuyBus { depot: Entity },
     /// Legacy shuttle, reimplemented as policy sugar (#35): sets a paired
     /// export band (0,0) on the source and an import band (0.9,1) on the sink
     /// for `resource`. The dispatcher does the hauling — no truck is seized,
@@ -184,24 +189,33 @@ fn apply_vehicle_edits(
     }
     for edit in queue.0.drain(..) {
         match edit {
-            VehicleEdit::BuyTruck { depot, class } => {
+            VehicleEdit::BuyTruck { .. } | VehicleEdit::BuyBus { .. } => {
+                let (depot, kind, class) = match edit {
+                    VehicleEdit::BuyTruck { depot, class } => {
+                        (depot, VehicleKind::Truck, class)
+                    }
+                    VehicleEdit::BuyBus { depot } => {
+                        (depot, VehicleKind::Bus, TransportClass::Passenger)
+                    }
+                    _ => unreachable!(),
+                };
                 if !buildings
                     .get(depot)
                     .is_ok_and(|b| b.kind == BuildingKind::Depot)
                 {
-                    warn!("BuyTruck dropped: {depot:?} is not a depot");
+                    warn!("vehicle purchase dropped: {depot:?} is not a depot");
                     continue;
                 }
                 let occupied = homed.entry(depot).or_default();
                 if *occupied >= DEPOT_SLOTS {
-                    warn!("BuyTruck dropped: depot {depot:?} has no free slot");
+                    warn!("vehicle purchase dropped: depot {depot:?} has no free slot");
                     continue;
                 }
                 *occupied += 1;
                 ids.next += 1;
                 commands.spawn(VehicleAsset {
                     id: VehicleId(ids.next),
-                    kind: VehicleKind::Truck,
+                    kind,
                     home_depot: depot,
                     cargo_class: class,
                 });

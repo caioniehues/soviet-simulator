@@ -20,6 +20,10 @@ pub enum TransportClass {
     Bulk,
     /// Dry boxed goods on a covered bed (W&R `COVERED`).
     Covered,
+    /// People on a transit vehicle (W&R `PASSANGER`, spec/vehicles.md § bus).
+    /// No `ResourceKind` maps to it, so the freight dispatcher can never
+    /// match a bus — transit drives its own fleet (`sim/transit.rs`).
+    Passenger,
 }
 
 impl ResourceKind {

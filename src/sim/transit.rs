@@ -8,9 +8,21 @@
 use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
-use super::roads::RoadNode;
+use super::clock::SECS_PER_PASS;
+use super::dispatch::{Progress, drive_toward};
+use super::pathfinding::{PathService, PathfindingSimPlugin};
+use super::roads::{RoadNode, RoadSegment};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
-use super::vehicles::nearest_node;
+use super::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
+use super::vehicles::{
+    ActivePawn, ActiveVehicle, PawnOf, VehicleAsset, VehicleKind, nearest_node,
+};
+
+/// Seats on a bus; boarding stops at capacity — the queue at the shelter is
+/// the overcrowding signal (B5.3).
+pub const BUS_CAPACITY: usize = 30;
+/// Ticks a bus dwells at each stop for boarding/alighting.
+pub const BUS_DWELL_TICKS: u32 = 40;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LineId(pub u64);
@@ -44,6 +56,21 @@ pub enum TransitEdit {
     /// Remove the line. Its buses head home (B5.2) and riders re-plan on
     /// foot (B5.4); the stops themselves stay standing.
     DeleteLine { line: Entity },
+    /// Put an idle bus parked at `depot` into service on `line`.
+    AssignBus { line: Entity, depot: Entity },
+}
+
+/// Service state on the bus *asset* (persistent identity), mirroring
+/// `dispatch::FreightJob`: which line it serves and where it's headed.
+#[derive(Component, Debug)]
+pub struct BusDuty {
+    pub line: Entity,
+    /// Index into the line's stop list the bus is driving toward.
+    pub next_stop: usize,
+    /// Ticks left dwelling at a stop (0 = driving).
+    pub dwell: u32,
+    /// Citizens aboard (B5.3). Bounded by `BUS_CAPACITY`.
+    pub riders: Vec<Entity>,
 }
 
 #[derive(Resource, Default)]
@@ -55,6 +82,12 @@ pub struct TransitSimPlugin;
 
 impl Plugin for TransitSimPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<PathfindingSimPlugin>() {
+            app.add_plugins(PathfindingSimPlugin);
+        }
+        if !app.is_plugin_added::<TrafficSimPlugin>() {
+            app.add_plugins(TrafficSimPlugin);
+        }
         app.init_resource::<TransitEditQueue>()
             .init_resource::<TransitIds>()
             .add_systems(
@@ -62,10 +95,17 @@ impl Plugin for TransitSimPlugin {
                 apply_transit_edits
                     .in_set(SimStage::ApplyCommands)
                     .after(ApplyCommandsFlush),
+            )
+            .add_systems(
+                SimTick,
+                run_buses
+                    .in_set(SimStage::MovementAndTransfers)
+                    .after(LanePrep),
             );
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_transit_edits(
     mut commands: Commands,
     mut queue: ResMut<TransitEditQueue>,
@@ -73,6 +113,7 @@ fn apply_transit_edits(
     buildings: Query<&Building>,
     nodes: Query<(Entity, &RoadNode)>,
     lines: Query<Entity, With<TransitLine>>,
+    fleet: Query<(Entity, &VehicleAsset, Has<ActivePawn>, Has<BusDuty>)>,
 ) {
     for edit in std::mem::take(&mut queue.0) {
         match edit {
@@ -103,6 +144,113 @@ fn apply_transit_edits(
                 } else {
                     warn!("DeleteLine dropped: {line:?} is not a transit line");
                 }
+            }
+            TransitEdit::AssignBus { line, depot } => {
+                if lines.get(line).is_err() {
+                    warn!("AssignBus dropped: {line:?} is not a transit line");
+                    continue;
+                }
+                // An idle parked bus homed at this depot.
+                let Some((asset, home)) = fleet
+                    .iter()
+                    .find(|(_, a, on_road, on_duty)| {
+                        a.kind == VehicleKind::Bus
+                            && a.home_depot == depot
+                            && !on_road
+                            && !on_duty
+                    })
+                    .map(|(e, a, ..)| (e, a.home_depot))
+                else {
+                    warn!("AssignBus dropped: no idle bus parked at {depot:?}");
+                    continue;
+                };
+                // Roll out from the depot's road node, like a freight trip.
+                let start = buildings
+                    .get(home)
+                    .ok()
+                    .and_then(|b| nearest_node(b.pos, &nodes));
+                let Some(start) = start else {
+                    warn!("AssignBus dropped: depot {depot:?} docks no road node");
+                    continue;
+                };
+                let pos = nodes.get(start).unwrap().1.pos;
+                commands.entity(asset).insert(BusDuty {
+                    line,
+                    next_stop: 0,
+                    dwell: 0,
+                    riders: Vec::new(),
+                });
+                commands.spawn((ActiveVehicle::at(pos), PawnOf(asset)));
+            }
+        }
+    }
+}
+
+/// The bus service loop, mirroring `run_freight`'s shape: drive to the next
+/// stop through the full B4 stack (async routes, car-following, congestion,
+/// stalls), dwell for boarding, advance the loop. A deleted line sends the
+/// bus home; a severed stop holds and retries — a line is a plan, and its
+/// failure mode is visible waiting, never a despawn.
+#[allow(clippy::too_many_arguments)]
+fn run_buses(
+    mut commands: Commands,
+    mut pawns: Query<(Entity, &mut ActiveVehicle, &PawnOf)>,
+    mut duties: Query<&mut BusDuty>,
+    assets: Query<&VehicleAsset>,
+    lines: Query<&TransitLine>,
+    buildings: Query<&Building>,
+    mut svc: ResMut<PathService>,
+    occupancy: Res<LaneOccupancy>,
+    nodes: Query<(Entity, &RoadNode)>,
+    segments: Query<&RoadSegment>,
+) {
+    let dt = SECS_PER_PASS as f32;
+    for (pawn, mut vehicle, pawn_of) in &mut pawns {
+        let Ok(mut duty) = duties.get_mut(pawn_of.0) else {
+            continue;
+        };
+        if let Ok(line) = lines.get(duty.line) {
+            if duty.dwell > 0 {
+                duty.dwell -= 1;
+                continue;
+            }
+            let stop = line
+                .stops
+                .get(duty.next_stop % line.stops.len())
+                .copied();
+            let goal = || {
+                stop.and_then(|s| buildings.get(s).ok())
+                    .and_then(|b| nearest_node(b.pos, &nodes))
+            };
+            match drive_toward(
+                pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments,
+            ) {
+                Progress::Arrived => {
+                    duty.dwell = BUS_DWELL_TICKS;
+                    duty.next_stop = line.next_stop(duty.next_stop);
+                }
+                Progress::Moving | Progress::NoPath => {}
+            }
+        } else {
+            // Line deleted: dead-head home and park.
+            let asset = pawn_of.0;
+            let home = || {
+                assets
+                    .get(asset)
+                    .ok()
+                    .and_then(|a| buildings.get(a.home_depot).ok())
+                    .and_then(|b| nearest_node(b.pos, &nodes))
+            };
+            let done = match drive_toward(
+                pawn, &mut vehicle, home, dt, &mut svc, &occupancy, &nodes, &segments,
+            ) {
+                Progress::Arrived => true,
+                Progress::NoPath => home().is_none(),
+                Progress::Moving => false,
+            };
+            if done {
+                commands.entity(pawn).despawn();
+                commands.entity(pawn_of.0).remove::<BusDuty>();
             }
         }
     }
@@ -217,6 +365,113 @@ mod tests {
         ticks(&mut app, 1);
         let world = app.world_mut();
         assert_eq!(world.query::<&TransitLine>().iter(world).count(), 0);
+    }
+
+    fn line_with_bus(app: &mut App) -> (Entity, Entity) {
+        use super::super::buildings::BuildingEdit;
+        use super::super::vehicles::{VehicleEdit, VehicleEditQueue};
+        let (west, east) = stop_world(app);
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Place {
+                kind: BuildingKind::Depot,
+                pos: Vec3::new(0.0, 0.0, 20.0),
+            });
+        ticks(app, 2);
+        let world = app.world_mut();
+        let depot = world
+            .query::<(Entity, &Building)>()
+            .iter(world)
+            .find(|(_, b)| b.kind == BuildingKind::Depot)
+            .unwrap()
+            .0;
+        world
+            .resource_mut::<VehicleEditQueue>()
+            .0
+            .push(VehicleEdit::BuyBus { depot });
+        app.world_mut()
+            .resource_mut::<TransitEditQueue>()
+            .0
+            .push(TransitEdit::CreateLine {
+                stops: vec![west, east],
+            });
+        ticks(app, 2);
+        let world = app.world_mut();
+        let line = world
+            .query_filtered::<Entity, With<TransitLine>>()
+            .single(world)
+            .unwrap();
+        app.world_mut()
+            .resource_mut::<TransitEditQueue>()
+            .0
+            .push(TransitEdit::AssignBus { line, depot });
+        ticks(app, 2);
+        (line, depot)
+    }
+
+    fn bus_app() -> App {
+        let mut a = App::new();
+        a.insert_resource(Time::<()>::default());
+        a.add_plugins((
+            SimPlugin,
+            RoadSimPlugin,
+            BuildingSimPlugin,
+            super::super::vehicles::VehicleSimPlugin,
+            TransitSimPlugin,
+        ));
+        a
+    }
+
+    #[test]
+    fn assigned_bus_loops_the_line_and_dwells() {
+        let mut app = bus_app();
+        line_with_bus(&mut app);
+        // reach the east stop (200 m at truck speed on dirt ≈ 1850 ticks),
+        // sampling the pawn so we can prove it actually crossed the map
+        let mut max_x = f32::MIN;
+        let mut looped = false;
+        for _ in 0..30 {
+            ticks(&mut app, 100);
+            let world = app.world_mut();
+            if let Ok(v) = world.query::<&ActiveVehicle>().single(world) {
+                max_x = max_x.max(v.pos.x);
+            }
+            let duty = world.query::<&BusDuty>().single(world).unwrap();
+            if duty.next_stop == 0 && max_x > 150.0 {
+                looped = true;
+            }
+        }
+        assert!(max_x > 150.0, "bus must reach the east stop, max_x = {max_x}");
+        assert!(looped, "arrival must advance the loop back toward stop 0");
+        let world = app.world_mut();
+        assert_eq!(
+            world.query::<&ActiveVehicle>().iter(world).count(),
+            1,
+            "the bus serves the loop forever — never despawned"
+        );
+    }
+
+    #[test]
+    fn deleting_the_line_sends_the_bus_home_to_park() {
+        let mut app = bus_app();
+        let (line, _) = line_with_bus(&mut app);
+        ticks(&mut app, 300); // en route eastbound
+        app.world_mut()
+            .resource_mut::<TransitEditQueue>()
+            .0
+            .push(TransitEdit::DeleteLine { line });
+        ticks(&mut app, 3000); // dead-head home from anywhere on the map
+        let world = app.world_mut();
+        assert_eq!(
+            world.query::<&ActiveVehicle>().iter(world).count(),
+            0,
+            "pawn parks (despawns) at the depot"
+        );
+        assert_eq!(world.query::<&BusDuty>().iter(world).count(), 0);
+        let world = app.world_mut();
+        let bus = world.query::<&VehicleAsset>().single(world).unwrap();
+        assert_eq!(bus.kind, VehicleKind::Bus, "the asset survives parked");
     }
 
     #[test]
