@@ -1,10 +1,9 @@
 //! Electricity stage 1 (ticket #14, spec/electricity.md under M1 charter Q11):
 //! a single generic wire class, player-laid hops, no tiers/transformers/loss
-//! (B8). A building has power only if physically wired — through hops — to a
-//! plant with spare capacity. No coverage field. Deficit allocation is
-//! deterministic ascending-BuildingId order until B8's priority classes.
-
-use std::collections::HashMap;
+//! (voltage tiers deferred to B10). A building has power only if physically
+//! wired — through hops — to a plant with spare capacity. No coverage field.
+//! Deficit allocation runs on the shared pool solver (B8.1,
+//! `sim/network.rs`): housing before industry, brownout before blackout.
 
 use bevy::prelude::*;
 
@@ -188,55 +187,40 @@ fn remove_span_near(world: &mut World, pos: Vec3) {
 /// span endpoints; per component, plants pool this tick's output and factories
 /// draw in ascending BuildingId order — a starved plant (no coal ⇒ zero
 /// output) blacks out its dependents the same tick.
+/// The grid solve, now on the shared pool solver (B8.1): homes rank above
+/// industry, so a starved component browns factories out before dwellings —
+/// deficit allocation is planner policy, never id order.
 fn solve_power(
     spans: Query<&WireSpan>,
     outputs: Query<(Entity, &PowerOutput)>,
     mut consumers: Query<(Entity, &Building, &mut Powered)>,
 ) {
-    let mut parent: HashMap<Entity, Entity> = HashMap::new();
-    fn root(parent: &mut HashMap<Entity, Entity>, e: Entity) -> Entity {
-        let p = *parent.entry(e).or_insert(e);
-        if p == e {
-            return e;
-        }
-        let r = root(parent, p);
-        parent.insert(e, r);
-        r
-    }
-    for span in &spans {
-        let (ra, rb) = (root(&mut parent, span.a), root(&mut parent, span.b));
-        if ra != rb {
-            parent.insert(ra, rb);
-        }
-    }
-
-    let mut supply: HashMap<Entity, f32> = HashMap::new();
-    for (entity, output) in &outputs {
-        if parent.contains_key(&entity) {
-            let r = root(&mut parent, entity);
-            *supply.entry(r).or_default() += output.0;
-        }
-    }
-
-    let mut draws: Vec<(u64, Entity)> = consumers
+    use super::buildings::DWELLING_DEMAND_MW;
+    use super::network::{Components, PriorityClass, allocate};
+    let mut components = Components::from_spans(spans.iter().map(|s| (s.a, s.b)));
+    let demands: Vec<(Entity, u64, PriorityClass, f32)> = consumers
         .iter()
-        .filter(|(_, b, _)| b.kind == BuildingKind::Factory)
-        .map(|(e, b, _)| (b.id.0, e))
-        .collect();
-    draws.sort_unstable();
-    for (_, entity) in draws {
-        let (_, _, mut powered) = consumers.get_mut(entity).unwrap();
-        let connected = parent.contains_key(&entity);
-        powered.0 = connected && {
-            let r = root(&mut parent, entity);
-            let pool = supply.entry(r).or_default();
-            if *pool >= FACTORY_DEMAND_MW {
-                *pool -= FACTORY_DEMAND_MW;
-                true
-            } else {
-                false
+        .filter_map(|(e, b, _)| match b.kind {
+            BuildingKind::Factory => {
+                Some((e, b.id.0, PriorityClass::Industry, FACTORY_DEMAND_MW))
             }
-        };
+            BuildingKind::Dwelling => {
+                Some((e, b.id.0, PriorityClass::Housing, DWELLING_DEMAND_MW))
+            }
+            _ => None,
+        })
+        .collect();
+    let served = allocate(
+        &mut components,
+        outputs.iter().map(|(e, o)| (e, o.0)),
+        &demands,
+    );
+    for (entity, _, mut powered) in &mut consumers {
+        if let Some(&ok) = served.get(&entity)
+            && powered.0 != ok
+        {
+            powered.0 = ok;
+        }
     }
 }
 
@@ -408,5 +392,44 @@ mod tests {
         assert_eq!(world.query::<&WireSpan>().iter(world).count(), 0);
         assert_eq!(world.query::<&WirePole>().iter(world).count(), 0);
         assert_eq!(world.query::<&Building>().iter(world).count(), 1);
+    }
+
+    #[test]
+    fn starved_grid_serves_homes_before_factories() {
+        use super::super::buildings::DWELLING_DEMAND_MW;
+        let mut app = app();
+        // One plant (10 MW when fuelled), three factories (4 MW each) and two
+        // dwellings (1 MW each) on one grid: 14 demanded vs 10 supplied.
+        // Housing serves first; two factories fit; the third browns out.
+        place_building(&mut app, BuildingKind::PowerPlant, Vec3::ZERO);
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(40.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(80.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(200.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Dwelling, Vec3::new(120.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Dwelling, Vec3::new(160.0, 0.0, 0.0));
+        ticks(&mut app, 2);
+        for x in [40.0, 80.0, 120.0, 160.0, 200.0] {
+            wire(&mut app, Vec3::ZERO, Vec3::new(x, 0.0, 0.0));
+        }
+        fuel_plant(&mut app, 10.0);
+        ticks(&mut app, 3);
+        let world = app.world_mut();
+        let mut powered_homes = 0;
+        let mut powered_factories = 0;
+        for (b, p) in world
+            .query::<(&super::super::buildings::Building, &Powered)>()
+            .iter(world)
+        {
+            match (b.kind, p.0) {
+                (BuildingKind::Dwelling, true) => powered_homes += 1,
+                (BuildingKind::Factory, true) => powered_factories += 1,
+                _ => {}
+            }
+        }
+        assert_eq!(powered_homes, 2, "housing is the last thing unplugged");
+        assert_eq!(
+            powered_factories, 2,
+            "10 MW − 2×{DWELLING_DEMAND_MW} MW homes leaves room for two 4 MW factories"
+        );
     }
 }

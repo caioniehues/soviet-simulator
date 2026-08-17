@@ -100,12 +100,16 @@ pub fn attends_today(id: CitizenId, day: u32, probability: f32) -> bool {
 /// Rest ceiling in a doubled-up flat (B7.1): overcrowding is livable but it
 /// wears — a shared kitchen and a corridor bed never fully restore anyone.
 pub const OVERCROWDED_REST_CAP: f32 = 0.6;
+/// Rest ceiling in an unpowered home (B8.1): no light, no stove — a dark
+/// flat rests worse than a crowded lit one is the wrong ordering, so this
+/// cap sits above the overcrowding one; both can apply (min wins).
+pub const DARK_HOME_REST_CAP: f32 = 0.75;
 
 fn update_needs(
     frame: Res<FrameIndex>,
     mut citizens: Query<(&mut Citizen, &mut CitizenNeeds)>,
     mut households: Query<&mut Household>,
-    dwellings: Query<&super::households::Dwelling>,
+    dwellings: Query<(&super::households::Dwelling, Option<&super::buildings::Powered>)>,
 ) {
     if !frame.0.is_multiple_of(NEEDS_INTERVAL_FRAMES) {
         return;
@@ -117,11 +121,15 @@ fn update_needs(
     for (mut citizen, mut needs) in &mut citizens {
         needs.food = (needs.food - FOOD_DECAY).max(0.0);
         if citizen.location == CitizenLocation::AtHome {
-            let rest_cap = citizen
-                .home
-                .and_then(|d| dwellings.get(d).ok())
-                .filter(|d| super::households::overcrowded(**d))
-                .map_or(1.0, |_| OVERCROWDED_REST_CAP);
+            let mut rest_cap: f32 = 1.0;
+            if let Some((dwelling, powered)) = citizen.home.and_then(|d| dwellings.get(d).ok()) {
+                if super::households::overcrowded(*dwelling) {
+                    rest_cap = rest_cap.min(OVERCROWDED_REST_CAP);
+                }
+                if powered.is_some_and(|p| !p.0) {
+                    rest_cap = rest_cap.min(DARK_HOME_REST_CAP);
+                }
+            }
             needs.rest = (needs.rest + REST_RECOVERY).min(rest_cap.max(needs.rest));
         } else {
             needs.rest = (needs.rest - REST_DRAIN).max(0.0);

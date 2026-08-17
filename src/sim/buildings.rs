@@ -92,6 +92,10 @@ pub const PLANT_COAL_BURN: f32 = 0.02;
 pub const PLANT_OUTPUT_MW: f32 = 10.0;
 pub const FACTORY_GOODS_RATE: f32 = 0.03;
 pub const FACTORY_DEMAND_MW: f32 = 4.0;
+/// Lighting and appliances per residential block (B8.1): homes are grid
+/// consumers ranked above industry — a starved grid browns factories out
+/// first, and a dark home wears its residents down.
+pub const DWELLING_DEMAND_MW: f32 = 1.0;
 
 #[derive(Resource, Default)]
 pub struct BuildingEditQueue(pub Vec<BuildingEdit>);
@@ -167,7 +171,7 @@ pub(crate) fn apply_building_edits(
                     BuildingKind::PowerPlant => {
                         entity.insert(PowerOutput::default());
                     }
-                    BuildingKind::Factory => {
+                    BuildingKind::Factory | BuildingKind::Dwelling => {
                         entity.insert(Powered::default());
                     }
                     _ => {}

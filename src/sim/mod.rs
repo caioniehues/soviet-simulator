@@ -10,6 +10,7 @@ pub mod construction;
 pub mod households;
 pub mod labour;
 pub mod needs;
+pub mod network;
 pub mod pathfinding;
 pub mod resources;
 pub mod roads;
