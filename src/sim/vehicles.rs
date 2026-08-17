@@ -2,9 +2,9 @@
 //! a 0..1 `ActiveVehicle` pawn linked through a first-class relationship
 //! (architecture/ecs.md § Persistent state versus active pawn). Movement is
 //! lane-following over the compiled road graph — the lane network *is* the
-//! routing graph. The mine→plant shuttle loop here is an ad-hoc stub the B3
-//! dispatcher replaces; routing is plain BFS until the packed search mirror
-//! lands (ADR 0005).
+//! routing graph. Routes come from the async A* `PathService` (B4.1,
+//! sim/pathfinding.rs); movement respects car-following lane space (B4.3,
+//! `LaneOccupancy` in sim/traffic.rs).
 
 use std::collections::HashMap;
 
@@ -15,6 +15,7 @@ use super::resources::{Inventory, ResourceKind, TransportClass};
 use super::storage::{StorageBand, StoragePolicies};
 use super::roads::{LaneDir, RoadNode, RoadSegment};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::traffic::LaneOccupancy;
 
 /// Base speed on a 1.0-modifier lane, m/s. Effective speed is
 /// vehicle × road-class (× terrain, flat in M1).
@@ -103,6 +104,10 @@ pub struct ActiveVehicle {
     /// Outstanding background path request (B4.1). Transient — never saved;
     /// a loaded pawn with an empty route simply re-requests.
     pub pending_path: Option<super::pathfinding::PathTicket>,
+    /// Consecutive movement ticks in which car-following ate (nearly) the
+    /// whole speed budget (B4.3). The B4.4 stall machine reads this to decide
+    /// wait → re-route → register-stall. Transient, like `pending_path`.
+    pub blocked_ticks: u32,
 }
 
 impl ActiveVehicle {
@@ -116,6 +121,7 @@ impl ActiveVehicle {
             s: 0.0,
             cargo: Inventory::new(TRUCK_CARGO_CAPACITY),
             pending_path: None,
+            blocked_ticks: 0,
         }
     }
 }
@@ -221,15 +227,24 @@ fn apply_vehicle_edits(
 
 /// Move along the cached route; returns `true` once the route is exhausted
 /// (arrived). Phase transitions are the caller's business.
+///
+/// B4.3 car-following: the advance on each leg is capped by the gap to the
+/// leader in the same directed lane, and a leg transition only happens while
+/// the next lane's mouth is clear — followers pile up at footprint spacing
+/// and jams emerge from that alone. A tick spent held behind traffic bumps
+/// `blocked_ticks`; free running resets it.
 pub(crate) fn advance_along_route(
+    me: Entity,
     vehicle: &mut ActiveVehicle,
     dt: f32,
+    occupancy: &LaneOccupancy,
     nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
 ) -> bool {
     let mut budget = f32::MAX; // set from lane speed on the first leg below
     loop {
         let Some(leg) = vehicle.route.get(vehicle.leg).copied() else {
+            vehicle.blocked_ticks = 0;
             return true;
         };
         // A recompiled-away segment severs the route: hold and let the next
@@ -244,12 +259,32 @@ pub(crate) fn advance_along_route(
             budget = TRUCK_SPEED * lane.speed_modifier * dt;
         }
         let remaining = segment.length - vehicle.s;
+        let gap = occupancy.gap_ahead(leg.segment, leg.dir, vehicle.s, me);
+        if gap < remaining.min(budget) {
+            // Leader ahead in reservation range: creep up to its reserved
+            // space and hold — the whole leftover budget is forfeited.
+            vehicle.s += gap;
+            place_on_leg(vehicle, segment, leg.dir, nodes);
+            vehicle.blocked_ticks += 1;
+            return false;
+        }
         if budget < remaining {
             vehicle.s += budget;
             place_on_leg(vehicle, segment, leg.dir, nodes);
+            vehicle.blocked_ticks = 0;
             return false;
         }
-        // Finish this leg and continue onto the next with the leftover budget.
+        // Finishing this leg: only cross the junction if the next lane's
+        // mouth has room, else wait at the segment end (spillback).
+        if let Some(next) = vehicle.route.get(vehicle.leg + 1).copied()
+            && !occupancy.entry_free(next.segment, next.dir, me)
+        {
+            vehicle.s = segment.length;
+            place_on_leg(vehicle, segment, leg.dir, nodes);
+            vehicle.blocked_ticks += 1;
+            return false;
+        }
+        // Continue onto the next leg with the leftover budget.
         budget -= remaining;
         vehicle.s = segment.length;
         place_on_leg(vehicle, segment, leg.dir, nodes);
@@ -481,6 +516,151 @@ mod tests {
         // linked_spawn: despawning the asset takes the pawn with it
         world.despawn(asset);
         assert!(world.get_entity(pawn).is_err());
+    }
+
+    /// Hand-park a stationary pawn (no `PawnOf` → the freight machine never
+    /// moves it) on `segment`'s forward lane at metre `s`.
+    fn park_blocker(app: &mut App, segment: Entity, s: f32) {
+        let mut blocker = ActiveVehicle::at(Vec3::new(s, 0.0, 1.5));
+        blocker.route = vec![RouteLeg {
+            segment,
+            dir: LaneDir::Forward,
+        }];
+        blocker.s = s;
+        app.world_mut().spawn(blocker);
+    }
+
+    #[test]
+    fn follower_queues_behind_a_parked_leader_at_footprint_distance() {
+        use super::super::traffic::VEHICLE_FOOTPRINT_M;
+        let mut app = app();
+        shuttle_world(&mut app);
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let seg = world
+            .query::<(Entity, &RoadSegment)>()
+            .single(world)
+            .unwrap()
+            .0;
+        park_blocker(&mut app, seg, 50.0);
+        // plenty of time to load and drive into the back of the queue
+        ticks(&mut app, 1200);
+        let world = app.world_mut();
+        let (truck, _) = world
+            .query::<(&ActiveVehicle, &PawnOf)>()
+            .single(world)
+            .unwrap();
+        assert!(
+            truck.s <= 50.0 - VEHICLE_FOOTPRINT_M + 1e-3,
+            "must never enter the leader's reserved space, s = {}",
+            truck.s
+        );
+        assert!(
+            truck.s > 50.0 - VEHICLE_FOOTPRINT_M - 1.0,
+            "must creep right up to the queue point, s = {}",
+            truck.s
+        );
+        assert!(
+            truck.blocked_ticks > 0,
+            "held ticks must register for the stall machine"
+        );
+    }
+
+    #[test]
+    fn junction_entry_waits_for_a_clear_mouth() {
+        let mut app = app();
+        // Two chained dirt segments 0→100→200; shuttle quarry(west)→factory(east).
+        {
+            let mut roads = app.world_mut().resource_mut::<RoadEditQueue>();
+            roads.0.push(RoadEdit::Place {
+                from: Vec3::ZERO,
+                to: Vec3::new(100.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            });
+            roads.0.push(RoadEdit::Place {
+                from: Vec3::new(100.0, 0.0, 0.0),
+                to: Vec3::new(200.0, 0.0, 0.0),
+                class: RoadClass::Dirt,
+            });
+        }
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::Quarry,
+                pos: Vec3::new(-10.0, 0.0, 0.0),
+            });
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::Factory,
+                pos: Vec3::new(210.0, 0.0, 0.0),
+            });
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::Depot,
+                pos: Vec3::new(0.0, 0.0, 15.0),
+            });
+        }
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let mut found = (None, None, None);
+        let mut q = world.query::<(Entity, &Building)>();
+        for (e, b) in q.iter(world) {
+            match b.kind {
+                BuildingKind::Quarry => found.0 = Some(e),
+                BuildingKind::Factory => found.1 = Some(e),
+                BuildingKind::Depot => found.2 = Some(e),
+                _ => {}
+            }
+        }
+        let (quarry, _factory, depot) = (found.0.unwrap(), found.1.unwrap(), found.2.unwrap());
+        world
+            .get_mut::<Inventory>(quarry)
+            .unwrap()
+            .add(ResourceKind::Gravel, 50.0);
+        // the eastern segment (both nodes at x ≥ 100)
+        let segs: Vec<(Entity, Entity, Entity)> = world
+            .query::<(Entity, &RoadSegment)>()
+            .iter(world)
+            .map(|(e, s)| (e, s.a, s.b))
+            .collect();
+        let east = segs
+            .into_iter()
+            .find(|(_, a, b)| {
+                let xa = world.get::<RoadNode>(*a).unwrap().pos.x;
+                let xb = world.get::<RoadNode>(*b).unwrap().pos.x;
+                xa.min(xb) > 50.0
+            })
+            .expect("eastern segment exists")
+            .0;
+        {
+            let mut edits = world.resource_mut::<VehicleEditQueue>();
+            edits.0.push(VehicleEdit::BuyTruck {
+                depot,
+                class: TransportClass::Bulk,
+            });
+            edits.0.push(VehicleEdit::CreateShuttle {
+                from: quarry,
+                to: found.1.unwrap(),
+                resource: ResourceKind::Gravel,
+            });
+        }
+        // blocker sits in the eastern lane's mouth (s < footprint)
+        park_blocker(&mut app, east, 2.0);
+        ticks(&mut app, 1500);
+        let world = app.world_mut();
+        let (truck, _) = world
+            .query::<(&ActiveVehicle, &PawnOf)>()
+            .single(world)
+            .unwrap();
+        let current = truck.route.get(truck.leg).expect("still en route");
+        assert_ne!(
+            current.segment, east,
+            "must not cross the junction while the mouth is occupied"
+        );
+        assert!(
+            truck.pos.x <= 100.0 + 1e-3,
+            "held at the junction, x = {}",
+            truck.pos.x
+        );
+        assert!(truck.blocked_ticks > 0);
     }
 
     #[test]

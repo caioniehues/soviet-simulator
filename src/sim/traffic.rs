@@ -10,7 +10,7 @@ use bevy::prelude::*;
 
 use super::clock::TickIndex;
 use super::pathfinding::PathService;
-use super::roads::RoadSegment;
+use super::roads::{LaneDir, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::vehicles::ActiveVehicle;
 
@@ -43,14 +43,70 @@ impl SegmentTraffic {
     }
 }
 
+/// Marker for the occupancy build inside `MovementAndTransfers`; movement
+/// systems that respect car-following order themselves `.after(LanePrep)`.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct LanePrep;
+
+/// Who is where on each directed lane, rebuilt at the top of every movement
+/// pass (B4.3). Jams are lane space reservation: a follower reads the gap to
+/// its leader and refuses to enter it — no queue object, no scheduler.
+#[derive(Resource, Default)]
+pub struct LaneOccupancy {
+    map: HashMap<(Entity, LaneDir), Vec<(Entity, f32)>>,
+}
+
+impl LaneOccupancy {
+    /// Metres `me` may advance along its lane before violating the leader's
+    /// reserved space. `INFINITY` with no leader ahead.
+    pub fn gap_ahead(&self, segment: Entity, dir: LaneDir, s: f32, me: Entity) -> f32 {
+        self.map
+            .get(&(segment, dir))
+            .into_iter()
+            .flatten()
+            .filter(|(e, os)| *e != me && *os > s)
+            .map(|(_, os)| (os - s - VEHICLE_FOOTPRINT_M).max(0.0))
+            .fold(f32::INFINITY, f32::min)
+    }
+
+    /// Whether the mouth of the lane is clear enough to enter.
+    pub fn entry_free(&self, segment: Entity, dir: LaneDir, me: Entity) -> bool {
+        self.map
+            .get(&(segment, dir))
+            .into_iter()
+            .flatten()
+            .all(|(e, os)| *e == me || *os >= VEHICLE_FOOTPRINT_M)
+    }
+}
+
+fn build_lane_occupancy(mut occupancy: ResMut<LaneOccupancy>, vehicles: Query<(Entity, &ActiveVehicle)>) {
+    occupancy.map.clear();
+    for (entity, vehicle) in &vehicles {
+        if let Some(leg) = vehicle.route.get(vehicle.leg) {
+            occupancy
+                .map
+                .entry((leg.segment, leg.dir))
+                .or_default()
+                .push((entity, vehicle.s));
+        }
+    }
+}
+
 pub struct TrafficSimPlugin;
 
 impl Plugin for TrafficSimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            SimTick,
-            measure_density.in_set(SimStage::AccountingAndCausalHistory),
-        );
+        app.init_resource::<LaneOccupancy>()
+            .add_systems(
+                SimTick,
+                build_lane_occupancy
+                    .in_set(SimStage::MovementAndTransfers)
+                    .in_set(LanePrep),
+            )
+            .add_systems(
+                SimTick,
+                measure_density.in_set(SimStage::AccountingAndCausalHistory),
+            );
     }
 }
 

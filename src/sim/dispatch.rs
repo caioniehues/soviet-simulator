@@ -20,6 +20,7 @@ use super::roads::{RoadNode, RoadSegment};
 use super::stages::{SimStage, SimTick};
 use super::storage::StoragePolicies;
 use super::pathfinding::{CostProfile, PathPoll, PathService, PathfindingSimPlugin};
+use super::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
 use super::vehicles::{
     ActivePawn, ActiveVehicle, PawnOf, TRUCK_CARGO_CAPACITY, TRUCK_TRANSFER_RATE, VehicleAsset,
     advance_along_route, nearest_node, nearest_node_unbounded,
@@ -128,6 +129,9 @@ impl Plugin for DispatchSimPlugin {
         if !app.is_plugin_added::<PathfindingSimPlugin>() {
             app.add_plugins(PathfindingSimPlugin);
         }
+        if !app.is_plugin_added::<TrafficSimPlugin>() {
+            app.add_plugins(TrafficSimPlugin);
+        }
         app.init_resource::<DispatchQueue>()
             .init_resource::<DeficitBoard>()
             .init_resource::<DockIndex>()
@@ -137,7 +141,12 @@ impl Plugin for DispatchSimPlugin {
                     .chain()
                     .in_set(SimStage::AllocationAndDispatch),
             )
-            .add_systems(SimTick, run_freight.in_set(SimStage::MovementAndTransfers));
+            .add_systems(
+                SimTick,
+                run_freight
+                    .in_set(SimStage::MovementAndTransfers)
+                    .after(LanePrep),
+            );
     }
 }
 
@@ -429,11 +438,14 @@ enum Progress {
 /// a lazy lookup — resolving the dock node costs an O(nodes) scan, so it runs
 /// only on the request tick, never per movement tick. Recovery re-enters at
 /// the nearest node — cargo stays aboard through a re-route.
+#[allow(clippy::too_many_arguments)]
 fn drive_toward(
+    pawn: Entity,
     vehicle: &mut ActiveVehicle,
     goal: impl FnOnce() -> Option<Entity>,
     dt: f32,
     svc: &mut PathService,
+    occupancy: &LaneOccupancy,
     nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
 ) -> Progress {
@@ -492,7 +504,7 @@ fn drive_toward(
             return Progress::Moving;
         }
     }
-    if advance_along_route(vehicle, dt, nodes, segments) {
+    if advance_along_route(pawn, vehicle, dt, occupancy, nodes, segments) {
         // Clear the spent route so the next phase starts with a fresh one.
         vehicle.route = Vec::new();
         vehicle.leg = 0;
@@ -516,6 +528,7 @@ fn run_freight(
     buildings: Query<&Building>,
     mut yards: Query<&mut Inventory, With<Building>>,
     mut svc: ResMut<PathService>,
+    occupancy: Res<LaneOccupancy>,
     nodes: Query<(Entity, &RoadNode)>,
     segments: Query<&RoadSegment>,
 ) {
@@ -547,7 +560,7 @@ fn run_freight(
                 let Some(i) = order else { continue };
                 let from = queue.orders[i].from;
                 let goal = || buildings.get(from).ok().and_then(|b| nearest_node(b.pos, &nodes));
-                match drive_toward(&mut vehicle, goal, dt, &mut svc, &nodes, &segments) {
+                match drive_toward(pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments) {
                     Progress::Arrived => job.phase = FreightPhase::Loading,
                     Progress::Moving => {}
                     // No route to the pickup: give the order back so another
@@ -589,7 +602,7 @@ fn run_freight(
                 };
                 let to = queue.orders[i].to;
                 let goal = || buildings.get(to).ok().and_then(|b| nearest_node(b.pos, &nodes));
-                match drive_toward(&mut vehicle, goal, dt, &mut svc, &nodes, &segments) {
+                match drive_toward(pawn, &mut vehicle, goal, dt, &mut svc, &occupancy, &nodes, &segments) {
                     Progress::Arrived => job.phase = FreightPhase::Unloading,
                     // Severed with cargo aboard: hold and retry — the cargo
                     // stays physical, the delivery resumes when a path exists.
@@ -645,7 +658,7 @@ fn run_freight(
                 // A depot off the network cannot be driven to: the truck
                 // parks where it stands (asset teleports to its slot — fiat
                 // stub, matching the spawn side).
-                let done = match drive_toward(&mut vehicle, home, dt, &mut svc, &nodes, &segments) {
+                let done = match drive_toward(pawn, &mut vehicle, home, dt, &mut svc, &occupancy, &nodes, &segments) {
                     Progress::Arrived => true,
                     Progress::NoPath => home().is_none(),
                     Progress::Moving => false,

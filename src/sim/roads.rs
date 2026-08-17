@@ -54,7 +54,7 @@ pub struct RoadNode {
     pub segments: Vec<Entity>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LaneDir {
     /// travels a → b
     Forward,
