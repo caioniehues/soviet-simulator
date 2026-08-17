@@ -43,7 +43,7 @@ use super::wires::{PoleId, SpanId, WireIds, WirePole, WireSpan};
 /// so an old file must be rejected, never misparsed. v2: VehicleRow gained
 /// home_depot + class (M3.2). v3: storage-policy bands per building, the
 /// freight order queue, and mid-trip vehicle state (M3.5).
-pub const SAVE_VERSION: u32 = 4;
+pub const SAVE_VERSION: u32 = 5;
 /// Quicksave path, relative to the working directory.
 pub const QUICKSAVE_PATH: &str = "saves/quicksave.sav";
 
@@ -69,6 +69,8 @@ pub struct SaveGame {
     pub match_cursor: u32,
     pub recruit_target: u32,
     pub recruited: u32,
+    /// The Plan + treasury (G1.5): period state and the rouble balance.
+    pub plan: PlanRow,
     pub last_cut: Option<([f32; 3], [f32; 3], u8)>,
     pub buildings: Vec<BuildingRow>,
     pub households: Vec<HouseholdRow>,
@@ -83,6 +85,18 @@ pub struct SaveGame {
     pub spans: Vec<SpanRow>,
     pub vehicles: Vec<VehicleRow>,
     pub orders: Vec<OrderRow>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct PlanRow {
+    pub period: u32,
+    pub period_started: u32,
+    /// (tag, resource discriminant, target, progress): tag 0 = Stockpile,
+    /// tag 1 = Housed (resource unused, target is the household count).
+    pub quotas: Vec<(u8, u8, f32, f32)>,
+    pub last_fulfillment: Option<f32>,
+    pub last_tranche: Option<f32>,
+    pub roubles: f32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -171,6 +185,8 @@ pub struct VehicleRow {
     pub class: u8,
     /// Mid-trip state, if the truck is out on an order.
     pub job: Option<JobRow>,
+    /// Still driving in from the customs border until this frame (G1.5).
+    pub border_arrives: Option<u32>,
 }
 
 /// A truck's in-flight trip: enough to respawn the pawn where it was with the
@@ -600,11 +616,15 @@ pub fn snapshot(world: &mut World) -> SaveGame {
                     cargo,
                 })
             });
+            let border_arrives = world
+                .get::<super::customs::InTransitFromBorder>(entity)
+                .map(|t| t.arrives);
             vehicle_rows.push(VehicleRow {
                 id,
                 home_depot,
                 class,
                 job,
+                border_arrives,
             });
         }
     }
@@ -645,6 +665,27 @@ pub fn snapshot(world: &mut World) -> SaveGame {
         match_cursor: world.resource::<DispatchQueue>().cursor as u32,
         recruit_target: world.resource::<RecruitmentPlan>().target_households,
         recruited: world.resource::<RecruitmentLedger>().recruited,
+        plan: {
+            use super::plan::{QuotaKind, StatePlan, Treasury};
+            let plan = world.resource::<StatePlan>();
+            PlanRow {
+                period: plan.period,
+                period_started: plan.period_started,
+                quotas: plan
+                    .quotas
+                    .iter()
+                    .map(|q| match q.kind {
+                        QuotaKind::Stockpile(kind, target) => {
+                            (0, resource_to_u8(kind), target, q.progress)
+                        }
+                        QuotaKind::Housed(target) => (1, 0, target as f32, q.progress),
+                    })
+                    .collect(),
+                last_fulfillment: plan.last_fulfillment,
+                last_tranche: plan.last_tranche,
+                roubles: world.resource::<Treasury>().roubles,
+            }
+        },
         last_cut: world
             .resource::<LastCut>()
             .0
@@ -908,6 +949,11 @@ pub fn restore(world: &mut World, save: &SaveGame) {
                 cargo_class,
             })
             .id();
+        if let Some(arrives) = row.border_arrives {
+            world
+                .entity_mut(asset)
+                .insert(super::customs::InTransitFromBorder { arrives });
+        }
         vehicle_ents.push(asset);
         // Mid-trip truck: respawn the pawn where it was with its cargo; the
         // route is recomputed on the next drive tick (self-healing).
@@ -971,6 +1017,27 @@ pub fn restore(world: &mut World, save: &SaveGame) {
     world.resource_mut::<VehicleIds>().next = save.next_vehicle;
     world.resource_mut::<RecruitmentPlan>().target_households = save.recruit_target;
     world.resource_mut::<RecruitmentLedger>().recruited = save.recruited;
+    {
+        use super::plan::{Quota, QuotaKind, StatePlan, Treasury};
+        let mut plan = world.resource_mut::<StatePlan>();
+        plan.period = save.plan.period;
+        plan.period_started = save.plan.period_started;
+        plan.quotas = save
+            .plan
+            .quotas
+            .iter()
+            .filter_map(|&(tag, resource, target, progress)| {
+                let kind = match tag {
+                    0 => QuotaKind::Stockpile(resource_from_u8(resource)?, target),
+                    _ => QuotaKind::Housed(target as u32),
+                };
+                Some(Quota { kind, progress })
+            })
+            .collect();
+        plan.last_fulfillment = save.plan.last_fulfillment;
+        plan.last_tranche = save.plan.last_tranche;
+        world.resource_mut::<Treasury>().roubles = save.plan.roubles;
+    }
     world.resource_mut::<LastCut>().0 = save.last_cut.and_then(|(a, b, class)| {
         Some((
             Vec3::from_array(a),
@@ -1050,6 +1117,10 @@ pub struct SaveSimPlugin;
 impl Plugin for SaveSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SaveLoadRequests>()
+            // Plan state rides the save; init here so plugin-subset test
+            // apps snapshot/restore without PlanSimPlugin.
+            .init_resource::<super::plan::StatePlan>()
+            .init_resource::<super::plan::Treasury>()
             .add_systems(Update, process_requests.after(super::clock::drive_sim));
     }
 }

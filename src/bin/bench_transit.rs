@@ -41,6 +41,11 @@ fn tick(app: &mut App) {
 
 fn main() {
     let mut app = App::new();
+    // Pre-G1 fiat economy: these scenarios predate the rouble; an
+    // infinite treasury keeps them reproducing their recorded stories.
+    app.insert_resource(soviet_simulator::sim::plan::Treasury {
+        roubles: f32::INFINITY,
+    });
     app.insert_resource(Time::<()>::default());
     app.add_plugins((
         SimPlugin,

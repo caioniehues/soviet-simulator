@@ -39,9 +39,10 @@ struct DispatchReadout;
 #[derive(Component)]
 struct InspectPanel;
 
-/// Fullscreen Plan ledger overlay (G1.4), toggled with `P`.
+/// Fullscreen Plan ledger overlay (G1.4), toggled with `P`. Public so
+/// capture scripts can reveal it for the record.
 #[derive(Component)]
-struct PlanLedgerPanel;
+pub struct PlanLedgerPanel;
 
 #[derive(Component)]
 struct PlanLedgerReadout;

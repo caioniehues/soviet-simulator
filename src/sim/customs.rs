@@ -122,6 +122,29 @@ mod tests {
     }
 
     #[test]
+    fn a_prebuilt_customs_needs_no_construction() {
+        let mut app = app();
+        app.add_plugins(super::super::construction::ConstructionSimPlugin);
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::PlacePrebuilt {
+                kind: BuildingKind::CustomsOffice,
+                pos: Vec3::ZERO,
+            });
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let mut q = world.query_filtered::<
+            Has<super::super::construction::ConstructionSite>,
+            With<Building>,
+        >();
+        assert!(
+            !q.single(world).expect("customs placed"),
+            "state infrastructure arrives finished"
+        );
+    }
+
+    #[test]
     fn a_bought_truck_drives_in_from_the_border_before_it_can_work() {
         use super::super::vehicles::{
             VehicleAsset, VehicleEdit, VehicleEditQueue, VehicleSimPlugin,

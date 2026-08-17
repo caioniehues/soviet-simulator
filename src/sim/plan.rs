@@ -97,14 +97,51 @@ impl StatePlan {
     }
 }
 
-/// Placeholder ladder until the authored First Plan (G1.4): each period asks
-/// for more coal on the shelves and more households under a roof.
+/// The authored First Five-Year Plan (G1.5): a hand-tuned ramp that doubles
+/// as the tutorial — coal teaches mining and hauling, housing teaches the
+/// queue, goods teach the factory's full Liebig stack, and the late periods
+/// demand all of it at once. Past period 5 the demands keep climbing
+/// (post-campaign pressure until procedural plans arrive).
 pub fn default_quotas(period: u32) -> Vec<Quota> {
-    let p = period as f32;
-    vec![
-        Quota::new(QuotaKind::Stockpile(ResourceKind::Coal, 60.0 * p)),
-        Quota::new(QuotaKind::Housed(8 * period)),
-    ]
+    let quotas: &[QuotaKind] = match period {
+        // "Foundation": dig coal, house the diggers.
+        1 => &[
+            QuotaKind::Stockpile(ResourceKind::Coal, 40.0),
+            QuotaKind::Housed(8),
+        ],
+        // "Electrification": coal at scale — plants are burning it now.
+        2 => &[
+            QuotaKind::Stockpile(ResourceKind::Coal, 90.0),
+            QuotaKind::Housed(14),
+        ],
+        // "Industry": the factory line comes alive (power AND water AND staff).
+        3 => &[
+            QuotaKind::Stockpile(ResourceKind::Goods, 30.0),
+            QuotaKind::Housed(20),
+        ],
+        // "The Web": everything at once, winter looming.
+        4 => &[
+            QuotaKind::Stockpile(ResourceKind::Coal, 140.0),
+            QuotaKind::Stockpile(ResourceKind::Goods, 60.0),
+            QuotaKind::Housed(26),
+        ],
+        // "Report to the Congress": the full republic.
+        5 => &[
+            QuotaKind::Stockpile(ResourceKind::Goods, 120.0),
+            QuotaKind::Stockpile(ResourceKind::Coal, 180.0),
+            QuotaKind::Housed(32),
+        ],
+        // Beyond the First Plan: the state keeps asking.
+        n => {
+            let p = n as f32;
+            return vec![
+                Quota::new(QuotaKind::Stockpile(ResourceKind::Coal, 60.0 * p)),
+                Quota::new(QuotaKind::Stockpile(ResourceKind::Goods, 30.0 * p)),
+                Quota::new(QuotaKind::Housed(8 * n)),
+            ];
+        }
+    };
+    quotas.iter().map(|&kind| Quota::new(kind)).collect()
 }
 
 /// The republic's purse. Every purchase path spends from here.
@@ -242,8 +279,7 @@ mod tests {
         }
         // Run the rollover directly against the pinned frame (the measure
         // pass only rewrites progress on day boundaries, which this isn't).
-        let _ = app
-            .world_mut()
+        app.world_mut()
             .run_system_cached(rollover_period)
             .expect("rollover runs");
         let plan = app.world().resource::<StatePlan>();

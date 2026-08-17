@@ -58,7 +58,17 @@ fn spawn_world(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
+    mut buildings: ResMut<crate::sim::buildings::BuildingEditQueue>,
 ) {
+    // The border customs stands before the first plan does (G1.5): state
+    // infrastructure, prebuilt — every imported vehicle drives in from here
+    // and exports sell here. West of the starting view, its own trek away.
+    buildings
+        .0
+        .push(crate::sim::buildings::BuildingEdit::PlacePrebuilt {
+            kind: crate::sim::buildings::BuildingKind::CustomsOffice,
+            pos: Vec3::new(-260.0, 0.0, 0.0),
+        });
     // Flat plane per M1 charter (Q13); the material does the work now:
     // CC0 field texture (ambientCG Grass001) tinted toward desaturated olive.
     let tiles = (GROUND_HALF * 2.0) / FIELD_TILE;

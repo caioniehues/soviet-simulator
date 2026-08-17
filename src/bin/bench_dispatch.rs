@@ -43,6 +43,11 @@ fn tick(app: &mut App) {
 /// from trip execution — that is the sub-linearity claim under test.
 fn run(districts: u32, trucks: bool) -> (f64, f64, usize) {
     let mut app = App::new();
+    // Pre-G1 fiat economy: these scenarios predate the rouble; an
+    // infinite treasury keeps them reproducing their recorded stories.
+    app.insert_resource(soviet_simulator::sim::plan::Treasury {
+        roubles: f32::INFINITY,
+    });
     app.insert_resource(Time::<()>::default());
     app.add_plugins((
         SimPlugin,

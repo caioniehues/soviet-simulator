@@ -95,6 +95,11 @@ fn main() {
     std::fs::create_dir_all(&dir).expect("[capture] cannot create output dir");
 
     let mut app = App::new();
+    // Pre-G1 fiat economy: these scenarios predate the rouble; an
+    // infinite treasury keeps them reproducing their recorded stories.
+    app.insert_resource(soviet_simulator::sim::plan::Treasury {
+        roubles: f32::INFINITY,
+    });
     app.add_plugins(
         DefaultPlugins
             .set(WindowPlugin {

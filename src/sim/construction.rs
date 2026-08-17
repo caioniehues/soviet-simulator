@@ -304,11 +304,19 @@ fn run_machines(
 /// bus stop stores nothing when finished, but its *site* receives gravel),
 /// and its storage policy demands the current phase's material — the
 /// ordinary dispatcher does the delivering (B6.2).
-fn attach_sites(add: On<Add, Building>, mut commands: Commands, buildings: Query<&Building>) {
+fn attach_sites(
+    add: On<Add, Building>,
+    mut commands: Commands,
+    buildings: Query<(&Building, Has<super::buildings::Prebuilt>)>,
+) {
     let entity = add.entity;
-    let Ok(building) = buildings.get(entity) else {
+    let Ok((building, prebuilt)) = buildings.get(entity) else {
         return;
     };
+    // State-provided starting infrastructure arrives finished (G1.5).
+    if prebuilt {
+        return;
+    }
     let site = ConstructionSite::for_kind(building.kind);
     let bill_total: f32 = site
         .phases

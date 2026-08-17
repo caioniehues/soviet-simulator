@@ -123,6 +123,11 @@ pub struct BuildingEditQueue(pub Vec<BuildingEdit>);
 #[derive(Clone, Copy, Debug)]
 pub enum BuildingEdit {
     Place { kind: BuildingKind, pos: Vec3 },
+    /// Place already built (G1.5): spawns carrying `Prebuilt`, which the
+    /// construction observer honours by not attaching a site. For state-
+    /// provided starting infrastructure (the border customs); player edits
+    /// always use `Place`.
+    PlacePrebuilt { kind: BuildingKind, pos: Vec3 },
     /// Demolition first cut (B6.5): the building physically vanishes with
     /// its render children; workers, households, transit lines and freight
     /// orders self-heal through their own retention passes. Explosives and
@@ -134,6 +139,10 @@ pub enum BuildingEdit {
 pub struct BuildingIds {
     pub next: u64,
 }
+
+/// Spawned finished: the construction observer skips this building.
+#[derive(Component, Default)]
+pub struct Prebuilt;
 
 pub struct BuildingSimPlugin;
 
@@ -169,7 +178,8 @@ pub(crate) fn apply_building_edits(
 ) {
     for edit in queue.0.drain(..) {
         match edit {
-            BuildingEdit::Place { kind, pos } => {
+            BuildingEdit::Place { kind, pos } | BuildingEdit::PlacePrebuilt { kind, pos } => {
+                let prebuilt = matches!(edit, BuildingEdit::PlacePrebuilt { .. });
                 // The general plan gates siting (B7.3): a mismatched district
                 // refuses the blueprint with feedback; unzoned land is free.
                 if let Err(zone_kind) = super::zoning::siting_allowed(kind, pos, &zones) {
@@ -179,7 +189,14 @@ pub(crate) fn apply_building_edits(
                 }
                 zoning_feedback.0 = None;
                 ids.next += 1;
-                let mut entity = commands.spawn((
+                // `Prebuilt` must land before `Building`: the construction
+                // observer fires the instant `Building` is applied and reads
+                // the marker in the same breath.
+                let mut entity = commands.spawn_empty();
+                if prebuilt {
+                    entity.insert(Prebuilt);
+                }
+                entity.insert((
                     Building {
                         id: BuildingId(ids.next),
                         kind,

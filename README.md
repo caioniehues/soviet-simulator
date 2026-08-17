@@ -347,14 +347,46 @@ COLD HOMES line vanishes.
 Deferred to B10 (noted in #64): fuel as a hauled commodity, voltage tiers,
 electric-heating fallback, water quality grades.
 
+## Status — G1 "The Weight of the Plan" (#75) — code complete, playtest pending
+
+The game grew its pressure loop: the player is **the planner**. Direction
+set by grilling session (2026-08-17); B9 paused for it.
+
+- **The Plan** (#76) — `sim/plan.rs`: quota periods on the clock (a 60-day
+  Five-Year Plan), a daily measure pass over live stockpiles and housed
+  households, and a rollover that pays the next rouble tranche scaled by
+  fulfillment — missing the plan means a leaner next period, never game
+  over. The authored First Plan ladder (periods 1–5: foundation →
+  electrification → industry → the web → the congress report) doubles as
+  the tutorial ramp.
+- **Customs and the rouble** (#80, pulled forward from B10 by decision) —
+  the border is a prebuilt `CustomsOffice` west of the start; every vehicle
+  purchase spends roubles and physically drives in from it
+  (`InTransitFromBorder` — no dispatcher may seize it until arrival), and goods hauled
+  there sell abroad at a dock rate. Save v5 carries plan, treasury, and
+  border transits.
+- **Toolbar** (#77) — mouse-driven category bar with flyouts; number keys
+  stay as shortcuts; the highlight follows the tool state machine; UI hover
+  parks the ground cursor so toolbar clicks never fire world tools.
+- **Plan ledger** (#78) — fullscreen state document on `P`: quota bars,
+  fulfillment, treasury, next-tranche forecast. The HUD's right panels
+  stack by flex instead of overlapping.
+
+Record video: `screenshots/result/g1/video.mp4` (16 s: the border gatehouse
+→ town rises → trucks bought with roubles → coal and housing quotas climb
+→ the ledger at 100%). All seven bench gates re-pass (legacy bench/capture
+bins run an infinite treasury — their scenarios predate the rouble).
+**Acceptance still open:** an unscripted 30-minute played session (#79).
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 109 sim tests
+cargo test           # 115 sim tests
 ```
 
-Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
+Mouse: bottom toolbar (categories open flyouts; click to arm a tool).
+Keys: `P` the Plan ledger · `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
 `5` haul policy (click source, then sink) · `6` bus line (click stops, right-click closes) · `7` zone paint (two clicks, repeat cycles use) · `Esc` inspect · `X` cut · `R` rebuild last cut · `Space` pause ·
 `[` `]` speed · `F5` quicksave · `F9` quickload · WASD pan · Q/E rotate ·
 wheel zoom.
