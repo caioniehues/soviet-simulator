@@ -163,6 +163,11 @@ fn plan_labour(
     // Homes dock onto the road like yards do; dock lookups are cached across
     // workplaces within the pass.
     let mut dock_cache: HashMap<Entity, Option<Entity>> = HashMap::new();
+    // Road components gate the transit walk legs: an itinerary whose board
+    // stop is not road-connected to the home (or alight stop to the work) is
+    // a phantom — the straight-line estimate alone must never bind a worker.
+    let components = super::dispatch::node_components(&nodes, &segments);
+    let mut stop_dock_cache: HashMap<Entity, Option<Entity>> = HashMap::new();
     for (workplace, building, mut ledger) in &mut workplaces {
         let mut open = ledger.vacancies(building.kind);
         if open == 0 {
@@ -185,15 +190,40 @@ fn plan_labour(
             let walk_ok = dock
                 .and_then(|node| reach.get(&node).copied())
                 .is_some_and(|t| t <= MAX_COMMUTE_SECS);
-            let transit_ok = || {
+            let mut transit_ok = || {
                 buildings.get(home).is_ok_and(|home_b| {
+                    // Any itinerary costs at least crow-flight distance at
+                    // bus speed — prune the line scan on that lower bound.
+                    if home_b.pos.distance(building.pos)
+                        > MAX_COMMUTE_SECS * super::transit::BUS_SPEED
+                    {
+                        return false;
+                    }
                     super::commute::best_itinerary(
                         home_b.pos,
                         building.pos,
                         &lines,
                         &buildings,
                     )
-                    .is_some_and(|it| it.cost <= MAX_COMMUTE_SECS)
+                    .is_some_and(|it| {
+                        if it.cost > MAX_COMMUTE_SECS {
+                            return false;
+                        }
+                        let mut stop_dock = |stop: Entity| {
+                            *stop_dock_cache.entry(stop).or_insert_with(|| {
+                                buildings
+                                    .get(stop)
+                                    .ok()
+                                    .and_then(|b| nearest_node(b.pos, &nodes))
+                            })
+                        };
+                        let connected = |a: Option<Entity>, b: Option<Entity>| match (a, b) {
+                            (Some(a), Some(b)) => components.get(&a) == components.get(&b),
+                            _ => false,
+                        };
+                        connected(dock, stop_dock(it.board))
+                            && connected(stop_dock(it.alight), Some(work_node))
+                    })
                 })
             };
             if !walk_ok && !transit_ok() {

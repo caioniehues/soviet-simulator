@@ -154,7 +154,7 @@ impl Plugin for DispatchSimPlugin {
 /// Connected-component label per road node, one BFS flood per matching frame.
 /// Route *existence* checks then cost O(1) per candidate pair — this is what
 /// keeps the matcher sub-linear in storages instead of one BFS per pair.
-fn node_components(
+pub(crate) fn node_components(
     nodes: &Query<(Entity, &RoadNode)>,
     segments: &Query<&RoadSegment>,
 ) -> HashMap<Entity, u32> {
