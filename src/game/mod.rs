@@ -6,6 +6,7 @@ pub mod citizens;
 pub mod hud;
 pub mod roads;
 pub mod saveload;
+pub mod toolbar;
 pub mod tools;
 pub mod transit;
 pub mod vehicles;
@@ -23,6 +24,7 @@ impl Plugin for GamePlugin {
             world::WorldPlugin,
             camera::CameraPlugin,
             tools::ToolsPlugin,
+            toolbar::ToolbarPlugin,
             roads::RoadToolPlugin,
             buildings::BuildingToolPlugin,
             citizens::CitizenViewPlugin,

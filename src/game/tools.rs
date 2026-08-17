@@ -92,9 +92,15 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
 fn update_ground_cursor(
     window: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    ui_hover: Res<super::toolbar::UiHover>,
     mut cursor: ResMut<GroundCursor>,
 ) {
     cursor.0 = (|| {
+        // Pointer on the toolbar: park the cursor so a UI click can never
+        // also fire the world tool underneath it.
+        if ui_hover.0 {
+            return None;
+        }
         let window = window.single().ok()?;
         let viewport_pos = window.cursor_position()?;
         let (camera, camera_transform) = camera.single().ok()?;

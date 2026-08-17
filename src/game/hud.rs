@@ -231,11 +231,13 @@ fn update_population_readout(
     zones: Query<&crate::sim::zoning::Zone>,
     buildings: Query<&Building>,
     zone_feedback: Res<crate::sim::zoning::ZoningFeedback>,
-    climate: Res<crate::sim::heat::Climate>,
+    // Optional: capture bins assemble sim plugins piecemeal — the HUD
+    // drops these blocks rather than requiring every plugin.
+    climate: Option<Res<crate::sim::heat::Climate>>,
     heated: Query<&crate::sim::heat::Heated>,
-    state_plan: Res<crate::sim::plan::StatePlan>,
-    treasury: Res<crate::sim::plan::Treasury>,
-    alloc_feedback: Res<crate::sim::plan::AllocationFeedback>,
+    state_plan: Option<Res<crate::sim::plan::StatePlan>>,
+    treasury: Option<Res<crate::sim::plan::Treasury>>,
+    alloc_feedback: Option<Res<crate::sim::plan::AllocationFeedback>>,
     frame: Res<crate::sim::clock::FrameIndex>,
     mut readout: Query<&mut Text, With<PopulationReadout>>,
 ) {
@@ -276,31 +278,35 @@ fn update_population_readout(
     }
     // Season readout (B8.3): the sinusoid made legible, plus the count that
     // actually hurts — homes drawing heat and not getting it.
-    let cold_homes = heated.iter().filter(|h| !h.0).count();
-    next.push_str(&format!("\nSEASON  {:+.0}\u{b0}C", climate.temperature));
-    if cold_homes > 0 {
-        next.push_str(&format!("   COLD HOMES {cold_homes}"));
+    if let Some(climate) = climate {
+        let cold_homes = heated.iter().filter(|h| !h.0).count();
+        next.push_str(&format!("\nSEASON  {:+.0}\u{b0}C", climate.temperature));
+        if cold_homes > 0 {
+            next.push_str(&format!("   COLD HOMES {cold_homes}"));
+        }
     }
     // The Plan block (G1.1, interim until the G1.4 ledger screen): quotas,
     // deadline, the treasury, and any refused spend within the last day.
-    next.push_str(&format!(
-        "\nPLAN PERIOD {}   {} days left   {:.0} rbl",
-        state_plan.period,
-        state_plan.days_left(frame.0),
-        treasury.roubles,
-    ));
-    for quota in &state_plan.quotas {
-        let line = match quota.kind {
-            crate::sim::plan::QuotaKind::Stockpile(kind, target) => {
-                format!("\n  {kind:?} {target:.0} t — {:.0}%", quota.progress * 100.0)
-            }
-            crate::sim::plan::QuotaKind::Housed(target) => {
-                format!("\n  {target} housed — {:.0}%", quota.progress * 100.0)
-            }
-        };
-        next.push_str(&line);
+    if let (Some(state_plan), Some(treasury)) = (state_plan, treasury) {
+        next.push_str(&format!(
+            "\nPLAN PERIOD {}   {} days left   {:.0} rbl",
+            state_plan.period,
+            state_plan.days_left(frame.0),
+            treasury.roubles,
+        ));
+        for quota in &state_plan.quotas {
+            let line = match quota.kind {
+                crate::sim::plan::QuotaKind::Stockpile(kind, target) => {
+                    format!("\n  {kind:?} {target:.0} t — {:.0}%", quota.progress * 100.0)
+                }
+                crate::sim::plan::QuotaKind::Housed(target) => {
+                    format!("\n  {target} housed — {:.0}%", quota.progress * 100.0)
+                }
+            };
+            next.push_str(&line);
+        }
     }
-    if let Some((when, what)) = alloc_feedback.0
+    if let Some((when, what)) = alloc_feedback.and_then(|f| f.0)
         && frame.0.wrapping_sub(when) < crate::sim::clock::FRAMES_PER_GAME_DAY
     {
         next.push_str(&format!("\n  NO FUNDS: {what} refused"));
