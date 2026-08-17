@@ -43,7 +43,7 @@ use super::wires::{PoleId, SpanId, WireIds, WirePole, WireSpan};
 /// so an old file must be rejected, never misparsed. v2: VehicleRow gained
 /// home_depot + class (M3.2). v3: storage-policy bands per building, the
 /// freight order queue, and mid-trip vehicle state (M3.5).
-pub const SAVE_VERSION: u32 = 3;
+pub const SAVE_VERSION: u32 = 4;
 /// Quicksave path, relative to the working directory.
 pub const QUICKSAVE_PATH: &str = "saves/quicksave.sav";
 
@@ -143,6 +143,8 @@ pub struct SegmentRow {
 pub struct PoleRow {
     pub id: u64,
     pub pos: [f32; 3],
+    /// `NetKind` discriminant (save v4): 0 power, 1 water, 2 heat.
+    pub kind: u8,
 }
 
 /// A span endpoint by table, not by entity.
@@ -157,6 +159,7 @@ pub struct SpanRow {
     pub id: u64,
     pub a: EndRef,
     pub b: EndRef,
+    pub kind: u8,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -197,6 +200,22 @@ pub struct OrderRow {
 
 // -- discriminant maps (append-only; order is serialized) -------------------
 
+fn net_kind_to_u8(kind: super::wires::NetKind) -> u8 {
+    match kind {
+        super::wires::NetKind::Power => 0,
+        super::wires::NetKind::Water => 1,
+        super::wires::NetKind::Heat => 2,
+    }
+}
+
+fn net_kind_from_u8(v: u8) -> super::wires::NetKind {
+    match v {
+        1 => super::wires::NetKind::Water,
+        2 => super::wires::NetKind::Heat,
+        _ => super::wires::NetKind::Power,
+    }
+}
+
 fn kind_to_u8(kind: BuildingKind) -> u8 {
     match kind {
         BuildingKind::Mine => 0,
@@ -208,6 +227,8 @@ fn kind_to_u8(kind: BuildingKind) -> u8 {
         BuildingKind::Depot => 6,
         BuildingKind::BusStop => 7,
         BuildingKind::ConstructionOffice => 8,
+        BuildingKind::WaterPump => 9,
+        BuildingKind::SewagePlant => 10,
     }
 }
 
@@ -222,6 +243,8 @@ fn kind_from_u8(v: u8) -> Option<BuildingKind> {
         6 => BuildingKind::Depot,
         7 => BuildingKind::BusStop,
         8 => BuildingKind::ConstructionOffice,
+        9 => BuildingKind::WaterPump,
+        10 => BuildingKind::SewagePlant,
         _ => return None,
     })
 }
@@ -503,9 +526,13 @@ pub fn snapshot(world: &mut World) -> SaveGame {
 
     let pole_rows: Vec<PoleRow> = poles
         .iter()
-        .map(|&(id, entity)| PoleRow {
-            id,
-            pos: world.get::<WirePole>(entity).unwrap().pos.to_array(),
+        .map(|&(id, entity)| {
+            let pole = world.get::<WirePole>(entity).unwrap();
+            PoleRow {
+                id,
+                pos: pole.pos.to_array(),
+                kind: net_kind_to_u8(pole.kind),
+            }
         })
         .collect();
     let end_ref = |entity: Entity| -> Option<EndRef> {
@@ -525,6 +552,7 @@ pub fn snapshot(world: &mut World) -> SaveGame {
                     id: span.id.0,
                     a,
                     b,
+                    kind: net_kind_to_u8(span.kind),
                 });
             }
         }
@@ -833,6 +861,7 @@ pub fn restore(world: &mut World, save: &SaveGame) {
         world.entity_mut(entity).insert(WirePole {
             id: PoleId(row.id),
             pos: Vec3::from_array(row.pos),
+            kind: net_kind_from_u8(row.kind),
         });
     }
     let resolve_end = |end: EndRef| -> Option<Entity> {
@@ -844,6 +873,7 @@ pub fn restore(world: &mut World, save: &SaveGame) {
     for row in &save.spans {
         if let (Some(a), Some(b)) = (resolve_end(row.a), resolve_end(row.b)) {
             world.spawn(WireSpan {
+                kind: net_kind_from_u8(row.kind),
                 id: SpanId(row.id),
                 a,
                 b,
@@ -1120,6 +1150,7 @@ mod tests {
             .resource_mut::<WireEditQueue>()
             .0
             .push(WireEdit::Place {
+                kind: crate::sim::wires::NetKind::Power,
                 from: Vec3::new(115.0, 0.0, 30.0),
                 to: Vec3::new(200.0, 0.0, 15.0),
             });

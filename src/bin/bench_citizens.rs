@@ -109,6 +109,7 @@ fn main() {
         }
         let mut wires = app.world_mut().resource_mut::<WireEditQueue>();
         wires.0.push(WireEdit::Place {
+            kind: soviet_simulator::sim::wires::NetKind::Power,
             from: Vec3::new(125.0, 0.0, z),
             to: Vec3::new(245.0, 0.0, z),
         });

@@ -22,6 +22,8 @@ fn kind_color(kind: BuildingKind) -> Color {
         BuildingKind::Depot => Color::srgb(0.48, 0.50, 0.46),
         BuildingKind::BusStop => Color::srgb(0.55, 0.58, 0.52),
         BuildingKind::ConstructionOffice => Color::srgb(0.56, 0.50, 0.38),
+        BuildingKind::WaterPump => Color::srgb(0.35, 0.50, 0.62),
+        BuildingKind::SewagePlant => Color::srgb(0.42, 0.46, 0.38),
     }
 }
 
@@ -36,6 +38,8 @@ pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
         BuildingKind::Depot => 6.0,
         BuildingKind::BusStop => 3.0,
         BuildingKind::ConstructionOffice => 5.0,
+        BuildingKind::WaterPump => 4.0,
+        BuildingKind::SewagePlant => 4.0,
     }
 }
 
@@ -337,6 +341,18 @@ fn parts(kind: BuildingKind, m: &BuildingMaterials) -> Vec<Part> {
             boxed(&m.rust, Vec3::new(9.6, 0.5, 7.6), Vec3::new(-4.0, 4.0, -6.0)),
             boxed(&m.rust, Vec3::new(0.3, 6.5, 0.3), Vec3::new(2.5, 0.0, -8.0)),
             boxed(&m.concrete, Vec3::new(16.0, 0.3, 10.0), Vec3::new(0.0, 0.0, 5.0)),
+        ],
+        // Pumphouse: brick box with an intake stack.
+        BuildingKind::WaterPump => vec![
+            boxed(&m.brick, Vec3::new(7.0, 3.5, 5.5), Vec3::new(0.0, 0.0, 0.0)),
+            boxed(&m.rust, Vec3::new(7.6, 0.5, 6.1), Vec3::new(0.0, 3.5, 0.0)),
+            chimney(&m.rust, 0.9, 3.0, Vec3::new(2.5, 0.0, -1.5)),
+        ],
+        // Treatment works: low concrete basin pair beside a shed.
+        BuildingKind::SewagePlant => vec![
+            boxed(&m.concrete, Vec3::new(6.0, 1.2, 6.0), Vec3::new(-4.0, 0.0, 0.0)),
+            boxed(&m.concrete, Vec3::new(6.0, 1.2, 6.0), Vec3::new(3.0, 0.0, 0.0)),
+            boxed(&m.timber, Vec3::new(4.5, 3.2, 3.5), Vec3::new(0.0, 0.0, -4.0)),
         ],
         // Bus shelter: concrete slab roof on two posts, timber bench.
         BuildingKind::BusStop => vec![

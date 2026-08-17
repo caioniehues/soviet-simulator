@@ -20,6 +20,7 @@ pub mod storage;
 pub mod traffic;
 pub mod transit;
 pub mod vehicles;
+pub mod water;
 pub mod wires;
 pub mod zoning;
 

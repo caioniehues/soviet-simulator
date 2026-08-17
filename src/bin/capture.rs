@@ -250,6 +250,7 @@ fn drive_script(world: &mut World) {
             .resource_mut::<WireEditQueue>()
             .0
             .push(WireEdit::Place {
+            kind: soviet_simulator::sim::wires::NetKind::Power,
                 from: Vec3::new(30.0, 0.0, 0.0),
                 to: Vec3::new(120.0, 0.0, 0.0),
             }),

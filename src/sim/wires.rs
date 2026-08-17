@@ -19,6 +19,16 @@ pub const POLE_SNAP_RADIUS: f32 = 4.0;
 /// half-diagonal plus this margin.
 pub const BUILDING_SNAP_MARGIN: f32 = 2.0;
 
+/// Which utility a pole/span carries (B8.2): the same laid-hop hardware
+/// serves all three webs; components never mix kinds.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub enum NetKind {
+    #[default]
+    Power,
+    Water,
+    Heat,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PoleId(pub u64);
 
@@ -30,6 +40,7 @@ pub struct SpanId(pub u64);
 pub struct WirePole {
     pub id: PoleId,
     pub pos: Vec3,
+    pub kind: NetKind,
 }
 
 /// One laid hop. Endpoints are poles or buildings.
@@ -38,6 +49,7 @@ pub struct WireSpan {
     pub id: SpanId,
     pub a: Entity,
     pub b: Entity,
+    pub kind: NetKind,
 }
 
 #[derive(Resource, Default)]
@@ -45,9 +57,13 @@ pub struct WireEditQueue(pub Vec<WireEdit>);
 
 #[derive(Clone, Copy, Debug)]
 pub enum WireEdit {
-    /// Each endpoint snaps to a building, else an existing pole, else creates
-    /// a new pole at the position.
-    Place { from: Vec3, to: Vec3 },
+    /// Each endpoint snaps to a building, else an existing same-kind pole,
+    /// else creates a new pole at the position.
+    Place {
+        from: Vec3,
+        to: Vec3,
+        kind: NetKind,
+    },
     /// Remove the span nearest to `pos` (within `POLE_SNAP_RADIUS` of its line).
     RemoveNear { pos: Vec3 },
 }
@@ -83,7 +99,7 @@ impl Plugin for WireSimPlugin {
     }
 }
 
-fn endpoint_at(world: &mut World, pos: Vec3) -> Entity {
+fn endpoint_at(world: &mut World, pos: Vec3, kind: NetKind) -> Entity {
     // building first: wiring a yard beats planting a pole inside it
     let mut buildings = world.query::<(Entity, &Building)>();
     let hit = buildings
@@ -101,6 +117,7 @@ fn endpoint_at(world: &mut World, pos: Vec3) -> Entity {
     let mut poles = world.query::<(Entity, &WirePole)>();
     let snapped = poles
         .iter(world)
+        .filter(|(_, p)| p.kind == kind)
         .map(|(e, p)| (e, p.pos.distance_squared(pos)))
         .filter(|(_, d2)| *d2 <= POLE_SNAP_RADIUS * POLE_SNAP_RADIUS)
         .min_by(|a, b| a.1.total_cmp(&b.1))
@@ -111,7 +128,7 @@ fn endpoint_at(world: &mut World, pos: Vec3) -> Entity {
             ids.next_pole += 1;
             PoleId(ids.next_pole)
         };
-        world.spawn(WirePole { id, pos }).id()
+        world.spawn(WirePole { id, pos, kind }).id()
     })
 }
 
@@ -126,16 +143,16 @@ fn apply_wire_edits(world: &mut World) {
     let edits = std::mem::take(&mut world.resource_mut::<WireEditQueue>().0);
     for edit in edits {
         match edit {
-            WireEdit::Place { from, to } => {
-                let a = endpoint_at(world, from);
-                let b = endpoint_at(world, to);
+            WireEdit::Place { from, to, kind } => {
+                let a = endpoint_at(world, from, kind);
+                let b = endpoint_at(world, to, kind);
                 if a == b {
                     continue;
                 }
                 let mut spans = world.query::<&WireSpan>();
                 let duplicate = spans
                     .iter(world)
-                    .any(|s| (s.a == a && s.b == b) || (s.a == b && s.b == a));
+                    .any(|s| s.kind == kind && ((s.a == a && s.b == b) || (s.a == b && s.b == a)));
                 if duplicate {
                     continue;
                 }
@@ -144,7 +161,7 @@ fn apply_wire_edits(world: &mut World) {
                     ids.next_span += 1;
                     SpanId(ids.next_span)
                 };
-                world.spawn(WireSpan { id, a, b });
+                world.spawn(WireSpan { id, a, b, kind });
             }
             WireEdit::RemoveNear { pos } => remove_span_near(world, pos),
         }
@@ -197,7 +214,12 @@ fn solve_power(
 ) {
     use super::buildings::DWELLING_DEMAND_MW;
     use super::network::{Components, PriorityClass, allocate};
-    let mut components = Components::from_spans(spans.iter().map(|s| (s.a, s.b)));
+    let mut components = Components::from_spans(
+        spans
+            .iter()
+            .filter(|s| s.kind == NetKind::Power)
+            .map(|s| (s.a, s.b)),
+    );
     let demands: Vec<(Entity, u64, PriorityClass, f32)> = consumers
         .iter()
         .filter_map(|(e, b, _)| match b.kind {
@@ -261,7 +283,11 @@ mod tests {
         app.world_mut()
             .resource_mut::<WireEditQueue>()
             .0
-            .push(WireEdit::Place { from, to });
+            .push(WireEdit::Place {
+                from,
+                to,
+                kind: NetKind::Power,
+            });
     }
 
     fn building_entity(app: &mut App, kind: BuildingKind) -> Entity {

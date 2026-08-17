@@ -33,6 +33,11 @@ pub enum BuildingKind {
     /// Construction office (B6): home of the machine fleet (excavators,
     /// cranes) that works every `ConstructionSite`.
     ConstructionOffice,
+    /// Water intake + pumphouse (B8.2): pours supply into its pipe web.
+    WaterPump,
+    /// Sewage treatment (B8.2): drainage capacity — a component without it
+    /// backs up and shuts its water consumers.
+    SewagePlant,
 }
 
 impl BuildingKind {
@@ -49,6 +54,8 @@ impl BuildingKind {
             BuildingKind::BusStop => Vec2::new(5.0, 3.0),
             // Office hut plus the machine apron.
             BuildingKind::ConstructionOffice => Vec2::new(20.0, 22.0),
+            BuildingKind::WaterPump => Vec2::new(10.0, 8.0),
+            BuildingKind::SewagePlant => Vec2::new(16.0, 12.0),
         }
     }
     pub fn inventory_capacity(self) -> f32 {
@@ -63,6 +70,7 @@ impl BuildingKind {
             BuildingKind::Depot => 0.0,
             BuildingKind::BusStop => 0.0,
             BuildingKind::ConstructionOffice => 0.0,
+            BuildingKind::WaterPump | BuildingKind::SewagePlant => 0.0,
         }
     }
 }
@@ -251,19 +259,30 @@ pub(crate) fn run_power_plants(
 
 /// The factory produces only while its electricity gate holds and staff are
 /// present — the scarcest factor wins.
+#[allow(clippy::type_complexity)]
 pub(crate) fn run_factories(
     mut factories: Query<
-        (&Building, &mut Inventory, &Powered, Option<&Staffing>),
+        (
+            &Building,
+            &mut Inventory,
+            &Powered,
+            Option<&Staffing>,
+            Option<&super::water::Watered>,
+        ),
         Without<super::construction::ConstructionSite>,
     >,
     citizens: Query<&Citizen>,
 ) {
-    for (building, mut inventory, powered, staffing) in &mut factories {
+    for (building, mut inventory, powered, staffing, watered) in &mut factories {
         if building.kind != BuildingKind::Factory {
             continue;
         }
         let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
-        if powered.0 && f > 0.0 {
+        // Liebig stage 2 (B8.2): power AND water AND staff — the scarcest
+        // factor wins. No `Watered` component (water plugin absent) means
+        // water is not yet a requirement, the fiat fixture path.
+        let watered_ok = watered.is_none_or(|w| w.0);
+        if powered.0 && watered_ok && f > 0.0 {
             inventory.add(ResourceKind::Goods, FACTORY_GOODS_RATE * f);
         }
     }

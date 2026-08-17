@@ -13,7 +13,8 @@ pub fn run() {
             ..default()
         }))
         .add_plugins((
-            sim::SimPlugin,
+            sim::SimPlugin,))
+        .add_plugins((
             sim::roads::RoadSimPlugin,
             sim::buildings::BuildingSimPlugin,
             sim::storage::StorageSimPlugin,
@@ -27,6 +28,7 @@ pub fn run() {
             sim::transit::TransitSimPlugin,
             sim::construction::ConstructionSimPlugin,
             sim::zoning::ZoningSimPlugin,
+            sim::water::WaterSimPlugin,
             sim::wires::WireSimPlugin,
             sim::save::SaveSimPlugin,
         ))

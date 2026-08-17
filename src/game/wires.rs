@@ -7,20 +7,33 @@ use bevy::prelude::*;
 use super::buildings::kind_height;
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::buildings::{Building, Powered};
-use crate::sim::wires::{WireEdit, WireEditQueue, WirePole, WireSpan};
+use crate::sim::wires::{NetKind, WireEdit, WireEditQueue, WirePole, WireSpan};
 
 const POLE_HEIGHT: f32 = 7.0;
-const WIRE_COLOR: Color = Color::srgb(0.15, 0.13, 0.10);
 
 /// Last laid point while a wire click chain is open.
 #[derive(Resource, Default)]
 struct WireChainStart(Option<Vec3>);
 
+/// Which utility the wire tool lays; key 4 cycles it (B8.2).
+#[derive(Resource, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ActiveNetKind(pub NetKind);
+
+pub fn net_color(kind: NetKind) -> Color {
+    match kind {
+        NetKind::Power => Color::srgb(0.15, 0.13, 0.10),
+        NetKind::Water => Color::srgb(0.20, 0.45, 0.75),
+        NetKind::Heat => Color::srgb(0.75, 0.30, 0.15),
+    }
+}
+
 pub struct WireToolPlugin;
 
 impl Plugin for WireToolPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WireChainStart>().add_systems(
+        app.init_resource::<WireChainStart>()
+            .init_resource::<ActiveNetKind>()
+            .add_systems(
             Update,
             (
                 drive_wire_tool,
@@ -39,11 +52,22 @@ fn drive_wire_tool(
     buttons: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut chain: ResMut<WireChainStart>,
+    mut net_kind: ResMut<ActiveNetKind>,
     mut edits: ResMut<WireEditQueue>,
 ) {
     if *mode != ToolMode::Wire {
         chain.0 = None;
         return;
+    }
+    // Repeat presses of the wire key cycle the utility being laid (the
+    // press that *entered* wire mode doesn't count — mode just changed).
+    if keys.just_pressed(KeyCode::Digit4) && !mode.is_changed() {
+        net_kind.0 = match net_kind.0 {
+            NetKind::Power => NetKind::Water,
+            NetKind::Water => NetKind::Heat,
+            NetKind::Heat => NetKind::Power,
+        };
+        info!("wire kind: {:?}", net_kind.0);
     }
     // X cuts the span under the cursor regardless of chain state
     if keys.just_pressed(KeyCode::KeyX)
@@ -62,7 +86,11 @@ fn drive_wire_tool(
         match chain.0 {
             None => chain.0 = Some(point),
             Some(from) => {
-                edits.0.push(WireEdit::Place { from, to: point });
+                edits.0.push(WireEdit::Place {
+                    from,
+                    to: point,
+                    kind: net_kind.0,
+                });
                 chain.0 = Some(point);
             }
         }
@@ -137,10 +165,13 @@ fn draw_spans(
         ) else {
             continue;
         };
-        // shallow sag so wires read as wires, not survey lines
-        let mid = (a + b) * 0.5 - Vec3::Y * (a.distance(b) * 0.04).min(2.0);
-        gizmos.line(a, mid, WIRE_COLOR);
-        gizmos.line(mid, b, WIRE_COLOR);
+        // shallow sag so wires read as wires, not survey lines; pipes run
+        // at grade in their utility colour
+        let color = net_color(span.kind);
+        let sag = if span.kind == NetKind::Power { 1.0 } else { 0.0 };
+        let mid = (a + b) * 0.5 - Vec3::Y * (a.distance(b) * 0.04).min(2.0) * sag;
+        gizmos.line(a, mid, color);
+        gizmos.line(mid, b, color);
     }
 }
 
