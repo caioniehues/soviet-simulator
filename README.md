@@ -309,11 +309,49 @@ the phased pipeline; on activation the office drains the queue into it
 evicted back into the visible queue — population unchanged, shortage
 legible, the next build decision obvious.
 
+## Status — B8 "The Web" complete (#64)
+
+Utilities are one solver, not three subsystems: `sim/network.rs` builds
+union-find components from typed spans and allocates pooled supply by
+priority class — brownout before blackout, homes before industry.
+
+- **Shared solver + power priorities** (#65) — dwellings join the grid as
+  1 MW Housing-class consumers ranked above Industry; on a starved grid the
+  homes are the last thing unplugged. A dark home caps rest
+  (`DARK_HOME_REST_CAP`), stacking with the overcrowding cap by min.
+- **Water and sewage, one cycle** (#66) — key-4 cycles wire kinds
+  (Power/Water/Heat, kind-coloured). A consumer has water only when its pipe
+  component holds pump supply AND treatment drainage — a backed-up drain
+  shuts consumers exactly like a dry main. Factories join the Liebig stack
+  (power AND water AND staff); housing outranks industry on both sides.
+- **District heating + climate** (#67) — a 12-day seasonal sinusoid (+20
+  midsummer / −10 midwinter) drives temperature-scaled dwelling demand; heat
+  plants burn real coal (dispatcher-delivered, like power) into `Heat`
+  pipes. A summer home is trivially warm even off-grid; a midwinter home
+  without piped heat hits `COLD_HOME_REST_CAP` 0.65 — below the dark-home
+  cap, because you can sleep without light but not without warmth. HUD
+  carries a SEASON temperature line plus a COLD HOMES count when it bites.
+
+Benchmark gate (#68): bench_networks — 4 districts, 220 powered + 220
+watered + 200 heated consumers over 900 mixed-kind spans at midwinter —
+solves at **0.044 ms/tick** mean (gate 1 ms). All seven gates green;
+109 sim tests.
+
+Acceptance video (#68): `screenshots/result/8/video.mp4` (local,
+untracked; `cargo run --release --bin capture_m8`). Arc: a dark block reads
+COLD HOMES 12 → power plant + wires light it → water pump and sewage works
+join on blue pipes → winter deepens to −10 °C while a heat plant rises
+through the construction pipeline → the orange heat web connects and the
+COLD HOMES line vanishes.
+
+Deferred to B10 (noted in #64): fuel as a hauled commodity, voltage tiers,
+electric-heating fallback, water quality grades.
+
 ## Run
 
 ```
 cargo run            # the game
-cargo test           # 102 sim tests
+cargo test           # 109 sim tests
 ```
 
 Keys: `1` dirt road · `2` paved road · `3` building (cycles kind) · `4` wire ·
@@ -330,10 +368,10 @@ dispatcher cannot feed pulse a red ring.
 
 ## What's next
 
-P1 "First Light" done (#16, zero-spend). B2–B7 complete (above): staffing,
+P1 "First Light" done (#16, zero-spend). B2–B8 complete (above): staffing,
 dispatcher, traffic at scale, public transit, phased construction, housing
-and the plan. Next: B8 utilities per the ladder (see `ROADMAP.md`,
-including the parallel P-ladder).
+and the plan, utilities on one solver. Next: B9 services per the ladder
+(see `ROADMAP.md`, including the parallel P-ladder).
 
 ## Assets
 

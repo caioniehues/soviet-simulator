@@ -103,7 +103,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 
 ---
 
-### B8 — The Web: Utilities `[ ]`
+### B8 — The Web: Utilities `[x]`
 
 **Destination** — the utility-network solver generalizes: water⇄sewage (one cycle), district heating with temperature-driven demand, electricity upgraded to tiers + priority-class deficit allocation; utilities gate production per the full factor stack.
 **Acceptance demo** — winter raises heat demand; an overloaded grid browns out by priority class (hospitals last); a backed-up drain shuts water consumers; treat-or-discharge pollutes or costs.
@@ -112,6 +112,7 @@ Legend: `[x]` done · `[~]` charted/underway · `[ ]` planned
 **Depends on** — B6 (networks are built), B3 (tanker fallback).
 **Out of scope** — CHP, storage tech, storm load, contamination coupling.
 **Benchmark gate** — full-city solve within its clock-band budget.
+**As shipped** — shared solver + priority classes (#65), water⇄sewage cycle (#66), heating + climate (#67), bench_networks 0.044 ms (#68). Deferred to B10: fuel commodity, voltage tiers, electric-heating fallback, quality grades.
 
 ---
 
