@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+pub mod art;
 pub mod buildings;
 pub mod camera;
 pub mod citizens;

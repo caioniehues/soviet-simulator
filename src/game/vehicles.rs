@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 
+use super::art::art;
 use super::palette::{Mat, Role};
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::PostSimEasing;
@@ -53,21 +54,7 @@ fn shipped_resource(kind: BuildingKind, inventory: Option<&Inventory>) -> Resour
             return resource;
         }
     }
-    match kind {
-        BuildingKind::Quarry => ResourceKind::Gravel,
-        BuildingKind::Factory
-        | BuildingKind::Dwelling
-        | BuildingKind::Warehouse
-        | BuildingKind::Depot
-        | BuildingKind::BusStop
-        | BuildingKind::ConstructionOffice
-        | BuildingKind::WaterPump
-        | BuildingKind::SewagePlant
-        | BuildingKind::CustomsOffice => ResourceKind::Goods,
-        BuildingKind::Mine | BuildingKind::PowerPlant | BuildingKind::HeatPlant => {
-            ResourceKind::Coal
-        }
-    }
+    art(kind).shipped
 }
 
 fn building_under_cursor(

@@ -6,47 +6,17 @@
 
 use bevy::prelude::*;
 
+use super::art::art;
 use super::palette::{self, Mat, Role};
 use super::tools::{GroundCursor, ToolMode};
 use crate::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind, PowerOutput};
 
-/// Each kind's primary wall material, as a palette role plus a shade — the
-/// families read apart at RTS zoom (brick mine, concrete plant, timber depot)
-/// without any kind inventing a colour of its own. The old table held thirteen
-/// hand-picked greys, two of which (the blue pump, the pink heat plant) were
-/// saturation the art doc reserves for signals.
 fn kind_material(kind: BuildingKind) -> Mat {
-    let (role, shade) = match kind {
-        BuildingKind::Mine => (Role::SootBrick, 1.0),
-        BuildingKind::Quarry => (Role::Concrete, 0.8),
-        BuildingKind::PowerPlant => (Role::Concrete, 0.72),
-        BuildingKind::Factory => (Role::Concrete, 0.75),
-        BuildingKind::Dwelling => (Role::Concrete, 0.82),
-        BuildingKind::Warehouse => (Role::WornEarth, 0.9),
-        BuildingKind::Depot => (Role::Timber, 1.15),
-        BuildingKind::BusStop => (Role::Concrete, 0.85),
-        BuildingKind::ConstructionOffice => (Role::MachineOchre, 0.85),
-        BuildingKind::WaterPump => (Role::Concrete, 0.95),
-        BuildingKind::SewagePlant => (Role::Concrete, 0.65),
-        BuildingKind::HeatPlant => (Role::SootBrick, 1.2),
-        BuildingKind::CustomsOffice => (Role::Concrete, 0.7),
-    };
-    Mat::new(role).shade(shade)
+    art(kind).wall.mat()
 }
 
-/// Roofs: rusted steel over anything industrial, tarred concrete over
-/// anything civic. The old single rust roof was the other half of why every
-/// building read the same.
 fn roof_material(kind: BuildingKind) -> Mat {
-    match kind {
-        BuildingKind::Dwelling | BuildingKind::BusStop | BuildingKind::CustomsOffice => {
-            Mat::new(Role::Asphalt).shade(1.25)
-        }
-        BuildingKind::Quarry | BuildingKind::Depot | BuildingKind::ConstructionOffice => {
-            Mat::new(Role::Concrete).shade(0.55)
-        }
-        _ => Mat::new(Role::RustedSteel).shade(0.75).metallic(0.3),
-    }
+    art(kind).roof.mat()
 }
 
 impl BuildingMaterials {
@@ -78,21 +48,7 @@ fn kind_color(kind: BuildingKind) -> Color {
 }
 
 pub(crate) fn kind_height(kind: BuildingKind) -> f32 {
-    match kind {
-        BuildingKind::Mine => 6.0,
-        BuildingKind::Quarry => 3.0,
-        BuildingKind::PowerPlant => 12.0,
-        BuildingKind::Factory => 9.0,
-        BuildingKind::Dwelling => 11.0,
-        BuildingKind::Warehouse => 7.0,
-        BuildingKind::Depot => 6.0,
-        BuildingKind::BusStop => 3.0,
-        BuildingKind::ConstructionOffice => 5.0,
-        BuildingKind::WaterPump => 4.0,
-        BuildingKind::SewagePlant => 4.0,
-        BuildingKind::HeatPlant => 11.0,
-        BuildingKind::CustomsOffice => 5.0,
-    }
+    art(kind).height
 }
 
 /// Shared palette materials (art-direction.md § Material rules).

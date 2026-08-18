@@ -7,6 +7,7 @@
 
 use bevy::prelude::*;
 
+use super::art::BUILDING_ART;
 use super::tools::ToolMode;
 use super::wires::ActiveNetKind;
 use crate::sim::buildings::BuildingKind;
@@ -38,6 +39,24 @@ struct Category {
     tools: &'static [(&'static str, ToolAction)],
 }
 
+/// The BUILD flyout, taken from the art catalogue rather than written out
+/// again, so it lists every kind in `BuildingKind::ALL`'s order — the order
+/// the number-key cycle walks. The hand-written copy that used to live here
+/// was one of the edits a new kind needed, and one of the ones that failed
+/// silently when it was missed: the kind simply had no button.
+const BUILD_TOOLS: [(&str, ToolAction); BuildingKind::COUNT] = {
+    let mut tools = [("", ToolAction::Building(BuildingKind::Mine)); BuildingKind::COUNT];
+    let mut i = 0;
+    while i < BuildingKind::COUNT {
+        tools[i] = (
+            BUILDING_ART[i].label,
+            ToolAction::Building(BUILDING_ART[i].kind),
+        );
+        i += 1;
+    }
+    tools
+};
+
 const CATEGORIES: &[Category] = &[
     Category {
         label: "INSPECT",
@@ -52,30 +71,7 @@ const CATEGORIES: &[Category] = &[
     },
     Category {
         label: "BUILD [3]",
-        tools: &[
-            ("MINE", ToolAction::Building(BuildingKind::Mine)),
-            ("QUARRY", ToolAction::Building(BuildingKind::Quarry)),
-            (
-                "POWER PLANT",
-                ToolAction::Building(BuildingKind::PowerPlant),
-            ),
-            ("FACTORY", ToolAction::Building(BuildingKind::Factory)),
-            ("DWELLING", ToolAction::Building(BuildingKind::Dwelling)),
-            ("WAREHOUSE", ToolAction::Building(BuildingKind::Warehouse)),
-            ("DEPOT", ToolAction::Building(BuildingKind::Depot)),
-            ("BUS STOP", ToolAction::Building(BuildingKind::BusStop)),
-            (
-                "CONSTR. OFFICE",
-                ToolAction::Building(BuildingKind::ConstructionOffice),
-            ),
-            ("WATER PUMP", ToolAction::Building(BuildingKind::WaterPump)),
-            (
-                "SEWAGE WORKS",
-                ToolAction::Building(BuildingKind::SewagePlant),
-            ),
-            ("HEAT PLANT", ToolAction::Building(BuildingKind::HeatPlant)),
-            ("CUSTOMS", ToolAction::Building(BuildingKind::CustomsOffice)),
-        ],
+        tools: &BUILD_TOOLS,
     },
     Category {
         label: "NETWORKS [4]",
@@ -345,6 +341,63 @@ fn paint_buttons(
             interaction,
             action_is_active(button.0, *mode, net_kind.0),
             &mut bg,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::tools::next_building_kind;
+
+    /// Every build tool the toolbar offers, in the order the player sees it,
+    /// gathered across categories so a kind smuggled into another flyout shows
+    /// up here too.
+    fn listed_build_tools() -> Vec<(&'static str, BuildingKind)> {
+        CATEGORIES
+            .iter()
+            .flat_map(|category| category.tools)
+            .filter_map(|(label, action)| match action {
+                ToolAction::Building(kind) => Some((*label, *kind)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// A wiring check, not a value pin: it proves the flyout is generated from
+    /// the catalogue and holds the whole of it. What the captions and their
+    /// order actually *are* is pinned in `art.rs`, against hand-written
+    /// literals — asserting them here would compare the table with itself.
+    #[test]
+    fn the_build_flyout_offers_the_whole_catalogue_and_nothing_else() {
+        let expected: Vec<_> = BUILDING_ART
+            .iter()
+            .map(|row| (row.label, row.kind))
+            .collect();
+        assert_eq!(listed_build_tools(), expected);
+    }
+
+    /// The module doc's promise that keyboard and mouse are two doors into one
+    /// state, held to: pressing Digit-3 repeatedly must visit the flyout's
+    /// buttons top to bottom and wrap, never skip one or run in another order.
+    #[test]
+    fn the_digit_3_cycle_walks_the_build_flyout_in_order() {
+        let listed = listed_build_tools();
+        let mut mode = ToolMode::Inspect;
+        let walked: Vec<BuildingKind> = listed
+            .iter()
+            .map(|_| {
+                let kind = next_building_kind(mode);
+                mode = ToolMode::Building(kind);
+                kind
+            })
+            .collect();
+        let expected: Vec<_> = listed.iter().map(|(_, kind)| *kind).collect();
+        assert_eq!(walked, expected, "the cycle diverged from the flyout");
+        assert_eq!(
+            next_building_kind(mode),
+            expected[0],
+            "the cycle did not wrap to the first tool"
         );
     }
 }

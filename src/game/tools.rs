@@ -43,6 +43,18 @@ impl Plugin for ToolsPlugin {
     }
 }
 
+/// Repeated Digit-3 presses walk the build tools in `BuildingKind::ALL`'s
+/// order and wrap at the end; arriving from any other tool starts at the
+/// first. That is the order the toolbar's BUILD flyout lists, so the two doors
+/// into the tool state stay one door — they used to be two hand-written lists
+/// that agreed only as long as nobody edited one of them.
+pub(crate) fn next_building_kind(mode: ToolMode) -> BuildingKind {
+    match mode {
+        ToolMode::Building(kind) => BuildingKind::ALL[(kind as usize + 1) % BuildingKind::COUNT],
+        _ => BuildingKind::ALL[0],
+    }
+}
+
 fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
     let next = if keys.just_pressed(KeyCode::Escape) {
         Some(ToolMode::Inspect)
@@ -51,22 +63,7 @@ fn switch_tool(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<ToolMode>) {
     } else if keys.just_pressed(KeyCode::Digit2) {
         Some(ToolMode::Road(RoadClass::Paved))
     } else if keys.just_pressed(KeyCode::Digit3) {
-        // repeated presses cycle through the building kinds
-        Some(ToolMode::Building(match *mode {
-            ToolMode::Building(BuildingKind::Mine) => BuildingKind::Quarry,
-            ToolMode::Building(BuildingKind::Quarry) => BuildingKind::PowerPlant,
-            ToolMode::Building(BuildingKind::PowerPlant) => BuildingKind::Factory,
-            ToolMode::Building(BuildingKind::Factory) => BuildingKind::Dwelling,
-            ToolMode::Building(BuildingKind::Dwelling) => BuildingKind::Warehouse,
-            ToolMode::Building(BuildingKind::Warehouse) => BuildingKind::Depot,
-            ToolMode::Building(BuildingKind::Depot) => BuildingKind::BusStop,
-            ToolMode::Building(BuildingKind::BusStop) => BuildingKind::ConstructionOffice,
-            ToolMode::Building(BuildingKind::ConstructionOffice) => BuildingKind::WaterPump,
-            ToolMode::Building(BuildingKind::WaterPump) => BuildingKind::SewagePlant,
-            ToolMode::Building(BuildingKind::SewagePlant) => BuildingKind::HeatPlant,
-            ToolMode::Building(BuildingKind::HeatPlant) => BuildingKind::CustomsOffice,
-            _ => BuildingKind::Mine,
-        }))
+        Some(ToolMode::Building(next_building_kind(*mode)))
     } else if keys.just_pressed(KeyCode::Digit4) {
         Some(ToolMode::Wire)
     } else if keys.just_pressed(KeyCode::Digit5) {
