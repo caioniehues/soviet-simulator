@@ -12,9 +12,9 @@ use bevy::prelude::*;
 
 use super::buildings::{
     BuildingKind, DWELLING_DEMAND_MW, FACTORY_DEMAND_MW, FACTORY_GOODS_RATE, MINE_COAL_RATE,
-    PLANT_COAL_BURN, QUARRY_GRAVEL_RATE,
+    PLANT_COAL_BURN, PLANT_OUTPUT_MW, QUARRY_GRAVEL_RATE,
 };
-use super::heat::HEAT_PLANT_COAL_BURN;
+use super::heat::{HEAT_PLANT_COAL_BURN, HEAT_PLANT_OUTPUT};
 use super::network::PriorityClass;
 use super::resources::ResourceKind;
 use super::water::{DWELLING_WATER, FACTORY_WATER, PUMP_SUPPLY, SEWAGE_CAPACITY};
@@ -84,6 +84,19 @@ pub enum HeatDemand {
     Producer,
 }
 
+/// The utility flow a kind pours onto its net when its recipe is satisfied.
+/// Not a `Recipe` output: electricity and heat are flows, not stored
+/// commodities (`resources.rs`), so they never land in a yard. This column is
+/// also what splits the production pass in two — a kind that feeds a net must
+/// produce *before* `solve_power`/`solve_heat` read it, a kind that fills a
+/// yard produces after (`wires.rs`: "the grid solve sits between generation
+/// and consumption").
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FlowOutput {
+    Power(f32),
+    Heat(f32),
+}
+
 /// One row of the catalogue: everything a building kind needs to exist today,
 /// gathered from the four modules that currently hand-match on `BuildingKind`.
 pub struct BuildingSpec {
@@ -97,6 +110,10 @@ pub struct BuildingSpec {
     /// type's construction is not `const`.
     pub default_policies: &'static [(ResourceKind, f32, f32)],
     pub recipe: Recipe,
+    /// What the kind pours onto a utility net once its recipe is satisfied —
+    /// `run_power_plants`'s `PLANT_OUTPUT_MW` and `run_heat_plants`'s
+    /// `HEAT_PLANT_OUTPUT`. `None` for every kind that only fills a yard.
+    pub flow_output: Option<FlowOutput>,
     /// `solve_power`'s per-kind demand match; `None` outside {Factory, Dwelling}.
     pub power: Option<UtilityDemand>,
     /// `attach_watered` + `solve_water`'s per-kind match; `None` outside
@@ -119,6 +136,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
             inputs: &[],
             outputs: &[(ResourceKind::Coal, MINE_COAL_RATE)],
         },
+        flow_output: None,
         power: None,
         water: None,
         heat: None,
@@ -134,6 +152,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
             inputs: &[],
             outputs: &[(ResourceKind::Gravel, QUARRY_GRAVEL_RATE)],
         },
+        flow_output: None,
         power: None,
         water: None,
         heat: None,
@@ -149,6 +168,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
             inputs: &[(ResourceKind::Coal, PLANT_COAL_BURN)],
             outputs: &[],
         },
+        flow_output: Some(FlowOutput::Power(PLANT_OUTPUT_MW)),
         power: None,
         water: None,
         heat: None,
@@ -167,6 +187,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
             inputs: &[],
             outputs: &[(ResourceKind::Goods, FACTORY_GOODS_RATE)],
         },
+        flow_output: None,
         power: Some(UtilityDemand {
             rate: FACTORY_DEMAND_MW,
             priority: PriorityClass::Industry,
@@ -186,6 +207,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[(ResourceKind::Goods, 0.5, 1.0)],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: Some(UtilityDemand {
             rate: DWELLING_DEMAND_MW,
             priority: PriorityClass::Housing,
@@ -210,6 +232,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
             (ResourceKind::Goods, 0.2, 0.6),
         ],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: None,
         heat: None,
@@ -223,6 +246,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: None,
         heat: None,
@@ -235,6 +259,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: None,
         heat: None,
@@ -247,6 +272,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: None,
         heat: None,
@@ -259,6 +285,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: Some(WaterDemand::Supplies(PUMP_SUPPLY)),
         heat: None,
@@ -271,6 +298,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: Some(WaterDemand::Drains(SEWAGE_CAPACITY)),
         heat: None,
@@ -286,6 +314,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
             inputs: &[(ResourceKind::Coal, HEAT_PLANT_COAL_BURN)],
             outputs: &[],
         },
+        flow_output: Some(FlowOutput::Heat(HEAT_PLANT_OUTPUT)),
         power: None,
         water: None,
         heat: Some(HeatDemand::Producer),
@@ -301,6 +330,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         workers_needed: 0,
         default_policies: &[],
         recipe: NO_RECIPE,
+        flow_output: None,
         power: None,
         water: None,
         heat: None,

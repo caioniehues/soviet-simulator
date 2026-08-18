@@ -72,9 +72,11 @@ impl Plugin for HeatSimPlugin {
             .add_observer(attach_heat_components)
             .add_systems(
                 SimTick,
-                (update_climate, run_heat_plants, solve_heat)
+                (update_climate, solve_heat)
                     .chain()
-                    .in_set(SimStage::ProductionAndUtilities),
+                    .in_set(SimStage::ProductionAndUtilities)
+                    // the plant pours this tick's heat before the pipes are solved
+                    .after(super::production::produce_flows),
             );
     }
 }
@@ -101,24 +103,6 @@ fn attach_heat_components(
 fn update_climate(frame: Res<FrameIndex>, mut climate: ResMut<Climate>) {
     if climate.auto {
         climate.temperature = temperature_at(frame.0);
-    }
-}
-
-/// The heat plant is an ordinary recipe building: no coal ⇒ no heat.
-fn run_heat_plants(
-    mut plants: Query<(&Building, &mut super::resources::Inventory, &mut HeatOutput)>,
-) {
-    use super::resources::ResourceKind;
-    for (building, mut inventory, mut output) in &mut plants {
-        if building.kind != BuildingKind::HeatPlant {
-            continue;
-        }
-        let burned = inventory.take(ResourceKind::Coal, HEAT_PLANT_COAL_BURN);
-        output.0 = if burned >= HEAT_PLANT_COAL_BURN * 0.999 {
-            HEAT_PLANT_OUTPUT
-        } else {
-            0.0
-        };
     }
 }
 
@@ -261,5 +245,61 @@ mod tests {
             .take(ResourceKind::Coal, f32::INFINITY);
         ticks(&mut app, 2);
         assert!(app.world().get::<Heated>(dwelling).unwrap().0);
+    }
+
+    /// The inertness contract (`construction::ConstructionSite`: "present ⇒ the
+    /// building is inert"). `extract_resources`, `run_power_plants` and
+    /// `run_factories` all filter on it; `run_heat_plants` never did, so a
+    /// half-built heat plant burned its coal and warmed the district at full
+    /// output. Phase 4 of the catalogue refactor makes the filter structural —
+    /// this is the sanctioned behaviour change, and this test is what proves it
+    /// happened rather than being claimed.
+    #[test]
+    fn a_heat_plant_under_construction_burns_nothing_and_warms_nobody() {
+        let mut app = app();
+        {
+            let mut buildings = app.world_mut().resource_mut::<BuildingEditQueue>();
+            buildings.0.push(BuildingEdit::Place {
+                kind: BuildingKind::HeatPlant,
+                pos: Vec3::ZERO,
+            });
+        }
+        ticks(&mut app, 2);
+        let plant = {
+            let world = app.world_mut();
+            let mut q = world.query::<(Entity, &Building)>();
+            q.iter(world)
+                .find(|(_, b)| b.kind == BuildingKind::HeatPlant)
+                .map(|(e, _)| e)
+                .expect("the plant was placed")
+        };
+        // fuel it, then put it back under construction
+        app.world_mut()
+            .get_mut::<Inventory>(plant)
+            .unwrap()
+            .add(ResourceKind::Coal, 10.0);
+        app.world_mut().entity_mut(plant).insert(
+            super::super::construction::ConstructionSite::for_kind(BuildingKind::HeatPlant),
+        );
+        let before = app
+            .world()
+            .get::<Inventory>(plant)
+            .unwrap()
+            .amount(ResourceKind::Coal);
+        ticks(&mut app, 2);
+        let after = app
+            .world()
+            .get::<Inventory>(plant)
+            .unwrap()
+            .amount(ResourceKind::Coal);
+        assert_eq!(
+            after, before,
+            "a site is not a plant: it must not burn coal while it is still being built"
+        );
+        assert_eq!(
+            app.world().get::<HeatOutput>(plant).unwrap().0,
+            0.0,
+            "a site is not a plant: it must not emit heat while it is still being built"
+        );
     }
 }

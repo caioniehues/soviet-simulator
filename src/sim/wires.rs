@@ -7,10 +7,7 @@
 
 use bevy::prelude::*;
 
-use super::buildings::{
-    Building, BuildingKind, FACTORY_DEMAND_MW, PowerOutput, Powered, run_factories,
-    run_power_plants,
-};
+use super::buildings::{Building, BuildingKind, FACTORY_DEMAND_MW, PowerOutput, Powered};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 /// Endpoint clicks snap to an existing pole within this radius.
@@ -89,8 +86,8 @@ impl Plugin for WireSimPlugin {
                 // factory gate is set before it is read.
                 solve_power
                     .in_set(SimStage::ProductionAndUtilities)
-                    .after(run_power_plants)
-                    .before(run_factories),
+                    .after(super::production::produce_flows)
+                    .before(super::production::produce_goods),
             );
     }
 }

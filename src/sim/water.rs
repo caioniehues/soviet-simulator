@@ -35,7 +35,7 @@ impl Plugin for WaterSimPlugin {
             SimTick,
             solve_water
                 .in_set(SimStage::ProductionAndUtilities)
-                .before(super::buildings::run_factories),
+                .before(super::production::produce_goods),
         );
     }
 }
@@ -60,9 +60,21 @@ fn attach_watered(
 /// The cycle solve: per water component, pumps pool supply and treatment
 /// works pool drainage; a consumer is watered only when *both* pools cover
 /// its draw — housing before industry on each side, same as the grid.
+#[allow(clippy::type_complexity)]
 fn solve_water(
     spans: Query<&WireSpan>,
-    plants: Query<(Entity, &Building), Without<Watered>>,
+    // `Without<Watered>` selects the non-consumers; `Without<ConstructionSite>`
+    // is the inertness contract — a pump still on the scaffolding pours
+    // nothing into the net. The production pass carries this filter
+    // structurally, but a supplier has no recipe, so it never passes through
+    // there and needs the filter stated here.
+    plants: Query<
+        (Entity, &Building),
+        (
+            Without<Watered>,
+            Without<super::construction::ConstructionSite>,
+        ),
+    >,
     mut consumers: Query<(Entity, &Building, &mut Watered)>,
 ) {
     let mut components = Components::from_spans(
@@ -248,5 +260,44 @@ mod tests {
             .unwrap()
             .amount(ResourceKind::Goods);
         assert!(goods > 0.0, "the closed cycle opens the water gate");
+    }
+
+    /// The other half of the inertness gap `run_heat_plants` had: `solve_water`
+    /// gathers pumps with `Without<Watered>` and nothing else, so a pump still
+    /// on the scaffolding poured its full `PUMP_SUPPLY` into the net. Phase 4
+    /// of the catalogue refactor makes the `ConstructionSite` filter structural.
+    #[test]
+    fn a_pump_under_construction_supplies_nothing() {
+        let mut app = app();
+        place(&mut app, BuildingKind::WaterPump, Vec3::ZERO);
+        place(&mut app, BuildingKind::Factory, Vec3::new(60.0, 0.0, 0.0));
+        place(
+            &mut app,
+            BuildingKind::SewagePlant,
+            Vec3::new(120.0, 0.0, 0.0),
+        );
+        ticks(&mut app, 2);
+        pipe(&mut app, Vec3::ZERO, Vec3::new(60.0, 0.0, 0.0));
+        pipe(
+            &mut app,
+            Vec3::new(60.0, 0.0, 0.0),
+            Vec3::new(120.0, 0.0, 0.0),
+        );
+        ticks(&mut app, 2);
+        let factory = entity_of(&mut app, BuildingKind::Factory);
+        assert!(
+            app.world().get::<Watered>(factory).unwrap().0,
+            "baseline: the closed cycle waters the factory"
+        );
+        // put the pump back on the scaffolding — the cycle loses its source
+        let pump = entity_of(&mut app, BuildingKind::WaterPump);
+        app.world_mut().entity_mut(pump).insert(
+            super::super::construction::ConstructionSite::for_kind(BuildingKind::WaterPump),
+        );
+        ticks(&mut app, 2);
+        assert!(
+            !app.world().get::<Watered>(factory).unwrap().0,
+            "a site is not a pump: it must not supply the net while it is still being built"
+        );
     }
 }

@@ -5,9 +5,7 @@
 
 use bevy::prelude::*;
 
-use super::citizens::Citizen;
-use super::labour::{Staffing, labour_factor};
-use super::resources::{Inventory, ResourceKind};
+use super::resources::Inventory;
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -138,13 +136,8 @@ impl Plugin for BuildingSimPlugin {
                 apply_building_edits
                     .in_set(SimStage::ApplyCommands)
                     .after(ApplyCommandsFlush),
-            )
-            .add_systems(
-                SimTick,
-                (extract_resources, run_power_plants, run_factories)
-                    .chain()
-                    .in_set(SimStage::ProductionAndUtilities),
             );
+        super::production::register(app);
     }
 }
 
@@ -205,101 +198,10 @@ pub(crate) fn apply_building_edits(
     }
 }
 
-/// Mines and quarries emit their commodity into their own yard inventory.
-/// A full yard halts extraction — physical stock, not a counter.
-/// Staffed buildings scale with the labour factor; a building with no
-/// `Staffing` ledger (headless fixtures without the labour plugin) runs free.
-fn extract_resources(
-    mut buildings: Query<
-        (&Building, &mut Inventory, Option<&Staffing>),
-        Without<super::construction::ConstructionSite>,
-    >,
-    citizens: Query<&Citizen>,
-) {
-    for (building, mut inventory, staffing) in &mut buildings {
-        let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
-        if f <= 0.0 {
-            continue;
-        }
-        match building.kind {
-            BuildingKind::Mine => {
-                inventory.add(ResourceKind::Coal, MINE_COAL_RATE * f);
-            }
-            BuildingKind::Quarry => {
-                inventory.add(ResourceKind::Gravel, QUARRY_GRAVEL_RATE * f);
-            }
-            _ => {}
-        }
-    }
-}
-
-/// The plant is an ordinary recipe building: no coal ⇒ no output; a skeleton
-/// crew burns and generates proportionally less (Liebig with the fuel gate).
-pub(crate) fn run_power_plants(
-    mut plants: Query<
-        (
-            &Building,
-            &mut Inventory,
-            &mut PowerOutput,
-            Option<&Staffing>,
-        ),
-        Without<super::construction::ConstructionSite>,
-    >,
-    citizens: Query<&Citizen>,
-) {
-    for (building, mut inventory, mut output, staffing) in &mut plants {
-        if building.kind != BuildingKind::PowerPlant {
-            continue;
-        }
-        let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
-        if f <= 0.0 {
-            output.0 = 0.0;
-            continue;
-        }
-        let demand = PLANT_COAL_BURN * f;
-        let burned = inventory.take(ResourceKind::Coal, demand);
-        output.0 = if burned >= demand * 0.999 {
-            PLANT_OUTPUT_MW * f
-        } else {
-            0.0
-        };
-    }
-}
-
-/// The factory produces only while its electricity gate holds and staff are
-/// present — the scarcest factor wins.
-#[allow(clippy::type_complexity)]
-pub(crate) fn run_factories(
-    mut factories: Query<
-        (
-            &Building,
-            &mut Inventory,
-            &Powered,
-            Option<&Staffing>,
-            Option<&super::water::Watered>,
-        ),
-        Without<super::construction::ConstructionSite>,
-    >,
-    citizens: Query<&Citizen>,
-) {
-    for (building, mut inventory, powered, staffing, watered) in &mut factories {
-        if building.kind != BuildingKind::Factory {
-            continue;
-        }
-        let f = staffing.map_or(1.0, |s| labour_factor(s, building.kind, &citizens));
-        // Liebig stage 2 (B8.2): power AND water AND staff — the scarcest
-        // factor wins. No `Watered` component (water plugin absent) means
-        // water is not yet a requirement, the fiat fixture path.
-        let watered_ok = watered.is_none_or(|w| w.0);
-        if powered.0 && watered_ok && f > 0.0 {
-            inventory.add(ResourceKind::Goods, FACTORY_GOODS_RATE * f);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::SimPlugin;
+    use super::super::resources::ResourceKind;
     use super::*;
     use std::time::Duration;
 
