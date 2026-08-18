@@ -232,41 +232,20 @@ fn net_kind_from_u8(v: u8) -> super::wires::NetKind {
     }
 }
 
+/// Position in `BuildingKind::ALL`, the shape `resource_to_u8` already uses.
+/// The hand-paired encode/decode matches this replaces could disagree without
+/// the compiler noticing — a kind added to one and forgotten in the other
+/// loaded as `None` and dropped the building. One array cannot disagree with
+/// itself, so the remaining risk moves entirely into `ALL`'s *order*: appending
+/// a kind is safe, inserting or reordering rewrites every save already on disk.
+/// `building_discriminants_are_pinned_to_the_wire_format` is what makes that a
+/// loud failure instead of a silent one.
 fn kind_to_u8(kind: BuildingKind) -> u8 {
-    match kind {
-        BuildingKind::Mine => 0,
-        BuildingKind::Quarry => 1,
-        BuildingKind::PowerPlant => 2,
-        BuildingKind::Factory => 3,
-        BuildingKind::Dwelling => 4,
-        BuildingKind::Warehouse => 5,
-        BuildingKind::Depot => 6,
-        BuildingKind::BusStop => 7,
-        BuildingKind::ConstructionOffice => 8,
-        BuildingKind::WaterPump => 9,
-        BuildingKind::SewagePlant => 10,
-        BuildingKind::HeatPlant => 11,
-        BuildingKind::CustomsOffice => 12,
-    }
+    BuildingKind::ALL.iter().position(|&k| k == kind).unwrap() as u8
 }
 
 fn kind_from_u8(v: u8) -> Option<BuildingKind> {
-    Some(match v {
-        0 => BuildingKind::Mine,
-        1 => BuildingKind::Quarry,
-        2 => BuildingKind::PowerPlant,
-        3 => BuildingKind::Factory,
-        4 => BuildingKind::Dwelling,
-        5 => BuildingKind::Warehouse,
-        6 => BuildingKind::Depot,
-        7 => BuildingKind::BusStop,
-        8 => BuildingKind::ConstructionOffice,
-        9 => BuildingKind::WaterPump,
-        10 => BuildingKind::SewagePlant,
-        11 => BuildingKind::HeatPlant,
-        12 => BuildingKind::CustomsOffice,
-        _ => return None,
-    })
+    BuildingKind::ALL.get(v as usize).copied()
 }
 
 fn class_to_u8(class: RoadClass) -> u8 {
@@ -1185,6 +1164,48 @@ mod tests {
                 .advance_by(Duration::from_secs_f64(1.0 / 60.0 + 1e-9));
             app.update();
         }
+    }
+
+    /// The bytes on disk, written out in full. `BuildingKind::ALL`'s order *is*
+    /// the discriminant now, so reordering that array rewrites the meaning of
+    /// every save file already written — and the round-trip hash test cannot
+    /// see it, because encode and decode run in the same binary and would both
+    /// be wrong in the same direction. Asserting against `ALL`'s own positions
+    /// would be circular for the same reason. These integers are what the
+    /// hand-paired match emitted before the switch, transcribed once; a kind
+    /// appended to `ALL` needs a line here, and anything that moves an existing
+    /// kind is a save-breaking change that must fail loudly here first.
+    #[test]
+    fn building_discriminants_are_pinned_to_the_wire_format() {
+        let wire_format = [
+            (BuildingKind::Mine, 0u8),
+            (BuildingKind::Quarry, 1),
+            (BuildingKind::PowerPlant, 2),
+            (BuildingKind::Factory, 3),
+            (BuildingKind::Dwelling, 4),
+            (BuildingKind::Warehouse, 5),
+            (BuildingKind::Depot, 6),
+            (BuildingKind::BusStop, 7),
+            (BuildingKind::ConstructionOffice, 8),
+            (BuildingKind::WaterPump, 9),
+            (BuildingKind::SewagePlant, 10),
+            (BuildingKind::HeatPlant, 11),
+            (BuildingKind::CustomsOffice, 12),
+        ];
+        assert_eq!(
+            wire_format.len(),
+            BuildingKind::COUNT,
+            "a kind was added without pinning its discriminant"
+        );
+        for (kind, byte) in wire_format {
+            assert_eq!(kind_to_u8(kind), byte, "{kind:?} encodes to the wrong byte");
+            assert_eq!(kind_from_u8(byte), Some(kind), "byte {byte} decodes wrong");
+        }
+        // A byte off disk is not a `BuildingKind` and must not be trusted as an
+        // index: an unknown kind degrades to a dropped row (`load_snapshot`),
+        // never a panic on someone's save file.
+        assert_eq!(kind_from_u8(BuildingKind::COUNT as u8), None);
+        assert_eq!(kind_from_u8(u8::MAX), None);
     }
 
     /// A whole town: roads, dwelling, mine, plant, factory, wires, a shuttle,

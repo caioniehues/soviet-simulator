@@ -332,13 +332,14 @@ mod tests {
         }
     }
 
-    /// (footprint, yard capacity, vacancies) per kind, in `ALL`'s order: a
-    /// golden record of what the three `match` blocks in `buildings.rs` and
-    /// `labour.rs` held before the catalogue replaced them. It duplicates three
-    /// table columns on purpose. `footprint()`, `inventory_capacity()` and
-    /// `workers_needed()` now *read* the table, so asserting the table against
-    /// them would compare a value with itself — these literals are the only
-    /// thing left between a mistyped row and a silently different game.
+    /// (footprint, yard capacity, vacancies, storage bands) per kind, in `ALL`'s
+    /// order: a golden record of what the four `match` blocks in `buildings.rs`,
+    /// `labour.rs` and `storage.rs` held before the catalogue replaced them. It
+    /// duplicates four table columns on purpose. `footprint()`,
+    /// `inventory_capacity()`, `workers_needed()` and `default_policies()` now
+    /// *read* the table, so asserting the table against them would compare a
+    /// value with itself — these literals are the only thing left between a
+    /// mistyped row and a silently different game.
     ///
     /// It says nothing about whether the numbers are *right*, only that they
     /// have not drifted since the day they were transcribed. A deliberate
@@ -350,25 +351,92 @@ mod tests {
     /// guarantee; `one_frame_moves_exactly_what_the_recipe_claims` guards those
     /// by ticking the building instead, which is the stronger assertion anyway
     /// — it also catches a row being right while the system ignores it.
-    const PINNED_COLUMNS: [(BuildingKind, Vec2, f32, u32); BuildingKind::COUNT] = [
-        (BuildingKind::Mine, Vec2::new(14.0, 14.0), 60.0, 6),
-        (BuildingKind::Quarry, Vec2::new(16.0, 12.0), 60.0, 4),
-        (BuildingKind::PowerPlant, Vec2::new(18.0, 14.0), 40.0, 8),
-        (BuildingKind::Factory, Vec2::new(20.0, 16.0), 40.0, 10),
-        (BuildingKind::Dwelling, Vec2::new(12.0, 10.0), 10.0, 0),
-        (BuildingKind::Warehouse, Vec2::new(20.0, 12.0), 120.0, 0),
-        (BuildingKind::Depot, Vec2::new(22.0, 26.0), 0.0, 0),
-        (BuildingKind::BusStop, Vec2::new(5.0, 3.0), 0.0, 0),
+    type PinnedRow = (
+        BuildingKind,
+        Vec2,
+        f32,
+        u32,
+        &'static [(ResourceKind, f32, f32)],
+    );
+
+    const PINNED_COLUMNS: [PinnedRow; BuildingKind::COUNT] = [
+        (
+            BuildingKind::Mine,
+            Vec2::new(14.0, 14.0),
+            60.0,
+            6,
+            &[(ResourceKind::Coal, 0.0, 0.05)],
+        ),
+        (
+            BuildingKind::Quarry,
+            Vec2::new(16.0, 12.0),
+            60.0,
+            4,
+            &[(ResourceKind::Gravel, 0.0, 0.05)],
+        ),
+        (
+            BuildingKind::PowerPlant,
+            Vec2::new(18.0, 14.0),
+            40.0,
+            8,
+            &[(ResourceKind::Coal, 0.6, 1.0)],
+        ),
+        (
+            BuildingKind::Factory,
+            Vec2::new(20.0, 16.0),
+            40.0,
+            10,
+            &[(ResourceKind::Goods, 0.0, 0.1)],
+        ),
+        (
+            BuildingKind::Dwelling,
+            Vec2::new(12.0, 10.0),
+            10.0,
+            0,
+            &[(ResourceKind::Goods, 0.5, 1.0)],
+        ),
+        (
+            BuildingKind::Warehouse,
+            Vec2::new(20.0, 12.0),
+            120.0,
+            0,
+            &[
+                (ResourceKind::Coal, 0.2, 0.6),
+                (ResourceKind::Gravel, 0.2, 0.6),
+                (ResourceKind::Goods, 0.2, 0.6),
+            ],
+        ),
+        (BuildingKind::Depot, Vec2::new(22.0, 26.0), 0.0, 0, &[]),
+        (BuildingKind::BusStop, Vec2::new(5.0, 3.0), 0.0, 0, &[]),
         (
             BuildingKind::ConstructionOffice,
             Vec2::new(20.0, 22.0),
             0.0,
             0,
+            &[],
         ),
-        (BuildingKind::WaterPump, Vec2::new(10.0, 8.0), 0.0, 0),
-        (BuildingKind::SewagePlant, Vec2::new(16.0, 12.0), 0.0, 0),
-        (BuildingKind::HeatPlant, Vec2::new(18.0, 12.0), 40.0, 0),
-        (BuildingKind::CustomsOffice, Vec2::new(22.0, 14.0), 120.0, 0),
+        (BuildingKind::WaterPump, Vec2::new(10.0, 8.0), 0.0, 0, &[]),
+        (
+            BuildingKind::SewagePlant,
+            Vec2::new(16.0, 12.0),
+            0.0,
+            0,
+            &[],
+        ),
+        (
+            BuildingKind::HeatPlant,
+            Vec2::new(18.0, 12.0),
+            40.0,
+            0,
+            &[(ResourceKind::Coal, 0.6, 1.0)],
+        ),
+        (
+            BuildingKind::CustomsOffice,
+            Vec2::new(22.0, 14.0),
+            120.0,
+            0,
+            &[],
+        ),
     ];
 
     #[test]
@@ -386,7 +454,7 @@ mod tests {
     #[test]
     fn inventory_capacity_column_holds_its_pinned_values() {
         for (i, kind) in BuildingKind::ALL.into_iter().enumerate() {
-            let (pinned_kind, _, capacity, _) = PINNED_COLUMNS[i];
+            let (pinned_kind, _, capacity, ..) = PINNED_COLUMNS[i];
             assert_eq!(
                 pinned_kind, kind,
                 "pinned row {i} drifted out of ALL's order"
@@ -398,7 +466,7 @@ mod tests {
     #[test]
     fn workers_needed_column_holds_its_pinned_values() {
         for (i, kind) in BuildingKind::ALL.into_iter().enumerate() {
-            let (pinned_kind, .., workers) = PINNED_COLUMNS[i];
+            let (pinned_kind, _, _, workers, _) = PINNED_COLUMNS[i];
             assert_eq!(
                 pinned_kind, kind,
                 "pinned row {i} drifted out of ALL's order"
@@ -407,22 +475,51 @@ mod tests {
         }
     }
 
-    /// `storage::default_policies` now folds the row's triples into a
-    /// `StoragePolicies`, so what is left to prove is the fold: every band the
-    /// row lists arrives, none is dropped, and `StorageBand::new`'s clamp
-    /// leaves the values alone. Band-by-band rather than a whole-struct `==`,
-    /// because `StoragePolicies` has no `PartialEq` (nothing but this test
-    /// would ever need one).
+    fn band_of(
+        bands: &'static [(ResourceKind, f32, f32)],
+        resource: ResourceKind,
+    ) -> Option<(f32, f32)> {
+        bands
+            .iter()
+            .find(|(r, ..)| *r == resource)
+            .map(|&(_, min, max)| (min, max))
+    }
+
+    /// Membership as much as magnitude: a band a row *grew* is drift just as
+    /// much as a band whose numbers moved — the Depot has never banded anything,
+    /// and giving it one would post a demand the dispatcher then hauls against.
+    /// Compared per resource rather than slice against slice, because the fold
+    /// is order-insensitive: a row listing its bands in another order behaves
+    /// identically, and a golden record shouldn't fail on a difference the game
+    /// cannot see.
+    #[test]
+    fn default_policies_column_holds_its_pinned_bands() {
+        for (i, kind) in BuildingKind::ALL.into_iter().enumerate() {
+            let (pinned_kind, .., bands) = PINNED_COLUMNS[i];
+            assert_eq!(
+                pinned_kind, kind,
+                "pinned row {i} drifted out of ALL's order"
+            );
+            for resource in ResourceKind::ALL {
+                let pinned = band_of(bands, resource);
+                let listed = band_of(spec(kind).default_policies, resource);
+                assert_eq!(listed, pinned, "{kind:?} / {resource:?}");
+            }
+        }
+    }
+
+    /// The other half of the chain of custody: the pin above proves the row
+    /// still lists the right triples, this proves `storage::default_policies`
+    /// turns them into the right `StoragePolicies` — every band arrives, none is
+    /// dropped, and `StorageBand::new`'s clamp leaves the values alone.
+    /// Band-by-band rather than a whole-struct `==`, because `StoragePolicies`
+    /// has no `PartialEq` (nothing but this test would ever need one).
     #[test]
     fn default_policies_folds_every_band_the_row_lists() {
         for kind in BuildingKind::ALL {
             let live = default_policies(kind);
             for resource in ResourceKind::ALL {
-                let expected = spec(kind)
-                    .default_policies
-                    .iter()
-                    .find(|(r, ..)| *r == resource)
-                    .map(|&(_, min, max)| (min, max));
+                let expected = band_of(spec(kind).default_policies, resource);
                 let actual = live.band(resource).map(|b| (b.min_pct, b.max_pct));
                 assert_eq!(actual, expected, "{kind:?} / {resource:?}");
             }
