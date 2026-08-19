@@ -8,7 +8,9 @@
 use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
+use super::households::RecruitmentPlan;
 use super::resources::{Inventory, ResourceKind};
+use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 /// Per-resource intent band, as fractions of the building's shared yard
 /// capacity. `min` below `max`; a resource with no band is inert (never
@@ -82,11 +84,70 @@ pub fn default_policies(kind: BuildingKind) -> StoragePolicies {
     )
 }
 
+/// Presentation's queue onto the two values ADR 0003 names as policy: a
+/// player-set value a sim system reads and the save persists, so it is
+/// queued and barrier-applied like any other edit rather than written
+/// straight into the component or resource from a HUD system.
+#[derive(Resource, Default)]
+pub struct PolicyEditQueue(pub Vec<PolicyEdit>);
+
+#[derive(Clone, Copy, Debug)]
+pub enum PolicyEdit {
+    /// Absolute band replacement — the HUD reads the current band and
+    /// computes the shifted min/max before pushing, so the applier never
+    /// needs to see the step direction.
+    SetBand {
+        building: Entity,
+        resource: ResourceKind,
+        min_pct: f32,
+        max_pct: f32,
+    },
+    /// Adjust the recruitment target by `delta`, saturating at 0.
+    AdjustRecruitmentTarget { delta: i32 },
+}
+
 pub struct StorageSimPlugin;
 
 impl Plugin for StorageSimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(attach_default_policies);
+        app.init_resource::<PolicyEditQueue>()
+            .add_observer(attach_default_policies)
+            .add_systems(
+                SimTick,
+                apply_policy_edits
+                    .in_set(SimStage::ApplyCommands)
+                    .after(ApplyCommandsFlush),
+            );
+    }
+}
+
+/// `RecruitmentPlan` is optional: benches and tests that add
+/// `StorageSimPlugin` without `HouseholdSimPlugin` (most of them —
+/// storage predates households in the plugin group) never push a
+/// recruitment edit, and the queue must not force that dependency on them.
+fn apply_policy_edits(
+    mut queue: ResMut<PolicyEditQueue>,
+    mut policies: Query<&mut StoragePolicies>,
+    mut plan: Option<ResMut<RecruitmentPlan>>,
+) {
+    for edit in queue.0.drain(..) {
+        match edit {
+            PolicyEdit::SetBand {
+                building,
+                resource,
+                min_pct,
+                max_pct,
+            } => {
+                if let Ok(mut policies) = policies.get_mut(building) {
+                    policies.set(resource, Some(StorageBand::new(min_pct, max_pct)));
+                }
+            }
+            PolicyEdit::AdjustRecruitmentTarget { delta } => {
+                if let Some(plan) = plan.as_mut() {
+                    plan.target_households = plan.target_households.saturating_add_signed(delta);
+                }
+            }
+        }
     }
 }
 
@@ -224,6 +285,162 @@ mod tests {
         assert_eq!(
             policies.deficit(ResourceKind::Coal, inventory),
             0.2 * inventory.capacity
+        );
+    }
+
+    /// A queue-only app: `RecruitmentPlan` deliberately absent, matching
+    /// every existing `StorageSimPlugin` test app in `construction.rs`,
+    /// `customs.rs`, `dispatch.rs`, `vehicles.rs`, `save.rs` — the applier
+    /// must not force that dependency onto them.
+    #[test]
+    fn set_band_applies_at_the_next_barrier_not_immediately() {
+        let mut app = app();
+        place(&mut app, BuildingKind::Warehouse);
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let building = world
+            .query::<(Entity, &Building)>()
+            .single(world)
+            .unwrap()
+            .0;
+
+        world
+            .resource_mut::<PolicyEditQueue>()
+            .0
+            .push(PolicyEdit::SetBand {
+                building,
+                resource: ResourceKind::Coal,
+                min_pct: 0.9,
+                max_pct: 0.95,
+            });
+        // Not yet applied: same tick the edit was queued, before the barrier.
+        let band = world
+            .get::<StoragePolicies>(building)
+            .unwrap()
+            .band(ResourceKind::Coal);
+        assert_eq!(band, Some(StorageBand::new(0.2, 0.6))); // warehouse default, unchanged
+
+        ticks(&mut app, 1);
+        let band = app
+            .world()
+            .get::<StoragePolicies>(building)
+            .unwrap()
+            .band(ResourceKind::Coal)
+            .unwrap();
+        assert_eq!((band.min_pct, band.max_pct), (0.9, 0.95));
+    }
+
+    #[test]
+    fn recruitment_target_delta_applies_through_the_queue() {
+        let mut a = App::new();
+        a.insert_resource(Time::<()>::default());
+        a.add_plugins((
+            SimPlugin,
+            BuildingSimPlugin,
+            StorageSimPlugin,
+            super::super::households::HouseholdSimPlugin,
+            super::super::plan::PlanSimPlugin,
+        ));
+        a.world_mut()
+            .resource_mut::<PolicyEditQueue>()
+            .0
+            .push(PolicyEdit::AdjustRecruitmentTarget { delta: 3 });
+        ticks(&mut a, 1);
+        assert_eq!(a.world().resource::<RecruitmentPlan>().target_households, 3);
+        a.world_mut()
+            .resource_mut::<PolicyEditQueue>()
+            .0
+            .push(PolicyEdit::AdjustRecruitmentTarget { delta: -5 });
+        ticks(&mut a, 1);
+        // Saturates at 0 rather than underflowing, same as the old direct write.
+        assert_eq!(a.world().resource::<RecruitmentPlan>().target_households, 0);
+    }
+
+    /// `snapshot`/`restore` walk the full save schema (dispatch, roads,
+    /// wires, vehicles, the Plan, recruitment) regardless of which table
+    /// changed, so this needs the same full plugin set `save.rs`'s own
+    /// tests use — not the minimal `app()` above.
+    fn full_app() -> App {
+        let mut a = App::new();
+        a.insert_resource(Time::<()>::default());
+        a.add_plugins((
+            SimPlugin,
+            super::super::roads::RoadSimPlugin,
+            BuildingSimPlugin,
+            super::super::plan::PlanSimPlugin,
+            super::super::households::HouseholdSimPlugin,
+            super::super::labour::LabourSimPlugin,
+            super::super::commute::CommuteSimPlugin,
+            super::super::needs::NeedsSimPlugin,
+            StorageSimPlugin,
+            super::super::vehicles::VehicleSimPlugin,
+            super::super::dispatch::DispatchSimPlugin,
+            super::super::wires::WireSimPlugin,
+        ));
+        a
+    }
+
+    #[test]
+    fn queued_band_survives_a_save_round_trip() {
+        use super::super::save::{restore, snapshot};
+
+        let mut app = full_app();
+        place(&mut app, BuildingKind::Warehouse);
+        ticks(&mut app, 2);
+        let world = app.world_mut();
+        let building = world
+            .query::<(Entity, &Building)>()
+            .single(world)
+            .unwrap()
+            .0;
+        world
+            .resource_mut::<PolicyEditQueue>()
+            .0
+            .push(PolicyEdit::SetBand {
+                building,
+                resource: ResourceKind::Coal,
+                min_pct: 0.7,
+                max_pct: 0.9,
+            });
+        ticks(&mut app, 1);
+
+        let save = snapshot(app.world_mut());
+        let mut loaded = full_app();
+        restore(loaded.world_mut(), &save);
+
+        let world = loaded.world_mut();
+        let policies = world
+            .query::<&StoragePolicies>()
+            .single(world)
+            .expect("warehouse restored");
+        let band = policies.band(ResourceKind::Coal).unwrap();
+        assert_eq!((band.min_pct, band.max_pct), (0.7, 0.9));
+    }
+
+    #[test]
+    fn queued_recruitment_target_survives_a_save_round_trip() {
+        use super::super::save::{restore, snapshot};
+
+        let mut app = full_app();
+        app.world_mut()
+            .resource_mut::<PolicyEditQueue>()
+            .0
+            .push(PolicyEdit::AdjustRecruitmentTarget { delta: 4 });
+        ticks(&mut app, 1);
+        assert_eq!(
+            app.world().resource::<RecruitmentPlan>().target_households,
+            4
+        );
+
+        let save = snapshot(app.world_mut());
+        let mut loaded = full_app();
+        restore(loaded.world_mut(), &save);
+        assert_eq!(
+            loaded
+                .world()
+                .resource::<RecruitmentPlan>()
+                .target_households,
+            4
         );
     }
 }

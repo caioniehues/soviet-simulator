@@ -34,7 +34,7 @@ use crate::sim::labour::Staffing;
 use crate::sim::resources::TransportClass;
 use crate::sim::resources::{Inventory, ResourceKind};
 use crate::sim::roads::{RoadBuildFeedback, RoadNode, RoadSegment};
-use crate::sim::storage::StoragePolicies;
+use crate::sim::storage::{PolicyEdit, PolicyEditQueue, StoragePolicies};
 use crate::sim::traffic::StallBoard;
 use crate::sim::vehicles::{
     ActivePawn, ActiveVehicle, DEPOT_SLOTS, VehicleAsset, VehicleEdit, VehicleEditQueue,
@@ -606,12 +606,18 @@ fn drive_time_controls(keys: Res<ButtonInput<KeyCode>>, mut speed: ResMut<SimSpe
 }
 
 /// The plan's immigration lever: +/- adjusts the recruitment target.
-fn drive_recruitment_controls(keys: Res<ButtonInput<KeyCode>>, mut plan: ResMut<RecruitmentPlan>) {
+/// `RecruitmentPlan` is sim state a dispatcher-adjacent system reads and the
+/// save persists (ADR 0003), so the edit is queued rather than written here.
+fn drive_recruitment_controls(keys: Res<ButtonInput<KeyCode>>, mut edits: ResMut<PolicyEditQueue>) {
     if keys.just_pressed(KeyCode::Equal) {
-        plan.target_households += 1;
+        edits
+            .0
+            .push(PolicyEdit::AdjustRecruitmentTarget { delta: 1 });
     }
     if keys.just_pressed(KeyCode::Minus) {
-        plan.target_households = plan.target_households.saturating_sub(1);
+        edits
+            .0
+            .push(PolicyEdit::AdjustRecruitmentTarget { delta: -1 });
     }
 }
 
@@ -829,17 +835,20 @@ fn drive_bus_purchase(
 
 /// Player policy control (the B3 dial): with a storage selected, `B` cycles
 /// the focused resource, `,`/`.` lower/raise its min line by 5%, and with
-/// Shift the max line instead. Writing `StoragePolicies` here is player
-/// intent, not sim state — the same standing as `SimSpeed`.
+/// Shift the max line instead. `StoragePolicies` is a dispatcher input the
+/// save persists (ADR 0003), so the new band is pushed to the queue rather
+/// than written here — it lands at next tick's ApplyCommands barrier, one
+/// tick later than the old direct write.
 fn drive_band_tuning(
     keys: Res<ButtonInput<KeyCode>>,
     selected: Res<Selected>,
     mut focus: ResMut<BandFocus>,
-    mut policies: Query<&mut StoragePolicies>,
+    policies: Query<&StoragePolicies>,
     inventories: Query<&Inventory>,
+    mut edits: ResMut<PolicyEditQueue>,
 ) {
     let Some(entity) = selected.0 else { return };
-    let Ok(mut policies) = policies.get_mut(entity) else {
+    let Ok(policies) = policies.get(entity) else {
         return;
     };
     if inventories.get(entity).is_ok_and(|i| i.capacity <= 0.0) {
@@ -864,10 +873,12 @@ fn drive_band_tuning(
     } else {
         min += step;
     }
-    policies.set(
+    edits.0.push(PolicyEdit::SetBand {
+        building: entity,
         resource,
-        Some(crate::sim::storage::StorageBand::new(min, max.max(min))),
-    );
+        min_pct: min,
+        max_pct: max.max(min),
+    });
 }
 
 /// A starving deficit is never invisible: the building the matcher cannot
