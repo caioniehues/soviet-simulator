@@ -16,7 +16,6 @@ use std::collections::{BinaryHeap, HashMap};
 use std::sync::Arc;
 
 use bevy::prelude::*;
-use bevy::tasks::futures_lite::future;
 use bevy::tasks::{AsyncComputeTaskPool, Task, block_on};
 
 use super::roads::{LaneDir, RoadNode, RoadSegment};
@@ -230,7 +229,7 @@ pub struct PathService {
     snapshot_key: (u64, u64, usize, u64),
     next_ticket: u64,
     submitted: Vec<(PathTicket, Entity, Entity, CostProfile)>,
-    in_flight: Vec<(PathTicket, Task<Option<Vec<RouteLeg>>>)>,
+    in_flight: Vec<(PathTicket, u32, Task<Option<Vec<RouteLeg>>>)>,
     ready: HashMap<u64, Option<Vec<RouteLeg>>>,
     /// Bumped by the congestion pass (B4.2) to force a snapshot refresh.
     pub congestion_version: u64,
@@ -322,8 +321,16 @@ pub fn refresh_snapshot(
     svc.snapshot = Some(Arc::new(GraphSnapshot::build(&nodes, &segments)));
 }
 
-/// Spawn solver tasks for new requests and harvest finished ones.
-fn pump_paths(mut svc: ResMut<PathService>) {
+/// A ticket resolves exactly this many ticks after submission — never
+/// earlier, and (short of a solver overrunning ~66 ms) never later. Without
+/// the fixed latency the install tick depended on thread scheduling: under
+/// CPU contention identical runs diverged at the first route request and
+/// never re-converged. Solves are microseconds against a 33 ms tick, so the
+/// deadline `block_on` below virtually never actually blocks.
+const RESOLVE_LATENCY_TICKS: u32 = 2;
+
+/// Spawn solver tasks for new requests and harvest the ones due this tick.
+fn pump_paths(mut svc: ResMut<PathService>, frame: Res<super::clock::FrameIndex>) {
     let Some(snapshot) = svc.snapshot.clone() else {
         return;
     };
@@ -332,16 +339,17 @@ fn pump_paths(mut svc: ResMut<PathService>) {
     for (ticket, start, goal, profile) in submitted {
         let snap = snapshot.clone();
         let task = pool.spawn(async move { snap.astar(start, goal, profile, ticket.0) });
-        svc.in_flight.push((ticket, task));
+        svc.in_flight.push((ticket, frame.0, task));
     }
     let mut still = Vec::new();
-    for (ticket, mut task) in std::mem::take(&mut svc.in_flight) {
-        match block_on(future::poll_once(&mut task)) {
-            Some(result) => {
-                svc.ready.insert(ticket.0, result);
-            }
-            None => still.push((ticket, task)),
+    for (ticket, submitted_at, task) in std::mem::take(&mut svc.in_flight) {
+        // Wrap-safe age check, matching `FrameIndex`'s own discipline.
+        if frame.0.wrapping_sub(submitted_at) < RESOLVE_LATENCY_TICKS {
+            still.push((ticket, submitted_at, task));
+            continue;
         }
+        let result = block_on(task);
+        svc.ready.insert(ticket.0, result);
     }
     svc.in_flight = still;
     svc.in_flight_count = svc.in_flight.len();

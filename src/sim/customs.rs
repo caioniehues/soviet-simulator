@@ -61,7 +61,12 @@ impl Plugin for CustomsSimPlugin {
 }
 
 /// Drain every customs yard at the dock rate, crediting the treasury.
-fn sell_exports(mut offices: Query<(&Building, &mut Inventory)>, mut treasury: ResMut<Treasury>) {
+fn sell_exports(
+    // An office under construction is inert: its yard holds construction
+    // materials, and selling those would mint roubles out of its own bill.
+    mut offices: Query<(&Building, &mut Inventory), Without<super::construction::ConstructionSite>>,
+    mut treasury: ResMut<Treasury>,
+) {
     for (building, mut inventory) in &mut offices {
         if building.kind != BuildingKind::CustomsOffice {
             continue;

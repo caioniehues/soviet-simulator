@@ -428,7 +428,8 @@ fn parts(
 /// A building under construction reads as rising out of the ground: its
 /// render root squashes vertically with *real* site progress (never a
 /// timer), and a stalled site draws a pulsing ring — amber for a missing
-/// material, grey-blue for a missing machine.
+/// material, machine-ochre for a missing machine (the colour of the thing
+/// it is waiting for; SignalOk would mark a blocked state as healthy).
 fn rise_construction_sites(
     time: Res<Time>,
     mut sites: Query<(
@@ -457,7 +458,7 @@ fn rise_construction_sites(
                 // A blocked site is the state's problem, not the world's:
                 // signal colours, the doc's one sanctioned saturation.
                 Bottleneck::NoMaterial => Role::SignalAttention.color(),
-                Bottleneck::NoMachine => Role::SignalOk.color(),
+                Bottleneck::NoMachine => Role::MachineOchre.color(),
             }
             .with_alpha(0.3 + 0.5 * pulse);
             gizmos.circle(

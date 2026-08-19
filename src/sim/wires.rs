@@ -203,7 +203,12 @@ fn remove_span_near(world: &mut World, pos: Vec3) {
 fn solve_power(
     spans: Query<&WireSpan>,
     outputs: Query<(Entity, &PowerOutput)>,
-    mut consumers: Query<(Entity, &Building, &mut Powered)>,
+    // A site is inert on the consumer side too: scaffolding must never draw
+    // demand a finished building then goes without (the B6 contract).
+    mut consumers: Query<
+        (Entity, &Building, &mut Powered),
+        Without<super::construction::ConstructionSite>,
+    >,
 ) {
     use super::catalogue::spec;
     use super::network::{Components, PriorityClass, allocate};
@@ -507,6 +512,54 @@ mod tests {
         assert_eq!(
             powered_factories, 1,
             "9 MW − 3 MW of homes leaves room for exactly one 4 MW factory"
+        );
+    }
+
+    /// A construction site is inert on the consumer side: scaffolding with a
+    /// lower `BuildingId` must never take the MW a finished building then
+    /// goes without. Before the `Without<ConstructionSite>` filter this
+    /// exact layout browned out the finished factory.
+    #[test]
+    fn a_site_never_outdraws_a_finished_building() {
+        use super::super::construction::ConstructionSite;
+        let mut app = app();
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(40.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(80.0, 0.0, 0.0));
+        ticks(&mut app, 2);
+        // The first-placed factory (lower id, so first in line for the pool)
+        // becomes a site by hand — the wires test app runs no construction
+        // plugin, which is exactly why this must be explicit.
+        let (site, finished) = {
+            let world = app.world_mut();
+            let mut found: Vec<(u64, Entity)> = world
+                .query::<(Entity, &super::super::buildings::Building)>()
+                .iter(world)
+                .map(|(e, b)| (b.id.0, e))
+                .collect();
+            found.sort_by_key(|(id, _)| *id);
+            (found[0].1, found[1].1)
+        };
+        app.world_mut()
+            .entity_mut(site)
+            .insert(ConstructionSite::for_kind(BuildingKind::Factory));
+        // A pool of exactly one factory's demand, spanned to both.
+        let source = app.world_mut().spawn(PowerOutput(4.0)).id();
+        for (i, consumer) in [site, finished].into_iter().enumerate() {
+            app.world_mut().spawn(WireSpan {
+                id: SpanId(9_200 + i as u64),
+                a: source,
+                b: consumer,
+                kind: NetKind::Power,
+            });
+        }
+        ticks(&mut app, 1);
+        assert!(
+            app.world().get::<Powered>(finished).unwrap().0,
+            "the finished factory gets the pool the site must not draw"
+        );
+        assert!(
+            !app.world().get::<Powered>(site).unwrap().0,
+            "the site's gate stays dark while it is scaffolding"
         );
     }
 

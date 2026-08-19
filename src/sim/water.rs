@@ -73,7 +73,11 @@ fn solve_water(
             Without<super::construction::ConstructionSite>,
         ),
     >,
-    mut consumers: Query<(Entity, &Building, &mut Watered)>,
+    // Sites are inert consumers too, matching the supplier-side filter above.
+    mut consumers: Query<
+        (Entity, &Building, &mut Watered),
+        Without<super::construction::ConstructionSite>,
+    >,
 ) {
     let mut components = Components::from_spans(
         spans

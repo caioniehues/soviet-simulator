@@ -111,7 +111,12 @@ fn solve_heat(
     climate: Res<Climate>,
     spans: Query<&WireSpan>,
     outputs: Query<(Entity, &HeatOutput)>,
-    mut consumers: Query<(Entity, &Building, &mut Heated)>,
+    // Sites are inert consumers: an unfinished block must not draw the heat a
+    // standing home then freezes without.
+    mut consumers: Query<
+        (Entity, &Building, &mut Heated),
+        Without<super::construction::ConstructionSite>,
+    >,
 ) {
     let demand = dwelling_heat_demand(climate.temperature);
     let mut components = Components::from_spans(

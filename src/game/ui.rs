@@ -267,6 +267,29 @@ pub fn write_readout(
     lines: &[Line],
     spans: &mut Query<(&mut TextSpan, &mut TextColor, &mut TextFont)>,
 ) {
+    // The span pool is fixed, so overflow silently drops the tail — where
+    // producers tend to put their loudest line (the dispatch panel pushed
+    // STARVING last, below one dim line per depot). When lines overflow,
+    // keep every non-routine line and let the dim tail take the cut.
+    let mut kept: Vec<&Line>;
+    let lines: &[&Line] = if lines.len() > readout.spans.len() {
+        kept = lines
+            .iter()
+            .filter(|l| l.severity > Severity::Routine)
+            .collect();
+        let spare = readout.spans.len().saturating_sub(kept.len());
+        for line in lines
+            .iter()
+            .filter(|l| l.severity <= Severity::Routine)
+            .take(spare)
+        {
+            kept.push(line);
+        }
+        &kept
+    } else {
+        kept = lines.iter().collect();
+        &kept
+    };
     for (i, &entity) in readout.spans.iter().enumerate() {
         let Ok((mut span, mut color, mut font)) = spans.get_mut(entity) else {
             continue;
