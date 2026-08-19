@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use super::buildings::{Building, BuildingKind};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimTick};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ZoneKind {
@@ -76,14 +76,10 @@ impl Plugin for ZoningSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ZoneEditQueue>()
             .init_resource::<ZoneIds>()
-            .add_systems(
-                SimTick,
-                apply_zone_edits
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush)
-                    // The siting gate reads zones during building placement.
-                    .before(super::buildings::apply_building_edits),
-            );
+            // The siting gate reads zones during building placement — subsumed
+            // by the declared zones-before-buildings edge in ApplierOrder
+            // (ADR 0013, stages.rs).
+            .add_systems(SimTick, apply_zone_edits.in_set(ApplierOrder::Zones));
     }
 }
 

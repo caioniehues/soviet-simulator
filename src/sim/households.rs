@@ -12,7 +12,7 @@ use bevy::prelude::*;
 use super::buildings::{Building, BuildingKind};
 use super::citizens::{Citizen, CitizenIds};
 use super::clock::{FRAMES_PER_GAME_DAY, FrameIndex};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimStage, SimTick};
 
 /// Hard cap on members per household (CS1 proves a cap simplifies everything).
 pub const MAX_HOUSEHOLD_SIZE: usize = 5;
@@ -101,9 +101,12 @@ impl Plugin for HouseholdSimPlugin {
             .init_resource::<RecruitmentLedger>()
             .add_systems(
                 SimTick,
+                // Declared rather than left to registration order (ADR 0013):
+                // a dwelling gets its flat table before this tick's spawns
+                // are queued against the housing pool it feeds.
                 (attach_flat_tables, apply_household_spawns)
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush),
+                    .chain()
+                    .in_set(ApplierOrder::Households),
             )
             .add_systems(
                 SimTick,

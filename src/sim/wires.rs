@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use super::buildings::{Building, PowerOutput, Powered};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimStage, SimTick};
 
 /// Endpoint clicks snap to an existing pole within this radius.
 pub const POLE_SNAP_RADIUS: f32 = 4.0;
@@ -73,12 +73,7 @@ impl Plugin for WireSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WireEditQueue>()
             .init_resource::<WireIds>()
-            .add_systems(
-                SimTick,
-                apply_wire_edits
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush),
-            )
+            .add_systems(SimTick, apply_wire_edits.in_set(ApplierOrder::Wires))
             .add_systems(
                 SimTick,
                 // Grid solve sits between generation and consumption inside

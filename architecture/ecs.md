@@ -80,6 +80,13 @@ Explicit `apply_deferred` barriers sit at the `ApplyCommands` and
 automatic sync-point insertion is not relied on. Structural changes and cross-system writes are
 buffered commands that land only at those barriers.
 
+Inside `ApplyCommands`, the edit appliers (zoning, roads, buildings, storage policy, wires,
+households, vehicles, transit) run in one declared total order — `ApplierOrder` in `stages.rs`
+(ADR 0013): zones → roads → buildings → policy → wires → households → vehicles → transit. A
+building may frontage-snap to a road placed this same tick, a wire may snap to a building, and so
+on down the chain — the order is a fact declared once, not an emergent property of plugin
+registration order.
+
 ## Presentation
 
 **Single world, direct rendering, direction-only invariant.** Pawn entities carry `Transform`; a

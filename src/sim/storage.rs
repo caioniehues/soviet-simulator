@@ -10,7 +10,7 @@ use bevy::prelude::*;
 use super::buildings::{Building, BuildingKind};
 use super::households::RecruitmentPlan;
 use super::resources::{Inventory, ResourceKind};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimTick};
 
 /// Per-resource intent band, as fractions of the building's shared yard
 /// capacity. `min` below `max`; a resource with no band is inert (never
@@ -112,12 +112,9 @@ impl Plugin for StorageSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PolicyEditQueue>()
             .add_observer(attach_default_policies)
-            .add_systems(
-                SimTick,
-                apply_policy_edits
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush),
-            );
+            // Ordered after Buildings (ADR 0013): a policy edit may adjust the
+            // storage bands on a building placed this same tick.
+            .add_systems(SimTick, apply_policy_edits.in_set(ApplierOrder::Policy));
     }
 }
 

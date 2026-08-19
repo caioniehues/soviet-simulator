@@ -11,7 +11,7 @@ use super::buildings::{Building, BuildingKind};
 use super::dispatch::{Progress, drive_toward};
 use super::pathfinding::{PathService, PathfindingSimPlugin};
 use super::roads::{RoadNode, RoadSegment};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimStage, SimTick};
 use super::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
 use super::vehicles::{ActivePawn, ActiveVehicle, PawnOf, VehicleAsset, VehicleKind, nearest_node};
 
@@ -104,8 +104,7 @@ impl Plugin for TransitSimPlugin {
                 SimTick,
                 (apply_transit_edits, prune_dead_stops)
                     .chain()
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush),
+                    .in_set(ApplierOrder::Transit),
             )
             .add_systems(
                 SimTick,

@@ -6,7 +6,7 @@
 use bevy::prelude::*;
 
 use super::resources::Inventory;
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimTick};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BuildingId(pub u64);
@@ -133,9 +133,7 @@ impl Plugin for BuildingSimPlugin {
             .init_resource::<super::zoning::ZoningFeedback>()
             .add_systems(
                 SimTick,
-                apply_building_edits
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush),
+                apply_building_edits.in_set(ApplierOrder::Buildings),
             );
         super::production::register(app);
     }

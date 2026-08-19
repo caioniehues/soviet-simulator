@@ -8,3 +8,4 @@
 - [Plugin-group dedup trap](plugin-group-dedup-trap.md) — deleting a duplicate resource registration silently breaks in-module test app() builders at runtime, not compile time
 - [PolicyEditQueue](policy-edit-queue.md) — ADR 0003 amendment: queue shape, optional-RecruitmentPlan trap, snapshot/restore full-plugin-set trap
 - [Node-snap extraction](node-snap-extraction.md) — what ADR 0016's shared snap module covers vs what stayed per-caller (radii, building-snap, roads' read-only precheck)
+- [Applier total order](applier-total-order.md) — ADR 0013's ApplierOrder set shape, customs order, and why full_town's tick(3) survives the chain

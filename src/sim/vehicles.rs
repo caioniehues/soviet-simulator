@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use super::buildings::{Building, BuildingKind};
 use super::resources::{Inventory, ResourceKind, TransportClass};
 use super::roads::{LaneDir, RoadNode, RoadSegment};
-use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
+use super::stages::{ApplierOrder, SimTick};
 use super::storage::{StorageBand, StoragePolicies};
 use super::traffic::LaneOccupancy;
 
@@ -184,12 +184,7 @@ impl Plugin for VehicleSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VehicleEditQueue>()
             .init_resource::<VehicleIds>()
-            .add_systems(
-                SimTick,
-                apply_vehicle_edits
-                    .in_set(SimStage::ApplyCommands)
-                    .after(ApplyCommandsFlush),
-            );
+            .add_systems(SimTick, apply_vehicle_edits.in_set(ApplierOrder::Vehicles));
     }
 }
 

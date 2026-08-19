@@ -68,7 +68,15 @@ impl Plugin for CustomsSimPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             SimTick,
+            // Declared order (ADR 0013): sell before buy so this tick's export
+            // proceeds are already in the treasury when buy_imports spends it
+            // — previously accidental, since both hold conflicting Inventory/
+            // Treasury access and so were already serialized in registration
+            // order. release_border_arrivals is unrelated fleet bookkeeping
+            // (it never touches Inventory or Treasury); placed last so it
+            // can't be mistaken for a step in the office's trade pair.
             (sell_exports, buy_imports, release_border_arrivals)
+                .chain()
                 .in_set(SimStage::ProductionAndUtilities),
         );
     }
