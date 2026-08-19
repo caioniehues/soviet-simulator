@@ -319,16 +319,22 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         water: None,
         heat: Some(HeatDemand::Producer),
     },
-    // CustomsOffice — gatehouse plus inspection yard, and that yard is the
-    // export dock: goods wait there for the border sale. No bands, though —
-    // exports arrive by player-set haul policy and the sale drains whatever
-    // lands here.
+    // CustomsOffice — gatehouse plus inspection yard, and that yard is both
+    // the export dock and the import counter (customs.rs, 2026-08-19). Every
+    // resource bands at (0.0, 0.0): min 0 means nothing is demanded from
+    // abroad until the player raises it, max 0 means anything that lands
+    // here is already surplus and sells at the next dock tick — the same
+    // sell-everything behaviour the office had before bands existed.
     BuildingSpec {
         kind: BuildingKind::CustomsOffice,
         footprint: Vec2::new(22.0, 14.0),
         inventory_capacity: 120.0,
         workers_needed: 0,
-        default_policies: &[],
+        default_policies: &[
+            (ResourceKind::Coal, 0.0, 0.0),
+            (ResourceKind::Gravel, 0.0, 0.0),
+            (ResourceKind::Goods, 0.0, 0.0),
+        ],
         recipe: NO_RECIPE,
         flow_output: None,
         power: None,
@@ -465,7 +471,11 @@ mod tests {
             Vec2::new(22.0, 14.0),
             120.0,
             0,
-            &[],
+            &[
+                (ResourceKind::Coal, 0.0, 0.0),
+                (ResourceKind::Gravel, 0.0, 0.0),
+                (ResourceKind::Goods, 0.0, 0.0),
+            ],
         ),
     ];
 
