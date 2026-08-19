@@ -11,7 +11,7 @@ pub struct SaveLoadPlugin;
 impl Plugin for SaveLoadPlugin {
     fn build(&self, app: &mut App) {
         // Idempotent next to SaveSimPlugin; keeps capture/bench binaries that
-        // add GamePlugin without the sim save plugin from panicking.
+        // add GamePlugins without the sim save plugin from panicking.
         app.init_resource::<SaveLoadRequests>()
             .add_systems(Update, quicksave_hotkeys);
     }

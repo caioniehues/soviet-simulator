@@ -10,17 +10,16 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 
+use soviet_simulator::SimPlugins;
+use soviet_simulator::sim::TickIndex;
 use soviet_simulator::sim::clock::SECS_PER_PASS;
 use soviet_simulator::sim::pathfinding::{
     CostProfile, PathPoll, PathService, PathfindingSimPlugin,
 };
-use soviet_simulator::sim::roads::{
-    RoadClass, RoadEdit, RoadEditQueue, RoadNode, RoadSegment, RoadSimPlugin,
-};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadNode, RoadSegment};
 use soviet_simulator::sim::stages::{SimStage, SimTick};
 use soviet_simulator::sim::traffic::{LaneOccupancy, LanePrep, TrafficSimPlugin};
 use soviet_simulator::sim::vehicles::{ActiveVehicle, advance_along_route, nearest_node_unbounded};
-use soviet_simulator::sim::{SimPlugin, TickIndex};
 
 const VEHICLES: usize = 10_000;
 /// Grid nodes per side; 24² nodes → 1 104 segments at 100 m spacing.
@@ -102,12 +101,33 @@ fn drive_bench_traffic(
 fn main() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default());
-    app.add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        PathfindingSimPlugin,
-        TrafficSimPlugin,
-    ));
+    // Raw pawns on a road grid: no buildings, no economy at all.
+    // PathfindingSimPlugin and TrafficSimPlugin are `SimPlugins`'
+    // dependency-only plugins — never one of its own `.add()` entries, only
+    // auto-added by CommuteSimPlugin/DispatchSimPlugin — so with both of
+    // those disabled they're added directly, same as `lib.rs` would if the
+    // group grew a matching pair of always-on flags.
+    app.add_plugins(
+        SimPlugins
+            .build()
+            .disable::<soviet_simulator::sim::buildings::BuildingSimPlugin>()
+            .disable::<soviet_simulator::sim::storage::StorageSimPlugin>()
+            .disable::<soviet_simulator::sim::households::HouseholdSimPlugin>()
+            .disable::<soviet_simulator::sim::labour::LabourSimPlugin>()
+            .disable::<soviet_simulator::sim::commute::CommuteSimPlugin>()
+            .disable::<soviet_simulator::sim::needs::NeedsSimPlugin>()
+            .disable::<soviet_simulator::sim::vehicles::VehicleSimPlugin>()
+            .disable::<soviet_simulator::sim::dispatch::DispatchSimPlugin>()
+            .disable::<soviet_simulator::sim::construction::ConstructionSimPlugin>()
+            .disable::<soviet_simulator::sim::zoning::ZoningSimPlugin>()
+            .disable::<soviet_simulator::sim::water::WaterSimPlugin>()
+            .disable::<soviet_simulator::sim::heat::HeatSimPlugin>()
+            .disable::<soviet_simulator::sim::plan::PlanSimPlugin>()
+            .disable::<soviet_simulator::sim::customs::CustomsSimPlugin>()
+            .disable::<soviet_simulator::sim::wires::WireSimPlugin>()
+            .disable::<soviet_simulator::sim::save::SaveSimPlugin>(),
+    )
+    .add_plugins((PathfindingSimPlugin, TrafficSimPlugin));
     app.add_systems(
         SimTick,
         drive_bench_traffic

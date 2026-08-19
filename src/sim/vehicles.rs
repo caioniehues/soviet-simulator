@@ -184,10 +184,6 @@ impl Plugin for VehicleSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VehicleEditQueue>()
             .init_resource::<VehicleIds>()
-            // Treasury lives in PlanSimPlugin; init here too so plugin-subset
-            // test apps still validate (init_resource is idempotent).
-            .init_resource::<super::plan::Treasury>()
-            .init_resource::<super::plan::AllocationFeedback>()
             .add_systems(
                 SimTick,
                 apply_vehicle_edits
@@ -428,6 +424,7 @@ mod tests {
         BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
     };
     use super::super::dispatch::DispatchSimPlugin;
+    use super::super::plan::PlanSimPlugin;
     use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
     use super::super::storage::StorageSimPlugin;
     use super::*;
@@ -441,6 +438,8 @@ mod tests {
             RoadSimPlugin,
             BuildingSimPlugin,
             StorageSimPlugin,
+            // Owns Treasury (truck purchases spend from it).
+            PlanSimPlugin,
             VehicleSimPlugin,
             DispatchSimPlugin,
         ));

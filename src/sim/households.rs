@@ -99,9 +99,6 @@ impl Plugin for HouseholdSimPlugin {
             .init_resource::<HousingQueue>()
             .init_resource::<RecruitmentPlan>()
             .init_resource::<RecruitmentLedger>()
-            // See VehicleSimPlugin: plugin-subset test apps need these.
-            .init_resource::<super::plan::Treasury>()
-            .init_resource::<super::plan::AllocationFeedback>()
             .add_systems(
                 SimTick,
                 (attach_flat_tables, apply_household_spawns)
@@ -384,13 +381,21 @@ pub(super) fn assign_housing(
 mod tests {
     use super::super::SimPlugin;
     use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin};
+    use super::super::plan::PlanSimPlugin;
     use super::*;
     use std::time::Duration;
 
     fn app() -> App {
         let mut a = App::new();
         a.insert_resource(Time::<()>::default());
-        a.add_plugins((SimPlugin, BuildingSimPlugin, HouseholdSimPlugin));
+        // PlanSimPlugin owns Treasury/AllocationFeedback, both read while
+        // recruiting a household (RecruitmentPlan pays out of the treasury).
+        a.add_plugins((
+            SimPlugin,
+            BuildingSimPlugin,
+            PlanSimPlugin,
+            HouseholdSimPlugin,
+        ));
         a
     }
 
@@ -565,6 +570,7 @@ mod tests {
     #[test]
     fn reallocation_prefers_the_flat_near_the_household_jobs() {
         use super::super::labour::LabourSimPlugin;
+        use super::super::plan::PlanSimPlugin;
         use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
         let mut a = App::new();
         a.insert_resource(Time::<()>::default());
@@ -572,6 +578,7 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            PlanSimPlugin,
             HouseholdSimPlugin,
             LabourSimPlugin,
         ));

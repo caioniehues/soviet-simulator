@@ -1,3 +1,4 @@
+use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 
 pub mod art;
@@ -19,30 +20,30 @@ pub mod wires;
 pub mod world;
 pub mod zoning;
 
-/// Root plugin: every feature plugin under `src/game/` registers here,
-/// keeping `lib.rs` the single App-wiring point.
-pub struct GamePlugin;
+/// Every presentation plugin under `src/game/`, as a `PluginGroup` (ADR
+/// 0012) — the same inversion as `SimPlugins`: a binary excludes what it
+/// doesn't want rather than hand-typing what it does. This also removes the
+/// 15-element `add_plugins` tuple ceiling that used to need a second call.
+pub struct GamePlugins;
 
-impl Plugin for GamePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugins((
-            ui::UiPlugin,
-            notify::NotifyPlugin,
-            world::WorldPlugin,
-            camera::CameraPlugin,
-            tools::ToolsPlugin,
-            toolbar::ToolbarPlugin,
-            roads::RoadToolPlugin,
-            buildings::BuildingToolPlugin,
-            citizens::CitizenViewPlugin,
-            vehicles::VehicleToolPlugin,
-            transit::TransitToolPlugin,
-            wires::WireToolPlugin,
-            saveload::SaveLoadPlugin,
-            zoning::ZoningToolPlugin,
-            hud::HudPlugin,
-        ))
-        // A second call: `add_plugins` takes at most 15 in one tuple.
-        .add_plugins(juice::JuicePlugin);
+impl PluginGroup for GamePlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(ui::UiPlugin)
+            .add(notify::NotifyPlugin)
+            .add(world::WorldPlugin)
+            .add(camera::CameraPlugin)
+            .add(tools::ToolsPlugin)
+            .add(toolbar::ToolbarPlugin)
+            .add(roads::RoadToolPlugin)
+            .add(buildings::BuildingToolPlugin)
+            .add(citizens::CitizenViewPlugin)
+            .add(vehicles::VehicleToolPlugin)
+            .add(transit::TransitToolPlugin)
+            .add(wires::WireToolPlugin)
+            .add(saveload::SaveLoadPlugin)
+            .add(zoning::ZoningToolPlugin)
+            .add(hud::HudPlugin)
+            .add(juice::JuicePlugin)
     }
 }

@@ -9,17 +9,14 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 
-use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
-};
+use soviet_simulator::SimPlugins;
+use soviet_simulator::sim::TickIndex;
+use soviet_simulator::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind};
 use soviet_simulator::sim::clock::SECS_PER_PASS;
 use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
-use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
-use soviet_simulator::sim::vehicles::{
-    ActiveVehicle, VehicleEdit, VehicleEditQueue, VehicleSimPlugin,
-};
-use soviet_simulator::sim::wires::{WireEdit, WireEditQueue, WireSimPlugin};
-use soviet_simulator::sim::{SimPlugin, TickIndex};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue};
+use soviet_simulator::sim::vehicles::{ActiveVehicle, VehicleEdit, VehicleEditQueue};
+use soviet_simulator::sim::wires::{WireEdit, WireEditQueue};
 
 const CHAINS: u32 = 100;
 const CHAIN_SPACING: f32 = 250.0;
@@ -42,15 +39,22 @@ fn main() {
         roubles: f32::INFINITY,
     });
     app.insert_resource(Time::<()>::default());
-    app.add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        BuildingSimPlugin,
-        VehicleSimPlugin,
-        soviet_simulator::sim::storage::StorageSimPlugin,
-        soviet_simulator::sim::dispatch::DispatchSimPlugin,
-        WireSimPlugin,
-    ));
+    // A freight-chain scenario: no citizens, no construction, no zones, no
+    // utility solvers beyond the power grid, no customs, no save/load.
+    app.add_plugins(
+        SimPlugins
+            .build()
+            .disable::<soviet_simulator::sim::households::HouseholdSimPlugin>()
+            .disable::<soviet_simulator::sim::labour::LabourSimPlugin>()
+            .disable::<soviet_simulator::sim::commute::CommuteSimPlugin>()
+            .disable::<soviet_simulator::sim::needs::NeedsSimPlugin>()
+            .disable::<soviet_simulator::sim::construction::ConstructionSimPlugin>()
+            .disable::<soviet_simulator::sim::zoning::ZoningSimPlugin>()
+            .disable::<soviet_simulator::sim::water::WaterSimPlugin>()
+            .disable::<soviet_simulator::sim::heat::HeatSimPlugin>()
+            .disable::<soviet_simulator::sim::customs::CustomsSimPlugin>()
+            .disable::<soviet_simulator::sim::save::SaveSimPlugin>(),
+    );
 
     // 100 disjoint chains stacked along z: mine —road— plant —road— factory,
     // wire plant→factory, one truck shuttling coal mine→plant.

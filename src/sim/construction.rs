@@ -536,6 +536,7 @@ mod tests {
     #[test]
     fn dispatcher_hauls_the_phase_bill_to_the_site() {
         use super::super::dispatch::{DeficitBoard, DispatchSimPlugin};
+        use super::super::plan::PlanSimPlugin;
         use super::super::resources::TransportClass;
         use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
         use super::super::storage::StorageSimPlugin;
@@ -547,6 +548,7 @@ mod tests {
             RoadSimPlugin,
             BuildingSimPlugin,
             StorageSimPlugin,
+            PlanSimPlugin,
             VehicleSimPlugin,
             DispatchSimPlugin,
             ConstructionSimPlugin,
@@ -678,6 +680,7 @@ mod tests {
     }
 
     fn machine_app() -> App {
+        use super::super::plan::PlanSimPlugin;
         use super::super::roads::RoadSimPlugin;
         use super::super::vehicles::VehicleSimPlugin;
         let mut a = App::new();
@@ -686,6 +689,7 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            PlanSimPlugin,
             VehicleSimPlugin,
             ConstructionSimPlugin,
         ));

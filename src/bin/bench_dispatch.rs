@@ -12,16 +12,14 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 
-use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
-};
+use soviet_simulator::SimPlugins;
+use soviet_simulator::sim::TickIndex;
+use soviet_simulator::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind};
 use soviet_simulator::sim::clock::SECS_PER_PASS;
-use soviet_simulator::sim::dispatch::{DispatchQueue, DispatchSimPlugin};
+use soviet_simulator::sim::dispatch::DispatchQueue;
 use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
-use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
-use soviet_simulator::sim::storage::StorageSimPlugin;
-use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
-use soviet_simulator::sim::{SimPlugin, TickIndex};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue};
+use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue};
 
 const DISTRICTS: u32 = 250;
 const SPACING: f32 = 300.0;
@@ -49,14 +47,23 @@ fn run(districts: u32, trucks: bool) -> (f64, f64, usize) {
         roubles: f32::INFINITY,
     });
     app.insert_resource(Time::<()>::default());
-    app.add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        BuildingSimPlugin,
-        StorageSimPlugin,
-        VehicleSimPlugin,
-        DispatchSimPlugin,
-    ));
+    // Isolates the dispatcher: no citizens, no construction, no zones, no
+    // utility solvers, no customs, no save/load.
+    app.add_plugins(
+        SimPlugins
+            .build()
+            .disable::<soviet_simulator::sim::households::HouseholdSimPlugin>()
+            .disable::<soviet_simulator::sim::labour::LabourSimPlugin>()
+            .disable::<soviet_simulator::sim::commute::CommuteSimPlugin>()
+            .disable::<soviet_simulator::sim::needs::NeedsSimPlugin>()
+            .disable::<soviet_simulator::sim::construction::ConstructionSimPlugin>()
+            .disable::<soviet_simulator::sim::zoning::ZoningSimPlugin>()
+            .disable::<soviet_simulator::sim::water::WaterSimPlugin>()
+            .disable::<soviet_simulator::sim::heat::HeatSimPlugin>()
+            .disable::<soviet_simulator::sim::customs::CustomsSimPlugin>()
+            .disable::<soviet_simulator::sim::wires::WireSimPlugin>()
+            .disable::<soviet_simulator::sim::save::SaveSimPlugin>(),
+    );
 
     // District: road x∈[0,120] at its own z; stocked supplier warehouse at the
     // west node, two empty demander warehouses at the east node, depot + one

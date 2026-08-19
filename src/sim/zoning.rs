@@ -76,7 +76,6 @@ impl Plugin for ZoningSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ZoneEditQueue>()
             .init_resource::<ZoneIds>()
-            .init_resource::<ZoningFeedback>()
             .add_systems(
                 SimTick,
                 apply_zone_edits

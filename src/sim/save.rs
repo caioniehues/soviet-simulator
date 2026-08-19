@@ -1093,10 +1093,6 @@ pub struct SaveSimPlugin;
 impl Plugin for SaveSimPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SaveLoadRequests>()
-            // Plan state rides the save; init here so plugin-subset test
-            // apps snapshot/restore without PlanSimPlugin.
-            .init_resource::<super::plan::StatePlan>()
-            .init_resource::<super::plan::Treasury>()
             .add_systems(Update, process_requests.after(super::clock::drive_sim));
     }
 }
@@ -1130,6 +1126,7 @@ mod tests {
     use super::super::households::HouseholdSimPlugin;
     use super::super::labour::LabourSimPlugin;
     use super::super::needs::NeedsSimPlugin;
+    use super::super::plan::PlanSimPlugin;
     use super::super::roads::{RoadEdit, RoadEditQueue, RoadSimPlugin};
     use super::super::storage::StorageSimPlugin;
     use super::super::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
@@ -1144,6 +1141,8 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            // Owns StatePlan/Treasury, both saved and restored below.
+            PlanSimPlugin,
             HouseholdSimPlugin,
             LabourSimPlugin,
             CommuteSimPlugin,

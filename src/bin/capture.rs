@@ -19,17 +19,16 @@ use bevy::time::TimeUpdateStrategy;
 use bevy::window::ExitCondition;
 use bevy::winit::WinitPlugin;
 
-use soviet_simulator::game::GamePlugin;
+use soviet_simulator::SimPlugins;
+use soviet_simulator::game::GamePlugins;
 use soviet_simulator::game::camera::CameraRig;
 use soviet_simulator::game::tools::ToolMode;
-use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
-};
+use soviet_simulator::sim::SimSpeed;
+use soviet_simulator::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind};
 use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
-use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
-use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
-use soviet_simulator::sim::wires::{WireEdit, WireEditQueue, WireSimPlugin};
-use soviet_simulator::sim::{SimPlugin, SimSpeed};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue};
+use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue};
+use soviet_simulator::sim::wires::{WireEdit, WireEditQueue};
 
 const FPS: f64 = 30.0;
 const WIDTH: u32 = 1280;
@@ -85,21 +84,18 @@ fn main() {
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
         1.0 / FPS,
     )))
-    .add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        BuildingSimPlugin,
-        soviet_simulator::sim::households::HouseholdSimPlugin,
-        soviet_simulator::sim::labour::LabourSimPlugin,
-        soviet_simulator::sim::commute::CommuteSimPlugin,
-        soviet_simulator::sim::needs::NeedsSimPlugin,
-        VehicleSimPlugin,
-        soviet_simulator::sim::storage::StorageSimPlugin,
-        soviet_simulator::sim::dispatch::DispatchSimPlugin,
-        WireSimPlugin,
-        soviet_simulator::sim::save::SaveSimPlugin,
-    ))
-    .add_plugins(GamePlugin);
+    // The M1.7 coal-chain scenario: no construction sites (buildings place
+    // finished), no zones, no water/heat webs, no customs.
+    .add_plugins(
+        SimPlugins
+            .build()
+            .disable::<soviet_simulator::sim::construction::ConstructionSimPlugin>()
+            .disable::<soviet_simulator::sim::zoning::ZoningSimPlugin>()
+            .disable::<soviet_simulator::sim::water::WaterSimPlugin>()
+            .disable::<soviet_simulator::sim::heat::HeatSimPlugin>()
+            .disable::<soviet_simulator::sim::customs::CustomsSimPlugin>(),
+    )
+    .add_plugins(GamePlugins);
 
     // Allocate the render target directly in the world before any camera
     // system runs — Commands-deferred creation yields black captures.

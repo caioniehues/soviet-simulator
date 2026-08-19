@@ -33,17 +33,15 @@ use bevy::render::render_resource::TextureFormat;
 use bevy::window::ExitCondition;
 use bevy::winit::WinitPlugin;
 
-use soviet_simulator::game::GamePlugin;
+use soviet_simulator::SimPlugins;
+use soviet_simulator::game::GamePlugins;
 use soviet_simulator::game::camera::CameraRig;
-use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
-};
-use soviet_simulator::sim::construction::{ConstructionSimPlugin, ConstructionSite};
+use soviet_simulator::sim::SimSpeed;
+use soviet_simulator::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind};
+use soviet_simulator::sim::construction::ConstructionSite;
 use soviet_simulator::sim::resources::{Inventory, ResourceKind};
-use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue};
 use soviet_simulator::sim::storage::default_policies;
-use soviet_simulator::sim::vehicles::VehicleSimPlugin;
-use soviet_simulator::sim::{SimPlugin, SimSpeed};
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
@@ -91,29 +89,8 @@ fn main() {
             .disable::<WinitPlugin>(),
     )
     .add_plugins(ScheduleRunnerPlugin::run_loop(Duration::ZERO))
-    .add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        BuildingSimPlugin,
-        soviet_simulator::sim::storage::StorageSimPlugin,
-        soviet_simulator::sim::households::HouseholdSimPlugin,
-        soviet_simulator::sim::labour::LabourSimPlugin,
-        soviet_simulator::sim::commute::CommuteSimPlugin,
-        soviet_simulator::sim::needs::NeedsSimPlugin,
-        VehicleSimPlugin,
-        soviet_simulator::sim::dispatch::DispatchSimPlugin,
-        ConstructionSimPlugin,
-        soviet_simulator::sim::zoning::ZoningSimPlugin,
-        soviet_simulator::sim::water::WaterSimPlugin,
-        soviet_simulator::sim::heat::HeatSimPlugin,
-    ))
-    .add_plugins((
-        soviet_simulator::sim::plan::PlanSimPlugin,
-        soviet_simulator::sim::customs::CustomsSimPlugin,
-        soviet_simulator::sim::wires::WireSimPlugin,
-        soviet_simulator::sim::save::SaveSimPlugin,
-    ))
-    .add_plugins(GamePlugin);
+    .add_plugins(SimPlugins)
+    .add_plugins(GamePlugins);
 
     let target = app
         .world_mut()

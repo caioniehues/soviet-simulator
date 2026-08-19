@@ -11,15 +11,16 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 
+use soviet_simulator::SimPlugins;
+use soviet_simulator::sim::TickIndex;
 use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin, Powered,
+    Building, BuildingEdit, BuildingEditQueue, BuildingKind, Powered,
 };
 use soviet_simulator::sim::clock::SECS_PER_PASS;
-use soviet_simulator::sim::heat::{Climate, HeatSimPlugin, Heated};
+use soviet_simulator::sim::heat::{Climate, Heated};
 use soviet_simulator::sim::resources::{Inventory, ResourceKind};
-use soviet_simulator::sim::water::{WaterSimPlugin, Watered};
-use soviet_simulator::sim::wires::{NetKind, WireEdit, WireEditQueue, WireSimPlugin};
-use soviet_simulator::sim::{SimPlugin, TickIndex};
+use soviet_simulator::sim::water::Watered;
+use soviet_simulator::sim::wires::{NetKind, WireEdit, WireEditQueue};
 
 const DISTRICTS: u32 = 4;
 const SPACING: f32 = 600.0;
@@ -46,13 +47,25 @@ fn tick(app: &mut App) {
 fn main() {
     let mut app = App::new();
     app.insert_resource(Time::<()>::default());
-    app.add_plugins((
-        SimPlugin,
-        BuildingSimPlugin,
-        WireSimPlugin,
-        WaterSimPlugin,
-        HeatSimPlugin,
-    ));
+    // The utility web only: buildings are placed already-finished (no
+    // construction plugin, so no ConstructionSite ever attaches), no roads,
+    // no fleet, no citizens, no customs, no save/load.
+    app.add_plugins(
+        SimPlugins
+            .build()
+            .disable::<soviet_simulator::sim::roads::RoadSimPlugin>()
+            .disable::<soviet_simulator::sim::storage::StorageSimPlugin>()
+            .disable::<soviet_simulator::sim::households::HouseholdSimPlugin>()
+            .disable::<soviet_simulator::sim::labour::LabourSimPlugin>()
+            .disable::<soviet_simulator::sim::commute::CommuteSimPlugin>()
+            .disable::<soviet_simulator::sim::needs::NeedsSimPlugin>()
+            .disable::<soviet_simulator::sim::vehicles::VehicleSimPlugin>()
+            .disable::<soviet_simulator::sim::dispatch::DispatchSimPlugin>()
+            .disable::<soviet_simulator::sim::construction::ConstructionSimPlugin>()
+            .disable::<soviet_simulator::sim::zoning::ZoningSimPlugin>()
+            .disable::<soviet_simulator::sim::customs::CustomsSimPlugin>()
+            .disable::<soviet_simulator::sim::save::SaveSimPlugin>(),
+    );
 
     // Layout per district: a 10×5 dwelling grid, a factory row south of it,
     // and the plant rows east. Positions are what the wire edits snap to.

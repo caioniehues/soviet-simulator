@@ -29,19 +29,18 @@ use bevy::time::TimeUpdateStrategy;
 use bevy::window::ExitCondition;
 use bevy::winit::WinitPlugin;
 
-use soviet_simulator::game::GamePlugin;
+use soviet_simulator::SimPlugins;
+use soviet_simulator::game::GamePlugins;
 use soviet_simulator::game::camera::CameraRig;
 use soviet_simulator::game::hud::{PlanLedgerPanel, Selected};
 use soviet_simulator::game::juice::Hovered;
-use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
-};
-use soviet_simulator::sim::construction::{ConstructionSimPlugin, ConstructionSite};
+use soviet_simulator::sim::SimSpeed;
+use soviet_simulator::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind};
+use soviet_simulator::sim::construction::ConstructionSite;
 use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
-use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue};
 use soviet_simulator::sim::storage::default_policies;
-use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue, VehicleSimPlugin};
-use soviet_simulator::sim::{SimPlugin, SimSpeed};
+use soviet_simulator::sim::vehicles::{VehicleEdit, VehicleEditQueue};
 
 const FPS: f64 = 30.0;
 const WIDTH: u32 = 1280;
@@ -105,32 +104,11 @@ fn main() {
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
         1.0 / FPS,
     )))
-    // Every sim plugin `lib.rs` registers — the HUD hard-requires their
-    // resources, and a capture bin silently rots the moment one is missed.
-    .add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        BuildingSimPlugin,
-        soviet_simulator::sim::storage::StorageSimPlugin,
-        soviet_simulator::sim::households::HouseholdSimPlugin,
-        soviet_simulator::sim::labour::LabourSimPlugin,
-        soviet_simulator::sim::commute::CommuteSimPlugin,
-        soviet_simulator::sim::needs::NeedsSimPlugin,
-        VehicleSimPlugin,
-        // DispatchSimPlugin auto-adds Pathfinding, Traffic and Transit.
-        soviet_simulator::sim::dispatch::DispatchSimPlugin,
-        ConstructionSimPlugin,
-        soviet_simulator::sim::zoning::ZoningSimPlugin,
-        soviet_simulator::sim::water::WaterSimPlugin,
-        soviet_simulator::sim::heat::HeatSimPlugin,
-    ))
-    .add_plugins((
-        soviet_simulator::sim::plan::PlanSimPlugin,
-        soviet_simulator::sim::customs::CustomsSimPlugin,
-        soviet_simulator::sim::wires::WireSimPlugin,
-        soviet_simulator::sim::save::SaveSimPlugin,
-    ))
-    .add_plugins(GamePlugin);
+    // `SimPlugins` is every sim plugin the game runs — the HUD hard-requires
+    // their resources, and a capture bin silently rots the moment one is
+    // missed by hand-picking a subset instead.
+    .add_plugins(SimPlugins)
+    .add_plugins(GamePlugins);
 
     let target = app
         .world_mut()

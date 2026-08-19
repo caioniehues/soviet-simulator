@@ -778,6 +778,7 @@ mod tests {
     use super::super::buildings::{
         BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
     };
+    use super::super::plan::PlanSimPlugin;
     use super::super::resources::TransportClass;
     use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
     use super::super::storage::{StoragePolicies, StorageSimPlugin};
@@ -793,6 +794,7 @@ mod tests {
             RoadSimPlugin,
             BuildingSimPlugin,
             StorageSimPlugin,
+            PlanSimPlugin,
             VehicleSimPlugin,
             DispatchSimPlugin,
         ));

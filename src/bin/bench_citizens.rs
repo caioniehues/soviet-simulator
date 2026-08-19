@@ -9,23 +9,16 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 
-use soviet_simulator::sim::buildings::{
-    Building, BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
-};
+use soviet_simulator::SimPlugins;
+use soviet_simulator::sim::TickIndex;
+use soviet_simulator::sim::buildings::{Building, BuildingEdit, BuildingEditQueue, BuildingKind};
 use soviet_simulator::sim::citizens::Citizen;
 use soviet_simulator::sim::clock::SECS_PER_PASS;
-use soviet_simulator::sim::commute::CommuteSimPlugin;
-use soviet_simulator::sim::households::HouseholdSimPlugin;
 use soviet_simulator::sim::households::RecruitmentPlan;
-use soviet_simulator::sim::labour::LabourSimPlugin;
-use soviet_simulator::sim::needs::NeedsSimPlugin;
 use soviet_simulator::sim::resources::{Inventory, ResourceKind, TransportClass};
-use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
-use soviet_simulator::sim::vehicles::{
-    ActiveVehicle, VehicleEdit, VehicleEditQueue, VehicleSimPlugin,
-};
-use soviet_simulator::sim::wires::{WireEdit, WireEditQueue, WireSimPlugin};
-use soviet_simulator::sim::{SimPlugin, TickIndex};
+use soviet_simulator::sim::roads::{RoadClass, RoadEdit, RoadEditQueue};
+use soviet_simulator::sim::vehicles::{ActiveVehicle, VehicleEdit, VehicleEditQueue};
+use soviet_simulator::sim::wires::{WireEdit, WireEditQueue};
 
 const CHAINS: u32 = 100;
 const CHAIN_SPACING: f32 = 250.0;
@@ -55,19 +48,18 @@ fn main() {
         roubles: f32::INFINITY,
     });
     app.insert_resource(Time::<()>::default());
-    app.add_plugins((
-        SimPlugin,
-        RoadSimPlugin,
-        BuildingSimPlugin,
-        HouseholdSimPlugin,
-        LabourSimPlugin,
-        CommuteSimPlugin,
-        NeedsSimPlugin,
-        VehicleSimPlugin,
-        soviet_simulator::sim::storage::StorageSimPlugin,
-        soviet_simulator::sim::dispatch::DispatchSimPlugin,
-        WireSimPlugin,
-    ));
+    // The M1 chain load plus citizens: no construction, no zones, no
+    // utility solvers beyond power, no customs, no save/load.
+    app.add_plugins(
+        SimPlugins
+            .build()
+            .disable::<soviet_simulator::sim::construction::ConstructionSimPlugin>()
+            .disable::<soviet_simulator::sim::zoning::ZoningSimPlugin>()
+            .disable::<soviet_simulator::sim::water::WaterSimPlugin>()
+            .disable::<soviet_simulator::sim::heat::HeatSimPlugin>()
+            .disable::<soviet_simulator::sim::customs::CustomsSimPlugin>()
+            .disable::<soviet_simulator::sim::save::SaveSimPlugin>(),
+    );
 
     // The bench_chain layout — 100 disjoint chains stacked along z — plus a
     // dwelling cluster docked at each chain's x=0 node so every chain's jobs

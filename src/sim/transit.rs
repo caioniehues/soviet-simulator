@@ -503,6 +503,7 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            super::super::plan::PlanSimPlugin,
             super::super::vehicles::VehicleSimPlugin,
             TransitSimPlugin,
         ));

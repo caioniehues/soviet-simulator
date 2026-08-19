@@ -434,6 +434,7 @@ mod tests {
     };
     use super::super::households::{HouseholdSimPlugin, RecruitmentPlan};
     use super::super::labour::LabourSimPlugin;
+    use super::super::plan::PlanSimPlugin;
     use super::super::roads::{RoadClass, RoadEdit, RoadEditQueue, RoadSimPlugin};
     use super::*;
     use std::time::Duration;
@@ -445,6 +446,7 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            PlanSimPlugin,
             HouseholdSimPlugin,
             LabourSimPlugin,
             CommuteSimPlugin,
@@ -598,6 +600,7 @@ mod tests {
             SimPlugin,
             RoadSimPlugin,
             BuildingSimPlugin,
+            super::super::plan::PlanSimPlugin,
             HouseholdSimPlugin,
             LabourSimPlugin,
             VehicleSimPlugin,
