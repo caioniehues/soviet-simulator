@@ -45,3 +45,12 @@ what the brief's field list and its equivalence tests could actually prove.
 the pattern to reuse anywhere else a `const` table needs to hold something a builder method
 constructs at runtime: keep the raw data shape, and give the *consuming* code (not the table)
 the one-liner that folds it into the real type when Phase 2 actually reads it.
+
+**Power's utilities phase (2026-08-19) also retired the `PowerOutput` spawn-gate match** in
+`buildings.rs:180` (`apply_building_edits`) — this wasn't in the field-design note above
+because it lives in `buildings.rs`, not one of the three systems Phase 1 named. `flow_output`
+does *not* uniquely mark PowerPlant on its own (HeatPlant is also `Some(flow_output)`, just
+`FlowOutput::Heat`) — the working read is `matches!(spec(kind).flow_output,
+Some(FlowOutput::Power(_)))`, matching the variant, not just presence. `Powered` insertion
+became `spec(kind).power.is_some()` directly — that one *was* a clean presence check, no
+variant-matching needed, since the `power` field carries no producer variant.

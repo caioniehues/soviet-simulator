@@ -7,7 +7,7 @@
 
 use bevy::prelude::*;
 
-use super::buildings::{Building, BuildingKind};
+use super::buildings::Building;
 use super::clock::{FRAMES_PER_GAME_DAY, FrameIndex};
 use super::network::{Components, PriorityClass, allocate};
 use super::stages::{SimStage, SimTick};
@@ -86,14 +86,15 @@ fn attach_heat_components(
     buildings: Query<(&Building, Has<Heated>, Has<HeatOutput>)>,
     mut commands: Commands,
 ) {
+    use super::catalogue::{HeatDemand, spec};
     let Ok((building, has_heated, has_output)) = buildings.get(add.entity) else {
         return;
     };
-    match building.kind {
-        BuildingKind::Dwelling if !has_heated => {
+    match spec(building.kind).heat {
+        Some(HeatDemand::Consumer) if !has_heated => {
             commands.entity(add.entity).insert(Heated::default());
         }
-        BuildingKind::HeatPlant if !has_output => {
+        Some(HeatDemand::Producer) if !has_output => {
             commands.entity(add.entity).insert(HeatOutput::default());
         }
         _ => {}
@@ -140,7 +141,7 @@ fn solve_heat(
 #[cfg(test)]
 mod tests {
     use super::super::SimPlugin;
-    use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin};
+    use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin};
     use super::super::resources::{Inventory, ResourceKind};
     use super::super::wires::{PoleId, SpanId, WirePole};
     use super::*;
@@ -160,6 +161,19 @@ mod tests {
                 .advance_by(Duration::from_secs_f64(1.0 / 60.0 + 1e-9));
             app.update();
         }
+    }
+
+    fn place_building(app: &mut App, kind: BuildingKind, pos: Vec3) {
+        app.world_mut()
+            .resource_mut::<BuildingEditQueue>()
+            .0
+            .push(BuildingEdit::Place { kind, pos });
+    }
+
+    fn building_entity(app: &mut App, kind: BuildingKind) -> Entity {
+        let world = app.world_mut();
+        let mut q = world.query::<(Entity, &Building)>();
+        q.iter(world).find(|(_, b)| b.kind == kind).unwrap().0
     }
 
     #[test]
@@ -301,5 +315,76 @@ mod tests {
             0.0,
             "a site is not a plant: it must not emit heat while it is still being built"
         );
+    }
+
+    /// Mirrors `wires`'s `the_grid_serves_exactly_the_draw_the_power_column_claims`:
+    /// membership on the district net must come from the `heat` column alone, not
+    /// from a kind's identity — a `None` row earns no `Heated` gate, `Producer`
+    /// earns no `Heated` gate either (that's `HeatOutput`'s job), and `Consumer`
+    /// both earns the gate and is servable through exactly the pool it claims.
+    #[test]
+    fn the_district_heats_exactly_the_draw_the_heat_column_claims() {
+        use super::super::catalogue::{HeatDemand, spec};
+        for kind in BuildingKind::ALL {
+            let mut app = app();
+            {
+                // midwinter: a consumer's demand is nonzero, so the servable
+                // check below actually exercises the grid instead of the
+                // "zero demand is trivially met" shortcut in `solve_heat`.
+                let mut climate = app.world_mut().resource_mut::<Climate>();
+                climate.auto = false;
+                climate.temperature = -10.0;
+            }
+            place_building(&mut app, kind, Vec3::ZERO);
+            ticks(&mut app, 2);
+            let building = building_entity(&mut app, kind);
+            match spec(kind).heat {
+                None => {
+                    assert!(
+                        app.world().get::<Heated>(building).is_none(),
+                        "{kind:?} claims no heat role, so it must carry no `Heated` gate — \
+                         `solve_heat`'s query requires one, and a gate here would put the \
+                         kind on the district net the table says it is off"
+                    );
+                }
+                Some(HeatDemand::Producer) => {
+                    assert!(
+                        app.world().get::<Heated>(building).is_none(),
+                        "{kind:?} produces heat, it does not draw it — it must not carry \
+                         a `Heated` gate"
+                    );
+                }
+                Some(HeatDemand::Consumer) => {
+                    assert!(
+                        app.world().get::<Heated>(building).is_some(),
+                        "{kind:?} claims a heat draw but never earned a `Heated` gate, \
+                         so `solve_heat` cannot see it at all"
+                    );
+                    let demand = dwelling_heat_demand(-10.0);
+                    assert!(demand > 0.0, "midwinter must give a real draw to test against");
+                    // A bare source: no `Building`, so `produce_flows` never
+                    // overwrites it and the component's pool is exactly what
+                    // this test says.
+                    let source = app.world_mut().spawn(HeatOutput(demand)).id();
+                    app.world_mut().spawn(WireSpan {
+                        id: SpanId(9_000),
+                        a: source,
+                        b: building,
+                        kind: NetKind::Heat,
+                    });
+                    ticks(&mut app, 1);
+                    assert!(
+                        app.world().get::<Heated>(building).unwrap().0,
+                        "{kind:?}: a pool of exactly its claimed {demand} heat must serve it"
+                    );
+                    app.world_mut().get_mut::<HeatOutput>(source).unwrap().0 = demand * 0.99;
+                    ticks(&mut app, 1);
+                    assert!(
+                        !app.world().get::<Heated>(building).unwrap().0,
+                        "{kind:?}: one percent short of its claimed {demand} heat must starve it"
+                    );
+                }
+            }
+        }
     }
 }

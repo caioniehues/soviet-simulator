@@ -177,14 +177,12 @@ pub(crate) fn apply_building_edits(
                     },
                     Inventory::new(kind.inventory_capacity()),
                 ));
-                match kind {
-                    BuildingKind::PowerPlant => {
-                        entity.insert(PowerOutput::default());
-                    }
-                    BuildingKind::Factory | BuildingKind::Dwelling => {
-                        entity.insert(Powered::default());
-                    }
-                    _ => {}
+                let row = super::catalogue::spec(kind);
+                if matches!(row.flow_output, Some(super::catalogue::FlowOutput::Power(_))) {
+                    entity.insert(PowerOutput::default());
+                }
+                if row.power.is_some() {
+                    entity.insert(Powered::default());
                 }
             }
             BuildingEdit::Demolish { building } => {

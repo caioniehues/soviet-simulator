@@ -7,7 +7,7 @@
 
 use bevy::prelude::*;
 
-use super::buildings::{Building, BuildingKind, FACTORY_DEMAND_MW, PowerOutput, Powered};
+use super::buildings::{Building, PowerOutput, Powered};
 use super::stages::{ApplyCommandsFlush, SimStage, SimTick};
 
 /// Endpoint clicks snap to an existing pole within this radius.
@@ -205,7 +205,7 @@ fn solve_power(
     outputs: Query<(Entity, &PowerOutput)>,
     mut consumers: Query<(Entity, &Building, &mut Powered)>,
 ) {
-    use super::buildings::DWELLING_DEMAND_MW;
+    use super::catalogue::spec;
     use super::network::{Components, PriorityClass, allocate};
     let mut components = Components::from_spans(
         spans
@@ -215,10 +215,10 @@ fn solve_power(
     );
     let demands: Vec<(Entity, u64, PriorityClass, f32)> = consumers
         .iter()
-        .filter_map(|(e, b, _)| match b.kind {
-            BuildingKind::Factory => Some((e, b.id.0, PriorityClass::Industry, FACTORY_DEMAND_MW)),
-            BuildingKind::Dwelling => Some((e, b.id.0, PriorityClass::Housing, DWELLING_DEMAND_MW)),
-            _ => None,
+        .filter_map(|(e, b, _)| {
+            spec(b.kind)
+                .power
+                .map(|demand| (e, b.id.0, demand.priority, demand.rate))
         })
         .collect();
     let served = allocate(
@@ -239,7 +239,8 @@ fn solve_power(
 mod tests {
     use super::super::SimPlugin;
     use super::super::buildings::{
-        BuildingEdit, BuildingEditQueue, BuildingSimPlugin, FACTORY_GOODS_RATE, PLANT_OUTPUT_MW,
+        BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin, FACTORY_DEMAND_MW,
+        FACTORY_GOODS_RATE, PLANT_OUTPUT_MW,
     };
     use super::super::resources::{Inventory, ResourceKind};
     use super::*;
@@ -446,5 +447,64 @@ mod tests {
             powered_factories, 2,
             "10 MW − 2×{DWELLING_DEMAND_MW} MW homes leaves room for two 4 MW factories"
         );
+    }
+
+    /// Every kind's power role, read off the catalogue and checked against what
+    /// the grid actually does — the witness that survives `solve_power` reading
+    /// the column instead of matching on the kind.
+    ///
+    /// Two claims per kind, and neither can go tautological. Presence of the
+    /// `Powered` gate is a *spawn-time* decision in `buildings.rs`, and
+    /// `solve_power`'s query requires the component, so a kind that claims a
+    /// draw but never earns one is skipped entirely — the row would be a lie
+    /// nobody reads. The served/starved threshold is `network::allocate`'s
+    /// arithmetic against a pool set to exactly the claimed rate: a row bound to
+    /// the wrong constant moves the cut, which is the `MINE_COAL_RATE ==
+    /// QUARRY_GRAVEL_RATE` trap the Phase 1b review named, on the utility side.
+    #[test]
+    fn the_grid_serves_exactly_the_draw_the_power_column_claims() {
+        use super::super::catalogue::spec;
+        for kind in BuildingKind::ALL {
+            let mut app = app();
+            place_building(&mut app, kind, Vec3::ZERO);
+            ticks(&mut app, 2);
+            let building = building_entity(&mut app, kind);
+            let Some(demand) = spec(kind).power else {
+                assert!(
+                    app.world().get::<Powered>(building).is_none(),
+                    "{kind:?} claims no power draw, so it must carry no gate — \
+                     `solve_power`'s query requires one, and a gate here would \
+                     put the kind on the grid the table says it is off"
+                );
+                continue;
+            };
+            assert!(
+                app.world().get::<Powered>(building).is_some(),
+                "{kind:?} claims a power draw but never earned a `Powered` gate, \
+                 so `solve_power` cannot see it at all"
+            );
+            // A bare source: no `Building`, so `produce_flows` never overwrites
+            // it and the component's pool is exactly what this test says.
+            let source = app.world_mut().spawn(PowerOutput(demand.rate)).id();
+            app.world_mut().spawn(WireSpan {
+                id: SpanId(9_000),
+                a: source,
+                b: building,
+                kind: NetKind::Power,
+            });
+            ticks(&mut app, 1);
+            assert!(
+                app.world().get::<Powered>(building).unwrap().0,
+                "{kind:?}: a pool of exactly its claimed {} MW must serve it",
+                demand.rate
+            );
+            app.world_mut().get_mut::<PowerOutput>(source).unwrap().0 = demand.rate * 0.99;
+            ticks(&mut app, 1);
+            assert!(
+                !app.world().get::<Powered>(building).unwrap().0,
+                "{kind:?}: one percent short of its claimed {} MW must starve it",
+                demand.rate
+            );
+        }
     }
 }

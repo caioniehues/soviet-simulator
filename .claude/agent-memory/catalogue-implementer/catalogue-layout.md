@@ -41,11 +41,20 @@ See [[catalogue-test-traps]] before deleting the next one.
   per-kind match — `water.rs:63-97`, matches consumers *and* type-filters `WaterPump`/
   `SewagePlant` directly inside its query filter closures (`.filter(|(_, b)| b.kind == ...)`),
   unlike power where the producer side is generic.
-- `attach_heat_components` — `heat.rs:82-99` (component gate: Dwelling→`Heated`,
+- `attach_heat_components` — `heat.rs:84-101` (component gate: Dwelling→`Heated`,
   HeatPlant→`HeatOutput`). The dwelling's actual heat *rate* is not here — it's
   `heat::dwelling_heat_demand(climate.temperature)` (`heat.rs:54`), computed fresh every
   `solve_heat` tick from the shared `Climate` resource, not a per-kind constant. There is no
   fixed number to put in a spec table for this without duplicating the formula.
+  **Status (2026-08-19): converted.** Now `match spec(building.kind).heat { Some(Consumer)
+  => Heated, Some(Producer) => HeatOutput, _ => {} }` — one column drives both arms, no need
+  to reach for `flow_output` as a second discriminant for the Producer case (the brief
+  suggested checking `flow_output`, but `HeatDemand::Producer` already exists in the same
+  column and is a cleaner, narrower read). This converted `catalogue.rs`'s
+  `heat_demand_matches_attach_heat_components_s_per_kind_match` (`catalogue.rs:718-728`) into
+  the tautology [[catalogue-test-traps]] warned about — it's now comparing a second
+  hand-transcription of the same table against itself. Flagged for the orchestrator to
+  delete; not deleted here (out of `heat.rs`'s file scope).
 - Save discriminant — `save.rs:235-267`, `kind_to_u8`/`kind_from_u8`, a hand-paired match in
   each direction. Confirmed (2026-08-17) this order is identical to the enum's declaration
   order in `buildings.rs` — i.e. identical to what `BuildingKind::ALL` now lists in

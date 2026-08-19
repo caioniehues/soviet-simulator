@@ -10,7 +10,8 @@
 
 use bevy::prelude::*;
 
-use super::buildings::{Building, BuildingKind};
+use super::buildings::Building;
+use super::catalogue::{WaterDemand, spec};
 use super::network::{Components, PriorityClass, allocate};
 use super::stages::{SimStage, SimTick};
 use super::wires::{NetKind, WireSpan};
@@ -47,10 +48,7 @@ fn attach_watered(
     mut commands: Commands,
 ) {
     if let Ok((building, has)) = buildings.get(add.entity)
-        && matches!(
-            building.kind,
-            BuildingKind::Factory | BuildingKind::Dwelling
-        )
+        && matches!(spec(building.kind).water, Some(WaterDemand::Draws(_)))
         && !has
     {
         commands.entity(add.entity).insert(Watered::default());
@@ -85,26 +83,25 @@ fn solve_water(
     );
     let demands: Vec<(Entity, u64, PriorityClass, f32)> = consumers
         .iter()
-        .filter_map(|(e, b, _)| match b.kind {
-            BuildingKind::Dwelling => Some((e, b.id.0, PriorityClass::Housing, DWELLING_WATER)),
-            BuildingKind::Factory => Some((e, b.id.0, PriorityClass::Industry, FACTORY_WATER)),
+        .filter_map(|(e, b, _)| match spec(b.kind).water {
+            Some(WaterDemand::Draws(demand)) => Some((e, b.id.0, demand.priority, demand.rate)),
             _ => None,
         })
         .collect();
     let supplied = allocate(
         &mut components,
-        plants
-            .iter()
-            .filter(|(_, b)| b.kind == BuildingKind::WaterPump)
-            .map(|(e, _)| (e, PUMP_SUPPLY)),
+        plants.iter().filter_map(|(e, b)| match spec(b.kind).water {
+            Some(WaterDemand::Supplies(rate)) => Some((e, rate)),
+            _ => None,
+        }),
         &demands,
     );
     let drained = allocate(
         &mut components,
-        plants
-            .iter()
-            .filter(|(_, b)| b.kind == BuildingKind::SewagePlant)
-            .map(|(e, _)| (e, SEWAGE_CAPACITY)),
+        plants.iter().filter_map(|(e, b)| match spec(b.kind).water {
+            Some(WaterDemand::Drains(rate)) => Some((e, rate)),
+            _ => None,
+        }),
         &demands,
     );
     for (entity, _, mut watered) in &mut consumers {
@@ -119,7 +116,9 @@ fn solve_water(
 #[cfg(test)]
 mod tests {
     use super::super::SimPlugin;
-    use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingSimPlugin, Powered};
+    use super::super::buildings::{
+        BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin, Powered,
+    };
     use super::super::resources::{Inventory, ResourceKind};
     use super::super::wires::{WireEdit, WireEditQueue, WireSimPlugin};
     use super::*;
@@ -167,6 +166,21 @@ mod tests {
             .find(|(_, b)| b.kind == kind)
             .unwrap()
             .0
+    }
+
+    /// Every entity of `kind`, oldest first. `allocate`'s tie-break is by
+    /// `BuildingId`, not query order, so the boundary test below needs this
+    /// rather than `entity_of` once more than one instance exists.
+    fn entities_of(app: &mut App, kind: BuildingKind) -> Vec<Entity> {
+        let world = app.world_mut();
+        let mut found: Vec<(u64, Entity)> = world
+            .query::<(Entity, &Building)>()
+            .iter(world)
+            .filter(|(_, b)| b.kind == kind)
+            .map(|(e, b)| (b.id.0, e))
+            .collect();
+        found.sort_by_key(|(id, _)| *id);
+        found.into_iter().map(|(_, e)| e).collect()
     }
 
     #[test]
@@ -299,5 +313,68 @@ mod tests {
             !app.world().get::<Watered>(factory).unwrap().0,
             "a site is not a pump: it must not supply the net while it is still being built"
         );
+    }
+
+    /// The water analogue of `wires.rs`'s power witness. Power has a free
+    /// per-test knob (a bare `PowerOutput` entity) because `solve_power`
+    /// never kind-matches its producer; water's pump/sewage rates are
+    /// catalogue constants (`PUMP_SUPPLY`/`SEWAGE_CAPACITY`) fixed at 20.0,
+    /// so the same "exact rate, then 1% short" trick has no lever to pull on
+    /// the supply side. The lever that does exist: place exactly
+    /// `pool / rate` consumers of `kind` on one pump+sewage cycle — the pool
+    /// covers all of them with nothing to spare — then one more. If the
+    /// solve pass is reading anything but `kind`'s claimed rate off the
+    /// catalogue, either the first batch comes up short or the extra one
+    /// slips through served.
+    #[test]
+    fn the_cycle_serves_exactly_the_draw_the_water_column_claims() {
+        for kind in BuildingKind::ALL {
+            let Some(WaterDemand::Draws(demand)) = spec(kind).water else {
+                let mut app = app();
+                place(&mut app, kind, Vec3::ZERO);
+                ticks(&mut app, 2);
+                let building = entity_of(&mut app, kind);
+                assert!(
+                    app.world().get::<Watered>(building).is_none(),
+                    "{kind:?} claims no water draw, so it must carry no gate"
+                );
+                continue;
+            };
+            let pool = PUMP_SUPPLY.min(SEWAGE_CAPACITY);
+            let served_count = (pool / demand.rate).floor() as usize;
+
+            let mut app = app();
+            let pump_pos = Vec3::new(-1_000.0, 0.0, 0.0);
+            let sewage_pos = Vec3::new(1_000.0, 0.0, 0.0);
+            place(&mut app, BuildingKind::WaterPump, pump_pos);
+            place(&mut app, BuildingKind::SewagePlant, sewage_pos);
+            for i in 0..served_count + 1 {
+                let pos = Vec3::new(60.0 * i as f32, 0.0, 0.0);
+                place(&mut app, kind, pos);
+            }
+            ticks(&mut app, 2);
+            for i in 0..served_count + 1 {
+                let pos = Vec3::new(60.0 * i as f32, 0.0, 0.0);
+                pipe(&mut app, pump_pos, pos);
+                pipe(&mut app, pos, sewage_pos);
+            }
+            ticks(&mut app, 2);
+
+            let consumers = entities_of(&mut app, kind);
+            assert_eq!(consumers.len(), served_count + 1);
+            for &c in &consumers[..served_count] {
+                assert!(
+                    app.world().get::<Watered>(c).unwrap().0,
+                    "{kind:?}: a pool of exactly {served_count} × its claimed {} must serve all {served_count}",
+                    demand.rate
+                );
+            }
+            assert!(
+                !app.world().get::<Watered>(consumers[served_count]).unwrap().0,
+                "{kind:?}: the pool has nothing left over the first {served_count}, \
+                 so one more at its claimed {} must go unserved",
+                demand.rate
+            );
+        }
     }
 }
