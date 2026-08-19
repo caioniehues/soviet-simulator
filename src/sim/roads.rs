@@ -251,12 +251,11 @@ fn apply_road_edits(world: &mut World) {
 
 fn snap_or_create_node(world: &mut World, pos: Vec3) -> Entity {
     let mut nodes = world.query::<(Entity, &RoadNode)>();
-    let snapped = nodes
-        .iter(world)
-        .map(|(e, n)| (e, n.pos.distance_squared(pos)))
-        .filter(|(_, d2)| *d2 <= SNAP_RADIUS * SNAP_RADIUS)
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(e, _)| e);
+    let snapped = super::node_snap::nearest_node_within(
+        nodes.iter(world).map(|(e, n)| (e, n.pos)),
+        pos,
+        SNAP_RADIUS,
+    );
     snapped.unwrap_or_else(|| {
         let id = {
             let mut ids = world.resource_mut::<RoadIds>();
@@ -277,12 +276,15 @@ fn snap_or_create_node(world: &mut World, pos: Vec3) -> Entity {
 /// the cost and duplicate checks must run before any node is created.
 fn snapped_node(world: &mut World, pos: Vec3) -> (Option<Entity>, Vec3) {
     let mut nodes = world.query::<(Entity, &RoadNode)>();
-    nodes
-        .iter(world)
-        .map(|(e, n)| (e, n.pos, n.pos.distance_squared(pos)))
-        .filter(|(.., d2)| *d2 <= SNAP_RADIUS * SNAP_RADIUS)
-        .min_by(|a, b| a.2.total_cmp(&b.2))
-        .map_or((None, pos), |(e, p, _)| (Some(e), p))
+    let snapped = super::node_snap::nearest_node_within(
+        nodes.iter(world).map(|(e, n)| (e, n.pos)),
+        pos,
+        SNAP_RADIUS,
+    );
+    match snapped {
+        Some(e) => (Some(e), world.get::<RoadNode>(e).unwrap().pos),
+        None => (None, pos),
+    }
 }
 
 /// Drain `cost` tonnes of gravel from yards within `GRAVEL_SUPPLY_RADIUS` of
@@ -293,7 +295,7 @@ fn pay_gravel(world: &mut World, a: Vec3, b: Vec3, cost: f32) -> bool {
     let mut candidates: Vec<(f32, u64, Entity, f32)> = yards
         .iter(world)
         .map(|(e, building, inventory)| {
-            let d = point_to_segment_distance(building.pos, a, b);
+            let d = super::node_snap::point_to_segment_distance(building.pos, a, b);
             (d, building.id.0, e, inventory.amount(ResourceKind::Gravel))
         })
         .filter(|(d, .., gravel)| *d <= GRAVEL_SUPPLY_RADIUS && *gravel > 0.0)
@@ -382,15 +384,13 @@ fn place_segment(world: &mut World, from: Vec3, to: Vec3, class: RoadClass) {
 
 fn remove_segment_near(world: &mut World, pos: Vec3) {
     let mut segments = world.query::<(Entity, &RoadSegment)>();
-    let hit = segments
-        .iter(world)
-        .filter_map(|(e, s)| {
-            let (pa, pb) = endpoint_positions(world, s)?;
-            Some((e, point_to_segment_distance(pos, pa, pb)))
-        })
-        .filter(|(_, d)| *d <= SNAP_RADIUS)
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(e, _)| e);
+    let hit = super::node_snap::nearest_edge_within(
+        segments
+            .iter(world)
+            .filter_map(|(e, s)| endpoint_positions(world, s).map(|(pa, pb)| (e, pa, pb))),
+        pos,
+        SNAP_RADIUS,
+    );
     let Some(segment) = hit else { return };
     let (a, b, class) = {
         let s = world.get::<RoadSegment>(segment).unwrap();
@@ -433,12 +433,6 @@ fn endpoint_positions(world: &World, s: &RoadSegment) -> Option<(Vec3, Vec3)> {
         world.get::<RoadNode>(s.a)?.pos,
         world.get::<RoadNode>(s.b)?.pos,
     ))
-}
-
-fn point_to_segment_distance(p: Vec3, a: Vec3, b: Vec3) -> f32 {
-    let ab = b - a;
-    let t = ((p - a).dot(ab) / ab.length_squared()).clamp(0.0, 1.0);
-    p.distance(a + ab * t)
 }
 
 /// Unit travel direction *into* segment `this` at `node` (whose far endpoint

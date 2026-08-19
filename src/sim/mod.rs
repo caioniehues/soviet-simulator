@@ -14,6 +14,7 @@ pub mod households;
 pub mod labour;
 pub mod needs;
 pub mod network;
+pub mod node_snap;
 pub mod pathfinding;
 pub mod plan;
 pub mod production;

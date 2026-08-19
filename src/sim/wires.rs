@@ -108,13 +108,14 @@ fn endpoint_at(world: &mut World, pos: Vec3, kind: NetKind) -> Entity {
         return building;
     }
     let mut poles = world.query::<(Entity, &WirePole)>();
-    let snapped = poles
-        .iter(world)
-        .filter(|(_, p)| p.kind == kind)
-        .map(|(e, p)| (e, p.pos.distance_squared(pos)))
-        .filter(|(_, d2)| *d2 <= POLE_SNAP_RADIUS * POLE_SNAP_RADIUS)
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(e, _)| e);
+    let snapped = super::node_snap::nearest_node_within(
+        poles
+            .iter(world)
+            .filter(|(_, p)| p.kind == kind)
+            .map(|(e, p)| (e, p.pos)),
+        pos,
+        POLE_SNAP_RADIUS,
+    );
     snapped.unwrap_or_else(|| {
         let id = {
             let mut ids = world.resource_mut::<WireIds>();
@@ -165,18 +166,16 @@ fn remove_span_near(world: &mut World, pos: Vec3) {
     let mut spans = world.query::<(Entity, &WireSpan)>();
     let candidates: Vec<(Entity, Entity, Entity)> =
         spans.iter(world).map(|(e, s)| (e, s.a, s.b)).collect();
-    let hit = candidates
-        .into_iter()
-        .filter_map(|(e, a, b)| {
+    let hit = super::node_snap::nearest_edge_within(
+        candidates.iter().filter_map(|&(e, a, b)| {
             let (pa, pb) = (endpoint_pos(world, a)?, endpoint_pos(world, b)?);
-            let ab = pb - pa;
-            let t = ((pos - pa).dot(ab) / ab.length_squared()).clamp(0.0, 1.0);
-            Some((e, a, b, pos.distance(pa + ab * t)))
-        })
-        .filter(|(.., d)| *d <= POLE_SNAP_RADIUS)
-        .min_by(|a, b| a.3.total_cmp(&b.3))
-        .map(|(e, a, b, _)| (e, a, b));
-    let Some((span, a, b)) = hit else { return };
+            Some((e, pa, pb))
+        }),
+        pos,
+        POLE_SNAP_RADIUS,
+    );
+    let Some(span) = hit else { return };
+    let (_, a, b) = *candidates.iter().find(|(e, ..)| *e == span).unwrap();
     world.despawn(span);
     // orphaned poles go with their last span; buildings stay
     for endpoint in [a, b] {
