@@ -464,6 +464,18 @@ dispatcher cannot feed pulse a red ring.
 `docs/charter-1.0.md` is the plan of record — sixteen rungs, R0..R15, with a
 fixed cut line and a fixed acceptance bar. `ROADMAP.md` is history now.
 
+Between R0 and R1 the building catalogue landed (ADR 0017, phases 1–6, all
+gated): per-kind data — footprint, capacity, workers, bands, recipes, utility
+demands, art facts — now lives in `sim/catalogue.rs` + `game/art.rs` tables.
+An eight-brief review fleet (2026-08-19) then audited the whole project
+against the charter; its verified findings and the fixes shipped are in the
+Congress Report artifact. Headlines still open: the First Plan is unstartable
+from the shipped start (no seed gravel/goods — decision pending between a
+starter warehouse and customs imports), the attendance coupling is dead code
+(cold/dark/overcrowded homes are cosmetic), and R1's v6 save break must carry
+the load-path family (construction state, machine kinds, zoning, transit
+lines, derived-cache resets).
+
 R0 "The State Document" is done (above). **Next: R1 "The Planner's Hands"** —
 placement snapping and a ghost preview that shows cost and refusal reason,
 one-level undo, tooltips, an inspect-depth panel answering "why is this not
