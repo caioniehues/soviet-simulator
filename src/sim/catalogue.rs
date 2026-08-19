@@ -210,7 +210,7 @@ pub const BUILDINGS: [BuildingSpec; BuildingKind::COUNT] = [
         flow_output: None,
         power: Some(UtilityDemand {
             rate: DWELLING_DEMAND_MW,
-            priority: PriorityClass::Industry,
+            priority: PriorityClass::Housing,
         }),
         water: Some(WaterDemand::Draws(UtilityDemand {
             rate: DWELLING_WATER,

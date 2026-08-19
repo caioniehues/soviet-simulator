@@ -178,7 +178,10 @@ pub(crate) fn apply_building_edits(
                     Inventory::new(kind.inventory_capacity()),
                 ));
                 let row = super::catalogue::spec(kind);
-                if matches!(row.flow_output, Some(super::catalogue::FlowOutput::Power(_))) {
+                if matches!(
+                    row.flow_output,
+                    Some(super::catalogue::FlowOutput::Power(_))
+                ) {
                     entity.insert(PowerOutput::default());
                 }
                 if row.power.is_some() {

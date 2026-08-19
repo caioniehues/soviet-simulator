@@ -449,6 +449,67 @@ mod tests {
         );
     }
 
+    /// Pins the Dwelling row's `PriorityClass::Housing` itself, which the
+    /// starved-grid test above cannot: there the leftover pool happens to
+    /// cover both homes even under flat id-order, so a class flip changes
+    /// nothing it asserts. Here the pool is sized so the two answers differ —
+    /// 9 MW against two factories (8 MW, lower ids) and three homes (3 MW):
+    /// Housing-first serves 3 homes + 1 factory; id-order would serve
+    /// 2 factories + 1 home. The catalogue mutation this exists to catch was
+    /// real (phase 6 shipped it): Housing → Industry passed all 153 tests.
+    #[test]
+    fn a_priority_flip_on_the_dwelling_row_cannot_hide_in_the_leftovers() {
+        let mut app = app();
+        // Factories first: flat id-order would hand them the pool.
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(40.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Factory, Vec3::new(80.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Dwelling, Vec3::new(120.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Dwelling, Vec3::new(160.0, 0.0, 0.0));
+        place_building(&mut app, BuildingKind::Dwelling, Vec3::new(200.0, 0.0, 0.0));
+        ticks(&mut app, 2);
+        // A bare 9 MW source (no `Building`, so `produce_flows` never
+        // overwrites it), spanned to every consumer — the witness-test trick.
+        let source = app.world_mut().spawn(PowerOutput(9.0)).id();
+        let consumers: Vec<Entity> = {
+            let world = app.world_mut();
+            world
+                .query::<(Entity, &super::super::buildings::Building)>()
+                .iter(world)
+                .map(|(e, _)| e)
+                .collect()
+        };
+        for (i, consumer) in consumers.into_iter().enumerate() {
+            app.world_mut().spawn(WireSpan {
+                id: SpanId(9_100 + i as u64),
+                a: source,
+                b: consumer,
+                kind: NetKind::Power,
+            });
+        }
+        ticks(&mut app, 1);
+        let world = app.world_mut();
+        let mut powered_homes = 0;
+        let mut powered_factories = 0;
+        for (b, p) in world
+            .query::<(&super::super::buildings::Building, &Powered)>()
+            .iter(world)
+        {
+            match (b.kind, p.0) {
+                (BuildingKind::Dwelling, true) => powered_homes += 1,
+                (BuildingKind::Factory, true) => powered_factories += 1,
+                _ => {}
+            }
+        }
+        assert_eq!(
+            powered_homes, 3,
+            "every home lights before any surplus reaches industry"
+        );
+        assert_eq!(
+            powered_factories, 1,
+            "9 MW − 3 MW of homes leaves room for exactly one 4 MW factory"
+        );
+    }
+
     /// Every kind's power role, read off the catalogue and checked against what
     /// the grid actually does — the witness that survives `solve_power` reading
     /// the column instead of matching on the kind.

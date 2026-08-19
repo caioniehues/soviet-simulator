@@ -132,6 +132,28 @@ hazard in §1: both `BUILDING_ART` and `PINNED_ART` carry an explicit `kind` fie
 against `BuildingKind::ALL[i]`, so the pin cannot be dragged into alignment with a bad table.
 That two-sided `kind` column is the pattern to demand of every future pin.
 
+## 8. The phase 6 utility witnesses are circular against column mutations — and priority
+## has no witness at all (PROVEN LIVE, 2026-08-19)
+
+`the_grid_serves_exactly_the_draw_the_power_column_claims` (wires.rs) and its water/heat
+siblings read `spec(kind)` for the *expected* side: gate-presence expectation, and the pool
+they build is `demand.rate` off the same column. The spawn/attach code reads the same column.
+So: give Mine a fabricated `power: Some(…)` row → `Powered` attaches, the witness expects it
+and serves it, green. Take `heat: Some(Consumer)` off Dwelling → no `Heated`, the witness
+expects none, green — while every home freezes. **Membership and rate mutations of the
+power/water/heat columns are catchable only by a historical diff.** (Rates get partial
+secondary coverage from the Liebig/starved-grid tests that mix real constants; membership
+gets none.)
+
+**Priority is worse: zero witnesses, and the gap shipped a real regression.** Phase 6 flipped
+Dwelling's power priority Housing → Industry and 153 stayed green. The one contention test,
+`starved_grid_serves_homes_before_factories`, passes by arithmetic accident: 10 MW pool,
+3×4 MW factories + 2×1 MW homes — with everyone in one class the third factory doesn't fit
+and the leftover 2 MW lights both homes anyway, so both asserted counts coincide. **A
+contention test whose starved consumer's demand exceeds the leftover pool is the only shape
+that pins a priority.** E.g. 2 factories + 3 homes on 9 MW: Housing-first = 3 homes + 1
+factory; flat = 2 factories + 1 home.
+
 ## Mutation testing works well here and is cheap
 
 `cargo test --lib` runs in ~0.46s. Back up all touched files (`cp` + `md5sum`), plant one

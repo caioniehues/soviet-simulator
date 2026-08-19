@@ -141,7 +141,9 @@ fn solve_heat(
 #[cfg(test)]
 mod tests {
     use super::super::SimPlugin;
-    use super::super::buildings::{BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin};
+    use super::super::buildings::{
+        BuildingEdit, BuildingEditQueue, BuildingKind, BuildingSimPlugin,
+    };
     use super::super::resources::{Inventory, ResourceKind};
     use super::super::wires::{PoleId, SpanId, WirePole};
     use super::*;
@@ -361,7 +363,10 @@ mod tests {
                          so `solve_heat` cannot see it at all"
                     );
                     let demand = dwelling_heat_demand(-10.0);
-                    assert!(demand > 0.0, "midwinter must give a real draw to test against");
+                    assert!(
+                        demand > 0.0,
+                        "midwinter must give a real draw to test against"
+                    );
                     // A bare source: no `Building`, so `produce_flows` never
                     // overwrites it and the component's pool is exactly what
                     // this test says.

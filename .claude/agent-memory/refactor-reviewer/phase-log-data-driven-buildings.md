@@ -137,19 +137,80 @@ every reorder variant), 4 done by parser instead of an in-tree oracle — cheape
 no leftover (grep for `committed_kind`/`temporary_differential` in both files: NONE),
 5 `PINNED_COLUMNS` intact and *widened*, 6 closed.
 
-## Phase 4 — recipes replace four hand-written systems — not yet reviewed
+## Phase 4 — recipes replace four hand-written systems (50031a1) — **PASS** (2026-08-19)
 
-The one intentional behaviour change lives here (`Without<ConstructionSite>` becoming
-structural). Watch for: a *second* behaviour change smuggled alongside it; the labour-factor
-asymmetry being normalised (`run_heat_plants` burns flat, the other three scale by `f`) —
-`one_frame_moves_exactly_what_the_recipe_claims` runs at `f == 1.0` and is **blind** to this,
-so it must be checked by hand; a Phase 4 test that seeds a nearly-full yard and measures
-`Inventory::add`'s shared-capacity clamp instead of a rate.
+Scope: new `src/sim/production.rs` (369 lines), deletions in `buildings.rs`/`heat.rs`,
+ordering edits in `wires.rs`/`water.rs`, `flow_output` column added to the catalogue
+(`Power(PLANT_OUTPUT_MW)` on PowerPlant, `Heat(HEAT_PLANT_OUTPUT)` on HeatPlant, `None`
+elsewhere — all correct vs baseline). Reviewed post-commit; suite 153 green, run by me.
 
-## Phase 6 — utility solves read the table — not yet reviewed
+**The one sanctioned change shipped with real behavioural witnesses**:
+`a_heat_plant_under_construction_burns_nothing_and_warms_nobody` (heat.rs) and
+`a_pump_under_construction_supplies_nothing` (water.rs) — both are genuine before/after
+behaviour tests, not pins. `solve_water` gained the supplier-side `Without<ConstructionSite>`
+explicitly (suppliers have no recipe, so the structural filter in production.rs can't reach
+them — the comment says so, correctly).
 
-The power/water/heat tests go circular in exactly the way the lookup tests did at Phase 2.
-Require a replacement witness *in the same phase*, not deferred.
+**The labour asymmetry watch-item resolved by data, verified**: `labour_factor` returns 1.0
+when `workers_needed == 0` (`labour.rs:62-63`) and HeatPlant's workers column is 0, so
+running the heat plant through the generic curve is a no-op. Correct today, but note:
+**HeatPlant's flat burn is now an emergent property of the workers column** — if R4 ever
+gives HeatPlant workers, its output silently starts scaling by staffing, which the old code
+never did. Not a defect, but a coupling nobody's report names.
+
+Parity checked by hand across all four deleted systems: partial-take-then-zero-output on
+fuel shortage preserved; `run_factories`'s required-`&Powered` skip reproduced as
+`Bound::Power` (same observable: no goods); `watered.is_none_or` semantics reproduced;
+f<=0 power plant zeroes output without burning, same both sides. The scheduling sandwich
+(`produce_flows → solve_power/solve_heat → produce_goods`, `solve_water` before
+`produce_goods`) reproduces the old chain order for every pair that interacts.
+
+New surface (not a regression, worth knowing): `Gated` component, attached by observer to
+producers; an entity stripped of it is silently inert (tested, deliberate, fail-closed).
+
+## Phase 6 — utility solves read the table (e4c7fba) — **BLOCKED** (2026-08-19)
+
+**F1 (BLOCKER) — Dwelling's power priority flipped Housing → Industry in the catalogue, in
+the same commit that deleted the only test pinning it.** `catalogue.rs` Dwelling row,
+`power: Some(UtilityDemand { rate: DWELLING_DEMAND_MW, priority: PriorityClass::Industry })`
+— pre-refactor `solve_power` said `PriorityClass::Housing` (visible in the phase 6 diff's own
+deleted lines, `wires.rs`), and the deleted
+`power_demand_matches_solve_power_s_per_kind_match` expected Housing. The dwelling's *water*
+row still says Housing — the inconsistency is the tell. Not in any plan, report, or the
+implementer's memory notes (which document every other phase 6 decision).
+
+**Why 153 stayed green — an arithmetic accident worth remembering.**
+`starved_grid_serves_homes_before_factories` (wires.rs) is the one cross-class contention
+test: 10 MW pool, 3×4 MW factories + 2×1 MW homes. With everyone Industry, sort falls to
+BuildingId; factories (placed first) take 8, the third factory's 4 doesn't fit, and the
+leftover 2 covers both homes — **both assertion counts (2 homes, 2 factories) coincide with
+the Housing-first result.** Concrete exposing input: 1 plant, 2 factories placed first,
+8 dwellings — old: 8 homes lit + 0 factories... (homes first); new: both factories lit,
+6 homes dark. The new witness is blind to priority by construction (single consumer, no
+contention).
+
+**Everything else in phase 6 is clean**: `solve_power`/`solve_water`/`attach_watered`/
+`attach_heat_components`/`buildings.rs` spawn-attach all map old arms to column reads
+faithfully (checked arm by arm; the `FlowOutput::Power(_)` variant-match for `PowerOutput`
+attach is correct — presence alone would wrongly give HeatPlant a PowerOutput). No constants
+changed across either phase (grepped the combined diff). Scope clean: outside `src/sim/`
+only implementer memory + the phase 4 report. Fix: one word, `Industry` → `Housing`, plus a
+priority witness (see F2).
+
+**F3 (minor, process) — phase 6 committed unformatted code.** `cargo fmt --check` fails on
+four of its own new lines (`buildings.rs:178`, `heat.rs:141`, `heat.rs:361`, `water.rs:370`),
+all pure line-width reflows. The fmt-clean gate had held at every prior phase. Clippy still
+exactly the baseline 4 warnings.
+
+**Environment note (2026-08-19):** an untracked `tests/scratch_review_probe.rs` (another
+reviewer's save/restore probe, not phase scope) sits in the tree — it reds `cargo fmt --check`
+and would be swept by `git add -A`. Same shape as the Phase 3+5 transcript residue.
+
+**F2 (major, the predicted circularity, now proven live)** — the three replacement witnesses
+derive their *expected* membership and rates from `spec(kind)` itself, and the spawn/attach
+code reads the same column, so a column mutation is self-consistent end to end. Priority has
+**no witness at all** — F1 is the live proof. Details in
+[[vacuous-checks-data-driven-buildings]] §8.
 
 ## Phase 5 — the art catalogue (`src/game/art.rs`) — mutation dimension, **PASS with one major** (2026-08-18)
 

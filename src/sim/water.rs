@@ -370,7 +370,10 @@ mod tests {
                 );
             }
             assert!(
-                !app.world().get::<Watered>(consumers[served_count]).unwrap().0,
+                !app.world()
+                    .get::<Watered>(consumers[served_count])
+                    .unwrap()
+                    .0,
                 "{kind:?}: the pool has nothing left over the first {served_count}, \
                  so one more at its claimed {} must go unserved",
                 demand.rate

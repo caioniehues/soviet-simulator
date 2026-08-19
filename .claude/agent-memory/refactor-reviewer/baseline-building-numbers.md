@@ -118,7 +118,8 @@ numerically invisible today — see [[vacuous-checks-data-driven-buildings]].
 ## Utility roles
 
 - power (`solve_power`, `wires.rs:219-226`): Factory `(Industry, 4.0)`, Dwelling
-  `(Housing, 1.0)`, everything else none.
+  `(Housing, 1.0)`, everything else none. **REGRESSED at Phase 6 (e4c7fba): the catalogue's
+  Dwelling row says `Industry` — the baseline value is Housing. Blocked; check it got fixed.**
 - water (`attach_watered` `water.rs:44-58` + `solve_water` `water.rs:63-97`): Dwelling
   draws `(Housing, 1.0)`, Factory draws `(Industry, 2.0)`, WaterPump supplies 20.0,
   SewagePlant drains 20.0.
