@@ -99,6 +99,9 @@
 **Epic:** EPIC-007 — Transport-class compatibility
 **Title:** Transport passengers under the same cargo-class model as freight
 
+**Deferred:** true
+**Deferred reason:** charter:110 "passenger rail, signals, electrification" — and no charter row ships passenger transport at all
+
 **As a** planner
 **I want** a bus/tram to carry citizens as a passenger cargo class using the exact same capacity/cargoClass gating vehicles use for freight
 **So that** passenger transport is not a bolted-on separate system but a confirmed reuse of the freight vehicle model
@@ -117,11 +120,11 @@
 **Title:** Route cargo through medium-transfer cargo stations
 
 **As a** planner
-**I want** a cargo station building to transship goods between transport media (rail to road, road to ship, ship to air) as an explicit node in a multi-modal delivery
+**I want** a cargo station building to transship goods between transport media (rail to road) as an explicit node in a multi-modal delivery
 **So that** a delivery whose fastest/cheapest route crosses media isn't blocked by the single-medium vehicle model
 
 **Acceptance criteria:**
-- AC-1: A cargo station accepts a compatible-class cargo delivery from a vehicle of one medium (e.g. rail) and makes it available for pickup by a vehicle of a different medium (e.g. road) without the cargo ever existing outside a vehicle or the station's dock buffer. [SUBSTRATE: ABSENT — greenfield; no cargo-station/transshipment node exists in economy/market.rs or map/, spec/logistics.md:41] · impact:`journey` · seam:`integration`
+- AC-1: A cargo station accepts a compatible-class cargo delivery from a vehicle of one medium (e.g. rail) and makes it available for pickup by a vehicle of a different medium (road) without the cargo ever existing outside a vehicle or the station's dock buffer. [SUBSTRATE: ABSENT — greenfield; no cargo-station/transshipment node exists in economy/market.rs or map/, spec/logistics.md:41] · impact:`journey` · seam:`integration`
 
 **Sources:**
 - `spec/logistics.md:41`

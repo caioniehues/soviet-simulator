@@ -82,6 +82,9 @@
 **Epic:** EPIC-006 — Heating — district network with temperature-driven demand
 **Title:** Unmet district heat falls back to electricity
 
+**Deferred:** true
+**Deferred reason:** charter:110 "grid depth (... electric-heating fallback)"
+
 **As a** planner
 **I want** a building short on piped heat to draw extra electricity as an expensive electric-heater fallback, and only go cold if neither pipe heat nor spare electricity is available
 **So that** heating failure degrades gracefully instead of jumping straight to an unmet need

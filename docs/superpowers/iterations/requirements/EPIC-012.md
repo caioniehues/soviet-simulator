@@ -27,6 +27,9 @@
 **Epic:** EPIC-012 — Foreign trade catalogue
 **Title:** Gate the import/export catalogue by era and bloc
 
+**Deferred:** true
+**Deferred reason:** charter:108 "era calendar from 1917"; charter:95 "one fixed 1950s–60s era, flat catalogue"
+
 **As a** planner
 **I want** which goods and vehicles are importable/exportable to change with the campaign timeline and bloc alignment
 **So that** trade is a geopolitical lever, not a static shop
@@ -43,6 +46,9 @@
 
 **Epic:** EPIC-012 — Foreign trade catalogue
 **Title:** Depreciate exported vehicles by condition on resale
+
+**Deferred:** true
+**Deferred reason:** charter:106 "vehicle lifecycle including fuel-as-commodity" — resale needs wear tracking
 
 **As a** planner
 **I want** an exported vehicle's sale value to depend on its wear/condition, not just its base price

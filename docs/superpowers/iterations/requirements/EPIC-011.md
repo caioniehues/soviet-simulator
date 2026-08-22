@@ -10,6 +10,9 @@
 **Epic:** EPIC-011 — Foreign currency
 **Title:** Track two hard-currency ledgers, roubles and dollars
 
+**Deferred:** true
+**Deferred reason:** charter:108 "dual currency"; charter:95 "single rouble"
+
 **As a** planner
 **I want** domestic-bloc trade to settle in roubles and hard-currency trade to settle in dollars, in two separate treasury balances with no free conversion
 **So that** being rouble-rich does not automatically mean I can buy Western goods
@@ -28,12 +31,15 @@
 **Epic:** EPIC-011 — Foreign currency
 **Title:** Offer per-currency loans with interest and borrowing caps
 
+**Deferred:** true
+**Deferred reason:** charter:108 "dual currency"; charter:95 "single rouble" — no loan mechanic appears anywhere in the charter
+
 **As a** planner
 **I want** to borrow roubles or dollars separately, each with its own interest rate, penalty rate, and borrowing cap
 **So that** debt pressure is currency-specific, matching the two-ledger split the rest of foreign trade already enforces
 
 **Acceptance criteria:**
-- AC-1: (DEFERRED to Post-1.0 per docs/charter-1.0.md:108 — captured, not scheduled for 1.0) Treasury supports a loan per currency, each carrying its own principal, interest rate, and penalty rate, matching the `loans: [{currency, principal, rate, penaltyRate}]` shape in the design draft. [SUBSTRATE: ABSENT — greenfield; no loan mechanic or Treasury type exists at all, spec/trade.md:22-23,53] · impact:`cross-surface` · seam:`unit`
+- AC-1: Treasury supports a loan per currency, each carrying its own principal, interest rate, and penalty rate, matching the `loans: [{currency, principal, rate, penaltyRate}]` shape in the design draft. [SUBSTRATE: ABSENT — greenfield; no loan mechanic or Treasury type exists at all, spec/trade.md:22-23,53] · impact:`cross-surface` · seam:`unit`
 
 **Sources:**
 - `spec/trade.md:22-23,53,64`

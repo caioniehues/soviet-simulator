@@ -30,6 +30,9 @@
 **Epic:** EPIC-009 — Price administration
 **Title:** Publish the world-market price model to the player
 
+**Deferred:** true
+**Deferred reason:** charter:95 "All 16 resources trade both ways at fixed per-kind prices (no market)"
+
 **As a** planner
 **I want** to see the current export/import price of each traded good and the drivers moving it (era, world events, my own export volume)
 **So that** the moving market is legible rather than a black box

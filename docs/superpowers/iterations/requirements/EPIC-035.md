@@ -15,7 +15,7 @@
 **So that** the fleet is a finite, physical thing I must build and maintain rather than magic capacity
 
 **Acceptance criteria:**
-- AC-1: A Vehicle entity carries fuel level and fuel type fields, and an empty tank halts its movement/dispatch eligibility. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0149`
+- AC-1: (POST-1.0 AC — excluded from 1.0 per charter:106 "vehicle lifecycle including fuel-as-commodity" — the fuel field and its empty-tank halt; vehicle-as-owned-asset remains in 1.0 via the other ACs) A Vehicle entity carries fuel level and fuel type fields, and an empty tank halts its movement/dispatch eligibility. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0149`
 - AC-2: A Vehicle entity carries a wear/condition value that increases with distance travelled and load, exposed for later repair/scrap logic. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0149`
 - AC-3: A Vehicle entity carries a cargoClass and capacity field so that only compatible resource classes up to that capacity can be loaded onto it. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0149`
 - AC-4: Existing kinematic behaviour (position, speed, steering, `VehicleState::Panicking` gridlock handling) is unchanged by the new asset fields — a regression test on vehicle movement passes before and after the schema change. [SUBSTRATE: PROVIDED — transportation/vehicle.rs:34-44, vehicle.rs:19-20] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0149`
@@ -68,6 +68,9 @@
 **Epic:** EPIC-035 — Vehicle asset lifecycle
 **Title:** Manufacture vehicles as a real production chain
 
+**Deferred:** true
+**Deferred reason:** charter:108 "vehicle manufacture"
+
 **As a** planner
 **I want** new vehicles to be either imported for hard currency or manufactured domestically from steel/electronics/etc via a vehicle factory recipe
 **So that** the fleet is finite and its growth costs real industrial input, closing the needs -> vehicle industry -> steel/electronics cascade
@@ -105,6 +108,9 @@
 
 **Epic:** EPIC-035 — Vehicle asset lifecycle
 **Title:** Scrap a vehicle at end of life into recoverable materials
+
+**Deferred:** true
+**Deferred reason:** charter:106 "vehicle lifecycle including fuel-as-commodity"
 
 **As a** planner
 **I want** a vehicle that reaches zero condition or exceeds its lifespan to be scrapped into waste_steel and waste_aluminium cargo, closing the vehicle cradle-to-grave loop

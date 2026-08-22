@@ -49,6 +49,9 @@
 **Epic:** EPIC-028 — Environmental production modifiers (greenfield)
 **Title:** Retire vehicles by lifespan and gate them by historical availability window
 
+**Deferred:** true
+**Deferred reason:** charter:106 "vehicle lifecycle"; charter:108 "era calendar from 1917"
+
 **As a** planner
 **I want** vehicle types to carry an age-limit lifespan and a historical production window
 **So that** aging fleets retire realistically and vehicle types cannot be manufactured or imported outside their era

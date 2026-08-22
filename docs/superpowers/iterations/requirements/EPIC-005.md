@@ -46,6 +46,9 @@
 **Epic:** EPIC-005 — Electricity — wired network replaces coverage
 **Title:** Two-tier voltage transmission with transformers and substations
 
+**Deferred:** true
+**Deferred reason:** charter:108 "voltage tiers"; charter:110 "grid depth (transformers, ...)"
+
 **As a** planner
 **I want** a typed chain of plant to HIGH transmission lines to transformer to LOW distribution lines to substation to buildings
 **So that** the grid has real topology instead of a flat conductivity brush
@@ -63,6 +66,9 @@
 
 **Epic:** EPIC-005 — Electricity — wired network replaces coverage
 **Title:** Capacitated lines with distance-based transmission loss
+
+**Deferred:** true
+**Deferred reason:** charter:110 "grid depth (transformers, ...)" — HIGH/LOW topology needs STORY-0019
 
 **As a** planner
 **I want** each line class to have a throughput rating and per-km loss, with HIGH lines losing less than LOW
@@ -168,6 +174,9 @@
 
 **Epic:** EPIC-005 — Electricity — wired network replaces coverage
 **Title:** Exempt electric vehicles from the fuel halt via live grid draw
+
+**Deferred:** true
+**Deferred reason:** charter:106 "vehicle lifecycle including fuel-as-commodity" — premised on the deferred empty-tank halt (STORY-0139 AC-1)
 
 **As a** planner
 **I want** electric vehicles to draw propulsion from the live electrical grid instead of a depletable fuel stock

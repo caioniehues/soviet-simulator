@@ -55,7 +55,7 @@
 
 **Acceptance criteria:**
 - AC-1: A student is assigned a school seat through the same planned-allocation mechanism as a job vacancy (using workBuilding + a Student flag), unifying commute and capacity accounting between work and study. [SUBSTRATE: ABSENT — greenfield, CS1's SetStudentplace trick, CONFIRMED per spec/citizens.md:51] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0071`
-- AC-2: Each education tier enforces an attended-capacity throughput ceiling (kindergarten 10, school 12, university 3); a citizen cannot occupy a seat beyond the tier's authored throughput. [SUBSTRATE: ABSENT — greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per spec/citizens.md:52] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0071`
+- AC-2: Each education tier enforces an attended-capacity throughput ceiling (school 12, university 3); a citizen cannot occupy a seat beyond the tier's authored throughput. [SUBSTRATE: ABSENT — greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per spec/citizens.md:52] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0071`
 - AC-3: A citizen with no attended school/university seat never gains the associated education-tier credential, rejecting CS1's ambient education field where coverage alone grants diplomas. [SUBSTRATE: ABSENT — greenfield; explicitly rejects CS1's ResidentAI.cs:1259-1330 ambient-coverage pattern per spec/citizens.md:52] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0071`
 
 **Sources:**
@@ -91,7 +91,7 @@
 
 **Acceptance criteria:**
 - AC-1: A Vehicle entity carries an owner/depot reference and a driver reference (citizen), so a trip can be attributed to a finite fleet and bound labour. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44, no owner/driver field exists on the struct] · impact:`cross-surface` · seam:`integration`
-- AC-2: Driver binding differentiates by vehicle role: private cars and key-service vehicles (fire/ambulance/personal) bind a specific citizen-driver for the trip, while bulk freight-pool vehicles may dispatch without a per-trip citizen assignment (abstracted labour). [SUBSTRATE: ABSENT — greenfield; transportation/vehicle.rs:34-44 has one undifferentiated driver field, no per-role binding rule] · impact:`local` · seam:`unit`
+- AC-2: Driver binding differentiates by vehicle role: private cars and key-service vehicles (ambulance/personal) bind a specific citizen-driver for the trip, while bulk freight-pool vehicles may dispatch without a per-trip citizen assignment (abstracted labour). [SUBSTRATE: ABSENT — greenfield; transportation/vehicle.rs:34-44 has one undifferentiated driver field, no per-role binding rule] · impact:`local` · seam:`unit`
 
 **Sources:**
 - `spec/vehicles.md:1-33`

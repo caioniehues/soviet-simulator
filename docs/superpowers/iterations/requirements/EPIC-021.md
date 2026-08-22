@@ -10,6 +10,9 @@
 **Epic:** EPIC-021 — Crime — deviance and the justice chain
 **Title:** Couple wellbeing to work attendance and crime propensity
 
+**Deferred:** true
+**Deferred reason:** charter:107 "B11 crime"
+
 **As a** Planner
 **I want** a citizen's wellbeing to cost them when filling a below-tier slot, and sustained low wellbeing to raise crime propensity and lower work attendance
 **So that** wellbeing is a plannable lever on both labour supply and crime, not a cosmetic stat
@@ -29,6 +32,9 @@
 **Epic:** EPIC-021 — Crime — deviance and the justice chain
 **Title:** Generate per-building crime pressure from unemployment and unhappiness
 
+**Deferred:** true
+**Deferred reason:** charter:107 "B11 crime"
+
 **As a** planner
 **I want** crime to build up in a building as a function of its occupants' unemployment duration and wellbeing, present from turn one
 **So that** crime is a legible, physical consequence of neglect rather than a random dice-roll or a mechanic locked behind unlocking police
@@ -47,6 +53,9 @@
 
 **Epic:** EPIC-021 — Crime — deviance and the justice chain
 **Title:** Arrest a specific criminal and hold them in a fed prison cell
+
+**Deferred:** true
+**Deferred reason:** charter:107 "B11 crime"
 
 **As a** planner
 **I want** a staffed police station to send an officer who travels to and arrests a specific citizen, then transports and holds them in a real prison cell that must be fed
@@ -69,6 +78,9 @@
 **Epic:** EPIC-021 — Crime — deviance and the justice chain
 **Title:** Throttle sentencing through a staffed court between arrest and prison
 
+**Deferred:** true
+**Deferred reason:** charter:107 "B11 crime"
+
 **As a** planner
 **I want** an arrested citizen to await sentencing at a staffed Court whose caseThroughput limits how many cases resolve per cycle, before being transported to prison
 **So that** arrest volume cannot outpace the justice system's own capacity to process it, mirroring the police -> court -> prison pipeline the spec adopts
@@ -86,6 +98,9 @@
 
 **Epic:** EPIC-021 — Crime — deviance and the justice chain
 **Title:** Leak state inventory into a shortage-driven black market
+
+**Deferred:** true
+**Deferred reason:** charter:107 "B11 crime"
 
 **As a** citizen with a chronically unmet need
 **I want** a parallel, unofficial allocation channel to satisfy shortages from state inventories at the cost of feeding crime and corruption pressure

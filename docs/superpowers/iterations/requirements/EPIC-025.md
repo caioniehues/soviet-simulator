@@ -47,6 +47,9 @@
 **Epic:** EPIC-025 — Resource ontology (greenfield)
 **Title:** Give perishable and hazardous items lifecycle metadata
 
+**Deferred:** true
+**Deferred reason:** charter:113 "perishables and refrigerated transport"
+
 **As a** planner
 **I want** perishable goods (food, meat) to decay past a shelf life outside cold storage, and hazardous goods (uranium, some waste) to be flagged as such
 **So that** refrigerated logistics and radioactive handling are physically meaningful rather than cosmetic categories
@@ -90,7 +93,7 @@
 **Acceptance criteria:**
 - AC-1: Today storage buckets are undifferentiated by class only; no bucket type exists that pins itself to a single named resource id or that models a tiered consumer-demand buffer. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84] · impact:`none` · seam:`unit`
 - AC-2: A building may declare an import bucket pinned to exactly one resource id and capacity; the bucket accepts only that resource and rejects any other, even one of a compatible storageClass. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_IMPORT_SPECIAL)] · impact:`local` · seam:`unit`
-- AC-3: A shop building may declare one of four consumer-demand buffer tiers (basic | advanced | hotel | prison), each an independent capacity bucket distinct from ordinary import/export storage. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_DEMAND_BASIC/_ADVANCED/_HOTEL/_PRISON)] · impact:`local` · seam:`unit`
+- AC-3: A shop building may declare one of four consumer-demand buffer tiers (basic | advanced | prison), each an independent capacity bucket distinct from ordinary import/export storage. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_DEMAND_BASIC/_ADVANCED/_PRISON)] · impact:`local` · seam:`unit`
 
 **Sources:**
 - `spec/resources.md:84`
