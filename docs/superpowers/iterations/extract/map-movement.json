@@ -1,0 +1,1250 @@
+{
+  "stories": [
+    {
+      "title": "Compute turn-aware routes over the unified lane graph",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "vehicle or pedestrian agent needing to travel",
+      "i_want": "a route computed as a chain of lane-hop segments over the single lane graph, honoring intersection turn restrictions",
+      "so_that": "my trip follows the physically real network with no illegal turns and no separate abstract routing graph to keep in sync",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A* pathfinding over the lane graph produces a route as a sequence of lane-hop positions, and never routes through a turn an intersection does not permit. [SUBSTRATE: PROVIDED — map/pathfinding.rs:134,247; map/objects/intersection.rs:289,304]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Baseline route cost for a lane-hop is length / speed_limit, with no toll or price term for citizen trips. [SUBSTRATE: PROVIDED — map/pathfinding.rs:224-225]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Each trip requests a fresh path at the moment a destination is assigned; there is no general origin-destination path cache to invalidate or go stale. [SUBSTRATE: PROVIDED — map/pathfinding.rs:134,247]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "An en-route vehicle does not re-plan its route as ambient congestion changes mid-trip; only a blockage/invalidation event or the stall escalation (see 'Escalate a stalled vehicle to re-route, then to a planner-visible bottleneck event') triggers a fresh path request — traffic adapts at trip granularity, not continuously. [SUBSTRATE: UNAUDITED — spec/pathfinding.md:31 (INFERRED)]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-5",
+          "text": "When a road segment referenced by an in-flight or queued route is redrawn by a completed construction/upgrade project, any route referencing that segment is invalidated and the affected agent requests a fresh path rather than continuing to reference the stale segment. [SUBSTRATE: UNAUDITED — spec/roads.md:21]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "16-21"
+        },
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "16-24"
+        }
+      ]
+    },
+    {
+      "title": "Classify roads by surface class with a physical speed payoff",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "planner deciding where to invest in infrastructure",
+      "i_want": "roads to carry a discrete surface class (dirt / paved / highway, plus tram / pedestrian) distinct from lane purpose",
+      "so_that": "upgrading a road produces a measurable, physical speed benefit rather than a cosmetic relabel",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Roads have no surface-class field today; LaneKind encodes lane purpose (vehicle/pedestrian/parking/etc.), not road surface quality. [SUBSTRATE: ABSENT — map/objects/lane.rs:13]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Effective vehicle speed on a lane equals vehicle top speed × road-class modifier × terrain modifier; a paved road yields strictly higher effective speed than an otherwise-identical dirt road for the same vehicle. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Road types are authored as prefabs — a lane template with per-lane speed limit, direction, and a lane type drawn from a fixed taxonomy (Vehicle | Pedestrian | Parking | PublicTransport | Cargo) — and the live network instantiates lanes from that template rather than each lane carrying ad-hoc per-instance data. [SUBSTRATE: PARTIAL — map/objects/lane.rs:13 has LaneKind already; taxonomy alignment UNAUDITED; spec/roads.md:20]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-4",
+          "text": "The dirt-road speed penalty is vehicle-class-specific: a heavy truck's effective speed on dirt is reduced by a strictly larger factor than a light vehicle's on the same dirt segment, replacing CS1's toll-cost term. [SUBSTRATE: ABSENT — greenfield; spec/pathfinding.md:28]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "23-27"
+        }
+      ]
+    },
+    {
+      "title": "Track per-lane traffic load as a smoothed EMA counter",
+      "epic_theme": "Emergent congestion (greenfield)",
+      "as_a": "traffic system with no global solver",
+      "i_want": "each lane to accumulate an exponential-moving-average load counter, updated O(1) per lane per tick with a time constant of a few in-game minutes",
+      "so_that": "congestion state persists smoothly frame-to-frame and is cheap enough to run for every lane every tick",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Every lane maintains an EMA load value updated in O(1) time per tick from vehicles currently occupying or passing through it; no per-segment traffic density signal exists in the current codebase to build on. [SUBSTRATE: ABSENT — map/pathfinding.rs:224-225 (only a per-trip random jitter exists, carrying no load information); audit §7]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "The EMA counter is the single source of truth for lane load: both the routing cost term and any player-facing congestion readout read the same counter, with no second, independently-computed density tracker. [SUBSTRATE: ABSENT — greenfield; audit §7 explicitly warns against a duplicate-tracker bug class]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "16-24"
+        }
+      ]
+    },
+    {
+      "title": "Price congestion into route cost with a BPR volume-delay function",
+      "epic_theme": "Emergent congestion (greenfield)",
+      "as_a": "pathfinder choosing between alternative lanes",
+      "i_want": "route cost multiplied by a BPR volume-delay function of the lane's volume/capacity ratio, replacing the current random jitter",
+      "so_that": "loaded lanes become measurably more expensive to route through, without a global equilibrium solver",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Route cost over a lane is t0 * (1 + 0.15 * (v/c)^4) where t0 is the freeflow length/speed_limit cost and v/c is the lane's current volume-to-capacity ratio from the EMA counter. [SUBSTRATE: ABSENT — greenfield; audit §7 recommended design]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "This BPR term replaces the existing tick-and-lane-seeded random jitter as the congestion feedback in route search; the CS1-derived '[0.9, (1000+density*10)/1000]' jitter formula and its implied '~2x congestion multiplier' are not carried forward, since that multiplier is unconfirmed and the jitter carries no real load information. [SUBSTRATE: PARTIAL — map/pathfinding.rs:224-225 (jitter exists but must be replaced, not extended)]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "26-33"
+        },
+        {
+          "file": "spec/traffic.md",
+          "lines": "36-38"
+        }
+      ]
+    },
+    {
+      "title": "Damp congestion cost with Gawron blending before it re-enters routing",
+      "epic_theme": "Emergent congestion (greenfield)",
+      "as_a": "planner relying on stable traffic patterns",
+      "i_want": "the congestion cost that re-enters A* to be a blend of freshly observed cost and previously remembered cost, not the raw observed value",
+      "so_that": "agents do not flap back and forth between two competing corridors every time either one's congestion reading changes",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Before a lane's BPR cost re-enters the router, it is blended as remembered' = 0.3 * observed + 0.7 * remembered, and every re-route cycle reads only the damped value, never the raw instantaneous observed cost. [SUBSTRATE: ABSENT — greenfield; audit §7, SUMO default]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Given two parallel corridors of equal base cost and a load perturbation that makes one briefly cheaper, the fraction of agents that switch corridors on successive re-route cycles decays toward zero (converges) rather than oscillating at a sustained non-zero rate; this is falsifiable by simulating N re-route cycles and asserting the switch-fraction time series is non-increasing after damping is applied, as a regression guard against the exact ping-pong failure A/B Street shipped without damping and had to remove. [SUBSTRATE: ABSENT — greenfield; audit §7 cites A/B Street's removed congestion-rerouting as the confirmed failure mode]",
+          "behavioral_impact": "journey",
+          "proof_seam": "process-level"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "36-38"
+        }
+      ]
+    },
+    {
+      "title": "Never delete a vehicle for being gridlocked",
+      "epic_theme": "Stall handling as a planning signal",
+      "as_a": "planner watching the plan execute",
+      "i_want": "a vehicle stuck in traffic to remain in the simulation indefinitely rather than being despawned",
+      "so_that": "a blocked delivery is a visible plan failure to fix, never a silently erased trip",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A vehicle blocked in traffic is never removed from the simulation purely for being blocked; there is no despawn-on-gridlock timer analogous to CS1's 100-150 frame deletion. [SUBSTRATE: PROVIDED — transportation/vehicle.rs:19-20]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "After roughly 200 seconds blocked, the vehicle transitions to a Panicking state and continues seeking to resume rather than being removed. [SUBSTRATE: PROVIDED — transportation/vehicle.rs:19-20, VehicleState::Panicking]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "26-34"
+        }
+      ]
+    },
+    {
+      "title": "Escalate a stalled vehicle to re-route, then to a planner-visible bottleneck event",
+      "epic_theme": "Stall handling as a planning signal",
+      "as_a": "logistics system managing a delivery fleet",
+      "i_want": "a vehicle stalled past a threshold to first attempt a re-route if an alternative path exists, and otherwise register a stall event the planner can see",
+      "so_that": "gridlock becomes an actionable bottleneck signal feeding infrastructure decisions and delivery-delay consequences, instead of a truck that silently sits forever or silently disappears",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "No hook currently exists connecting the vehicle's blocked/Panicking state to a re-route request; the vehicle resumes on its existing route rather than evaluating an alternative. [SUBSTRATE: ABSENT — transportation/vehicle.rs:19-20 has the Panicking state but no re-route call; audit §7 names this the missing piece]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "When a stalled vehicle has no viable alternative route, a bottleneck/stall event is emitted that a planner-facing system can observe, feeding the corridor-utilisation readout and downstream delivery-delay consequences. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-3",
+          "text": "The stall response follows a strict order — the vehicle first waits in place (the jam persists physically), only after the stall threshold does it attempt a re-route, and only if no alternative exists does it register a stall event; a vehicle never skips straight to re-routing or stall-registration before waiting out the threshold. [SUBSTRATE: UNAUDITED — spec/traffic.md:30-32]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "26-34"
+        }
+      ]
+    },
+    {
+      "title": "Expose corridor utilisation as an economic bottleneck readout",
+      "epic_theme": "Emergent congestion (greenfield)",
+      "as_a": "planner deciding where to build additional road capacity",
+      "i_want": "per-corridor utilisation/congestion shown as a first-class planning readout, derived from the same load signal used by routing",
+      "so_that": "I can see that a corridor is saturated and choose to build another route, rather than inferring it indirectly from missed deliveries",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "The corridor utilisation readout shown to the planner is computed from the same per-lane EMA counter that feeds routing cost, not a second independently-sampled density measurement. [SUBSTRATE: ABSENT — greenfield; depends on the EMA counter story; audit §7 flags dual-tracker as a known bug class (TM:PE #66)]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "A saturated road corridor cannot be routed around by money or priority alone; the only remedy visible to the planner is building additional physical capacity. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "29-33"
+        }
+      ]
+    },
+    {
+      "title": "Maintain safe following distance without a global solver",
+      "epic_theme": "Emergent congestion (greenfield)",
+      "as_a": "driver agent approaching a slower vehicle ahead",
+      "i_want": "to brake based on a lookahead of the vehicle in front",
+      "so_that": "jams emerge from many independent local braking decisions, with no queue object or scheduler needed",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A vehicle computes a forward lookahead distance to the vehicle ahead and brakes to avoid collision, using an IDM-like raycast rather than a shared queue/scheduler object. [SUBSTRATE: PARTIAL — transportation/road.rs calc_front_dist]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "The spec's target model (reserve braking-distance space ahead as ½v²/a + half-length, CS1-style) is not the mechanism currently implemented; the existing raycast lookahead is a functional stand-in whose fidelity against the target formula is unverified. [SUBSTRATE: PARTIAL — transportation/road.rs calc_front_dist; no NetLane.ReserveSpace-equivalent object exists]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "16-24"
+        }
+      ]
+    },
+    {
+      "title": "Carry routing policy on the trip request, not the graph",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "trip requester (delivery truck, pedestrian, transit vehicle)",
+      "i_want": "each path request to encode its own policy — permitted lane/vehicle-type mask, heavy-vehicle flag, stable-path (no congestion jitter) — independent of any global graph state",
+      "so_that": "different agent types can be routed correctly over the same shared lane graph without per-agent-type graph variants",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A path request can restrict which lane/vehicle types it may use (e.g. a heavy truck is excluded from pedestrian-only lanes) and this restriction is expressed as an input to the request, not as a property baked into the graph. [SUBSTRATE: UNAUDITED]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Pedestrian route requests are costed by the same time-like formula as vehicles but without the congestion cost term, using only a small random tie-breaker so pedestrians spread across equivalent paths. [SUBSTRATE: UNAUDITED]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "A path request applies fixed hard modifiers by trip type: a car-banned segment costs the base lane-hop cost ×7.5 for a car request rather than being merely discouraged, a transit vehicle's cost on a transit lane is base cost ×0.95, and a closed segment is rejected outright (never selected) rather than merely penalized. [SUBSTRATE: ABSENT — greenfield; spec/pathfinding.md:31]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "20-33"
+        }
+      ]
+    },
+    {
+      "title": "Solve paths off the critical path within a bounded per-tick budget",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "simulation running thousands of concurrent agents",
+      "i_want": "path requests solved by background Burst-compiled A* jobs that agents wait on via a ready-flag, processed within a bounded per-tick job budget",
+      "so_that": "no single frame stalls waiting for a path solve, and the solver's throughput is a tunable, observable budget rather than unbounded work dumped on one tick",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A path request does not block the requesting agent's tick; the agent continues simulating other state while a background A* job resolves and the agent later observes a ready-flag. [SUBSTRATE: UNAUDITED — spec/pathfinding.md:22-23]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "The pathfinding solver processes at most a bounded number of path-solve jobs per tick (a configured per-tick budget), queuing any excess requests to later ticks rather than solving an unbounded number in one frame. [SUBSTRATE: ABSENT — greenfield; spec/pathfinding.md:37 (open question naming CS1's 262144-PathUnit/4-thread anchor, no fixed number adopted)]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "22-23"
+        },
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "37"
+        }
+      ]
+    },
+    {
+      "title": "Cap intersection nodes at eight attached segments",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "road network builder",
+      "i_want": "a RoadNode to refuse a ninth attached road segment",
+      "so_that": "junction geometry and lane-merge logic never has to handle an unbounded fan-in",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A RoadNode accepts at most 8 attached RoadSegments; construction that would attach a 9th segment to an existing node is rejected. [SUBSTRATE: UNAUDITED — spec/roads.md:18]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "18"
+        }
+      ]
+    },
+    {
+      "title": "Deliver and upgrade roads only through physical construction, never a purchase",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "planner expanding the road network",
+      "i_want": "a road segment to come into existence only when a construction project delivers it, and a dirt→paved upgrade to consume asphalt/gravel and labour rather than money",
+      "so_that": "the network stays a physical fact — never a toolbar paint tool, never a price the treasury can buy past",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "No road segment exists in the lane graph until a construction project completes delivering it; there is no instant/toolbar-style road placement, and a segment's capacity is fixed by what was built, not adjustable via a budget or slider. [SUBSTRATE: UNAUDITED — spec/roads.md:12]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Upgrading a road segment from dirt to paved is itself a construction project that consumes asphalt/gravel materials and labour; no code path allows a money payment alone to change a road segment's surface class. [SUBSTRATE: ABSENT — greenfield; spec/roads.md:27]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "12"
+        },
+        {
+          "file": "spec/roads.md",
+          "lines": "27"
+        }
+      ]
+    },
+    {
+      "title": "Route within a large compound via an authored internal connection graph",
+      "epic_theme": "Road network & routing substrate",
+      "as_a": "vehicle navigating inside a rail yard or port",
+      "i_want": "large compounds to author their own internal connection graph that the router can traverse, distinct from the public lane graph",
+      "so_that": "intra-facility movement (dock to warehouse, yard track to yard track) doesn't require the whole facility to be paved with ordinary public roads",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A large compound (rail yard, port) may author an internal connection graph that the pathfinder can route through when a trip both starts and ends inside the compound, without every internal connection being a public RoadSegment. [SUBSTRATE: ABSENT — greenfield; spec/roads.md:25,33]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "25"
+        },
+        {
+          "file": "spec/roads.md",
+          "lines": "33"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "title": "A* refuses a route through a banned turn at an intersection",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A road network with an intersection where a specific turn (e.g. left turn from lane A to lane B) is not permitted"
+      ],
+      "steps": [
+        {
+          "action": "Request a path whose shortest geometric route would cross the banned turn",
+          "expected": [
+            "The returned lane-hop chain never traverses the banned turn",
+            "An alternative legal route is returned if one exists"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No segment of the computed route uses the banned turn"
+      ],
+      "owning_story_titles": [
+        "Compute turn-aware routes over the unified lane graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "16-21"
+        }
+      ]
+    },
+    {
+      "title": "Route cost prefers the faster lane absent congestion",
+      "kind": "surface",
+      "proof_seam": "unit",
+      "preconditions": [
+        "Two parallel lanes connecting the same origin and destination with equal length but different speed limits, zero load on both"
+      ],
+      "steps": [
+        {
+          "action": "Compute route cost for both lanes",
+          "expected": [
+            "The higher-speed-limit lane has strictly lower cost",
+            "A* selects the higher-speed-limit lane"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Chosen route uses the faster lane"
+      ],
+      "owning_story_titles": [
+        "Compute turn-aware routes over the unified lane graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "26-29"
+        }
+      ]
+    },
+    {
+      "title": "Two identical trip requests each allocate independent fresh paths",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two agents request a path between the same origin/destination pair in the same tick"
+      ],
+      "steps": [
+        {
+          "action": "Issue both requests",
+          "expected": [
+            "Both requests are solved independently",
+            "No shared cached route object is returned to both agents"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No general origin-destination path cache exists that both requests hit"
+      ],
+      "owning_story_titles": [
+        "Compute turn-aware routes over the unified lane graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "47-48"
+        }
+      ]
+    },
+    {
+      "title": "Paved road yields higher effective speed than dirt for the same vehicle",
+      "kind": "surface",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A dirt-class road segment and a paved-class road segment of identical length, curvature and terrain"
+      ],
+      "steps": [
+        {
+          "action": "Compute effective speed for the same vehicle type on both segments",
+          "expected": [
+            "Effective speed on paved is strictly greater than on dirt",
+            "The delta matches the authored road-class modifier"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Travel time over the paved segment is lower for the same vehicle"
+      ],
+      "owning_story_titles": [
+        "Classify roads by surface class with a physical speed payoff"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "23-27"
+        }
+      ]
+    },
+    {
+      "title": "Per-lane EMA rises under sustained load and decays once load stops",
+      "kind": "surface",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A single lane with its EMA counter initialized at zero load"
+      ],
+      "steps": [
+        {
+          "action": "Drive a sustained stream of vehicles through the lane for several in-game minutes",
+          "expected": [
+            "The EMA value increases monotonically toward a steady state proportional to throughput"
+          ]
+        },
+        {
+          "action": "Stop all vehicle flow through the lane and advance several more in-game minutes",
+          "expected": [
+            "The EMA value decays back toward zero at the same time-constant"
+          ]
+        }
+      ],
+      "final_observables": [
+        "EMA reflects recent load, not an instantaneous or permanently sticky value"
+      ],
+      "owning_story_titles": [
+        "Track per-lane traffic load as a smoothed EMA counter"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "16-24"
+        }
+      ]
+    },
+    {
+      "title": "BPR cost multiplier matches the formula at known v/c ratios",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A lane with known freeflow cost t0 and known capacity c"
+      ],
+      "steps": [
+        {
+          "action": "Set v/c = 0 (no load) and compute cost",
+          "expected": [
+            "Cost equals t0 (multiplier is 1.0)"
+          ]
+        },
+        {
+          "action": "Set v/c = 1 (at capacity) and compute cost",
+          "expected": [
+            "Cost equals t0 * 1.15, matching t0*(1+0.15*(v/c)^4)"
+          ]
+        },
+        {
+          "action": "Set v/c = 2 (double capacity) and compute cost",
+          "expected": [
+            "Cost equals t0 * (1 + 0.15*16) = t0 * 3.4"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Computed multiplier matches the BPR formula exactly at each test point"
+      ],
+      "owning_story_titles": [
+        "Price congestion into route cost with a BPR volume-delay function"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "26-33"
+        }
+      ]
+    },
+    {
+      "title": "Damped remembered cost blends across successive updates",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A lane with remembered cost R0 and a newly observed cost O that differs sharply from R0"
+      ],
+      "steps": [
+        {
+          "action": "Apply one damping update",
+          "expected": [
+            "New remembered cost equals 0.3*O + 0.7*R0, not O itself"
+          ]
+        },
+        {
+          "action": "Apply the same observed cost O repeatedly across several updates",
+          "expected": [
+            "Remembered cost converges toward O asymptotically rather than jumping to it in one step"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Remembered cost never equals the raw observed cost after a single update when they differ"
+      ],
+      "owning_story_titles": [
+        "Damp congestion cost with Gawron blending before it re-enters routing"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "36-38"
+        }
+      ]
+    },
+    {
+      "title": "Two equal-cost parallel corridors do not flap under repeated re-routing",
+      "kind": "failure-recovery",
+      "proof_seam": "process-level",
+      "preconditions": [
+        "Two parallel corridors of equal base cost between the same origin/destination",
+        "A population of agents re-routing periodically with Gawron damping enabled"
+      ],
+      "steps": [
+        {
+          "action": "Introduce a one-time load perturbation making corridor A briefly cheaper",
+          "expected": [
+            "Some agents shift from B to A on the next re-route cycle"
+          ]
+        },
+        {
+          "action": "Let the simulation run for N further re-route cycles with damping active",
+          "expected": [
+            "The fraction of agents switching corridors per cycle is non-increasing and trends to zero",
+            "No sustained oscillation (ping-pong) between A and B is observed"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Corridor split stabilizes; switch-fraction time series does not oscillate at a persistent non-zero amplitude"
+      ],
+      "owning_story_titles": [
+        "Damp congestion cost with Gawron blending before it re-enters routing"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "36-38"
+        }
+      ]
+    },
+    {
+      "title": "Gridlocked vehicle persists in the simulation indefinitely",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A vehicle boxed in by a permanent gridlock with no possible movement"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation far past 200 seconds of the vehicle being fully blocked",
+          "expected": [
+            "The vehicle entity still exists in the world",
+            "The vehicle has transitioned to Panicking state, not been removed"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Vehicle entity count for this vehicle's ID is unchanged from before the block began"
+      ],
+      "owning_story_titles": [
+        "Never delete a vehicle for being gridlocked"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "26-34"
+        }
+      ]
+    },
+    {
+      "title": "Stalled vehicle with an alternative route re-routes instead of waiting forever",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A vehicle stalled past the stall threshold on a segment with a viable alternative path to its destination"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation past the stall threshold",
+          "expected": [
+            "The vehicle issues a new path request",
+            "The new route avoids the stalled segment"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Vehicle's active route no longer includes the originally stalled segment"
+      ],
+      "owning_story_titles": [
+        "Escalate a stalled vehicle to re-route, then to a planner-visible bottleneck event"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "26-34"
+        }
+      ]
+    },
+    {
+      "title": "Stalled vehicle with no alternative registers a planner-visible bottleneck event",
+      "kind": "failure-recovery",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "A vehicle stalled past the stall threshold with no viable alternative route (e.g. single road in and out)"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation past the stall threshold",
+          "expected": [
+            "No re-route occurs, since none is possible",
+            "A bottleneck/stall event is emitted"
+          ]
+        }
+      ],
+      "final_observables": [
+        "A stall event referencing this vehicle/segment is present in the planner-visible event feed"
+      ],
+      "owning_story_titles": [
+        "Escalate a stalled vehicle to re-route, then to a planner-visible bottleneck event"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "26-34"
+        }
+      ]
+    },
+    {
+      "title": "Corridor utilisation readout matches the internal EMA value exactly",
+      "kind": "contract",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "A corridor with a known, directly-set EMA load value"
+      ],
+      "steps": [
+        {
+          "action": "Read the planner-facing corridor utilisation readout for that corridor",
+          "expected": [
+            "The displayed value is derived from the same EMA counter, with no independent recomputation"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Readout value and internal EMA value are consistent (same source, not two divergent trackers)"
+      ],
+      "owning_story_titles": [
+        "Expose corridor utilisation as an economic bottleneck readout"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "29-33"
+        }
+      ]
+    },
+    {
+      "title": "Vehicle brakes to avoid rear-ending a slower vehicle ahead",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two vehicles on the same lane, the lead vehicle traveling slower than the trailing vehicle"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation as the trailing vehicle closes the gap",
+          "expected": [
+            "The trailing vehicle reduces speed as it approaches the lookahead threshold",
+            "No collision (overlap) occurs between the two vehicles"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Trailing vehicle's speed is bounded by the lead vehicle's position and speed at all times"
+      ],
+      "owning_story_titles": [
+        "Maintain safe following distance without a global solver"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "16-24"
+        }
+      ]
+    },
+    {
+      "title": "Heavy vehicle request is excluded from a pedestrian-only lane",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A route between origin and destination whose shortest geometric path crosses a pedestrian-only lane",
+        "A path request flagged as a heavy vehicle"
+      ],
+      "steps": [
+        {
+          "action": "Solve the path request with the vehicle-type mask excluding pedestrian lanes",
+          "expected": [
+            "The returned route does not use the pedestrian-only lane",
+            "A longer legal route is returned instead, or no route if none exists"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No segment of the computed route is a pedestrian-only lane"
+      ],
+      "owning_story_titles": [
+        "Carry routing policy on the trip request, not the graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "20-24"
+        }
+      ]
+    },
+    {
+      "title": "Hard modifiers apply the exact car-ban, transit-lane and closed-segment costs",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "Three lanes of identical base cost: one flagged car-banned, one flagged transit-lane, one flagged closed"
+      ],
+      "steps": [
+        {
+          "action": "Compute cost for a car request crossing the car-banned lane",
+          "expected": [
+            "Cost equals base_cost * 7.5"
+          ]
+        },
+        {
+          "action": "Compute cost for a transit-vehicle request crossing the transit lane",
+          "expected": [
+            "Cost equals base_cost * 0.95"
+          ]
+        },
+        {
+          "action": "Compute cost for any request crossing the closed segment",
+          "expected": [
+            "The segment is rejected (infinite cost); A* never selects it"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Each computed multiplier or rejection matches the spec value exactly"
+      ],
+      "owning_story_titles": [
+        "Carry routing policy on the trip request, not the graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "28-31"
+        }
+      ]
+    },
+    {
+      "title": "Vehicle continues its original route despite rising ambient congestion",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A vehicle mid-route on a lane whose EMA/BPR cost rises significantly after the route was computed",
+        "No blockage occurs on the route"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation while congestion increases on the vehicle's route ahead",
+          "expected": [
+            "The vehicle does not issue a new path request",
+            "The vehicle's route remains identical to the originally computed route"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Vehicle's active route is unchanged despite the congestion increase"
+      ],
+      "owning_story_titles": [
+        "Compute turn-aware routes over the unified lane graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "31"
+        }
+      ]
+    },
+    {
+      "title": "Redrawing a road invalidates routes that reference the changed segment",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A vehicle holds an active route through a segment",
+        "That segment is redrawn by a completed construction/upgrade project mid-trip"
+      ],
+      "steps": [
+        {
+          "action": "Trigger the road redraw (construction/upgrade completes)",
+          "expected": [
+            "Any route referencing the changed segment is invalidated",
+            "The vehicle requests a fresh path"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Vehicle's active route no longer references the stale segment id"
+      ],
+      "owning_story_titles": [
+        "Compute turn-aware routes over the unified lane graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "21"
+        }
+      ]
+    },
+    {
+      "title": "A burst of simultaneous path requests is solved across multiple ticks without blocking the frame",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "More path requests are issued in a single tick than the configured per-tick solver budget"
+      ],
+      "steps": [
+        {
+          "action": "Issue the burst of requests in one tick",
+          "expected": [
+            "Requesting agents' tick does not stall waiting for their own path result",
+            "Only up to the per-tick budget of requests are resolved that tick; the remainder queue"
+          ]
+        },
+        {
+          "action": "Advance to the next tick(s)",
+          "expected": [
+            "Queued requests continue resolving until all are solved"
+          ]
+        }
+      ],
+      "final_observables": [
+        "All requests eventually resolve; no single tick's frame time is blocked on solving all of them synchronously"
+      ],
+      "owning_story_titles": [
+        "Solve paths off the critical path within a bounded per-tick budget"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "22-23"
+        }
+      ]
+    },
+    {
+      "title": "A ninth road segment cannot attach to an already-full intersection",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A RoadNode with exactly 8 attached RoadSegments"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to deliver a construction project attaching a 9th segment to that node",
+          "expected": [
+            "The attachment is rejected",
+            "The node's segment count remains 8"
+          ]
+        }
+      ],
+      "final_observables": [
+        "RoadNode segment count never exceeds 8"
+      ],
+      "owning_story_titles": [
+        "Cap intersection nodes at eight attached segments"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "18"
+        }
+      ]
+    },
+    {
+      "title": "A road segment does not exist until its construction project completes",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A planned road segment with a construction project not yet complete"
+      ],
+      "steps": [
+        {
+          "action": "Query the lane graph before project completion",
+          "expected": [
+            "No segment or lanes exist for the planned road"
+          ]
+        },
+        {
+          "action": "Advance the simulation until the construction project completes",
+          "expected": [
+            "The segment now exists in the lane graph with routable lanes"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The lane graph's segment count only increases at project completion, never before"
+      ],
+      "owning_story_titles": [
+        "Deliver and upgrade roads only through physical construction, never a purchase"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "12"
+        }
+      ]
+    },
+    {
+      "title": "Upgrading dirt to paved requires materials and labour, not a money payment",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A dirt-class road segment",
+        "A treasury with sufficient money but the settlement's asphalt/gravel stockpile empty"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to trigger the upgrade with money alone",
+          "expected": [
+            "The upgrade does not proceed while asphalt/gravel and labour are unavailable"
+          ]
+        },
+        {
+          "action": "Supply asphalt/gravel and labour and advance the construction project to completion",
+          "expected": [
+            "The segment's surface class changes to paved only once the construction project completes"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Road surface class changes only after material+labour construction completes, never from a money transaction alone"
+      ],
+      "owning_story_titles": [
+        "Deliver and upgrade roads only through physical construction, never a purchase"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "27"
+        }
+      ]
+    },
+    {
+      "title": "A trip entirely inside a large compound routes over its internal connection graph",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A large compound with an authored internal connection graph between two internal points not connected by any public road segment"
+      ],
+      "steps": [
+        {
+          "action": "Request a path between the two internal points",
+          "expected": [
+            "The route uses the internal connection graph's edges"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Computed route includes internal-compound connection edges rather than failing or routing over external public roads"
+      ],
+      "owning_story_titles": [
+        "Route within a large compound via an authored internal connection graph"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "25"
+        }
+      ]
+    },
+    {
+      "title": "Stall response waits before attempting re-route, and re-routes before registering a stall event",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A vehicle that becomes blocked, with a viable alternative route available only after the stall threshold"
+      ],
+      "steps": [
+        {
+          "action": "Observe the vehicle immediately after becoming blocked, before the stall threshold",
+          "expected": [
+            "The vehicle waits in place",
+            "No re-route request is issued",
+            "No stall event is emitted"
+          ]
+        },
+        {
+          "action": "Advance to the stall threshold",
+          "expected": [
+            "The vehicle issues a re-route request before any stall event is emitted"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Observed event order is wait, then re-route attempt, then (only if re-route fails) stall event"
+      ],
+      "owning_story_titles": [
+        "Escalate a stalled vehicle to re-route, then to a planner-visible bottleneck event"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "30-32"
+        }
+      ]
+    },
+    {
+      "title": "Heavy truck loses proportionally more speed on dirt than a light vehicle",
+      "kind": "surface",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A dirt-class road segment",
+        "A heavy truck and a light vehicle with equal paved-road top speed"
+      ],
+      "steps": [
+        {
+          "action": "Compute effective speed for both vehicle classes on the dirt segment",
+          "expected": [
+            "The heavy truck's speed-reduction factor is strictly larger than the light vehicle's"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Heavy truck's effective-speed-to-top-speed ratio on dirt is lower than the light vehicle's ratio"
+      ],
+      "owning_story_titles": [
+        "Classify roads by surface class with a physical speed payoff"
+      ],
+      "sources": [
+        {
+          "file": "spec/pathfinding.md",
+          "lines": "28"
+        }
+      ]
+    },
+    {
+      "title": "Road prefab lane template names each lane's type from the fixed taxonomy",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A road-type prefab definition with two lanes"
+      ],
+      "steps": [
+        {
+          "action": "Read the prefab's lane template",
+          "expected": [
+            "Each lane's type is one of Vehicle, Pedestrian, Parking, PublicTransport, Cargo, with a defined speed limit and direction"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Instantiated live lanes match the prefab's declared type, speed limit and direction exactly"
+      ],
+      "owning_story_titles": [
+        "Classify roads by surface class with a physical speed payoff"
+      ],
+      "sources": [
+        {
+          "file": "spec/roads.md",
+          "lines": "20"
+        }
+      ]
+    },
+    {
+      "title": "Reserved braking-distance space matches half-v-squared-over-a plus half-length at known speed and deceleration",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A vehicle of known half-length L, speed v, and braking deceleration a"
+      ],
+      "steps": [
+        {
+          "action": "Compute the reserved forward space using the target formula",
+          "expected": [
+            "Reserved distance equals (v*v)/(2*a) + L"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Computed reservation matches the formula exactly at multiple (v, a, L) test points"
+      ],
+      "owning_story_titles": [
+        "Maintain safe following distance without a global solver"
+      ],
+      "sources": [
+        {
+          "file": "spec/traffic.md",
+          "lines": "22"
+        }
+      ]
+    }
+  ]
+}

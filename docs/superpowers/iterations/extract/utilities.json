@@ -1,0 +1,748 @@
+{
+  "stories": [
+    {
+      "title": "Replace road-adjacency power with laid-wire connectivity",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "a building to be powered only when a wire I laid connects it to a producer with spare capacity",
+      "so_that": "power exists only where a wire runs, matching the project's one physical-causality rule",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building adjacent to a powered road but with no wire hop laid to it is unpowered, even though today's ElectricityCache union-find would mark it powered. [SUBSTRATE: CONFLICTS — map/electricity_cache.rs:39-63,244-280]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Power reachability is computed over an explicit wire-hop graph the planner builds, not over road-graph adjacency; a producer connected only by road (no wire) supplies no one. [SUBSTRATE: CONFLICTS — map/electricity_cache.rs:244-280 (map_electricity_edges)]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "A building wired to a producer whose network has no blackout still loses power if the specific wire path to it is capacity-saturated, i.e. blackout is not merely binary per-network as today. [SUBSTRATE: CONFLICTS — map_dynamic/electricity.rs:89]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "10-24"}]
+    },
+    {
+      "title": "Two-tier voltage transmission with transformers and substations",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "a typed chain of plant to HIGH transmission lines to transformer to LOW distribution lines to substation to buildings",
+      "so_that": "the grid has real topology instead of a flat conductivity brush",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "HIGH-tier lines connect only to plants, transformers, and other HIGH lines; LOW-tier lines connect only to transformers, substations, and buildings — a building cannot draw directly from a HIGH line. [SUBSTRATE: ABSENT — greenfield, no voltage-tier concept exists in map/electricity_cache.rs]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A transformer converts HIGH input to LOW output up to its own capacity; drawing more than the transformer's capacity through it leaves downstream substations under-supplied even if upstream plant capacity is ample. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "20-24"}]
+    },
+    {
+      "title": "Capacitated lines with distance-based transmission loss",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "each line class to have a throughput rating and per-km loss, with HIGH lines losing less than LOW",
+      "so_that": "plant siting and substation placement are physically meaningful decisions",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A wire segment carrying load above its rated capacity delivers no more than its capacity downstream, regardless of upstream supply. [SUBSTRATE: OURS/ABSENT — greenfield, no $CAPACITY equivalent exists on any Egregoria edge type]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Power delivered at the far end of a LOW line is less than power injected at the near end by an amount proportional to line length, and the same length of HIGH line loses proportionally less. [SUBSTRATE: OURS/ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "26-29"}]
+    },
+    {
+      "title": "Priority-class brownout before blackout",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "a starved subnetwork to shed load by planner-set priority class (hospitals before housing before industry) with graded brownout before any consumer goes fully dark",
+      "so_that": "scarcity is felt as leaner tranches, not an unqualified binary outage",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "When a subnetwork's supply falls short of total demand, a lower-priority consumer's draw is reduced (brownout) before a higher-priority consumer loses any power, replacing today's single per-network blackout boolean that treats every consumer identically. [SUBSTRATE: CONFLICTS — map_dynamic/electricity.rs:89 (binary per-network blackout, no priority classes)]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A consumer only goes to full blackout after brownout has already reduced its draw to a floor and supply is still insufficient — blackout is never the first response to a deficit. [SUBSTRATE: CONFLICTS — map_dynamic/electricity.rs:89]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "30-33"}]
+    },
+    {
+      "title": "Power plants are ordinary recipe buildings",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "a power plant to require fuel and workers like any production building, producing electricity only while both are supplied",
+      "so_that": "generation obeys the same production model as every other recipe building",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A power plant with no fuel input or no assigned workers produces zero electricity, using the same recipe/backpressure machinery as goods buildings (power_production/power_consumption fields). [SUBSTRATE: PROVIDED pattern — prototypes/src/prototypes/building.rs:34-35, souls/goods_company.rs:36-39]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "16-18"}]
+    },
+    {
+      "title": "Water sourced, treated, and piped with a quality grade",
+      "epic_theme": "Water — quality-graded pipe network",
+      "as_a": "planner",
+      "i_want": "water to flow from a source through treatment and pipes to consumers, carrying a 0-1 quality value end to end",
+      "so_that": "shortage and contamination propagate as unmet need, not a coverage toggle",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A water source has an output rate and source quality; a treatment plant consumes dirty water plus chemicals plus power and outputs water capped at quality 0.99. [SUBSTRATE: ABSENT — greenfield, zero water-system footprint in simulation/src per keyword sweep]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Quality degrades through use and pipe transport is tracked per flow, not reset to a fixed value at each hop. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "A sensitive consumer with a declared required quality is gated: it receives no usable water input if delivered quality is below its own class threshold, even though flow rate is sufficient — an animal farm gates below 0.93, a food factory below 0.97, and nuclear cooling below 0.60, so different consumer classes gate at different numeric thresholds, not one shared cutoff. [SUBSTRATE: ABSENT — greenfield, thresholds sourced from research/utilities.md §D2]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "The water network includes reservoirs/switches as in-line storage and junction hardware, distinct from substations acting as leaf buffers — a reservoir smooths a temporary supply/demand mismatch by drawing down its stored volume instead of immediately failing delivery downstream. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/water.md", "lines": "16-23"}, {"file": "spec/water.md", "lines": "18"}]
+    },
+    {
+      "title": "Pipe network with capacity and pump-hop loss",
+      "epic_theme": "Water — quality-graded pipe network",
+      "as_a": "planner",
+      "i_want": "water pipes to have throughput capacity and pumps that push water over distance",
+      "so_that": "network topology and pump placement are real engineering decisions",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A pipe segment carrying flow above its capacity delivers no more than its capacity downstream. [SUBSTRATE: OURS/ABSENT — greenfield, no $CAPACITY token in W&R source data either]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [{"file": "spec/water.md", "lines": "24-27"}]
+    },
+    {
+      "title": "Water tanker as off-grid delivery",
+      "epic_theme": "Water — quality-graded pipe network",
+      "as_a": "planner",
+      "i_want": "a building not connected to the pipe network to instead be served by a water tanker truck via the logistics dispatcher",
+      "so_that": "water reaches buildings the pipe grid hasn't reached yet, at a real logistics cost",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Water is registered as an ItemID so a truck can carry it as ordinary cargo between a water station and an off-grid building's local buffer. [SUBSTRATE: PARTIAL — item registration substrate exists (prototypes/src/prototypes/item.rs:8-12) but no water dispatch office or truck cargo type is wired up]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "An off-grid building fed by tanker shows the same shortage/queue behaviour under insufficient truck capacity as a pipe-fed building shows under insufficient pipe capacity — no special-cased unlimited truck supply. [SUBSTRATE: ABSENT — greenfield, depends on the logistics dispatcher (spec/logistics.md) which the audit could not confirm as a generic reusable abstraction]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/water.md", "lines": "28-30"}]
+    },
+    {
+      "title": "Sewage produced wherever water is consumed",
+      "epic_theme": "Sewage — the return half of the water cycle",
+      "as_a": "planner",
+      "i_want": "sewage to accumulate as a byproduct of household water use and as a declared industrial output",
+      "so_that": "sewage volume is a physical consequence of water consumption, not an independent input",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A household consuming water produces a corresponding sewage quantity into its local buffer; an industrial recipe building can also declare a fixed sewage output rate independent of water use. [SUBSTRATE: ABSENT — greenfield, zero sewage-system footprint per keyword sweep]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/sewage.md", "lines": "10-18"}]
+    },
+    {
+      "title": "Sewage network with treat-or-discharge choice",
+      "epic_theme": "Sewage — the return half of the water cycle",
+      "as_a": "planner",
+      "i_want": "a pipe network separate from the water network, carrying sewage to either a treatment plant (recovers water at quality 0.85, costs chemicals+power+workers) or a free discharge point (pollutes)",
+      "so_that": "cheap-now-vs-clean-later is a real planning decision with physical consequences",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Sewage pipes and water pipes are distinct graphs; a building connected only to the water network cannot route sewage anywhere without a separate sewage pipe connection. [SUBSTRATE: ABSENT — greenfield; CONFLICTS with the CS1 shared-grid approach the substrate audit already rejected for electricity]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Routing sewage to a treatment plant instead of a discharge point costs chemicals and power and produces usable water capped at quality 0.85 (lower than fresh treatment's 0.99 ceiling), so recovered water never substitutes for fresh water at food-grade thresholds. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Routing sewage to a discharge point instead requires no chemical/power input but emits pollution into the shared environment model at the discharge location. [SUBSTRATE: ABSENT — greenfield, depends on a shared pollution model not yet specified]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/sewage.md", "lines": "16-29"}]
+    },
+    {
+      "title": "Sewage overflow backs up and gates water use",
+      "epic_theme": "Sewage — the return half of the water cycle",
+      "as_a": "planner",
+      "i_want": "sewage that exceeds treatment/discharge capacity to back up to the nearest discharge point, or, absent one, fill producers' local buffers and stop their water consumption",
+      "so_that": "a blocked drain physically stops the tap rather than sewage vanishing",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "When treatment capacity is exceeded and a discharge point exists on the network, excess sewage routes there automatically (auto-pollute) instead of being silently dropped. [SUBSTRATE: OURS/ABSENT — greenfield, declared Gaps in both source games]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "When no discharge point exists and local sewage buffers fill, the producing building's water consumption is gated (blocked) until buffer space frees up. [SUBSTRATE: OURS/ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/sewage.md", "lines": "35-37"}]
+    },
+    {
+      "title": "Heat plants burn fuel into district heat",
+      "epic_theme": "Heating — district network with temperature-driven demand",
+      "as_a": "planner",
+      "i_want": "a heat plant to consume coal and workers and produce heat as an ordinary recipe building, with waste incineration as an alternate fuel source",
+      "so_that": "heat generation obeys the same production model as electricity and follows the waste-to-heat coupling",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A heat plant with no coal input or no assigned workers produces zero heat, using the standard recipe/backpressure machinery. [SUBSTRATE: PROVIDED pattern, ABSENT instance — recipe mechanics exist (souls/goods_company.rs:36-39) but no heat plant prototype or `heat` resource exists]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A waste incinerator building can alternatively consume typed waste and produce heat (per spec/waste.md's incinerator_heat coupling), feeding the same district heat network as a coal plant. [SUBSTRATE: ABSENT — greenfield, depends on the waste story 'Waste incineration produces power or district heat']",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "A heat plant supplied with its full recipe input (0.28 coal per tick, 30 workers assigned) produces heat at the recipe's rated output of 350 per tick — the coal-to-heat ratio is a fixed proportional constant, not merely a positive value once inputs are present. [SUBSTRATE: ABSENT — greenfield, research/utilities.md §E2 heating_plant_big.ini:3-25]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [{"file": "spec/heating.md", "lines": "16-18"}]
+    },
+    {
+      "title": "Third pipe network: trunk-and-branch district heating",
+      "epic_theme": "Heating — district network with temperature-driven demand",
+      "as_a": "planner",
+      "i_want": "a heat pipe network distinct from water and sewage, with a large-gauge trunk tier and small-gauge branch tier, routed plant to pumping station to endstation to buildings",
+      "so_that": "heat distribution has real topology and per-km loss like electricity and water",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Heat pipes form a graph independent of the water and sewage pipe graphs — a building wired for heat is not automatically wired for water. [SUBSTRATE: ABSENT — greenfield; ElectricityCache's union-find is a template to clone per-utility, not shared state (docs/egregoria-substrate-audit.md §6)]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Heat delivered at the end of a branch pipe is reduced from the amount injected at the trunk in proportion to pipe length, mirroring the capacity+loss model used for electricity and water. [SUBSTRATE: OURS/ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "A pumping station that is unpowered or unstaffed (offline) delivers no heat past it even when downstream pipe capacity is otherwise available — heat must be actively pumped, so an inoperative pumping station is a distinct failure point, not a passive conduit that merely adds length-loss. [SUBSTRATE: ABSENT — greenfield, spec/heating.md:22 $ENGINE_SPEED]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/heating.md", "lines": "20-24"}]
+    },
+    {
+      "title": "Heat demand scales continuously with outdoor temperature",
+      "epic_theme": "Heating — district network with temperature-driven demand",
+      "as_a": "planner",
+      "i_want": "a building's heat demand to scale as (20 minus outdoor temperature) times a constant, clamped 0-400%, with no separate winter mode",
+      "so_that": "cold snaps produce a real, continuous load spike instead of a seasonal flag flip",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Building heat demand at outdoor temperature T equals base demand times clamp((20-T) x k, 0, 4) — this requires a weather/climate system providing T(t), which does not exist anywhere in simulation/src today; this story is blocked on that prerequisite landing first. [SUBSTRATE: ABSENT — greenfield, no weather or climate system exists in simulation/src (docs/egregoria-substrate-audit.md §6, 'hidden prerequisite')]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "All inhabited and workplace buildings have temperature-driven heat load by default; only explicitly unheated structures (sheds, storage) opt out — inverting W&R's opt-in default to match the cold-climate setting. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/heating.md", "lines": "26-36"}]
+    },
+    {
+      "title": "Unmet district heat falls back to electricity",
+      "epic_theme": "Heating — district network with temperature-driven demand",
+      "as_a": "planner",
+      "i_want": "a building short on piped heat to draw extra electricity as an expensive electric-heater fallback, and only go cold if neither pipe heat nor spare electricity is available",
+      "so_that": "heating failure degrades gracefully instead of jumping straight to an unmet need",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building whose heat pipe delivery falls short of its temperature-driven demand draws the shortfall as additional electricity consumption from the building's power connection, provided the electricity network has spare capacity. [SUBSTRATE: ABSENT — greenfield, depends on both the heat network and the rebuilt electricity network stories]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A building with neither piped heat nor spare electricity registers its warmth need as unmet, with consequences flowing into the citizen needs/health model rather than a silent no-op. [SUBSTRATE: ABSENT — greenfield, depends on spec/needs.md warmth need which is itself unmodelled today]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/heating.md", "lines": "30-32"}]
+    },
+    {
+      "title": "Buildings deposit typed waste into containers",
+      "epic_theme": "Waste — vehicle-hauled typed circular economy",
+      "as_a": "planner",
+      "i_want": "buildings to fill typed waste containers (mixed, bio, steel, aluminium, plastic, toxic, gravel, burnable, other) rather than an abstract garbage meter",
+      "so_that": "downstream processing choice (sort vs mixed) has real consequences",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A residential building deposits waste into a container-stand buffer; the container has per-type sorting bins as an optional planner-built upgrade, and unsorted deposit always goes to a waste_mixed bin. [SUBSTRATE: ABSENT — greenfield, zero waste-system footprint in simulation/src]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "An industrial recipe building can declare which waste sub-types it emits as production byproducts, distinct from a generic mixed-waste stream. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/waste.md", "lines": "16-23"}]
+    },
+    {
+      "title": "Waste collection reuses the logistics dispatcher",
+      "epic_theme": "Waste — vehicle-hauled typed circular economy",
+      "as_a": "planner",
+      "i_want": "a full waste container to become a source-job for the same deficit-driven dispatcher that handles ordinary goods logistics, under a WASTE class gate",
+      "so_that": "there is exactly one dispatch system in the game, not a duplicate garbage-specific one",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A garbage office building is a fleet-and-fuel dispatch office structurally identical to an ordinary distribution office, differing only in its class gate (WASTE); it does not run its own separate scheduling loop. [SUBSTRATE: ABSENT — greenfield; audit could not confirm a generic reusable dispatch-office abstraction exists (FreightStation, souls/freight_station.rs, is a pattern to study, not reuse as-is) — flag any AC assuming a ready-made dispatch office as blocked on the logistics work]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A full waste container is queued as a source-job under the same fleet-limit and class-gate rules as any other logistics source, with no garbage-specific priority formula bypassing the shared dispatcher. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/waste.md", "lines": "24-27"}]
+    },
+    {
+      "title": "Waste processes to recycled material, energy, or landfill",
+      "epic_theme": "Waste — vehicle-hauled typed circular economy",
+      "as_a": "planner",
+      "i_want": "hauled waste to reach a separation-and-recycling plant (recovers named materials), an incinerator (produces electricity or district heat plus ash), or a landfill (permanent storage), by planner choice",
+      "so_that": "waste management is a production decision with a real material/energy payoff, not a chore",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A separation plant consuming waste_mixed produces named material outputs (e.g. gravel, steel, aluminium, plastic) at fixed extraction yields, which re-enter the ordinary item economy as recipe inputs. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "An incinerator consuming typed waste produces either electricity — incinerator_powerplant mode converts 3.0 units waste to 33 units electricity — or district heat — incinerator_heat mode converts 2.5 units waste to 450 units heat — plus ash, at fixed per-waste-type burn ratios distinct per mode, with high pollution as a byproduct; the magnitude, not just the presence, of output is fixed by mode. [SUBSTRATE: ABSENT — greenfield, cross-couples to the rebuilt electricity network and the heat plant story]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "A landfill stores waste permanently — it never empties on its own and has no output — as the residual sink for toxic/unrecyclable material; a demolition/removal action targeting a landfill that still holds waste is rejected. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "Waste already sorted into per-type bins at the source routes directly to its type-specific recycling/processing plant, bypassing the separation plant; waste collected as mixed must pass through a separation plant first before any type-specific recycling can consume it. [SUBSTRATE: ABSENT — greenfield, spec/waste.md:22]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-5",
+          "text": "Toxic waste can alternatively be routed to chemical neutralisation — consuming chemicals and producing high pollution — as a fate distinct from plain landfill storage and from incineration or recycling. [SUBSTRATE: ABSENT — greenfield, spec/waste.md:32]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/waste.md", "lines": "28-33"}]
+    },
+    {
+      "title": "Uncollected waste lowers attractiveness and raises sickness",
+      "epic_theme": "Waste — vehicle-hauled typed circular economy",
+      "as_a": "planner",
+      "i_want": "an overflowing, uncollected container to reduce local attractiveness and raise nearby sickness rate",
+      "so_that": "neglecting waste collection has a local physical consequence instead of a city-wide meter",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A container that stays full past its collection threshold for a sustained period reduces the attractiveness score of nearby buildings and raises the local sickness rate, with the effect scoped to the container's vicinity, not applied city-wide. [SUBSTRATE: ABSENT — greenfield, depends on an attractiveness/sickness model (spec/healthcare.md) that is itself unmodelled]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/waste.md", "lines": "34-36"}]
+    },
+    {
+      "title": "Cross-border electricity trade via import/export transformers",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "dedicated import/export transformer buildings at the border to move electricity in and out as a wired utility link",
+      "so_that": "cross-border power trade obeys the same physical-causality rule as every other wired connection instead of a magic border toggle",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "An import transformer built at the border injects electricity into the local grid only while it is wire-connected to the local network, drawing from the neighbouring jurisdiction with pricing/currency owned by spec/trade.md; a border tile with no local wire hop imports nothing. [SUBSTRATE: ABSENT — greenfield, spec/electricity.md:38-40]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "An export transformer sends power across the border only out of the local network's surplus remaining after domestic brownout-priority demand is met — it never creates power that was not first generated locally. [SUBSTRATE: ABSENT — greenfield, spec/electricity.md:38-40]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "38-40"}]
+    },
+    {
+      "title": "Idle consumers still draw baseline lighting power",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "a building with no active production to still draw a nonzero idle/lighting electricity load",
+      "so_that": "pausing production doesn't zero out a building's grid demand",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building with no active recipe running still draws a nonzero idleDraw amount of electricity, distinct from and smaller than its full operating consumption. [SUBSTRATE: ABSENT — greenfield, spec/electricity.md:32, research/production.md §A4 idleDraw]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "32"}]
+    },
+    {
+      "title": "Grid solver work is budgeted per simulation tick",
+      "epic_theme": "Electricity — wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "the wire-graph solver to amortise a full network resolve across multiple ticks instead of solving the whole grid within one tick",
+      "so_that": "a large network never causes a single-tick time spike",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Resolving a large wire network's power flow is spread across multiple simulation ticks (budgeted, amortised) rather than completed within a single tick, mirroring CS1's 256-frame amortisation cycle; the per-tick time spent in the solver stays bounded regardless of network size. [SUBSTRATE: ABSENT — greenfield, spec/electricity.md:34-36]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/electricity.md", "lines": "34-36"}]
+    },
+    {
+      "title": "Reserve substations from cross-class draw",
+      "epic_theme": "Water — quality-graded pipe network",
+      "as_a": "planner",
+      "i_want": "to flag a substation as reserved for one consumer class so another class cannot draw from it",
+      "so_that": "critical residential water supply cannot be crowded out by industrial demand at a shared endstation",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A substation flagged residential-only rejects draw requests from industrial consumers even when it has spare capacity; industrial demand is routed elsewhere or left unmet rather than drawing from the reserved substation. [SUBSTRATE: ABSENT — greenfield, adopted planner policy per spec/water.md:32-34]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [{"file": "spec/water.md", "lines": "32-34"}]
+    }
+  ],
+  "scenarios": [
+    {
+      "title": "Building on a powered road but without a laid wire stays dark",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A producer with spare capacity exists on the map",
+        "A road connects the producer's tile to a building's tile",
+        "No wire hop has been placed between the road/producer and the building"
+      ],
+      "steps": [
+        {"action": "Advance simulation ticks with the building requesting power", "expected": ["Building reports unpowered", "ElectricityCache-style road-adjacency reachability is not consulted for power state"]}
+      ],
+      "final_observables": ["Building's power-consuming recipe does not run for lack of electricity input"],
+      "owning_story_titles": ["Replace road-adjacency power with laid-wire connectivity"],
+      "sources": [{"file": "spec/electricity.md", "lines": "10-24"}]
+    },
+    {
+      "title": "Deficit subnetwork brownouts industry before housing goes dark",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "One subnetwork with a hospital, a housing block, and an industrial consumer, all wired to the same underpowered producer",
+        "Total demand exceeds available supply"
+      ],
+      "steps": [
+        {"action": "Reduce plant fuel input so supply falls below total demand", "expected": ["Industrial consumer's draw is reduced (brownout) first", "Housing draw reduced only if industry brownout alone doesn't close the deficit", "Hospital retains full power longest"]}
+      ],
+      "final_observables": ["No consumer goes to full blackout while a lower-priority consumer still has full power"],
+      "owning_story_titles": ["Priority-class brownout before blackout"],
+      "sources": [{"file": "spec/electricity.md", "lines": "30-33"}]
+    },
+    {
+      "title": "Food factory rejects sub-threshold quality water",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A treatment plant delivering water at quality 0.80 to a food-factory recipe building requiring quality >= 0.97",
+        "Flow rate is otherwise sufficient"
+      ],
+      "steps": [
+        {"action": "Run a tick with the food factory attempting to consume water", "expected": ["Water input is rejected/gated despite sufficient volume", "Recipe does not advance for lack of usable water input"]}
+      ],
+      "final_observables": ["Factory output remains at pre-tick level; no water quality bypass occurs"],
+      "owning_story_titles": ["Water sourced, treated, and piped with a quality grade"],
+      "sources": [{"file": "spec/water.md", "lines": "20-23"}]
+    },
+    {
+      "title": "Sewage treatment recovers second-grade water, never food-grade",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": ["A sewage treatment plant configured per spec (chemicals+power+workers -> water)"],
+      "steps": [
+        {"action": "Run treatment with full chemical/power/worker input", "expected": ["Output water quality is capped at 0.85", "Output quality never exceeds fresh treatment's 0.99 ceiling"]}
+      ],
+      "final_observables": ["Recovered water cannot satisfy a consumer requiring quality > 0.85 (e.g. a 0.97-threshold food factory)"],
+      "owning_story_titles": ["Sewage network with treat-or-discharge choice"],
+      "sources": [{"file": "spec/sewage.md", "lines": "20-29"}]
+    },
+    {
+      "title": "Sewage backup with no discharge point gates the producer's tap",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A producer generating sewage into a local buffer",
+        "Its sewage network has no reachable discharge point and treatment is at capacity"
+      ],
+      "steps": [
+        {"action": "Continue producing sewage past local buffer capacity", "expected": ["Producer's water consumption is gated (blocked)", "No sewage silently disappears"]}
+      ],
+      "final_observables": ["Producer's recipe requiring water halts until buffer space frees via eventual treatment capacity"],
+      "owning_story_titles": ["Sewage overflow backs up and gates water use"],
+      "sources": [{"file": "spec/sewage.md", "lines": "35-37"}]
+    },
+    {
+      "title": "Cold snap without weather system cannot compute heat demand",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": ["A building with temperature-driven heat demand wired into the district heat network", "No weather/climate system providing T(t) exists yet"],
+      "steps": [
+        {"action": "Attempt to evaluate clamp((20-T) x k, 0, 4) for the building's demand", "expected": ["No valid T(t) is available", "Story is blocked pending the weather/climate prerequisite landing"]}
+      ],
+      "final_observables": ["Heat demand story cannot be implemented standalone; roadmap must sequence weather/climate first"],
+      "owning_story_titles": ["Heat demand scales continuously with outdoor temperature"],
+      "sources": [{"file": "spec/heating.md", "lines": "26-28"}]
+    },
+    {
+      "title": "Heat shortfall draws extra electricity before a home goes cold",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A building's heat pipe delivery is below its (mocked/fixed) temperature-driven demand",
+        "The building's electricity connection has spare capacity"
+      ],
+      "steps": [
+        {"action": "Run a tick with the heat deficit present", "expected": ["Building's electricity draw increases by the heat shortfall amount", "Building's warmth need remains satisfied via the electric fallback"]}
+      ],
+      "final_observables": ["Building only registers unmet warmth need once electricity is also unavailable"],
+      "owning_story_titles": ["Unmet district heat falls back to electricity"],
+      "sources": [{"file": "spec/heating.md", "lines": "30-32"}]
+    },
+    {
+      "title": "Waste incinerator feeds either the electricity or heat network",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": ["An incinerator building configured to consume waste_burnable", "Wired into either the electricity network or the heat network"],
+      "steps": [
+        {"action": "Run incineration with sufficient waste input", "expected": ["Electricity-mode incinerator converts 3.0 units waste into 33 units electricity onto its wired electricity network", "Heat-mode incinerator converts 2.5 units waste into 450 units heat onto its wired heat network", "Ash byproduct is produced in both modes"]}
+      ],
+      "final_observables": ["Downstream network (electricity or heat) receives the incinerator's output like any other generator"],
+      "owning_story_titles": ["Waste processes to recycled material, energy, or landfill", "Heat plants burn fuel into district heat"],
+      "sources": [{"file": "spec/waste.md", "lines": "28-33"}, {"file": "spec/heating.md", "lines": "16-18"}]
+    },
+    {
+      "title": "Full waste container becomes a dispatcher source-job",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": ["A garbage office with an available truck", "A container at or above its collection fill threshold"],
+      "steps": [
+        {"action": "Advance ticks so the dispatcher evaluates jobs", "expected": ["Container is queued as a WASTE-class source-job", "A garbage-office truck is dispatched to collect it via the same dispatcher logic as ordinary goods jobs"]}
+      ],
+      "final_observables": ["Container fill level drops after truck collection; no separate garbage-only scheduling path was used"],
+      "owning_story_titles": ["Waste collection reuses the logistics dispatcher"],
+      "sources": [{"file": "spec/waste.md", "lines": "24-27"}]
+    },
+    {
+      "title": "Import transformer feeds the local grid across the border",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "An import transformer built at a border tile",
+        "The transformer is wire-connected to the local network"
+      ],
+      "steps": [
+        {"action": "Advance ticks with local demand exceeding local generation", "expected": ["Import transformer draws power from across the border", "Imported power is injected into the local grid like any other producer"]}
+      ],
+      "final_observables": ["Local consumers downstream of the import transformer receive power sourced across the border, priced per spec/trade.md"],
+      "owning_story_titles": ["Cross-border electricity trade via import/export transformers"],
+      "sources": [{"file": "spec/electricity.md", "lines": "38-40"}]
+    },
+    {
+      "title": "Idle building still draws baseline lighting power",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": ["A building wired to a powered network with no active recipe running"],
+      "steps": [
+        {"action": "Advance a tick with the building idle", "expected": ["Building's electricity draw equals its idleDraw baseline, not zero", "idleDraw is strictly less than the building's full operating draw"]}
+      ],
+      "final_observables": ["Network demand accounting includes the idle building's baseline draw"],
+      "owning_story_titles": ["Idle consumers still draw baseline lighting power"],
+      "sources": [{"file": "spec/electricity.md", "lines": "32"}]
+    },
+    {
+      "title": "Large grid solve stays within its per-tick time budget",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": ["A wire network large enough that a full resolve cannot complete within one tick's budget"],
+      "steps": [
+        {"action": "Advance ticks while the solver amortises the resolve", "expected": ["No single tick's solver time exceeds the configured per-tick budget", "The full network resolve completes across multiple ticks"]}
+      ],
+      "final_observables": ["Power state converges to the correct resolved values after the amortised solve finishes, without a single-tick spike"],
+      "owning_story_titles": ["Grid solver work is budgeted per simulation tick"],
+      "sources": [{"file": "spec/electricity.md", "lines": "34-36"}]
+    },
+    {
+      "title": "Industrial consumer cannot draw from a residential-reserved substation",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A substation flagged residential-only with spare capacity",
+        "An industrial consumer wired only to that substation"
+      ],
+      "steps": [
+        {"action": "Advance a tick with the industrial consumer requesting water", "expected": ["Draw request from the industrial consumer is rejected at the reserved substation", "Residential consumers on the same substation are unaffected"]}
+      ],
+      "final_observables": ["Industrial consumer's water need goes unmet or is routed to a different, non-reserved substation"],
+      "owning_story_titles": ["Reserve substations from cross-class draw"],
+      "sources": [{"file": "spec/water.md", "lines": "32-34"}]
+    },
+    {
+      "title": "Sorted waste bypasses the separation plant; mixed waste does not",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "One container with per-type sorting bins in use",
+        "One container collecting only mixed waste",
+        "Both feed the same downstream recycling plants"
+      ],
+      "steps": [
+        {"action": "Dispatch collection from both containers to the recycling network", "expected": ["Sorted waste reaches its type-specific recycling plant directly, with no separation-plant hop", "Mixed waste is routed through a separation plant before reaching any type-specific recycling plant"]}
+      ],
+      "final_observables": ["Sorted waste's recycling throughput is unblocked by separation-plant capacity; mixed waste's is not"],
+      "owning_story_titles": ["Waste processes to recycled material, energy, or landfill"],
+      "sources": [{"file": "spec/waste.md", "lines": "22"}]
+    },
+    {
+      "title": "Offline pumping station stops district heat delivery past it",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A district heat trunk line running through a pumping station to downstream buildings",
+        "Downstream pipe capacity is otherwise sufficient"
+      ],
+      "steps": [
+        {"action": "Remove power or workers from the pumping station and advance ticks", "expected": ["No heat is delivered past the offline pumping station", "Downstream buildings register unmet heat demand despite sufficient pipe capacity"]}
+      ],
+      "final_observables": ["Restoring the pumping station's power/workers resumes heat delivery past it"],
+      "owning_story_titles": ["Third pipe network: trunk-and-branch district heating"],
+      "sources": [{"file": "spec/heating.md", "lines": "22"}]
+    },
+    {
+      "title": "Consumer classes gate at different water-quality thresholds",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "An animal farm, a food factory, and a nuclear cooling consumer each wired to the same network",
+        "Delivered water quality is 0.90 (below food factory's 0.97 and animal farm's 0.93, above nuclear cooling's 0.60)"
+      ],
+      "steps": [
+        {"action": "Run a tick with all three consumers attempting to draw water", "expected": ["Food factory rejects the water (0.90 < 0.97)", "Animal farm rejects the water (0.90 < 0.93)", "Nuclear cooling accepts the water (0.90 >= 0.60)"]}
+      ],
+      "final_observables": ["Only the nuclear cooling consumer's recipe advances this tick; the other two remain gated"],
+      "owning_story_titles": ["Water sourced, treated, and piped with a quality grade"],
+      "sources": [{"file": "spec/water.md", "lines": "20"}]
+    }
+  ]
+}

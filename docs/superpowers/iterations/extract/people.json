@@ -1,0 +1,1424 @@
+{
+  "stories": [
+    {
+      "title": "Protect persistent citizen identity across save/load",
+      "epic_theme": "Persistent Identity & Lifecycle",
+      "as_a": "Planner",
+      "i_want": "every citizen's identity and personal state to survive a save/load cycle unchanged",
+      "so_that": "I can follow a specific person across sessions instead of a respawned, fungible population",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Saving then loading the simulation reproduces every HumanEnt's PersonalInfo fields byte-identical to the pre-save state. [SUBSTRATE: PROVIDED — souls/human.rs PersonalInfo in HumanEnt, whole sim serialized via CompressedBincode]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Two citizens with identical attribute values (age, education, etc.) remain distinguishable by stable entity/soul reference after a reload — souls are not fungible. [SUBSTRATE: PROVIDED — HumanEnt entity identity via ECS, egregoria-substrate-audit.md sec.5]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "22-35"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Protect fixed workplace binding",
+      "epic_theme": "Labour Allocation & Workplace Binding",
+      "as_a": "Planner",
+      "i_want": "a citizen's assigned workplace to stay a stable single reference until an explicit reassignment event",
+      "so_that": "labour allocation stays plannable instead of reshuffling itself every tick",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A citizen's Work.workplace value does not change absent an explicit reassignment event (job loss, workplace destroyed, plan reassignment). [SUBSTRATE: PROVIDED — souls/desire/work.rs:20-26]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "The workplace binding persists unchanged across a save/load cycle. [SUBSTRATE: PROVIDED — souls/human.rs HumanEnt via CompressedBincode]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "37-46"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Protect purchase settlement on physical arrival, not on trade match",
+      "epic_theme": "Needs & Consumption",
+      "as_a": "Planner",
+      "i_want": "shop stock to debit and a buyer's goods to credit only when the buyer physically arrives at the shop",
+      "so_that": "the CS1 teleport-credit exploit (goods appearing before the trip completes) cannot return as a regression",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "When a buy order is matched but the citizen has not yet arrived at the shop, neither shop stock nor citizen/household inventory changes. [SUBSTRATE: PROVIDED — souls/desire/buyfood.rs:50-54, the spec's target bug is already fixed]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Stock debit and buyer credit occur atomically at the tick of physical arrival, not at the tick the trade was matched. [SUBSTRATE: PROVIDED — souls/desire/buyfood.rs:50-54]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "63-66"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Model per-citizen need satisfaction beyond food",
+      "epic_theme": "Needs & Consumption",
+      "as_a": "Planner",
+      "i_want": "each citizen to track 0..1 satisfaction across warmth, water, health, housing space/quality and rest, not only food",
+      "so_that": "shortages other than hunger become visible economic signals instead of invisible gaps",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A CitizenNeeds structure exists with distinct 0..1 fields for food, warmth, water, health, housingSpace, housingQuality and rest. [SUBSTRATE: ABSENT — greenfield; today only three score() functions (Home constant 0.2, Work binary window, BuyFood hunger clock) exist in souls/human.rs:190-231, no CitizenNeeds struct]",
+          "behavioral_impact": "journey",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Each need decays over simulated time and refills only on a real satisfying event (goods delivered, or a trip to a stocked/staffed building), never by ambient coverage. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Wants (consumer goods, culture, leisure) and aspirations (car, bigger flat, education) are tracked as a separate slower-updating layer whose chronic pressure can cross a threshold and become economic demand. [SUBSTRATE: ABSENT — greenfield, OURS per spec/needs.md]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "A loyalty/political-legitimacy meta-need is tracked as a satisfaction-driven aggregate distinct from the per-citizen needs/wants/aspirations fields, moved by broadcast/propaganda and monument-style sources. [SUBSTRATE: ABSENT — greenfield, W&R $MONUMENT_GOVERNMENT_LOYALTY per spec/needs.md:67]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-5",
+          "text": "The wants layer has named fields (goods, alcohol, culture, sport, spiritual, recreation) and each field's satisfaction is spatial and quality-weighted: pollution near the serving building lowers it, nature/water proximity raises it. [SUBSTRATE: ABSENT — greenfield, W&R $ATTRACTIVE_FACTOR_* per spec/needs.md:30-36,72-75]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-6",
+          "text": "Durable needs (housing, appliances, car) resolve and are tracked at household level, while consumable needs (food, health, education) resolve and are tracked at individual-citizen level. [SUBSTRATE: ABSENT — greenfield per spec/needs.md:82 open-question resolution]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-7",
+          "text": "Needs recompute on the simulation clock's low-frequency band while aspirations recompute on the distinctly slower very-low (months) band; an aspiration's pressure value does not change on a tick where only the needs band fired. [SUBSTRATE: ABSENT — greenfield, architecture/simulation-clock.md per spec/needs.md:79]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "13-40"
+        },
+        {
+          "file": "spec/needs.md",
+          "lines": "58-73"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Introduce households as shared-pantry family units",
+      "epic_theme": "Households & Housing",
+      "as_a": "Planner",
+      "i_want": "citizens grouped into household entities that share a single dwelling and a single pantry",
+      "so_that": "housing allocation and shopping demand are computed at the family level, not artificially per-person",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Household entity groups member citizens under one dwellingRef and one shared pantry buffer, capped at an authored constant (not hardcoded to CS1's fixed value of 5) so the cap can be tuned without a code change. [SUBSTRATE: ABSENT — greenfield; every human currently owns its own home and its own pantry, no Household entity exists; cap value is an open question per spec/households.md:65]",
+          "behavioral_impact": "journey",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Consumption by any household member debits the shared household pantry, not a private per-citizen stock. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "A dwellingRef of zero represents a household with no assigned flat (in the housing queue), distinct from an assigned dwelling. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-4",
+          "text": "A new household pantry starts at 200, drains 20 per step from consumption, and triggers a shopping trip once it falls below 200, refilling by 100 per completed trip. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED constants per spec/households.md:34]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "18-29"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Allocate housing through an explicit, player-visible queue",
+      "epic_theme": "Households & Housing",
+      "as_a": "Planner",
+      "i_want": "unhoused households to sit in a policy-weighted, visible queue rather than being matched invisibly or deleted",
+      "so_that": "housing shortage is a legible planning failure, not a silent population loss",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A household with no vacancy assigned enters a queue ranked by policy weights (priority class, workplace proximity, family-size-to-flat-size fit); queue length is a value the player can read, and no dwelling or household carries a price/affordability field of any kind — queue position, never money, gates assignment. [SUBSTRATE: ABSENT — greenfield, OURS per spec/households.md; CS1's equivalent is an invisible priority x distance market, no visible queue exists; spec/households.md:16 'No RCI bar']",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "A household displaced by building loss or eviction re-enters the queue; it is never deleted from the simulation for lack of housing. [SUBSTRATE: ABSENT — greenfield; explicitly rejects CS1's ResidentAI.cs:2434-2445 citizen-deletion pattern per spec/households.md evidence log]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Overcrowding (two households doubled into one flat) is a representable, distinguishable state from a normally-assigned flat. [SUBSTRATE: ABSENT — greenfield; capacity is authored as flats x max_household_size specifically to make overcrowding representable]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "31-40"
+        },
+        {
+          "file": "spec/households.md",
+          "lines": "82-92"
+        }
+      ]
+    },
+    {
+      "title": "Replace distance-only job matching with planner-directed, tier-and-commute-aware allocation",
+      "epic_theme": "Labour Allocation & Workplace Binding",
+      "as_a": "Planner",
+      "i_want": "job assignment to respect minimum education tier and commute feasibility, not just proximity",
+      "so_that": "labour allocation is a plannable resource rather than a euclidean-distance market trade",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A vacancy is only filled by a citizen who meets the slot's minimum education tier. [SUBSTRATE: CONFLICTS — today a job vacancy is literally traded as ItemID::new(\"job-opening\") matched purely by squared Euclidean distance, souls/human.rs:267-269 and economy/market.rs:216, with no education check at all]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A candidate whose commute time (or distance under an authored feasibility threshold) exceeds the allocator's limit is not assigned to that vacancy even if no closer candidate exists. [SUBSTRATE: CONFLICTS — no commute feasibility check exists in the current distance-ranked trade, market.rs:216-219]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "An overqualified citizen may fill a lower-tier slot but a lower-tier citizen is never assigned above their tier; filling below tier costs the citizen wellbeing. [SUBSTRATE: ABSENT — greenfield; no wellbeing field or overqualification cascade exists on HumanEnt today]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "A citizen's work-attendance probability scales continuously with wellbeing (workProbability(wellbeing)), and sustained low wellbeing raises that citizen's contribution to the crime rate, mirroring the CS1 GetCrimeRate/GetWorkProbability coupling. [SUBSTRATE: ABSENT — greenfield; no wellbeing-driven crime or attendance-probability coupling exists today, CS1 CONFIRMED per spec/needs.md:65]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-5",
+          "text": "Commute trips are timed by a time-of-day probability curve rather than a uniform/random departure time, matching the CS1 commute-timing shape. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED shape per spec/citizens.md:65]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "37-46"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Model health, sickness and hospital-capacity resolution",
+      "epic_theme": "Persistent Identity & Lifecycle",
+      "as_a": "Planner",
+      "i_want": "citizen health to be derived from physical service inputs and sickness to be a resolvable service event",
+      "so_that": "neglecting people (no water/sewage/care coverage) physically reduces output through a legible causal chain",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Citizen health recomputes from physical inputs only (water/sewage access, pollution, garbage, care coverage vs. age-phase requirement) — money never appears in the calculation. [SUBSTRATE: ABSENT — greenfield; HumanEnt has no health or wellbeing field today, only age set once at spawn]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A sustained low-health streak triggers a sickness roll; a sick citizen posts a hospital-transport need whose resolution consumes hospital capacity. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "While sick, a citizen's economic life (work attendance, shopping trips) is frozen until the sickness resolves. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "A citizen's work efficiency scales continuously across the 10-100% range as a function of health, not as a binary sick/not-sick cutoff. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED table `workEfficiency(health)` per spec/citizens.md:61]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "48-52"
+        },
+        {
+          "file": "spec/needs.md",
+          "lines": "13-21"
+        }
+      ]
+    },
+    {
+      "title": "Progress citizen age and introduce death without deleting the household",
+      "epic_theme": "Persistent Identity & Lifecycle",
+      "as_a": "Planner",
+      "i_want": "citizen age to advance over simulated time and citizens to die within a widened age window, freeing a household slot rather than dissolving the household",
+      "so_that": "the population has a real demographic lifecycle instead of a frozen age field",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A citizen's age field increases as simulated time passes. [SUBSTRATE: ABSENT — greenfield; age is set once at spawn and never incremented, per egregoria-substrate-audit.md sec.5]",
+          "behavioral_impact": "journey",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Death occurs by an age window widened by poor health and a small accident chance; on death the citizen's household persists with the slot freed, not dissolved. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Population aging or decline never halts or ends the simulation — it only produces a visible demographic strain signal, consistent with the project's no-game-over principle. [SUBSTRATE: ABSENT — greenfield; no death/lifecycle exists today so no failure-mode behaviour to regress against]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-4",
+          "text": "A citizen transitions through coarse lifecycle stages (child -> student -> worker -> pensioner) at named age thresholds, gaining/losing school- and job-eligibility at each transition, rather than a fixed life-stage that never changes as age increases. [SUBSTRATE: ABSENT — greenfield, CS1 shape (AgeGroup thresholds a la 15/45/90/180/240) per spec/citizens.md:32,70]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "68-69"
+        },
+        {
+          "file": "spec/households.md",
+          "lines": "72-76"
+        }
+      ]
+    },
+    {
+      "title": "Make unmet needs legible: wait, substitute, or visibly go without",
+      "epic_theme": "Needs & Consumption",
+      "as_a": "Planner",
+      "i_want": "a citizen whose need cannot currently be met to show a visible queuing or going-without state, rather than an order that silently sits unmatched",
+      "so_that": "shortage is felt and actionable — a longer queue or going without, never an invisible stall or a game-over",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "An unmatched buy order surfaces the citizen in an observable waiting/queued state rather than the order sitting with no player-visible signal. [SUBSTRATE: ABSENT — greenfield; there is no wait/substitute/go-without state machine, an unmatched buy order just sits, economy/market.rs]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "Wait-time urgency reuses the elapsed-since-last-satisfied clock already computed for hunger as its felt-urgency signal. [SUBSTRATE: PARTIAL — souls/human.rs:190-231, BuyFood::score already computes urgency from elapsed time since last eating, ready-made hook per audit sec.5]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "When urgency crosses a threshold and no substitute good/building is available, the citizen enters an observable 'going without' state rather than despawning, error-looping, or waiting silently forever. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "1-11"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
+        }
+      ]
+    },
+    {
+      "title": "Keep the per-citizen decision loop performant as population grows",
+      "epic_theme": "Scale & Performance",
+      "as_a": "Planner",
+      "i_want": "citizen decision-making to preserve its per-human staggering and stay within a measured tick budget as headcount rises",
+      "so_that": "the game remains playable at realistic city population sizes instead of degrading unnoticed",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Each human's re-decision interval remains a randomized 30-80 tick stagger, spatially seeded, so the population is not all re-evaluated on the same tick. [SUBSTRATE: PROVIDED — souls/human.rs:185, 30 + rand2(pos)*50 ticks]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A profiled population ceiling exists and is documented — full-human-collection update time per tick stays under a stated frame budget at that ceiling. [SUBSTRATE: UNAUDITED — population ceiling is UNCONFIRMED per egregoria-substrate-audit.md sec.5/sec.9, needs runtime profiling, not a code read]",
+          "behavioral_impact": "journey",
+          "proof_seam": "process-level"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "70-72"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-135"
+        }
+      ]
+    },
+    {
+      "title": "Grow the population through household birth",
+      "epic_theme": "Persistent Identity & Lifecycle",
+      "as_a": "Planner",
+      "i_want": "eligible couples with a free household slot to have a per-step chance of a birth, boosted by childcare access",
+      "so_that": "population growth is a real demographic event coupled to service coverage, not a fixed/absent counter",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A birth can occur only when a household has a present couple, both adults, and a free member slot; a household missing any of these three preconditions never produces a birth. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED birth gate per spec/households.md:54]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "The per-step birth chance rises from a baseline of 1/12 to 1/8 when the household has childcare access, so improving childcare coverage measurably raises the observed birth rate. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED constants per spec/households.md:54]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "54"
+        }
+      ]
+    },
+    {
+      "title": "Allocate student seats through a capacity-limited education pipeline",
+      "epic_theme": "Labour Allocation & Workplace Binding",
+      "as_a": "Planner",
+      "i_want": "a student seat to be a planned, capacity-limited allocation like a job vacancy, throttled by per-tier throughput",
+      "so_that": "education is a physical pipeline with real trade-offs against labour, not ambient coverage that grants diplomas for free",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A student is assigned a school seat through the same planned-allocation mechanism as a job vacancy (using workBuilding + a Student flag), unifying commute and capacity accounting between work and study. [SUBSTRATE: ABSENT — greenfield, CS1's SetStudentplace trick, CONFIRMED per spec/citizens.md:51]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Each education tier enforces an attended-capacity throughput ceiling (kindergarten 10, school 12, university 3); a citizen cannot occupy a seat beyond the tier's authored throughput. [SUBSTRATE: ABSENT — greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per spec/citizens.md:52]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "A citizen with no attended school/university seat never gains the associated education-tier credential, rejecting CS1's ambient education field where coverage alone grants diplomas. [SUBSTRATE: ABSENT — greenfield; explicitly rejects CS1's ResidentAI.cs:1259-1330 ambient-coverage pattern per spec/citizens.md:52]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "51-52"
+        }
+      ]
+    },
+    {
+      "title": "Dispatch surge labour via a labour-pool office without touching fixed bindings",
+      "epic_theme": "Labour Allocation & Workplace Binding",
+      "as_a": "Planner",
+      "i_want": "unassigned or temporary workers to be dispatchable to short-lived demands (construction, harvest) through a labour-pool office",
+      "so_that": "surge work gets staffed without disturbing any citizen's fixed Work.workplace binding",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "The labour-pool office dispatches unassigned/temporary workers to a short-lived demand (e.g. a construction site) and, after the demand ends, every dispatched citizen's fixed Work.workplace value is unchanged from before the dispatch. [SUBSTRATE: ABSENT — greenfield, W&R $RESOURCE_SOURCE_WORKERS CONFIRMED, kept as the one W&R pattern per spec/citizens.md:47]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "47"
+        }
+      ]
+    },
+    {
+      "title": "Author dwelling quality and default-on service requirements",
+      "epic_theme": "Households & Housing",
+      "as_a": "Planner",
+      "i_want": "each dwelling prefab to carry an authored qualityOfLiving scalar and to require heat/electricity by default",
+      "so_that": "housing quality feeds citizen satisfaction and no residential building can silently opt out of basic services",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Each dwelling prefab carries an authored qualityOfLiving scalar in the observed CONFIRMED range (0.60 khrushchyovka to 1.02 village house), and this value feeds a household member's housingQuality need. [SUBSTRATE: ABSENT — greenfield, W&R CONFIRMED range per spec/households.md:48]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A residential building requires heat and electricity by default (no dwelling prefab declares a heating/electricity opt-out); only a non-residential prefab may opt out via an explicit disable flag. [SUBSTRATE: ABSENT — greenfield, W&R CONFIRMED-by-absence per spec/households.md:48]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "48"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "title": "Save/load roundtrip preserves citizen identity",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Running simulation with N citizens having distinct PersonalInfo values"
+      ],
+      "steps": [
+        {
+          "action": "Serialize the simulation to a save",
+          "expected": [
+            "Save completes without error"
+          ]
+        },
+        {
+          "action": "Deserialize the save into a fresh simulation",
+          "expected": [
+            "Human count matches pre-save count"
+          ]
+        },
+        {
+          "action": "Compare each loaded HumanEnt's PersonalInfo against its pre-save counterpart",
+          "expected": [
+            "Every field is byte-identical",
+            "entity-to-soul mapping is unchanged"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No citizen's identity fields differ from before the save"
+      ],
+      "owning_story_titles": [
+        "Protect persistent citizen identity across save/load"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "10-16"
+        }
+      ]
+    },
+    {
+      "title": "Determinism replay detects accidental citizen-state divergence",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "TestCtx harness available, per simulation/src/tests/mod.rs"
+      ],
+      "steps": [
+        {
+          "action": "Run a recorded session twice independently through TestCtx::tick",
+          "expected": [
+            "Both runs round-trip through bincode each tick"
+          ]
+        },
+        {
+          "action": "Hash-compare per-tick state between the two runs",
+          "expected": [
+            "Hashes match at every tick, including citizen fields"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No divergence tick is found for citizen-related state"
+      ],
+      "owning_story_titles": [
+        "Protect persistent citizen identity across save/load"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "10-16"
+        }
+      ]
+    },
+    {
+      "title": "Workplace binding survives a full workday cycle without silent reassignment",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen with an assigned Work.workplace",
+        "No reassignment event triggered"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation through a full day/night cycle",
+          "expected": [
+            "Citizen commutes to and from the same workplace"
+          ]
+        },
+        {
+          "action": "Read Work.workplace after the cycle",
+          "expected": [
+            "Value is unchanged from the start of the cycle"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Work.workplace equals its pre-cycle value"
+      ],
+      "owning_story_titles": [
+        "Protect fixed workplace binding"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "37-46"
+        }
+      ]
+    },
+    {
+      "title": "Buy order match does not move goods before physical arrival",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen's buy order has been matched to a seller",
+        "Citizen has not yet reached the shop"
+      ],
+      "steps": [
+        {
+          "action": "Advance ticks up to but not including the arrival tick",
+          "expected": [
+            "Shop stock is unchanged",
+            "Citizen/household inventory is unchanged"
+          ]
+        },
+        {
+          "action": "Advance to the arrival tick",
+          "expected": [
+            "Shop stock debits by the traded amount",
+            "Citizen/household inventory credits by the traded amount, in the same tick"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No goods movement occurred before physical arrival; movement is atomic on arrival"
+      ],
+      "owning_story_titles": [
+        "Protect purchase settlement on physical arrival, not on trade match"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "63-66"
+        }
+      ]
+    },
+    {
+      "title": "Household pantry is shared, not per-member",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A household with two or more members and one shared pantry"
+      ],
+      "steps": [
+        {
+          "action": "Each member consumes their per-step food draw",
+          "expected": [
+            "The single household pantry level drops by the combined draw of all members"
+          ]
+        },
+        {
+          "action": "Inspect any individual member's inventory",
+          "expected": [
+            "No member holds a private food stock separate from the household pantry"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Pantry level reflects combined household consumption, never a per-citizen stock"
+      ],
+      "owning_story_titles": [
+        "Introduce households as shared-pantry family units"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "24-29"
+        }
+      ]
+    },
+    {
+      "title": "Housing queue grows visibly when no vacancy exists",
+      "kind": "surface",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "No vacant flat available in the simulation"
+      ],
+      "steps": [
+        {
+          "action": "A new couple forms (queue-entry source: new couples)",
+          "expected": [
+            "A new household is created with dwellingRef = 0"
+          ]
+        },
+        {
+          "action": "Read the player-visible queue length",
+          "expected": [
+            "Queue length increments by one"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The new household appears in the queue and is not silently dropped or auto-housed"
+      ],
+      "owning_story_titles": [
+        "Allocate housing through an explicit, player-visible queue"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "31-40"
+        }
+      ]
+    },
+    {
+      "title": "Eviction returns a household to the queue instead of deleting it",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A housed household occupies a flat that is condemned/destroyed"
+      ],
+      "steps": [
+        {
+          "action": "Trigger the building-loss event",
+          "expected": [
+            "Household dwellingRef resets to 0"
+          ]
+        },
+        {
+          "action": "Check the simulation's household count and the queue",
+          "expected": [
+            "Household count is unchanged (no deletion)",
+            "The household appears in the housing queue"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The displaced household is present in the queue with all members intact"
+      ],
+      "owning_story_titles": [
+        "Allocate housing through an explicit, player-visible queue"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "36-40"
+        }
+      ]
+    },
+    {
+      "title": "Job assignment respects minimum education tier over raw proximity",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two open vacancies: a near tier-0 slot and a far tier-1 slot",
+        "One candidate citizen who meets only the tier-1 minimum education requirement"
+      ],
+      "steps": [
+        {
+          "action": "Run the labour allocation pass for the candidate",
+          "expected": [
+            "Candidate is not assigned to the near tier-0 slot despite shorter distance"
+          ]
+        },
+        {
+          "action": "Check the far tier-1 slot",
+          "expected": [
+            "Candidate is assigned there if it also satisfies commute feasibility"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Assignment outcome is governed by education-tier eligibility, not distance alone"
+      ],
+      "owning_story_titles": [
+        "Replace distance-only job matching with planner-directed, tier-and-commute-aware allocation"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "37-46"
+        }
+      ]
+    },
+    {
+      "title": "Sick citizen's economic activity freezes until hospital capacity resolves it",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen has sustained a low-health streak and rolled sick",
+        "A hospital-transport need has been posted"
+      ],
+      "steps": [
+        {
+          "action": "Advance ticks while hospital capacity is unavailable",
+          "expected": [
+            "Citizen does not commute to work",
+            "Citizen does not execute shopping trips"
+          ]
+        },
+        {
+          "action": "Free hospital capacity and let the need resolve",
+          "expected": [
+            "Sickness clears",
+            "Work/shopping behaviour resumes on the next eligible decision tick"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No economic activity is recorded for the citizen during the sick window; activity resumes only after resolution"
+      ],
+      "owning_story_titles": [
+        "Model health, sickness and hospital-capacity resolution"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "48-52"
+        }
+      ]
+    },
+    {
+      "title": "Citizen death frees a household slot without dissolving the household",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A household with a member near the upper end of the death age window and poor health"
+      ],
+      "steps": [
+        {
+          "action": "Advance ticks until the death condition triggers",
+          "expected": [
+            "Member is removed from the simulation"
+          ]
+        },
+        {
+          "action": "Inspect the household afterward",
+          "expected": [
+            "Household entity still exists",
+            "Remaining members are unaffected",
+            "The freed member slot is available for a future member"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Household persists post-death with one fewer member and no cascading deletion"
+      ],
+      "owning_story_titles": [
+        "Progress citizen age and introduce death without deleting the household"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "72-76"
+        }
+      ]
+    },
+    {
+      "title": "Unmet need surfaces as a visible waiting or going-without state",
+      "kind": "surface",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "A citizen's buy order cannot currently be matched (no seller/stock available)"
+      ],
+      "steps": [
+        {
+          "action": "Advance ticks while the order remains unmatched",
+          "expected": [
+            "The citizen is shown in a queued/waiting state to the player",
+            "Felt urgency rises using the elapsed-since-satisfied clock"
+          ]
+        },
+        {
+          "action": "Continue advancing until urgency crosses the going-without threshold with no substitute available",
+          "expected": [
+            "Citizen enters an observable going-without state, distinct from queued-waiting"
+          ]
+        }
+      ],
+      "final_observables": [
+        "At every tick the citizen's need state (satisfied / waiting / going-without) is player-observable, never a silent unmatched order"
+      ],
+      "owning_story_titles": [
+        "Make unmet needs legible: wait, substitute, or visibly go without"
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "1-11"
+        }
+      ]
+    },
+    {
+      "title": "Full-population tick time stays within budget at the profiled ceiling",
+      "kind": "surface",
+      "proof_seam": "process-level",
+      "preconditions": [
+        "Simulation seeded with the profiled ceiling population"
+      ],
+      "steps": [
+        {
+          "action": "Run the simulation for a representative number of ticks under profiling",
+          "expected": [
+            "Per-tick human-update pass duration is measured"
+          ]
+        },
+        {
+          "action": "Compare measured duration against the stated frame budget",
+          "expected": [
+            "Duration stays under budget for the sampled ticks"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No tick in the sample exceeds the documented budget for the human-update pass"
+      ],
+      "owning_story_titles": [
+        "Keep the per-citizen decision loop performant as population grows"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-135"
+        }
+      ]
+    },
+    {
+      "title": "Childcare access raises the observed birth rate",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A household with a present couple, both adults, and a free member slot",
+        "No childcare access initially"
+      ],
+      "steps": [
+        {
+          "action": "Advance many steps and sample the birth roll outcome distribution without childcare access",
+          "expected": [
+            "Observed birth frequency is consistent with a 1/12 per-step chance"
+          ]
+        },
+        {
+          "action": "Grant the household childcare access and repeat the sampling",
+          "expected": [
+            "Observed birth frequency rises to be consistent with a 1/8 per-step chance"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Birth frequency measurably increases when childcare access is present"
+      ],
+      "owning_story_titles": [
+        "Grow the population through household birth"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "54"
+        }
+      ]
+    },
+    {
+      "title": "Adult child leaving home enters the housing queue",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A household with an adult child member eligible to leave"
+      ],
+      "steps": [
+        {
+          "action": "Trigger the adult-child-leaving-home event",
+          "expected": [
+            "A new household is created for the departing member with dwellingRef = 0"
+          ]
+        },
+        {
+          "action": "Read the player-visible queue length",
+          "expected": [
+            "Queue length increments by one"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The fission-created household appears in the queue"
+      ],
+      "owning_story_titles": [
+        "Allocate housing through an explicit, player-visible queue"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "40"
+        }
+      ]
+    },
+    {
+      "title": "Plan-recruited immigrant household enters the housing queue",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "The plan recruits a new immigrant household (not demand-gated auto-fabrication at the map edge)"
+      ],
+      "steps": [
+        {
+          "action": "Recruit an immigrant household via the plan",
+          "expected": [
+            "A new household is created with dwellingRef = 0"
+          ]
+        },
+        {
+          "action": "Read the player-visible queue length",
+          "expected": [
+            "Queue length increments by one"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The immigrant household appears in the queue, sourced only from an explicit plan decision, never automatic map-edge fabrication"
+      ],
+      "owning_story_titles": [
+        "Allocate housing through an explicit, player-visible queue"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "41"
+        }
+      ]
+    },
+    {
+      "title": "Student seat allocation is capacity-limited and required for credentials",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A school at its authored throughput ceiling",
+        "A student with no assigned seat"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to allocate the student a seat at the full school",
+          "expected": [
+            "Allocation is refused; student remains unseated"
+          ]
+        },
+        {
+          "action": "Advance time with the student unseated",
+          "expected": [
+            "The student does not gain that tier's education credential"
+          ]
+        },
+        {
+          "action": "Free a seat and allocate the student",
+          "expected": [
+            "Student occupies the seat, commute/capacity accounting updates like a job assignment"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Credential is granted only after attended capacity was actually occupied, never by ambient coverage"
+      ],
+      "owning_story_titles": [
+        "Allocate student seats through a capacity-limited education pipeline"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "51-52"
+        }
+      ]
+    },
+    {
+      "title": "Labour-pool dispatch staffs a construction surge without moving fixed workers",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A construction site posts a short-lived labour demand",
+        "A set of citizens hold fixed Work.workplace bindings"
+      ],
+      "steps": [
+        {
+          "action": "Dispatch unassigned/temporary workers from the labour-pool office to the site",
+          "expected": [
+            "The site's labour demand is filled"
+          ]
+        },
+        {
+          "action": "Read Work.workplace for every citizen holding a fixed binding before dispatch",
+          "expected": [
+            "All fixed Work.workplace values are unchanged"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Surge demand is staffed with zero fixed-binding citizens reassigned"
+      ],
+      "owning_story_titles": [
+        "Dispatch surge labour via a labour-pool office without touching fixed bindings"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "47"
+        }
+      ]
+    },
+    {
+      "title": "Commute departure times follow a time-of-day curve, not a uniform draw",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A population of citizens with assigned workplaces over multiple simulated days"
+      ],
+      "steps": [
+        {
+          "action": "Sample commute departure times across many citizens and days",
+          "expected": [
+            "Departure times cluster around the authored time-of-day curve's peaks rather than being uniformly distributed across the day"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Departure-time distribution matches the time-of-day probability curve"
+      ],
+      "owning_story_titles": [
+        "Replace distance-only job matching with planner-directed, tier-and-commute-aware allocation"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "65"
+        }
+      ]
+    },
+    {
+      "title": "Sustained low wellbeing raises crime contribution and lowers attendance probability",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen with sustained low wellbeing"
+      ],
+      "steps": [
+        {
+          "action": "Advance ticks while wellbeing stays low",
+          "expected": [
+            "The citizen's work-attendance probability is measurably lower than a high-wellbeing citizen's",
+            "The citizen's contribution to the local crime rate is measurably higher"
+          ]
+        },
+        {
+          "action": "Raise the citizen's wellbeing and advance further",
+          "expected": [
+            "Attendance probability rises",
+            "Crime-rate contribution falls"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Attendance probability and crime contribution both track wellbeing"
+      ],
+      "owning_story_titles": [
+        "Replace distance-only job matching with planner-directed, tier-and-commute-aware allocation"
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "65"
+        }
+      ]
+    },
+    {
+      "title": "Work efficiency scales continuously with health",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen with a fixed workplace slot"
+      ],
+      "steps": [
+        {
+          "action": "Vary the citizen's health across the 0-100 range while not sick",
+          "expected": [
+            "Measured work efficiency moves continuously within the 10-100% range, tracking health rather than jumping only at the sick/not-sick boundary"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Efficiency curve is continuous in health, not a step function"
+      ],
+      "owning_story_titles": [
+        "Model health, sickness and hospital-capacity resolution"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "61"
+        }
+      ]
+    },
+    {
+      "title": "Citizen graduates lifecycle stages at age thresholds",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen aging from childhood toward pension age"
+      ],
+      "steps": [
+        {
+          "action": "Advance the citizen's age past the child->student threshold",
+          "expected": [
+            "Citizen becomes eligible for a student seat and ineligible for a job vacancy"
+          ]
+        },
+        {
+          "action": "Advance past the student->worker threshold",
+          "expected": [
+            "Citizen becomes eligible for job vacancies and loses student-seat eligibility"
+          ]
+        },
+        {
+          "action": "Advance past the worker->pensioner threshold",
+          "expected": [
+            "Citizen loses job-vacancy eligibility"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Life-stage-gated eligibility changes at each named age threshold rather than staying fixed"
+      ],
+      "owning_story_titles": [
+        "Progress citizen age and introduce death without deleting the household"
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "70"
+        }
+      ]
+    },
+    {
+      "title": "Wants satisfaction is spatially quality-weighted",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two otherwise-identical want-serving buildings (e.g. two parks/culture venues), one in a polluted area and one near nature/water"
+      ],
+      "steps": [
+        {
+          "action": "Have citizens visit the polluted-area building",
+          "expected": [
+            "The relevant want field's satisfaction gain is measurably lower"
+          ]
+        },
+        {
+          "action": "Have equivalent citizens visit the nature/water-adjacent building",
+          "expected": [
+            "The relevant want field's satisfaction gain is measurably higher"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Satisfaction gain differs by the building's pollution/nature/water context"
+      ],
+      "owning_story_titles": [
+        "Model per-citizen need satisfaction beyond food"
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "30-36"
+        }
+      ]
+    },
+    {
+      "title": "Fixing a mobility gap lowers car aspiration pressure below its demand threshold",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen with car-aspiration pressure already above the demand threshold, driven mainly by a large mobility gap"
+      ],
+      "steps": [
+        {
+          "action": "Improve transit quality (e.g. new tram line) reducing the citizen's mobility gap",
+          "expected": [
+            "Desire_car pressure recomputes lower"
+          ]
+        },
+        {
+          "action": "Continue advancing aspiration ticks",
+          "expected": [
+            "If pressure drops back below threshold, the car-buying demand signal is withdrawn; while pressure stayed above threshold it had produced an active demand signal (e.g. a $TYPE_CAR_DEALER visit/queue entry)"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Car-desire pressure and its resulting demand signal move with transit quality, not by scripted fiat"
+      ],
+      "owning_story_titles": [
+        "Model per-citizen need satisfaction beyond food"
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "39-47"
+        }
+      ]
+    },
+    {
+      "title": "Rest satisfaction improves with a shorter commute",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two otherwise-identical citizens whose schedules allow rest, one with a long commute and one with a short commute"
+      ],
+      "steps": [
+        {
+          "action": "Advance both citizens through equivalent schedule/rest windows",
+          "expected": [
+            "The short-commute citizen's rest satisfaction recovers faster or higher than the long-commute citizen's"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Rest satisfaction is coupled to commute length, not a flat schedule-only refill"
+      ],
+      "owning_story_titles": [
+        "Model per-citizen need satisfaction beyond food"
+      ],
+      "sources": [
+        {
+          "file": "spec/needs.md",
+          "lines": "28"
+        }
+      ]
+    },
+    {
+      "title": "Dwelling quality and default heat/electricity requirement feed housing need and reject silent opt-out",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two dwelling prefabs with different authored qualityOfLiving values",
+        "A residential prefab with no heating/electricity declaration"
+      ],
+      "steps": [
+        {
+          "action": "House equivalent households in each dwelling prefab",
+          "expected": [
+            "housingQuality need satisfaction differs, tracking each prefab's authored qualityOfLiving"
+          ]
+        },
+        {
+          "action": "Inspect the residential prefab's service requirements",
+          "expected": [
+            "Heat and electricity are required by default; no opt-out flag is present"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Housing quality varies by prefab and residential buildings never silently skip heat/electricity"
+      ],
+      "owning_story_titles": [
+        "Author dwelling quality and default-on service requirements"
+      ],
+      "sources": [
+        {
+          "file": "spec/households.md",
+          "lines": "48"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1466 @@
+{
+  "stories": [
+    {
+      "title": "Verify recipes transform multiple inputs into multiple outputs over duration",
+      "epic_theme": "Recipe machinery (already provided)",
+      "as_a": "planner",
+      "i_want": "a building's recipe to consume several distinct inputs and produce several distinct outputs over a fixed duration",
+      "so_that": "co-product chains like an oil refinery's fuel+bitumen are representable without new engine work",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Recipe can declare 2+ input items and 2+ output items simultaneously, each with independent quantities and a shared production duration. [SUBSTRATE: PROVIDED — prototypes/src/types/recipe.rs:35-47]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "One building type is bound to exactly one recipe (ADR-0017's W&R shape: a building is its product, not a generic machine with a swappable recipe category). [SUBSTRATE: PROVIDED — GoodsCompanyPrototype.recipe: Option<Recipe>, per docs/adr/0017-a-building-is-its-product.md]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "39-71"
+        },
+        {
+          "file": "docs/adr/0017-a-building-is-its-product.md",
+          "lines": "1-56"
+        }
+      ]
+    },
+    {
+      "title": "Verify extraction buildings produce with no consumed inputs",
+      "epic_theme": "Recipe machinery (already provided)",
+      "as_a": "planner",
+      "i_want": "a mine or field to output raw material from labour and time alone, consuming no input items",
+      "so_that": "the base of every supply chain (ore, timber, crops) exists without a phantom input recipe",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Recipe with an empty inputs list is valid and produces output at its declared rate whenever labour/power/output-space gates are satisfied. [SUBSTRATE: PROVIDED — base_mod/companies.lua:56]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "60-64"
+        }
+      ]
+    },
+    {
+      "title": "Verify full output storage halts production (the cascade engine)",
+      "epic_theme": "Recipe machinery (already provided)",
+      "as_a": "planner",
+      "i_want": "a factory to stop producing once its output buffer is full",
+      "so_that": "a jammed downstream (freight backed up, warehouse full) visibly and physically stalls the factory instead of goods vanishing or piling up unboundedly",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "When a recipe's output storage cannot accept another batch, production halts entirely (rate → 0) until space frees, and resumes automatically once it does. [SUBSTRATE: PROVIDED — recipe_should_produce, souls/goods_company.rs:36-39]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "73-87"
+        }
+      ]
+    },
+    {
+      "title": "Verify declared workforce is sourced live from present population, not stockpiled",
+      "epic_theme": "Recipe machinery (already provided)",
+      "as_a": "planner",
+      "i_want": "a factory's WORKERS_NEEDED figure to be satisfied by whichever citizens are actually present and working that tick",
+      "so_that": "labour behaves as a physical, non-storable input rather than an inventory the player can bank",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Workforce sourcing is computed per-tick from n_workers present at the building, never drawn from a stored labour stock. [SUBSTRATE: PROVIDED — goods_company.rs:25,266-295]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "66-71"
+        }
+      ]
+    },
+    {
+      "title": "Verify production never checks the treasury before running",
+      "epic_theme": "Recipe machinery (already provided)",
+      "as_a": "planner",
+      "i_want": "production to run purely on physical availability (labour, power, inputs, output space)",
+      "so_that": "the game's one rule holds: nothing is produced merely because money is available, and nothing is blocked merely because money is short",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "No internal recipe execution path reads or checks Money/treasury balance; production gates are exclusively physical factors. [SUBSTRATE: PROVIDED — internal recipes never touch Money, per audit §3]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "73-79"
+        }
+      ]
+    },
+    {
+      "title": "Scale output continuously with staffing fraction, not linearly",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "understaffed factories to lose output along the diminishing-returns curve the spec adopts, not a flat linear ratio",
+      "so_that": "partial staffing behaves like the reference model (full staffing + full power + no iron = no steel; the curve, not just presence/absence, communicates how badly understaffed a factory is)",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today's labour factor is workers_present/workers_needed applied linearly. [SUBSTRATE: PARTIAL — souls/goods_company.rs (labour scaling is linear, per audit §3)]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "The labour factor must instead follow the adopted curve rate = 2·e − 200·e/(staffFrac+100) (e = worker efficiency), producing a strictly smaller output than the linear model at all staffing fractions strictly between 0 and 1. [SUBSTRATE: ABSENT — greenfield, curve not implemented; spec adopts CS1's PrivateBuildingAI.cs:397]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "At staffFrac = 0 the labour factor is 0 (zero workers → zero output) and at staffFrac = 1 it is 1 (full staffing → no labour penalty). [SUBSTRATE: ABSENT — greenfield curve boundary condition]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-4",
+          "text": "A recipe may opt out of per-worker rate scaling and declare its production rate as a whole-building constant unaffected by staffFrac curve math — the documented water-well exception — while every other recipe still applies the per-worker curve from AC-2. [SUBSTRATE: ABSENT — greenfield; spec/production.md:32 (water_well_*.ini exception)]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "28-38"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "73-79"
+        }
+      ]
+    },
+    {
+      "title": "Throttle output continuously with available power instead of a binary blackout gate",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "a brownout (partial power deficit) to reduce a factory's output proportionally rather than the plant running at full rate until power fails, then dropping to zero",
+      "so_that": "power reads as a graduated physical constraint the player can manage (shed load, prioritize feeds) rather than an on/off trap",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today power is a binary gate: any network blackout stops output entirely; there is no partial-power state. [SUBSTRATE: PARTIAL — souls/goods_company.rs:95-101, binary blackout gate]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "f_power must scale continuously with electricity_available (0..1), matching W&R's CONSUMPTION_PER_SECOND gating-input model: at partial availability output is throttled proportionally, not merely on or off. [SUBSTRATE: ABSENT — greenfield continuous power factor]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Idle-draw fallback: a factory not currently producing due to another gate still draws a reduced power fraction (idle-vs-producing modal ~0.4) rather than zero or full draw. [SUBSTRATE: ABSENT — greenfield, W&R ELETRIC_WITHOUT_WORKING_FACTOR token]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-4",
+          "text": "A separate lighting-off power draw fraction (distinct from the idle-vs-producing fallback in AC-3) reduces a factory's power draw when its lighting is disabled, independent of whether it is currently producing. [SUBSTRATE: ABSENT — greenfield; spec/production.md:58 ($ELETRIC_WITHOUT_LIGHTING_FACTOR)]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "28-38"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "73-79"
+        }
+      ]
+    },
+    {
+      "title": "Throttle output continuously with scarcest input stock instead of an all-or-nothing stall",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "a factory running low on one input to slow down proportionally to that input's remaining stock, not run at full rate until the input hits zero",
+      "so_that": "the scarcest-factor bottleneck (Liebig's law) reads as a rate decay the player can see coming, not a cliff",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today recipe_should_produce is a boolean stall: production runs at full rate while every input is above its threshold and stops entirely the tick an input hits zero. [SUBSTRATE: PARTIAL — recipe_should_produce is a bare bool, souls/goods_company.rs]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "f_inputs must become min over all inputs of (available/required), each input independently throttling the rate to its own stock fraction; a single input at zero drives f_inputs (and thus output) to exactly 0. [SUBSTRATE: ABSENT — greenfield, spec adopts CS1's ProcessingFacilityAI.cs:471 per-input throttle]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Two inputs at different stock fractions (e.g. 80% and 30% of required) yield a rate bounded by the lower (30%) factor, not the higher or an average. [SUBSTRATE: ABSENT — greenfield min() semantics]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "28-38"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "73-79"
+        }
+      ]
+    },
+    {
+      "title": "Combine all production factors multiplicatively so the scarcest factor wins",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "the realized output rate to be the product of every independent factor (labour × power × inputs × machinery × water), not the minimum of any single one",
+      "so_that": "compounding deficiencies compound their effect exactly as physical causality demands — full staffing and full power cannot compensate for a half-supplied input",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "output_rate = base_rate × f_labour × f_power × f_inputs × f_machinery × f_water_quality × f_output_space, where each f_x ∈ [0,1]; the final rate equals the arithmetic product of all factor values, not their minimum. [SUBSTRATE: ABSENT — greenfield; today the composed multiplicative formula does not exist, only the independent binary/boolean/linear gates cited above]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Any single factor at 0 drives the composed rate to exactly 0 regardless of the other factors' values (full staffing + full power + zero iron = zero steel). [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "14-27"
+        }
+      ]
+    },
+    {
+      "title": "Surface the active bottleneck reason to the player",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "to see, per stalled or throttled factory, which single factor (labour, power, a specific input, output space) is currently limiting it",
+      "so_that": "I can act on the cause instead of guessing why output dropped — a past playtest verdict found critical warnings invisible, and a bare bool return today gives the player nothing to look at",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "recipe_should_produce returns only a bare bool today; no bottleneck identity is captured or stored anywhere in the production path. [SUBSTRATE: ABSENT — souls/goods_company.rs, recipe_should_produce bare bool]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "ProductionState must record a bottleneck field naming the single lowest-value active factor (e.g. NoResources(item), NoPower, NoWorkers, NoPlaceForGoods) whenever currentRate0to1 < 1, updated on every factor re-evaluation. [SUBSTRATE: ABSENT — greenfield ProductionState.bottleneck]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Selecting a throttled or stalled building in the UI displays its current bottleneck reason in player-readable form (e.g. \"blocked: no iron\"), visible without opening a debug view. [SUBSTRATE: ABSENT — greenfield; audit notes no severity-tiered notification system exists, only a single-slot ErrorTooltip]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "66-87"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "109-124"
+        }
+      ]
+    },
+    {
+      "title": "Let a building request more input than its recipe strictly needs",
+      "epic_theme": "Hoarding & quota deception (walking skeleton)",
+      "as_a": "planner",
+      "i_want": "an enterprise's declared input requirement to be a separate, inflatable number from the recipe's true consumption rate",
+      "so_that": "the core loop — enterprises hoard inputs and inflate their requests — has something to inflate; today the requested amount is always item.amount, so there is nothing to see through",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today Market::buy_until, called from recipe_init/recipe_act, always requests exactly item.amount — the literal recipe quantity — with no distinction between plan quota and honest requirement. [SUBSTRATE: PROVIDED (as the un-deceptive baseline) — market.rs:161-167, called from souls/goods_company.rs:23,47]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A building must be able to hold a reported requested quantity per input that is independently settable and can exceed the recipe's true per-cycle consumption. [SUBSTRATE: ABSENT — greenfield; this is the hoarding hook the audit names as the cleanest insertion point]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Market::buy_until (or its successor) requests the reported quantity, not the recipe's literal amount, when the two diverge — the enterprise actually receives and stockpiles the inflated amount if the market can supply it. [SUBSTRATE: ABSENT — greenfield; requires additive fields on BuyOrder per audit §4]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "1-9"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "1-1"
+        }
+      ]
+    },
+    {
+      "title": "Distinguish true consumption from reported request in the production ledger",
+      "epic_theme": "Hoarding & quota deception (walking skeleton)",
+      "as_a": "planner",
+      "i_want": "the sim to track, per building per cycle, both what was actually consumed by the recipe and what was requested/received from the market",
+      "so_that": "a gap between the two is a measurable, queryable fact rather than something only visible by reading source",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building accumulates unconsumed surplus stock when received input exceeds what the recipe consumes per cycle, rather than the surplus being silently discarded or never arising (today request == consumption, so no surplus is possible). [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "The per-building surplus/hoard quantity for a given input is queryable (e.g. via a component or market inspection API) distinctly from the input's in-flight order quantity. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "1-9"
+        }
+      ]
+    },
+    {
+      "title": "Let the planner detect a hoarding enterprise from observable state alone",
+      "epic_theme": "Hoarding & quota deception (walking skeleton)",
+      "as_a": "player acting as THE PLANNER",
+      "i_want": "to compare a factory's requested/received input quantity against what it actually consumes and notice when they diverge",
+      "so_that": "hoarding is a discoverable gameplay fact — the emotional core of the design — not an invisible backend number",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Selecting a building shows, for at least one input, both the requested/received quantity and the recipe's true per-cycle consumption, or a derived surplus figure, in the same panel. [SUBSTRATE: ABSENT — greenfield UI, no existing panel exposes recipe consumption vs order quantity]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "Given two otherwise-identical buildings of the same type, one with an honest requested quantity and one with an inflated requested quantity, the inflated one visibly accumulates a growing surplus stock over multiple production cycles while the honest one does not. [SUBSTRATE: ABSENT — greenfield, depends on AC from surplus-tracking story]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "1-9"
+        }
+      ]
+    },
+    {
+      "title": "Give every resource item physical handling metadata",
+      "epic_theme": "Resource ontology (greenfield)",
+      "as_a": "planner and the logistics/construction systems built on top of resources",
+      "i_want": "each resource to declare mass, volume, a storage class, and a transport class",
+      "so_that": "logistics can decide which vehicle/container/network can carry a given resource and storage buildings can reject incompatible goods",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today ItemPrototype is exactly {base, id, optout_exttrade} — no mass, volume, storageClass, or transportClass field exists on any item. [SUBSTRATE: ABSENT — prototypes/src/prototypes/item.rs:8-12, whole schema]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Every item prototype must carry a numeric mass (t/unit) and volume (m³/unit) field, loadable from the Lua catalogue like other prototype fields. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Every item prototype must carry a storageClass (aggregate | covered | liquid | cooled | open | special) and a transportClass (compatible vehicle/network kinds), and two resources with disjoint transportClass sets cannot both be loaded onto the same transport instance. [SUBSTRATE: ABSENT — greenfield; no storage/transport compatibility check exists anywhere in the codebase per audit]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "Every item prototype must carry an optional containerClass (aluminium | bio | construction | plastic | steel | toxic | open) for items that ship in typed containers, matching container_big_{aluminium,bio,construction,plastic,steel,toxic} material classes; a container's material determines what it may legally carry. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:67,86]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-5",
+          "text": "Every item prototype must carry a category field with exactly one of {raw, processed-material, construction, consumer-good, liquid, energy, waste}, distinct from and in addition to its tier field. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:56]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-6",
+          "text": "A network-borne resource (electricity, heat) declares no vehicle-compatible transportClass, and a query for vehicle-transportable resources excludes it entirely — never merely returning a transport-class mismatch as it would for two ordinary physical goods. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:125]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "48-90"
+        }
+      ]
+    },
+    {
+      "title": "Give every resource item an economic tier classification",
+      "epic_theme": "Resource ontology (greenfield)",
+      "as_a": "planner",
+      "i_want": "each resource to declare whether it is raw, intermediate, finished, or luxury",
+      "so_that": "planning priority and trade value can be driven by tier without reintroducing floating money-based worth",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Every item prototype must carry a tier field with exactly one of {raw, intermediate, finished, luxury}. [SUBSTRATE: ABSENT — greenfield, no such field exists in prototypes/src/prototypes/item.rs]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "108-115"
+        }
+      ]
+    },
+    {
+      "title": "Give perishable and hazardous items lifecycle metadata",
+      "epic_theme": "Resource ontology (greenfield)",
+      "as_a": "planner",
+      "i_want": "perishable goods (food, meat) to decay past a shelf life outside cold storage, and hazardous goods (uranium, some waste) to be flagged as such",
+      "so_that": "refrigerated logistics and radioactive handling are physically meaningful rather than cosmetic categories",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "An item may optionally declare a shelfLife; when stored outside a storageClass=cooled bucket (or its equivalent) past shelfLife, its stored quantity is reduced or removed rather than persisting indefinitely. [SUBSTRATE: ABSENT — greenfield; no decay mechanism exists anywhere in the simulation crate per audit]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "An item may optionally declare a hazardClass (e.g. radioactive, toxic); items with a hazardClass set are distinguishable at the prototype level from ordinary goods (for later systems — construction siting, waste routing — to query). [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "48-78"
+        }
+      ]
+    },
+    {
+      "title": "Replace the inverted opt-out trade flag with an explicit tradeable declaration",
+      "epic_theme": "Resource ontology (greenfield)",
+      "as_a": "planner and the trade system",
+      "i_want": "each resource to declare tradeable directly rather than the codebase reasoning about the negation of optout_exttrade everywhere it needs to know",
+      "so_that": "trade eligibility reads as a positive, unambiguous fact matching the spec's Resource.tradeable field",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today the only trade-related field is optout_exttrade — the inverse of the spec's tradeable — and every caller must negate it to get the spec's semantics. [SUBSTRATE: PARTIAL — prototypes/src/prototypes/item.rs:8-12, optout_exttrade is the sole existing field]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A tradeable accessor (or renamed field) exists such that tradeable == !optout_exttrade for every existing item, verified against every entry in the current catalogue with no behavioural change to which items trade externally. [SUBSTRATE: ABSENT — greenfield naming/accessor, behaviour-preserving]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "48-78"
+        }
+      ]
+    },
+    {
+      "title": "Let recipes emit byproducts alongside their primary outputs",
+      "epic_theme": "Byproducts and waste (greenfield)",
+      "as_a": "planner",
+      "i_want": "a recipe to produce sewage, air/ground pollution, or solid waste (ash) as a side effect of its primary output",
+      "so_that": "production isn't clean — dirty chains have a physical consequence the player must route or absorb, not a free externality",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today Recipe has only consumption/production fields; no byproducts, pollutionTier, or waste emission field exists anywhere in the recipe type. [SUBSTRATE: ABSENT — prototypes/src/types/recipe.rs, per audit §3]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A recipe may declare a byproducts list (e.g. sewage rate, ash quantity) that is emitted every production cycle alongside its primary outputs, using the same output mechanism (must go somewhere — a byproduct with no output-space capacity throttles the recipe exactly like a primary output would). [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "A recipe may declare a categorical pollutionTier (small | medium | high) distinct from any numeric byproduct, matching the confirmed W&R POLLUTION_* token shape. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-4",
+          "text": "A recipe's sewage byproduct (declared via a numeric sewage rate) is routed through a network connection to downstream sewage infrastructure, distinct from the bucket-storage mechanism used for solid waste byproducts like ash — sewage never occupies an output-storage slot. [SUBSTRATE: ABSENT — greenfield; spec/production.md:92 ($CONNECTION_SEWAGE_OUTPUT)]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "90-95"
+        }
+      ]
+    },
+    {
+      "title": "Require waste to be physically stored and hauled, not vanish",
+      "epic_theme": "Byproducts and waste (greenfield)",
+      "as_a": "planner",
+      "i_want": "solid waste byproducts (e.g. ash) to occupy real output storage and require freight to clear, exactly like any other good",
+      "so_that": "waste follows the same nothing-teleports rule as every other resource in the economy",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A waste byproduct accumulates in the producing building's output storage and is subject to the same output-space backpressure gate as primary outputs — a full waste buffer halts the recipe exactly like a full goods buffer does. [SUBSTRATE: ABSENT — greenfield; depends on byproducts existing at all]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "90-95"
+        }
+      ]
+    },
+    {
+      "title": "Let machinery condition throttle production output",
+      "epic_theme": "Machinery and skilled labour (greenfield)",
+      "as_a": "planner",
+      "i_want": "a factory's equipment presence and condition to act as an independent production factor",
+      "so_that": "wear becomes a maintenance decision the player manages, not an invisible constant",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today a recipe only tracks n_workers; no machinery/equipment presence or condition field exists on any building or recipe type. [SUBSTRATE: ABSENT — single n_workers tier only, per audit §3]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A recipe may declare workingVehiclesNeeded (or equivalent machinery requirement); f_machinery contributes multiplicatively to output_rate exactly as the other factors do, and missing equipment reduces or zeroes the rate. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "14-27"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "73-79"
+        }
+      ]
+    },
+    {
+      "title": "Gate advanced recipes on skilled/educated labour separately from general labour",
+      "epic_theme": "Machinery and skilled labour (greenfield)",
+      "as_a": "planner",
+      "i_want": "some recipes to require a second, educated-labour tier (professorsNeeded) alongside ordinary workersNeeded",
+      "so_that": "high-tech production chains distinguish general staffing shortfall from a shortage of skilled labour specifically",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today Recipe carries a single workforce tier (n_workers); no second skilled/educated labour field exists. [SUBSTRATE: ABSENT — single n_workers tier only, per audit §3]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A recipe may optionally declare professorsNeeded as a second labour requirement; a shortfall in skilled labour throttles output independently of (and multiplicatively with) the ordinary labour factor, and the bottleneck reason (per the legibility story) distinguishes the two. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "39-64"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "96-108"
+        }
+      ]
+    },
+    {
+      "title": "Gate production below a required water purity threshold",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "a recipe that requires a minimum water purity to be blocked outright when its water input falls below that threshold",
+      "so_that": "water quality reads as a distinct binary gate among the six named production factors, not folded invisibly into the generic multiplicative formula",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today no waterQualityMin field, threshold check, or f_water_quality computation exists anywhere in the recipe or production types. [SUBSTRATE: ABSENT — greenfield; spec/production.md:119,143]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A Recipe may declare waterQualityMin (0..1); when the recipe's water input quality is below waterQualityMin, f_water_quality is 0 and the recipe is blocked outright (not merely throttled proportionally) regardless of every other factor's value. [SUBSTRATE: ABSENT — greenfield; spec/production.md:45,82]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "When the recipe has no waterQualityMin declared, or the supplied water quality meets or exceeds it, f_water_quality is exactly 1 and contributes no penalty to the composed output_rate. [SUBSTRATE: ABSENT — greenfield; spec/production.md:14-27]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "14-27"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "45"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "82"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "119-127"
+        }
+      ]
+    },
+    {
+      "title": "Recompute production factors when a gating input changes, not only on a fixed tick",
+      "epic_theme": "Liebig bottleneck (build)",
+      "as_a": "planner",
+      "i_want": "a factory's production rate and bottleneck to update as soon as its labour, power, or input stock changes",
+      "so_that": "the player sees a stall or recovery promptly instead of waiting up to a full production-frequency period for the sim to notice",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today no change-triggered re-evaluation exists; nothing in the codebase asserts factor recomputation is driven by anything other than the fixed medium-frequency production pass. [SUBSTRATE: ABSENT — greenfield; spec/production.md:131]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A change to a building's present-worker count, available power fraction, or an input's stock level triggers factor re-evaluation (and bottleneck field update) on the tick the change is observed, not only at the next fixed medium-frequency production pass boundary. [SUBSTRATE: ABSENT — greenfield; spec/production.md:131]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "131"
+        }
+      ]
+    },
+    {
+      "title": "Modulate renewable-connected recipes' output by weather and day/night cycle",
+      "epic_theme": "Environmental production modifiers (greenfield)",
+      "as_a": "planner",
+      "i_want": "a recipe connected to wind or solar power to have its output rate scaled by current weather and time-of-day conditions",
+      "so_that": "renewable-dependent production is a legible physical factor rather than a constant rate regardless of conditions",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today no field or mechanism ties any recipe's output rate to weather or day/night state; no renewable-connection flag exists on Recipe. [SUBSTRATE: ABSENT — greenfield; spec/production.md:37,59,107]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A recipe may declare a connectedToWind or connectedToSun flag; when set, its base_rate is scaled by a current wind-strength or sunlight-availability value (0..1) sourced from the weather/day-cycle system, in addition to the other multiplicative factors. [SUBSTRATE: ABSENT — greenfield; spec/production.md:59]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "37"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "59"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "107"
+        }
+      ]
+    },
+    {
+      "title": "Let extraction recipes' output drift downward over calendar time as the resource depletes",
+      "epic_theme": "Environmental production modifiers (greenfield)",
+      "as_a": "planner",
+      "i_want": "a mine or field's base output rate to decline over in-game calendar time",
+      "so_that": "depletion/ageing is a physical consequence of continued extraction rather than an eternal constant rate",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today no field or mechanism reduces a recipe's base_rate as calendar time elapses; base_rate is a static constant. [SUBSTRATE: ABSENT — greenfield; spec/production.md:60,107]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A recipe may declare a yearly depletion rate; over N in-game years of continuous operation with this flag set, the recipe's effective base_rate is strictly lower than at year 0, while a recipe without the flag holds a constant base_rate over the same period. [SUBSTRATE: ABSENT — greenfield; spec/production.md:60]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "60"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "107"
+        }
+      ]
+    },
+    {
+      "title": "Let recipes recover a fractional yield of material from waste inputs",
+      "epic_theme": "Byproducts and waste (greenfield)",
+      "as_a": "planner",
+      "i_want": "a recycling recipe to consume a waste class as an input and recover only a stated fraction of it as usable output",
+      "so_that": "recycling is the physical reverse of the waste-byproduct chain, not a free 1:1 conversion",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today no recipe field represents consuming a waste class at a fractional recovery yield; waste can only be produced as a byproduct, never consumed and partially recovered. [SUBSTRATE: ABSENT — greenfield; spec/production.md:63,94]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A recycling recipe may declare a waste input class and a recovery yield fraction (0..1), e.g. waste_steel at 0.98 or waste_plastic at 0.9; consuming 100 units of the declared waste class at yield 0.98 produces exactly 98 units of recovered output, not 100. [SUBSTRATE: ABSENT — greenfield; spec/production.md:63 ($WASTE_EXTRACTION waste_steel 0.98)]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "63"
+        },
+        {
+          "file": "spec/production.md",
+          "lines": "94"
+        }
+      ]
+    },
+    {
+      "title": "Support storage buckets pinned to a single resource and consumer-demand buffer tiers",
+      "epic_theme": "Resource ontology (greenfield)",
+      "as_a": "planner",
+      "i_want": "a building's storage to support a bucket reserved for one named resource and separate consumer-demand buffer tiers",
+      "so_that": "import docks that only accept one commodity and shop demand buffers are representable, not just a generic storageClass bucket",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Today storage buckets are undifferentiated by class only; no bucket type exists that pins itself to a single named resource id or that models a tiered consumer-demand buffer. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A building may declare an import bucket pinned to exactly one resource id and capacity; the bucket accepts only that resource and rejects any other, even one of a compatible storageClass. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_IMPORT_SPECIAL)]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "A shop building may declare one of four consumer-demand buffer tiers (basic | advanced | hotel | prison), each an independent capacity bucket distinct from ordinary import/export storage. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_DEMAND_BASIC/_ADVANCED/_HOTEL/_PRISON)]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "84"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "title": "Refinery-style recipe consumes one input and yields two co-products",
+      "kind": "surface",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A recipe is defined with 1 input item and 2 output items, plus a nonzero duration"
+      ],
+      "steps": [
+        {
+          "action": "Run the recipe to completion once with input fully supplied",
+          "expected": [
+            "Both output items are added to the building's output storage in their declared quantities",
+            "The input item is consumed in its declared quantity"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Both co-products exist in storage after one completed cycle",
+        "Consumed input quantity matches the recipe's declared amount exactly"
+      ],
+      "owning_story_titles": [
+        "Verify recipes transform multiple inputs into multiple outputs over duration"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "39-71"
+        }
+      ]
+    },
+    {
+      "title": "Mine produces raw ore with zero declared inputs",
+      "kind": "surface",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A recipe is defined with an empty inputs list and one output"
+      ],
+      "steps": [
+        {
+          "action": "Run the recipe with full labour and power available",
+          "expected": [
+            "Production proceeds without any input-availability check ever being evaluated",
+            "Output is added to storage at the declared rate"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Output quantity matches base_rate with no input items consumed"
+      ],
+      "owning_story_titles": [
+        "Verify extraction buildings produce with no consumed inputs"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "60-64"
+        }
+      ]
+    },
+    {
+      "title": "Full output warehouse halts a producing factory, then resumes when space clears",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A factory is actively producing",
+        "Its output storage bucket is filled to capacity"
+      ],
+      "steps": [
+        {
+          "action": "Advance the sim while output storage stays full",
+          "expected": [
+            "Production rate drops to 0",
+            "No further output is added past the storage cap"
+          ]
+        },
+        {
+          "action": "Clear the output storage (simulate freight pickup)",
+          "expected": [
+            "Production resumes automatically on a subsequent tick without manual intervention"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Output storage never exceeds capacity",
+        "Production resumes once space is available"
+      ],
+      "owning_story_titles": [
+        "Verify full output storage halts production (the cascade engine)"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "73-87"
+        }
+      ]
+    },
+    {
+      "title": "Linear staffing factor understates the intended curve's penalty at partial staffing",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "staffFrac = 0.5, worker efficiency e = 1.0"
+      ],
+      "steps": [
+        {
+          "action": "Compute today's linear factor (staffFrac) and the target curve factor (2e − 200e/(staffFrac+100))",
+          "expected": [
+            "The linear result (0.5) is strictly greater than the curve result",
+            "The curve result is the value the acceptance criteria require after the fix"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Linear model output ≠ curve model output at staffFrac=0.5, proving today's implementation does not yet match the spec"
+      ],
+      "owning_story_titles": [
+        "Scale output continuously with staffing fraction, not linearly"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "28-38"
+        }
+      ]
+    },
+    {
+      "title": "Partial power availability throttles output instead of an all-or-nothing blackout",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A factory is fully staffed and fully supplied on inputs",
+        "Its power network delivers 50% of required electricity, not zero"
+      ],
+      "steps": [
+        {
+          "action": "Advance the sim one production cycle under 50% power availability",
+          "expected": [
+            "Output rate is reduced proportionally toward 50%, not left at full rate and not dropped to zero",
+            "The factory is not marked as blacked out"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Realized output is strictly between 0 and full rate under partial power — proving the gate is no longer binary"
+      ],
+      "owning_story_titles": [
+        "Throttle output continuously with available power instead of a binary blackout gate"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "28-38"
+        }
+      ]
+    },
+    {
+      "title": "Scarcest of two under-supplied inputs sets the throttled rate",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A recipe has two inputs; input A is at 80% of required stock, input B is at 30%"
+      ],
+      "steps": [
+        {
+          "action": "Compute f_inputs = min(available/required) across both inputs",
+          "expected": [
+            "f_inputs equals 0.3 (input B's fraction), not 0.8, not an average of the two"
+          ]
+        }
+      ],
+      "final_observables": [
+        "f_inputs == min(0.8, 0.3) == 0.3"
+      ],
+      "owning_story_titles": [
+        "Throttle output continuously with scarcest input stock instead of an all-or-nothing stall"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "28-38"
+        }
+      ]
+    },
+    {
+      "title": "Two independently-deficient factors compound multiplicatively, not by minimum",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "f_labour = 0.5 (understaffed)",
+        "f_power = 1.0 (full power)",
+        "f_inputs = 0.3 (scarce input)",
+        "all other factors = 1.0"
+      ],
+      "steps": [
+        {
+          "action": "Compute output_rate = base_rate × f_labour × f_power × f_inputs × f_machinery × f_water_quality × f_output_space",
+          "expected": [
+            "output_rate == base_rate × 0.5 × 0.3 == base_rate × 0.15",
+            "output_rate is NOT equal to base_rate × min(0.5, 1.0, 0.3) == base_rate × 0.3"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Composed rate equals the product of all factors (0.15×base_rate), distinguishing multiplicative composition from a min()-only composition"
+      ],
+      "owning_story_titles": [
+        "Combine all production factors multiplicatively so the scarcest factor wins"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "14-27"
+        }
+      ]
+    },
+    {
+      "title": "Player inspects a stalled factory and sees which input is missing",
+      "kind": "surface",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "A factory is stalled because its steel input reached zero while labour and power remain fully available"
+      ],
+      "steps": [
+        {
+          "action": "Player selects the stalled building in the UI",
+          "expected": [
+            "A panel or overlay names the bottleneck as the specific missing input (steel), not a generic 'stopped' or 'idle' state"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The bottleneck reason shown to the player matches the actual limiting factor (NoResources(steel))"
+      ],
+      "owning_story_titles": [
+        "Surface the active bottleneck reason to the player"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "66-87"
+        }
+      ]
+    },
+    {
+      "title": "An enterprise with an inflated request accumulates surplus stock a matched honest enterprise does not",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two identical buildings of the same recipe type exist",
+        "Building A's declared request quantity for its input equals the recipe's true per-cycle consumption (honest)",
+        "Building B's declared request quantity for the same input is set to 2x the recipe's true per-cycle consumption (inflated)",
+        "The market has enough supply to fill both requests each cycle"
+      ],
+      "steps": [
+        {
+          "action": "Advance the sim through several production cycles",
+          "expected": [
+            "Building A's input stock oscillates near zero between deliveries (consumes what it requests)",
+            "Building B's input stock grows cycle over cycle, since it receives more than the recipe consumes"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Building B holds a strictly larger surplus of the input than Building A after N cycles, proving the requested/consumed gap is now mechanically real"
+      ],
+      "owning_story_titles": [
+        "Let a building request more input than its recipe strictly needs",
+        "Distinguish true consumption from reported request in the production ledger"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "1-9"
+        }
+      ]
+    },
+    {
+      "title": "Player detects a hoarding enterprise from its inspection panel alone",
+      "kind": "surface",
+      "proof_seam": "e2e",
+      "preconditions": [
+        "Building B (from the hoarding scenario above) has accumulated visible surplus stock over several cycles"
+      ],
+      "steps": [
+        {
+          "action": "Player opens Building B's inspection panel",
+          "expected": [
+            "The panel shows both the requested/received input quantity and the recipe's true consumption for at least one input",
+            "The two numbers visibly differ"
+          ]
+        },
+        {
+          "action": "Player compares Building B's panel to Building A's (honest) panel",
+          "expected": [
+            "Building A's requested and consumed figures match; Building B's do not"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The player can, from UI alone with no source access, identify which of the two buildings is hoarding"
+      ],
+      "owning_story_titles": [
+        "Let the planner detect a hoarding enterprise from observable state alone"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "1-9"
+        }
+      ]
+    },
+    {
+      "title": "Steel and fuel resources declare incompatible transport classes",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "Steel item prototype has transportClass = OPEN (flatbed)",
+        "Fuel item prototype has transportClass = OIL (tanker)"
+      ],
+      "steps": [
+        {
+          "action": "Query whether steel and fuel share a compatible transportClass",
+          "expected": [
+            "The compatibility check returns false — no shared transport class"
+          ]
+        },
+        {
+          "action": "Attempt to load steel onto a tanker vehicle instance (transportClass = OIL)",
+          "expected": [
+            "The load is rejected"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Steel cannot be assigned to OIL-class transport; the compatibility contract is enforced, not merely documented"
+      ],
+      "owning_story_titles": [
+        "Give every resource item physical handling metadata"
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "48-90"
+        }
+      ]
+    },
+    {
+      "title": "Meat left outside cold storage decays past its shelf life",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A meat item prototype declares shelfLife = N ticks and storageClass = cooled as its compatible class",
+        "A quantity of meat is stored in an uncooled (open) storage bucket"
+      ],
+      "steps": [
+        {
+          "action": "Advance the sim past N ticks with meat continuously in uncooled storage",
+          "expected": [
+            "The stored meat quantity decreases or is zeroed once shelfLife elapses"
+          ]
+        },
+        {
+          "action": "Repeat with meat stored in a cooled bucket for the same duration",
+          "expected": [
+            "The stored meat quantity is unaffected (or decays at a slower/no rate)"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Uncooled meat quantity after N+1 ticks is strictly less than cooled meat quantity under identical elapsed time"
+      ],
+      "owning_story_titles": [
+        "Give perishable and hazardous items lifecycle metadata"
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "48-78"
+        },
+        {
+          "file": "spec/resources.md",
+          "lines": "116-126"
+        }
+      ]
+    },
+    {
+      "title": "A combustion recipe emits ash that fills its own output bucket and can halt the recipe",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A recipe declares a primary output plus a waste_ash byproduct",
+        "The building's ash output bucket has finite capacity and is nearly full"
+      ],
+      "steps": [
+        {
+          "action": "Run the recipe to completion enough times to fill the ash bucket",
+          "expected": [
+            "Ash accumulates in a dedicated output-space bucket, consuming capacity like any other output"
+          ]
+        },
+        {
+          "action": "Attempt one more production cycle once the ash bucket is full",
+          "expected": [
+            "The recipe halts (output-space backpressure applies to the byproduct exactly as it does to the primary output)"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Production is blocked by a full byproduct bucket even though the primary output has free space, proving byproducts are first-class outputs subject to the same physical rules"
+      ],
+      "owning_story_titles": [
+        "Let recipes emit byproducts alongside their primary outputs",
+        "Require waste to be physically stored and hauled, not vanish"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "90-95"
+        }
+      ]
+    },
+    {
+      "title": "Cooled-class storage bucket rejects an incompatible open-class resource",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A storage bucket declares storageClass = cooled",
+        "An item prototype (e.g. steel) declares storageClass = open"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to place steel into the cooled-class bucket",
+          "expected": [
+            "The placement is rejected — the bucket accepts only cooled-class resources"
+          ]
+        },
+        {
+          "action": "Place a cooled-class resource (e.g. meat) into the same bucket",
+          "expected": [
+            "The placement succeeds"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Steel is never accepted by the cooled bucket while a cooled-class resource is, proving storage-class compatibility is enforced independently of transport-class compatibility"
+      ],
+      "owning_story_titles": [
+        "Give every resource item physical handling metadata"
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "120"
+        }
+      ]
+    },
+    {
+      "title": "Electricity is never returned by a query for vehicle-transportable resources",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Electricity item prototype declares no vehicle-compatible transportClass (network-only)"
+      ],
+      "steps": [
+        {
+          "action": "Query the logistics vehicle scheduler for resources eligible to be assigned to a truck/rail transport instance",
+          "expected": [
+            "Electricity does not appear in the eligible set at all"
+          ]
+        },
+        {
+          "action": "Attempt to directly assign electricity to a vehicle transport instance",
+          "expected": [
+            "The assignment is rejected"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Electricity is categorically absent from vehicle-transportable resources, not merely incompatible with one specific transport class"
+      ],
+      "owning_story_titles": [
+        "Give every resource item physical handling metadata"
+      ],
+      "sources": [
+        {
+          "file": "spec/resources.md",
+          "lines": "125"
+        }
+      ]
+    },
+    {
+      "title": "Sub-threshold water quality blocks the recipe outright despite full staffing and power",
+      "kind": "failure-recovery",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A recipe declares waterQualityMin = 0.6",
+        "f_labour = 1.0 and f_power = 1.0",
+        "Supplied water quality = 0.4"
+      ],
+      "steps": [
+        {
+          "action": "Compute f_water_quality and the composed output_rate",
+          "expected": [
+            "f_water_quality == 0",
+            "output_rate == 0 regardless of f_labour and f_power both being 1.0"
+          ]
+        },
+        {
+          "action": "Raise supplied water quality to 0.6 and recompute",
+          "expected": [
+            "f_water_quality == 1",
+            "output_rate is no longer forced to 0 by the water-quality factor"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The recipe is blocked below the threshold and unblocked at or above it, proving water quality is a binary gate distinct from the continuous factors"
+      ],
+      "owning_story_titles": [
+        "Gate production below a required water purity threshold"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "82"
+        }
+      ]
+    },
+    {
+      "title": "Bottleneck reason updates immediately when an input stock is depleted mid-cycle",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A factory is producing at full rate with all factors satisfied",
+        "Its input stock for one item drops to zero mid-tick, before the next fixed production pass boundary"
+      ],
+      "steps": [
+        {
+          "action": "Advance the sim by a fraction of the production-frequency period after the stock change",
+          "expected": [
+            "The factory's bottleneck field updates to name the depleted input before the next fixed production pass boundary is reached"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Bottleneck reason reflects the depleted input before the next scheduled production pass, proving recomputation is change-triggered, not only tick-scheduled"
+      ],
+      "owning_story_titles": [
+        "Recompute production factors when a gating input changes, not only on a fixed tick"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "131"
+        }
+      ]
+    },
+    {
+      "title": "Recycling waste_steel at its confirmed 0.98 yield recovers 98 of 100 units consumed",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A recycling recipe declares waste input class = waste_steel with recovery yield = 0.98"
+      ],
+      "steps": [
+        {
+          "action": "Run the recipe consuming exactly 100 units of waste_steel",
+          "expected": [
+            "Recovered output quantity equals 98 units exactly, not 100"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Recovered output == input_quantity × yield (100 × 0.98 == 98)"
+      ],
+      "owning_story_titles": [
+        "Let recipes recover a fractional yield of material from waste inputs"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "63"
+        }
+      ]
+    },
+    {
+      "title": "A professor shortfall throttles output multiplicatively alongside a simultaneous labour shortfall",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A recipe declares workersNeeded and professorsNeeded",
+        "workers present / workersNeeded staffing fraction yields f_labour = 0.8",
+        "professors present / professorsNeeded yields f_professors = 0.5",
+        "f_power = f_inputs = 1.0"
+      ],
+      "steps": [
+        {
+          "action": "Compute the composed output_rate including f_professors as an independent multiplicative factor",
+          "expected": [
+            "output_rate == base_rate × f_labour × f_professors == base_rate × 0.8 × 0.5 == base_rate × 0.4",
+            "output_rate is NOT equal to base_rate × min(f_labour, f_professors) == base_rate × 0.5"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Composed rate equals the product of the labour and professor factors (0.4×base_rate), proving professorsNeeded throttles independently and multiplicatively rather than by minimum"
+      ],
+      "owning_story_titles": [
+        "Gate advanced recipes on skilled/educated labour separately from general labour"
+      ],
+      "sources": [
+        {
+          "file": "spec/production.md",
+          "lines": "96-108"
+        }
+      ]
+    }
+  ]
+}

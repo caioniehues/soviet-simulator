@@ -1,0 +1,975 @@
+{
+  "stories": [
+    {
+      "title": "Give households a cash balance (nal)",
+      "epic_theme": "Two-circuit money",
+      "as_a": "citizen",
+      "i_want": "to hold a personal cash balance",
+      "so_that": "I can buy consumer goods at state-fixed retail prices instead of receiving them for free",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Every human entity has a nal (cash) balance field that persists across save/load. [SUBSTRATE: ABSENT — greenfield; audit §4/§5 confirm humans have no currency field at all, docs/egregoria-substrate-audit.md:37-38]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A citizen's buy order for a consumer good is rejected (or queued/deferred) if their nal balance is below the item's administered retail price, replacing today's unconditional 'purchases resolve on arrival' fulfilment. [SUBSTRATE: CONFLICTS — souls/desire/buyfood.rs:50-54 resolves purchase on arrival with no price param, docs/egregoria-substrate-audit.md:37-38]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "121-160"
+        },
+        {
+          "file": "docs/charter-1.0.md",
+          "lines": "17-24"
+        }
+      ]
+    },
+    {
+      "title": "Pay wages from employer to worker in nal",
+      "epic_theme": "Two-circuit money",
+      "as_a": "worker",
+      "i_want": "to receive a periodic wage in cash from my workplace",
+      "so_that": "I have money to spend at retail without a free item handout",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A working human's workplace debits its own account and credits the worker's nal balance on a defined wage interval. [SUBSTRATE: ABSENT — greenfield; audit confirms no wages exist, grep for wage/salary returns nothing except a flat government upkeep debit at economy/mod.rs:51, docs/egregoria-substrate-audit.md:17-19]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "An unemployed human (no Work.workplace binding) accrues no wage income over any simulated period. [SUBSTRATE: PARTIAL — Work.workplace binding exists (souls/desire/work.rs:20-26) but nothing reads it for money movement today, docs/egregoria-substrate-audit.md:17-19]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "17-19,154-158"
+        }
+      ]
+    },
+    {
+      "title": "Give enterprises a separate accounting-rouble (beznal) settlement account",
+      "epic_theme": "Two-circuit money",
+      "as_a": "enterprise",
+      "i_want": "to settle input purchases and wage payroll from a non-cash accounting account distinct from any household cash",
+      "so_that": "enterprise-to-enterprise trade and payroll never share a pool with retail consumer spending",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Every company/enterprise entity carries a beznal balance distinct in type from a citizen's nal balance (not the same undifferentiated Money(i64) scalar reused for both). [SUBSTRATE: ABSENT — Money(i64) is one undifferentiated scalar with no account types today, prototypes/src/types/money.rs:14, docs/egregoria-substrate-audit.md:123-125]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Internal (domestic, non-border) trades between enterprises settle in beznal with money_delta no longer hardcoded to zero, replacing today's price-free barter clearing. [SUBSTRATE: CONFLICTS — every internal trade is money_delta: Money::ZERO today, economy/market.rs:226, docs/egregoria-substrate-audit.md:29-31]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "121-160"
+        }
+      ]
+    },
+    {
+      "title": "Forbid beznal from ever buying a consumer good",
+      "epic_theme": "Two-circuit money",
+      "as_a": "planner",
+      "i_want": "a hard rule that enterprise accounting roubles cannot purchase retail consumer goods under any circumstance",
+      "so_that": "the nal/beznal separation that makes plan fulfilment and shopping queues distinct problems cannot be silently bypassed",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "An attempt to fund a citizen-facing retail purchase from an enterprise's beznal account is rejected at the transaction boundary regardless of balance available, with no code path that converts beznal to nal implicitly. [SUBSTRATE: ABSENT — no account types or circuit separation exist at all; Money(i64) serves treasury, ext price and trade delta alike with no distinction, docs/egregoria-substrate-audit.md:123-125]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "There is no explicit or implicit exchange function that converts a beznal balance into nal outside of the documented wage-payment path (enterprise beznal debit -> worker nal credit is the only legal bridge between circuits). [SUBSTRATE: ABSENT — greenfield, no such boundary exists to violate or preserve yet, docs/egregoria-substrate-audit.md:154-158]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "154-158"
+        }
+      ]
+    },
+    {
+      "title": "Set administered retail prices distinct from enterprise shadow prices",
+      "epic_theme": "Price administration",
+      "as_a": "planner",
+      "i_want": "to set a fixed retail price table for household-facing consumer goods, separate from the enterprise-side ext_value used at the border",
+      "so_that": "prices never float to clear excess demand — the queue does the clearing instead",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A retail price table exists per consumer-good item, settable by the player/plan, and is read by every citizen purchase instead of any per-trade computed price. [SUBSTRATE: ABSENT — no policy layer exists; the only price value is ext_value from calculate_prices, computed once at startup and never recalculated, economy/market.rs:343-403, docs/egregoria-substrate-audit.md:121-122,37]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "Setting a retail price and then simulating excess household demand at that price produces a longer queue/wait time and/or empty shelves, never an automatic price increase. [SUBSTRATE: ABSENT — greenfield, no queue-vs-price clearing distinction exists in citizen purchase logic today]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Enterprise-facing shadow/settlement prices used for internal beznal trade can differ from the household retail price for the same item, and changing one does not change the other. [SUBSTRATE: ABSENT — greenfield; SingleMarket.capital is goods-on-hand not currency and is not a price signal, economy/market.rs:32, docs/egregoria-substrate-audit.md:126-127]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "34-40"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "121-127"
+        }
+      ]
+    },
+    {
+      "title": "Seed a stocked starter warehouse at game start",
+      "epic_theme": "Physical foreign trade",
+      "as_a": "planner",
+      "i_want": "a pre-stocked warehouse of essential goods present at turn one",
+      "so_that": "the very first production chains have something to draw on before any internal chain or import route exists",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "On a new game start, a designated starter warehouse building/store holds a non-zero, config-defined quantity of at least the goods required to bootstrap the opening production chains, before any player action. [SUBSTRATE: ABSENT — greenfield, decided 2026-08-22: 'a stocked starter warehouse seeds turn one', docs/egregoria-substrate-audit.md:159-161]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "e2e"
+        },
+        {
+          "id": "AC-2",
+          "text": "Goods drawn from the starter warehouse are consumed via the same physical recipe-input path as any other sourced input (Market::buy_until / recipe_init), never a special-cased free-goods branch. [SUBSTRATE: PARTIAL — buy_until always requests exactly item.amount from the static recipe with no distinction of source today, economy/market.rs:161-167, souls/goods_company.rs:23,47, docs/egregoria-substrate-audit.md:142-144]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "159-161"
+        }
+      ]
+    },
+    {
+      "title": "Offer customs imports at a markup as a permanent paid deadlock escape",
+      "epic_theme": "Physical foreign trade",
+      "as_a": "planner",
+      "i_want": "to pay a price premium at customs to import a good whenever a domestic supply chain is deadlocked",
+      "so_that": "a stalled chain always has a costly-but-available way out, distinct from the one-time starter warehouse",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "At any point in the game (not only turn one) the player can place a customs import order for a deficit good at a price strictly higher than its domestic administered/shadow price, and this option remains available for the life of the save. [SUBSTRATE: ABSENT — greenfield, decided 2026-08-22: 'customs imports at a markup remain the permanent paid escape hatch whenever a chain deadlocks', docs/egregoria-substrate-audit.md:159-161]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A customs import order debits the treasury's hard-currency (foreign rouble) account, never the enterprise beznal or household nal circuits, distinguishing this from internal trade. [SUBSTRATE: ABSENT — greenfield; today the only money pool at all is Government.money and it is undifferentiated, economy/government.rs:10, docs/egregoria-substrate-audit.md:127-128]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "The markup import does not resolve instantly: it still requires the same physical border-clearance and inland haul as any other foreign trade order (see border-crossing story), it is not a same-tick money-for-goods shortcut. [SUBSTRATE: CONFLICTS — today every unmet buy order is satisfied instantly and unconditionally by an infinite external partner with no vehicle trip, economy/market.rs:285-304, docs/egregoria-substrate-audit.md:130-135]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "130-135,159-161"
+        },
+        {
+          "file": "spec/trade.md",
+          "lines": "9-12"
+        }
+      ]
+    },
+    {
+      "title": "Require a physical vehicle trip to move goods across the border",
+      "epic_theme": "Physical foreign trade",
+      "as_a": "planner",
+      "i_want": "an ordered import/export to remain unfulfilled until a vehicle physically hauls the goods across a customs building",
+      "so_that": "money at the border is never sufficient by itself — the one rule that nothing teleports holds at the border too",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Placing a foreign trade order does not immediately mutate any goods quantity or capital field; goods only appear/disappear from domestic stock after a vehicle entity completes a trip through a border-crossing building. [SUBSTRATE: CONFLICTS — today external buy/sell loops mutate capital in the same tick with no vehicle trip at all, economy/market.rs:285-304 (buy side), :307-331 (sell side), docs/egregoria-substrate-audit.md:130-135]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        },
+        {
+          "id": "AC-2",
+          "text": "If no freight/vehicle capacity exists to service a foreign trade order, the order remains queued and no capital or money changes hands — replacing today's behaviour where capital is credited before existence of a freight station is even checked. [SUBSTRATE: CONFLICTS — confirmed bug: both external loops mutate capital before checking a freight station exists (market.rs:291 credits, :293 checks; symmetric at :317/:320); if find_external returns None goods appear with no trade record and no money debit, docs/egregoria-substrate-audit.md:136-141]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Foreign trade throughput is capped by physical means (customs bay count, fleet size, border-edge capacity) rather than by any numeric trade-volume token, so a saturated customs house measurably slows import/export rate. [SUBSTRATE: ABSENT — greenfield; no vehicle-bay or throughput model exists at the border today, docs/egregoria-substrate-audit.md:130-135]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "9-17"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "130-141"
+        }
+      ]
+    },
+    {
+      "title": "Build customs houses as typed border-crossing buildings",
+      "epic_theme": "Physical foreign trade",
+      "as_a": "planner",
+      "i_want": "to construct a customs house with a transport mode (road/rail/air), a per-cargo-class buffer, vehicle bays, and both a domestic-facing and a border-facing edge",
+      "so_that": "foreign trade has a physical building the player sites and can bottleneck, not an implicit map-edge shop",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A customs house is a placeable building entity distinct from ordinary production buildings, with fields for mode, per-transport-class buffer (1-unit buffer per cargo class), bay list, domestic edge, and border edge. [SUBSTRATE: ABSENT — greenfield; no BorderCrossing/customs building type exists in the codebase, docs/egregoria-substrate-audit.md:130-135 (external partner has no building at all)]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "There is no map-edge 'infinite external partner' reachable without passing through a built customs house — every export/import order resolves only via a player-built or pre-placed customs house entity. [SUBSTRATE: CONFLICTS — today the external partner exists with no capacity limit and is reachable with no building constructed, economy/market.rs:285-331, docs/egregoria-substrate-audit.md:130-135]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        },
+        {
+          "id": "AC-3",
+          "text": "Electricity import/export transformers and border pipelines exist as separate typed border-crossing endpoints from road/rail/air customs houses, with the transport medium of a good deciding which border building it crosses at (the same routing rule used domestically). [SUBSTRATE: ABSENT — greenfield; no utility border building type exists, only a road/rail/air customs house concept is modelled at all, spec/trade.md:14-15]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "A customs house may be either a pre-placed/map-provided instance or a player-constructed instance (the `$SUBTYPE_OWN_CUSTOM` distinction), and both variants participate in border trade identically once built. [SUBSTRATE: ABSENT — greenfield; no customs house entity exists yet to have this ownership distinction, spec/trade.md:13]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "9-17"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "130-135"
+        }
+      ]
+    },
+    {
+      "title": "Settle foreign trade only on physical border clearance",
+      "epic_theme": "Physical foreign trade",
+      "as_a": "planner",
+      "i_want": "treasury debit/credit for a trade to occur at the moment the vehicle clears the border, not at order-match time",
+      "so_that": "treasury and simulation state never diverge",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A trade order's status progresses ordered -> atCustoms -> cleared, and the treasury balance changes only on the transition into cleared, never earlier. [SUBSTRATE: CONFLICTS — settlement happens at match time today (the same tick the pair is drained in make_trades), not at any border-clearance event, economy/market.rs:193-336, docs/egregoria-substrate-audit.md:130-135]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "If a save is loaded mid-transit (a trade order in the atCustoms state), the treasury balance on load reflects only cleared trades, and the in-flight order resumes without double-crediting or losing the goods. [SUBSTRATE: ABSENT — greenfield; no in-flight trade state or save-compatible representation of it exists today, docs/egregoria-substrate-audit.md:130-135]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "process-level"
+        },
+        {
+          "id": "AC-3",
+          "text": "(OPEN/DEFERRED — whether a trade order locks its price at order time or floats to the clearance-time price is an undecided design question per spec/trade.md:57,63, not scheduled for 1.0 until resolved) A trade order's price-snapshot policy is not yet defined; the draft data model reserves an optional `priceAtOrder?` field for whichever policy is later chosen. [SUBSTRATE: ABSENT — greenfield; no policy decision or field exists in code, spec/trade.md:57,63]",
+          "behavioral_impact": "none",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-4",
+          "text": "A cleared trade's paired ledger entry is tagged as import or export at settlement, enabling per-direction trade-balance reporting distinct from a currency-only or amount-only record. [SUBSTRATE: ABSENT — greenfield; no ledger entry type distinguishes import/export direction today, spec/trade.md:26]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "26-29,57,63"
+        }
+      ]
+    },
+    {
+      "title": "Track two hard-currency ledgers, roubles and dollars",
+      "epic_theme": "Foreign currency",
+      "as_a": "planner",
+      "i_want": "domestic-bloc trade to settle in roubles and hard-currency trade to settle in dollars, in two separate treasury balances with no free conversion",
+      "so_that": "being rouble-rich does not automatically mean I can buy Western goods",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Treasury carries two distinct currency balances (roubles, dollars); a good's trade currency is a property of the good/origin, not a runtime player choice. [SUBSTRATE: ABSENT — Government.money is a single undifferentiated Money(i64) scalar today, economy/government.rs:10, docs/egregoria-substrate-audit.md:123-128]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "There is no direct rouble-to-dollar conversion action; dollars are obtainable only via export settlement or a dollar-denominated loan. [SUBSTRATE: ABSENT — greenfield, exchange rate/conversion mechanic explicitly flagged as an open gap in trade.md's own evidence log]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "18-24,66-68"
+        }
+      ]
+    },
+    {
+      "title": "Offer per-currency loans with interest and borrowing caps",
+      "epic_theme": "Foreign currency",
+      "as_a": "planner",
+      "i_want": "to borrow roubles or dollars separately, each with its own interest rate, penalty rate, and borrowing cap",
+      "so_that": "debt pressure is currency-specific, matching the two-ledger split the rest of foreign trade already enforces",
+      "deferred": true,
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "(DEFERRED to Post-1.0 per docs/charter-1.0.md:108 — captured, not scheduled for 1.0) Treasury supports a loan per currency, each carrying its own principal, interest rate, and penalty rate, matching the `loans: [{currency, principal, rate, penaltyRate}]` shape in the design draft. [SUBSTRATE: ABSENT — greenfield; no loan mechanic or Treasury type exists at all, spec/trade.md:22-23,53]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "22-23,53,64"
+        }
+      ]
+    },
+    {
+      "title": "Let the plan set standing import/export contracts fulfilled by logistics",
+      "epic_theme": "Foreign trade catalogue",
+      "as_a": "planner",
+      "i_want": "the plan to set standing import/export contracts (quotas) rather than negotiate every shipment order manually",
+      "so_that": "foreign trade quotas are a plan artifact and logistics dispatch fulfils them physically, consistent with domestic deficit-driven dispatch",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A standing import or export contract set by the plan specifies a good, a quantity/quota, and a direction, and logistics dispatch fulfils it over time via the same physical border-crossing path as any other trade order, rather than requiring the player to place a fresh order for every shipment. [SUBSTRATE: ABSENT — greenfield; no plan-contract or quota mechanism exists, spec/trade.md:60-61]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "60-61"
+        }
+      ]
+    },
+    {
+      "title": "Gate the import/export catalogue by era and bloc",
+      "epic_theme": "Foreign trade catalogue",
+      "as_a": "planner",
+      "i_want": "which goods and vehicles are importable/exportable to change with the campaign timeline and bloc alignment",
+      "so_that": "trade is a geopolitical lever, not a static shop",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Each tradeable item/vehicle prototype carries an availability window (era range) and an origin/bloc tag, and an order for an item outside its current availability window or bloc alignment is rejected at customs. [SUBSTRATE: ABSENT — ItemPrototype today is only {base, id, optout_exttrade}, no era or country fields exist, prototypes/src/prototypes/item.rs:8-12, docs/egregoria-substrate-audit.md:47-48]",
+          "behavioral_impact": "journey",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "42-44"
+        }
+      ]
+    },
+    {
+      "title": "Depreciate exported vehicles by condition on resale",
+      "epic_theme": "Foreign trade catalogue",
+      "as_a": "planner",
+      "i_want": "an exported vehicle's sale value to depend on its wear/condition, not just its base price",
+      "so_that": "players cannot churn new vehicles across the border for free money",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Exporting a used vehicle yields strictly less hard currency than exporting an equivalent new vehicle, as a function of a tracked condition/wear value. [SUBSTRATE: ABSENT — greenfield; Vehicle is a bare kinematic shell today with no wear/condition/owner economic fields at all, transportation/vehicle.rs:34-44, docs/egregoria-substrate-audit.md:22]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "46-48"
+        }
+      ]
+    },
+    {
+      "title": "Publish the world-market price model to the player",
+      "epic_theme": "Price administration",
+      "as_a": "planner",
+      "i_want": "to see the current export/import price of each traded good and the drivers moving it (era, world events, my own export volume)",
+      "so_that": "the moving market is legible rather than a black box",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A player-facing view shows, for a traded item, its current border price and at least the named drivers that changed it since the last check. [SUBSTRATE: ABSENT — greenfield; the only price value that exists is ext_value, a fixed per-item value computed once at startup and never recalculated or exposed as a curve, economy/market.rs:35, calculate_prices at market.rs:343-403, docs/egregoria-substrate-audit.md:121-122]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-2",
+          "text": "The border price for a good changes over simulated time in response to at least one modelled driver (e.g. cumulative export volume), rather than remaining the single startup-computed constant it is today. [SUBSTRATE: CONFLICTS — ext_value from calculate_prices is computed once, never recalculated, economy/market.rs:343-403, docs/egregoria-substrate-audit.md:37-38,121-122]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "30-33"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "title": "New game starts with a stocked starter warehouse",
+      "kind": "surface",
+      "proof_seam": "e2e",
+      "preconditions": [
+        "Fresh new-game start, no player actions taken yet"
+      ],
+      "steps": [
+        {
+          "action": "Load a new game",
+          "expected": [
+            "Simulation initializes without error"
+          ]
+        },
+        {
+          "action": "Inspect the starter warehouse's stock",
+          "expected": [
+            "Warehouse holds the configured non-zero starting quantities of bootstrap goods"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Starter warehouse stock matches the configured seed quantities before any tick advances"
+      ],
+      "owning_story_titles": [
+        "Seed a stocked starter warehouse at game start"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "159-161"
+        }
+      ]
+    },
+    {
+      "title": "Deadlocked domestic chain is broken by a marked-up customs import",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A production chain has zero domestic supply of a required input and no path to acquire it internally (simulated deadlock)"
+      ],
+      "steps": [
+        {
+          "action": "Player places a customs import order for the deficit good",
+          "expected": [
+            "Order is accepted and priced above the domestic administered/shadow price"
+          ]
+        },
+        {
+          "action": "Advance simulation until a vehicle completes the border-to-inland haul",
+          "expected": [
+            "Treasury's foreign-currency balance is debited only at the moment of physical clearance, not at order time"
+          ]
+        },
+        {
+          "action": "Advance the deadlocked chain",
+          "expected": [
+            "Chain resumes production using the imported goods"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Deadlocked chain produces output again",
+        "Treasury foreign-currency balance decreased by the markup price",
+        "No enterprise beznal or household nal balance changed"
+      ],
+      "owning_story_titles": [
+        "Offer customs imports at a markup as a permanent paid deadlock escape",
+        "Settle foreign trade only on physical border clearance"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "130-135,159-161"
+        }
+      ]
+    },
+    {
+      "title": "Foreign trade order stalls with no vehicle capacity, no money moves",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A foreign trade order is placed",
+        "No freight vehicle/fleet capacity exists to service the customs house"
+      ],
+      "steps": [
+        {
+          "action": "Advance the simulation for many ticks with no freight capacity available",
+          "expected": [
+            "Order remains in the ordered or atCustoms state, never reaches cleared"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No capital/goods quantity changed for either party",
+        "No treasury balance changed",
+        "Order is still visibly queued to the player, not silently dropped"
+      ],
+      "owning_story_titles": [
+        "Require a physical vehicle trip to move goods across the border"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "136-141"
+        }
+      ]
+    },
+    {
+      "title": "Household cash cannot be spent using enterprise accounting roubles",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "An enterprise holds a beznal balance sufficient to cover a retail good's price",
+        "A citizen's nal balance is zero"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to fund the citizen's retail purchase directly from the enterprise's beznal account (bypassing wages)",
+          "expected": [
+            "Transaction is rejected"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Citizen does not receive the good",
+        "Enterprise beznal balance is unchanged",
+        "No implicit beznal-to-nal conversion occurred"
+      ],
+      "owning_story_titles": [
+        "Forbid beznal from ever buying a consumer good"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "154-158"
+        }
+      ]
+    },
+    {
+      "title": "Excess retail demand lengthens the queue instead of raising the price",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Administered retail price for a good is set and held fixed",
+        "Household demand for the good exceeds current shelf stock"
+      ],
+      "steps": [
+        {
+          "action": "Advance simulation with demand continuing to exceed stock",
+          "expected": [
+            "Retail price for the good is unchanged tick over tick"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Queue length and/or wait time for the good has increased",
+        "Administered price is bit-for-bit identical to before the demand spike"
+      ],
+      "owning_story_titles": [
+        "Set administered retail prices distinct from enterprise shadow prices"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "121-127"
+        },
+        {
+          "file": "spec/trade.md",
+          "lines": "1-6"
+        }
+      ]
+    },
+    {
+      "title": "Treasury and simulation stay consistent across a mid-transit save/load",
+      "kind": "contract",
+      "proof_seam": "process-level",
+      "preconditions": [
+        "A foreign trade order has been matched and is in the atCustoms (in-transit) state, not yet cleared"
+      ],
+      "steps": [
+        {
+          "action": "Save the game",
+          "expected": [
+            "Save completes without error"
+          ]
+        },
+        {
+          "action": "Reload the save",
+          "expected": [
+            "Order is restored in the atCustoms state"
+          ]
+        },
+        {
+          "action": "Advance simulation until the vehicle clears the border",
+          "expected": [
+            "Treasury is credited/debited exactly once, at clearance"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Treasury balance after clearance equals pre-save balance plus/minus exactly one trade's value",
+        "No double-settlement and no lost settlement occurred"
+      ],
+      "owning_story_titles": [
+        "Settle foreign trade only on physical border clearance"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "27-29"
+        }
+      ]
+    },
+    {
+      "title": "Dollar-only good cannot be bought with a rouble-only balance",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Treasury holds a large rouble balance and zero dollars",
+        "Target import good is tagged as a hard-currency (dollar) good"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to place an import order for the dollar-tagged good",
+          "expected": [
+            "Order is rejected or blocked pending dollar funds"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Rouble balance is unchanged",
+        "No goods are imported"
+      ],
+      "owning_story_titles": [
+        "Track two hard-currency ledgers, roubles and dollars"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "18-24"
+        }
+      ]
+    },
+    {
+      "title": "Household nal balance persists across save and load",
+      "kind": "contract",
+      "proof_seam": "process-level",
+      "preconditions": [
+        "A citizen holds a non-zero nal balance"
+      ],
+      "steps": [
+        {
+          "action": "Save the game",
+          "expected": [
+            "Save completes without error"
+          ]
+        },
+        {
+          "action": "Reload the save",
+          "expected": [
+            "Citizen's nal balance is restored to the exact pre-save value"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Citizen nal balance after load equals nal balance before save"
+      ],
+      "owning_story_titles": [
+        "Give households a cash balance (nal)"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "37-38"
+        }
+      ]
+    },
+    {
+      "title": "Wage payment debits employer beznal and credits worker nal on interval",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A human is bound to a workplace via Work.workplace",
+        "Both the workplace's beznal balance and the worker's nal balance are known before the wage interval elapses"
+      ],
+      "steps": [
+        {
+          "action": "Advance simulation past one wage interval",
+          "expected": [
+            "Workplace beznal balance decreases by the wage amount",
+            "Worker nal balance increases by the same wage amount"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Worker nal balance increased exactly by the wage amount",
+        "Workplace beznal balance decreased by the same amount",
+        "No other account's balance changed"
+      ],
+      "owning_story_titles": [
+        "Pay wages from employer to worker in nal"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "17-19,154-158"
+        }
+      ]
+    },
+    {
+      "title": "Domestic enterprise-to-enterprise trade settles in beznal with a nonzero delta",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two domestic enterprises complete an internal (non-border) trade of goods"
+      ],
+      "steps": [
+        {
+          "action": "Advance simulation until the internal trade resolves",
+          "expected": [
+            "Buyer's beznal balance decreases by a nonzero money_delta",
+            "Seller's beznal balance increases by the same nonzero money_delta"
+          ]
+        }
+      ],
+      "final_observables": [
+        "money_delta for the trade is nonzero, not the current Money::ZERO barter clearing",
+        "Neither party's nal balance changed"
+      ],
+      "owning_story_titles": [
+        "Give enterprises a separate accounting-rouble (beznal) settlement account"
+      ],
+      "sources": [
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "29-31"
+        }
+      ]
+    },
+    {
+      "title": "Building a customs house creates a placeable border-crossing entity",
+      "kind": "surface",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "Player has access to the build menu"
+      ],
+      "steps": [
+        {
+          "action": "Place a customs house building",
+          "expected": [
+            "Building entity is created with mode, per-class buffer, bay list, domestic edge, and border edge fields populated"
+          ]
+        }
+      ],
+      "final_observables": [
+        "A customs house entity exists distinct from ordinary production buildings"
+      ],
+      "owning_story_titles": [
+        "Build customs houses as typed border-crossing buildings"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "9-16"
+        }
+      ]
+    },
+    {
+      "title": "Foreign trade order cannot resolve with no customs house built",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "No customs house has been built on the map",
+        "A foreign trade order is placed"
+      ],
+      "steps": [
+        {
+          "action": "Advance simulation for many ticks with no customs house built",
+          "expected": [
+            "Order never reaches cleared",
+            "No goods or money move for either party"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No infinite external partner services the order",
+        "Order remains unfulfilled until a customs house is built"
+      ],
+      "owning_story_titles": [
+        "Build customs houses as typed border-crossing buildings"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "16-17"
+        }
+      ]
+    },
+    {
+      "title": "Import order outside its era/bloc window is rejected at customs",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "An item's availability window and bloc tag are set",
+        "Current game era or player's bloc alignment falls outside that item's window/tag"
+      ],
+      "steps": [
+        {
+          "action": "Place an import/export order for the out-of-window or out-of-bloc item",
+          "expected": [
+            "Order is rejected at customs"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No goods or money moved for the rejected order",
+        "Item remains unavailable until era/bloc conditions are met"
+      ],
+      "owning_story_titles": [
+        "Gate the import/export catalogue by era and bloc"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "42-44"
+        }
+      ]
+    },
+    {
+      "title": "Used vehicle export fetches less hard currency than an equivalent new vehicle",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "Two otherwise-identical vehicles exist, one new (full condition) and one worn (reduced condition)"
+      ],
+      "steps": [
+        {
+          "action": "Export the new vehicle",
+          "expected": [
+            "Hard currency credited equals the vehicle's full base price"
+          ]
+        },
+        {
+          "action": "Export the worn vehicle",
+          "expected": [
+            "Hard currency credited is strictly less than the full base price"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Worn vehicle's export payout is strictly less than the new vehicle's export payout for the same prototype"
+      ],
+      "owning_story_titles": [
+        "Depreciate exported vehicles by condition on resale"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "46-48"
+        }
+      ]
+    },
+    {
+      "title": "Player-facing view shows a price move and its driver",
+      "kind": "surface",
+      "proof_seam": "app-level",
+      "preconditions": [
+        "A traded good's border price changes due to a modelled driver (e.g. cumulative export volume)"
+      ],
+      "steps": [
+        {
+          "action": "Trigger the driver (e.g. export enough volume to move the price)",
+          "expected": [
+            "Border price for the good changes"
+          ]
+        },
+        {
+          "action": "Open the player-facing price view for that good",
+          "expected": [
+            "View shows the new price and names the driver that changed it"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Displayed price matches the current border price",
+        "At least one named driver is shown alongside the price"
+      ],
+      "owning_story_titles": [
+        "Publish the world-market price model to the player"
+      ],
+      "sources": [
+        {
+          "file": "spec/trade.md",
+          "lines": "30-33"
+        }
+      ]
+    }
+  ]
+}

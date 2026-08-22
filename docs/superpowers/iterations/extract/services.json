@@ -1,0 +1,1214 @@
+{
+  "stories": [
+    {
+      "title": "Enrol a child in a staffed school as a workplace-slot binding",
+      "epic_theme": "Education — schooling pipeline",
+      "as_a": "citizen (child of school age)",
+      "i_want": "to be assigned a seat at a reachable, staffed school the same way a worker is assigned a job",
+      "so_that": "education capacity is physically constrained by real buildings and staff, not an ambient radius",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A school building exposes a finite `studentCapacity` and an `enrolled[]` list; a citizen can only hold a seat if `enrolled.len() < studentCapacity`, mirroring CS1's serviceable-seat throttle, where `studentCapacity` derives from `StudentCount * 5/4` slots and is additionally throttled down by the school's current production rate. No `School` type, capacity field, or enrolment list exists anywhere in the codebase today. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Enrolment occupies the same binding slot a job occupies: while a citizen is enrolled they cannot simultaneously hold a `Work.workplace` binding. The attachment point is `WorkKind` in `souls/desire/work.rs:11-17`, which today is only `Driver | Worker` — a `Student` variant (or a sibling `School.enrolled_at` binding with the same mutual-exclusion invariant as `Work.workplace`) must be added there. [SUBSTRATE: ABSENT — greenfield, attaches at souls/desire/work.rs:11-17]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "A citizen without a reachable school with a free seat remains unenrolled indefinitely (a legibility signal to the planner) rather than being silently granted education progress; this never blocks or fails the simulation tick. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        },
+        {
+          "id": "AC-4",
+          "text": "A citizen's decision to seek enrolment is scored as a new desire module in the shape of existing desires (`score()` returning a utility, arbitrated by max alongside `BuyFood`/`Home`/`Work` in `souls/human.rs:190-231`), not a bespoke code path bolted elsewhere. [SUBSTRATE: ABSENT — greenfield, follow pattern at souls/human.rs:190-231 and souls/desire/buyfood.rs]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-5",
+          "text": "Serviceable seat count degrades below raw `studentCapacity` when the school's production rate falls below full (e.g. partial staffing), distinct from the flat capacity cap — a citizen can be refused enrolment even when `enrolled.len() < studentCapacity` if the school is underproducing. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-6",
+          "text": "A school requires its own two-tier staff complement to operate (workers 10 + profesors 15, per `school.ini:25-26`), distinct from a merely nonzero-staff check; a school staffed below this composition (e.g. workers present but profesors short) produces a proportionally reduced production rate rather than a binary staffed/unstaffed toggle. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "16-23"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "148-158"
+        }
+      ]
+    },
+    {
+      "title": "Progress a citizen through education tiers by seat-time",
+      "epic_theme": "Education — schooling pipeline",
+      "as_a": "planner",
+      "i_want": "citizens to advance through kindergarten → school → university strictly by accumulated months physically enrolled at an operating, staffed facility",
+      "so_that": "the labour market's qualification supply is a real, tractable pipeline the planner can see and invest in, not an instant unlock",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A citizen gains a `seatTimeMonths` counter that increments only while enrolled at a school currently operating (staffed and not blacked out); a citizen at an unstaffed or unpowered school accrues zero seat-time. `HumanEnt`/`PersonalInfo` today carries no such field. [SUBSTRATE: ABSENT — greenfield, add to PersonalInfo or a new field on HumanEnt]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Crossing a tier's required seat-time threshold sets `educationTier` to the next ordered value (kindergarten < school < university); a citizen never regresses a tier once earned, matching the CS1 ordered-levels shape adopted for our qualification ladder. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-3",
+          "text": "Each education tier enforces its own throughput ceiling on simultaneous `enrolled[]`, narrowing up the ladder per `$CITIZEN_ABLE_SERVE`: kindergarten 10 per cycle, school 12 per cycle, university 3 per cycle — university's cap is a hard cap tighter than school's, so the pipeline visibly bottlenecks upward at each tier, not only at the university stage. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "Because job matching today is pure Euclidean-distance barter of an `ItemID::new(\"job-opening\")` with no tier/overqualification concept (`souls/human.rs:267-269`, `market.rs:216`), an AC requiring a school-graduated citizen to preferentially fill a tier-matched vacancy CANNOT be proven until that labour-allocation rewrite lands; this story stops at producing a correct `educationTier` value, and downstream tier-matched hiring is out of scope pending that dependency. [SUBSTRATE: CONFLICTS — souls/human.rs:267-269, market.rs:216]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "24-40"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "156-158"
+        }
+      ]
+    },
+    {
+      "title": "Send a graduate to a university specialisation feeding the matching profession",
+      "epic_theme": "Education — schooling pipeline",
+      "as_a": "planner",
+      "i_want": "a university choice (medical, technical, general) to determine what kind of qualified staff a citizen becomes",
+      "so_that": "medical and technical institutions can only be staffed by the education pipeline the planner deliberately funded, making education planning a real allocation decision",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A citizen enrolled at a university gains a `specialisation` field (e.g. medical, technical) taken from the university's own subtype, persisted on graduation; no specialisation or subtype concept exists on any building or human type today. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A hospital or university's `profesor`-tier staff slot can only be filled by a citizen whose `specialisation` matches the required kind (medical for hospitals, per spec/healthcare.md staff loop); an unmatched citizen is rejected from that staffing slot rather than silently accepted. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "At game start, with zero graduates in existence, a university requiring 100 profesor-tier staff to run (per the two-tier W&R staff shape) cannot self-bootstrap; the planner must either import specialists (an external-trade equivalent) or accept the university runs at reduced/zero throughput until its own graduates arrive — this chicken-and-egg is intentional, never a hard failure or game-over. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "app-level"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "24-44"
+        }
+      ]
+    },
+    {
+      "title": "Get sick from unmet needs, not proximity to a hospital",
+      "epic_theme": "Healthcare — sickness and treatment",
+      "as_a": "citizen",
+      "i_want": "my baseline health to be driven by whether my food/warmth/water needs are actually satisfied, never by a passive coverage-radius bonus",
+      "so_that": "sickness is a legible consequence of real material shortage rather than an ambient service field",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Each human gains a `sick: bool` and `sickSince` field with no equivalent today (`souls/human.rs` only models a hunger-clock utility score, per the audit's People table); no health or wellbeing field exists on any human type. [SUBSTRATE: ABSENT — greenfield, add to HumanEnt]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "Sickness probability rises as a function of unmet need satisfaction (food, warmth, water) accumulated over time, computed from the same need-satisfaction values consumed by other desire modules — never as a function of Euclidean distance to a hospital building. A citizen with zero hospitals within any radius but fully satisfied needs must not become sicker than one near many hospitals with the same needs. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Placing a hospital near a citizen with no dispatch or visit ever occurring produces zero change to that citizen's health — proving the passive coverage-field pattern (CS1's `HealthCare` field) was not reintroduced. [SUBSTRATE: ABSENT — greenfield; explicit negative control against dropped CS1 pattern]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "16-21"
+        }
+      ]
+    },
+    {
+      "title": "Treat a sick citizen via dispatch, bed occupancy, and staffed cure rate",
+      "epic_theme": "Healthcare — sickness and treatment",
+      "as_a": "sick citizen",
+      "i_want": "a reachable, staffed hospital to either send an ambulance for me or receive me when I self-travel, hold me in one of a finite number of beds, and cure me at a rate that depends on real staffing",
+      "so_that": "treatment capacity is a physically constrained throughput facility, not an instant or radius-based cure",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A hospital exposes `beds: u32` initialised to the CS1-derived reference value of 100 (`patientCapacity`) and `occupied[]`; a sick citizen can only begin treatment if `occupied.len() < beds`, otherwise the citizen remains sick and queued — this never hard-fails the simulation. No `Hospital` type, bed field, or patient list exists anywhere in the codebase today. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A sick citizen either triggers an ambulance dispatch from the nearest hospital with a free bed and a fuelled vehicle, or self-travels to a hospital, mirroring CS1's two-mode `Sick`/`SickMove` loop; the dispatch/self-travel decision resolves on arrival, following the existing arrival-gated resolution pattern already proven for food purchases at `souls/desire/buyfood.rs:50-54`. [SUBSTRATE: ABSENT — greenfield, follow arrival-gated pattern at souls/desire/buyfood.rs:50-54]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        },
+        {
+          "id": "AC-3",
+          "text": "Cure rate per tick for an occupied bed scales with the hospital's current staffing ratio against the required two-tier complement (workers 50 + medically-specialised profesors 50, per W&R `hospital.ini:48-50`); zero staff present yields zero cure progress rather than a fixed timer, and a hospital staffed with workers but zero profesors yields a reduced (not full) cure rate since only the profesor tier performs the specialised treatment, matching the CS1 production-rate-gated probabilistic cure. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "A hospital with zero fuel in its `fuelStore` dispatches no ambulances (an unfuelled hospital dispatches nothing, per the W&R vehicle-base grammar); citizens in its catchment fall back to self-travel or remain untreated, degrading outcomes rather than failing the game. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-5",
+          "text": "Hospital treatment throughput is additionally capped by a serve-rate of 3 patients processed per cycle (`$CITIZEN_ABLE_SERVE`, identical to the university tier's cap), distinct from and tighter than raw bed occupancy — a hospital with 100 free beds still only advances cure progress for at most 3 patients per cycle. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "22-34"
+        }
+      ]
+    },
+    {
+      "title": "Gate hospital cure rate on a physically supplied medicine chain, degrading rather than halting on shortage",
+      "epic_theme": "Healthcare — sickness and treatment",
+      "as_a": "planner",
+      "i_want": "hospitals to carry a medicine storage demand fed by freight, and low health to visibly reduce a citizen's work output rather than end the game",
+      "so_that": "medicine becomes a real production/import chain and sickness is a leaner-tranche consequence, never a hard failure",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A hospital exposes a `medicineStore` demand fed via the same storage-demand freight grammar as other goods; cure rate is a function of both staffing and `medicineStore` level, so an unsupplied hospital's cure rate degrades smoothly toward (but does not reach) zero rather than halting treatment outright. No medicine item, storage-demand hook on a hospital, or cure-rate formula exists today. [SUBSTRATE: ABSENT — greenfield, insertion point mirrors Market::buy_until at economy/market.rs:161-167]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A citizen with `sick: true` has reduced work output/production contribution while sick, proportional to duration sick, matching CS1's confirmed health→work-efficiency coupling; this reduces throughput, it never removes the citizen from the simulation or ends the game. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Untreated sickness persisting beyond a threshold duration results in death (citizen entity removed, per the CS1-confirmed sickness→death consequence); this is a leaner-tranche/individual-scale outcome — colder homes, smaller workforce, longer queues elsewhere — and never presents as a simulation-ending or player-losing state, per the project's 'never game over' rule. [SUBSTRATE: ABSENT — greenfield; age/death machinery itself is ABSENT per audit §5 ('age set once at spawn, never incremented')]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "36-48"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "147-158"
+        }
+      ]
+    },
+    {
+      "title": "Generate per-building crime pressure from unemployment and unhappiness",
+      "epic_theme": "Crime — deviance and the justice chain",
+      "as_a": "planner",
+      "i_want": "crime to build up in a building as a function of its occupants' unemployment duration and wellbeing, present from turn one",
+      "so_that": "crime is a legible, physical consequence of neglect rather than a random dice-roll or a mechanic locked behind unlocking police",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "Each citizen gains a `crimePropensity` computed as min(rate(unemploymentLength), maxRate(wellbeing)) — unemployment duration bands 0/1/2/3/4/5+ mapping to 10/15/20/25/35/50, wellbeing cap ranging VeryUnhappy=100 down to VeryHappy=40 — with a ~4x multiplier for citizens already flagged `criminal`. No unemployment-duration tracking, wellbeing scalar, or crimePropensity field exists on HumanEnt today. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Each building accrues a `crimeBuffer` as a randomized sum over its current occupants' `crimePropensity`, increased 25% at night, hard-capped at `occupantCount * 100`; no `crimeBuffer` field exists on any building type today. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Crime buffer accrual happens from the first simulated tick with zero police buildings placed — there is no gating condition requiring a PoliceStation to exist before crimeBuffer can be non-zero, unlike CS1's unlock-gated version which we explicitly reject. [SUBSTRATE: ABSENT — greenfield; explicit rejection of CS1's police-unlock gate]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "16-30"
+        }
+      ]
+    },
+    {
+      "title": "Arrest a specific criminal and hold them in a fed prison cell",
+      "epic_theme": "Crime — deviance and the justice chain",
+      "as_a": "planner",
+      "i_want": "a staffed police station to send an officer who travels to and arrests a specific citizen, then transports and holds them in a real prison cell that must be fed",
+      "so_that": "crime clearance is a physical logistics loop, not a radius-based coverage debit",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A PoliceStation dispatches an officer (a vehicle trip) to a building whose `crimeBuffer` exceeds a threshold; on arrival, a specific citizen is flagged `arrested: bool = true` and transported to a Court to await sentencing (see 'Throttle sentencing through a staffed court between arrest and prison'), then on to Prison once sentenced — mirroring CS1's `ArrestCriminals`/`CriminalMove` path. We keep only this arrest path; the coverage-style patrol-drain-on-arrival mechanic (CS1's second clearance channel) is explicitly dropped. No PoliceStation, Prison, Court, arrest flag, or dispatch logic exists today. [SUBSTRATE: ABSENT — greenfield; explicit rejection of CS1's patrol-debit channel]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        },
+        {
+          "id": "AC-2",
+          "text": "A Prison exposes `cells: u32`; an arrested citizen occupies one cell up to capacity, otherwise the arrest is deferred (the citizen stays flagged `arrested` pending a free cell) rather than the simulation failing. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "A Prison carries a `foodDemand` fed via the freight/storage-demand chain (dry + refrigerated, per the W&R prison grammar) and the lowest quality-of-living value in the simulation; an unsupplied prison degrades inmate quality-of-living/health rather than instantly killing or releasing inmates — consistent with the project's never-game-over, leaner-tranche rule. [SUBSTRATE: ABSENT — greenfield, storage-demand grammar mirrors spec/logistics.md pattern]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "A PoliceStation with zero fuel in its vehicle fuel store dispatches no officer, mirroring the identical unfuelled-hospital-dispatches-nothing rule (`PoliceStation { staff; vehicles+fuel; cells }`); `crimeBuffer` at affected buildings continues accruing undisturbed rather than the simulation stalling or an arrest being silently teleported. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-5",
+          "text": "A Prison requires worker-guards staffed to admit new inmates (prison is worker-guards only, per the staffed-shell grammar); a prison with zero guards on duty defers admission of arrested citizens — the same deferred-not-dropped behavior as a full prison — rather than accepting inmates unstaffed. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "31-38"
+        }
+      ]
+    },
+    {
+      "title": "Throttle sentencing through a staffed court between arrest and prison",
+      "epic_theme": "Crime — deviance and the justice chain",
+      "as_a": "planner",
+      "i_want": "an arrested citizen to await sentencing at a staffed Court whose caseThroughput limits how many cases resolve per cycle, before being transported to prison",
+      "so_that": "arrest volume cannot outpace the justice system's own capacity to process it, mirroring the police -> court -> prison pipeline the spec adopts",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Court building exposes `staff` and `caseThroughput`; an arrested citizen queues at the Court and is only transported onward to Prison once a court slot processes their case, capped at `caseThroughput` cases resolved per cycle — court capacity throttles sentencing throughput between arrest and prison. No `Court` type, staff field, or caseThroughput field exists anywhere in the codebase today. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Court staffing follows the adopted staffed-shell grammar (profesor-judges only); a zero-staffed court resolves zero cases per cycle, and arrested citizens accumulate in a pending-sentencing queue rather than being dropped or teleported straight to Prison. This degrades throughput, it never hard-fails the simulation. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "41-53"
+        }
+      ]
+    },
+    {
+      "title": "Leak state inventory into a shortage-driven black market",
+      "epic_theme": "Crime — deviance and the justice chain",
+      "as_a": "citizen with a chronically unmet need",
+      "i_want": "a parallel, unofficial allocation channel to satisfy shortages from state inventories at the cost of feeding crime and corruption pressure",
+      "so_that": "chronic planned-economy shortage has a visible, physical, in-world consequence rather than staying an invisible statistic",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A warehouse or district gains a `leakRate` computed from local shortage severity (unmet demand vs. supply) and inversely from local enforcement presence (police staffing/crimeBuffer clearance activity); this entire mechanic — black market, leak rate, shortage-to-crime linkage — has no substrate in either reference game and no code today. [SUBSTRATE: ABSENT — greenfield, this is OURS per spec with no CS1 or W&R precedent]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Goods leaked via the black market are drawn from real state inventory stock (decrementing an existing warehouse/market quantity), never conjured — satisfying the project's 'nothing teleports' rule; the leaked goods measurably satisfy the receiving citizen's unmet need. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Black-market activity in a district increases that district's aggregate crime pressure (feeding back into `crimeBuffer`/enforcement dynamics) without ever producing a hard-fail or game-over state — chronic shortage degrades into visible unofficial redistribution and rising unrest, not simulation termination. [SUBSTRATE: ABSENT — greenfield]",
+          "behavioral_impact": "journey",
+          "proof_seam": "e2e"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "43-46"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "title": "Child cannot enrol when all schools are at capacity",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "One school exists with studentCapacity = 2 and 2 citizens already enrolled",
+        "A third school-age citizen with no work or education binding exists within reach"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks while the third citizen's desire scoring runs",
+          "expected": [
+            "The citizen's enrolment desire scores non-zero utility",
+            "No enrolment binding is created because the school is at capacity"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The third citizen remains unenrolled",
+        "school.enrolled.len() == 2 (unchanged)",
+        "No panic, error, or stalled tick"
+      ],
+      "owning_story_titles": [
+        "Enrol a child in a staffed school as a workplace-slot binding"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "16-23"
+        }
+      ]
+    },
+    {
+      "title": "Serviceable seats shrink below raw capacity when the school underproduces",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A school with studentCapacity = 10 (StudentCount * 5/4), enrolled.len() = 4",
+        "The school is running at 50% production rate due to partial staffing"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to enrol a 5th citizen",
+          "expected": [
+            "Enrolment is refused because serviceable seats (throttled by production rate) are below capacity, despite enrolled.len() < studentCapacity"
+          ]
+        }
+      ],
+      "final_observables": [
+        "enrolled.len() stays at 4",
+        "Citizen remains unenrolled despite raw capacity headroom"
+      ],
+      "owning_story_titles": [
+        "Enrol a child in a staffed school as a workplace-slot binding"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "20"
+        }
+      ]
+    },
+    {
+      "title": "School operating rate is proportional to its two-tier staff composition, not just staff presence",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A school has its full worker complement (10) staffed but only half its profesor complement (7 of 15)"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks under this partial profesor staffing",
+          "expected": [
+            "Seat-time accrual rate is reduced proportionally to the profesor shortfall rather than accruing at full rate or dropping to zero"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Seat-time accrual rate at partial staffing is strictly between zero and the full-staffing rate"
+      ],
+      "owning_story_titles": [
+        "Enrol a child in a staffed school as a workplace-slot binding"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "31"
+        }
+      ]
+    },
+    {
+      "title": "Enrolled citizen cannot simultaneously hold a job",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen is enrolled at a school (holds a Student/education binding)"
+      ],
+      "steps": [
+        {
+          "action": "Run the work-desire scoring/assignment pass for that citizen",
+          "expected": [
+            "No Work.workplace binding is created while the education binding is active"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Citizen has exactly one of {education binding, work binding} active, never both"
+      ],
+      "owning_story_titles": [
+        "Enrol a child in a staffed school as a workplace-slot binding"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "16-23"
+        }
+      ]
+    },
+    {
+      "title": "Seat-time only accrues while the school is staffed and operating",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen is enrolled at a school",
+        "The school's staff count drops to zero (e.g. all workers/profesors reassigned or absent)"
+      ],
+      "steps": [
+        {
+          "action": "Simulate N ticks with zero staff present",
+          "expected": [
+            "seatTimeMonths does not increment during this period"
+          ]
+        },
+        {
+          "action": "Restore staff to the school and simulate further ticks",
+          "expected": [
+            "seatTimeMonths resumes incrementing"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Total seatTimeMonths equals only the ticks during which the school was staffed"
+      ],
+      "owning_story_titles": [
+        "Progress a citizen through education tiers by seat-time"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "37-40"
+        }
+      ]
+    },
+    {
+      "title": "University enrolment is capped below school-tier enrolment",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A university with capacity for 3 simultaneous students",
+        "4 school-graduated citizens seeking university enrolment"
+      ],
+      "steps": [
+        {
+          "action": "Run enrolment assignment for all 4 candidates",
+          "expected": [
+            "Exactly 3 are enrolled",
+            "The 4th remains unenrolled and is not silently dropped or errored"
+          ]
+        }
+      ],
+      "final_observables": [
+        "university.enrolled.len() <= 3",
+        "4th citizen's education-seeking desire remains active next tick"
+      ],
+      "owning_story_titles": [
+        "Progress a citizen through education tiers by seat-time"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "26-35"
+        }
+      ]
+    },
+    {
+      "title": "School-tier throughput is capped at 12 per cycle, distinct from kindergarten's 10",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A school with a throughput ceiling of 12 per cycle and 15 candidates seeking school-tier processing",
+        "A kindergarten with a throughput ceiling of 10 per cycle and 15 candidates seeking kindergarten-tier processing"
+      ],
+      "steps": [
+        {
+          "action": "Run one cycle of throughput processing for both tiers",
+          "expected": [
+            "The school processes at most 12 candidates",
+            "The kindergarten processes at most 10 candidates, independently of the school's cap"
+          ]
+        }
+      ],
+      "final_observables": [
+        "School-tier processed count <= 12 this cycle",
+        "Kindergarten-tier processed count <= 10 this cycle"
+      ],
+      "owning_story_titles": [
+        "Progress a citizen through education tiers by seat-time"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "26"
+        }
+      ]
+    },
+    {
+      "title": "Kindergarten operates fully staffed by workers alone, no profesor tier required",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A kindergarten-tier school is staffed with workers only and zero profesors"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks with enrolled kindergarten-age citizens present",
+          "expected": [
+            "seatTimeMonths increments normally for kindergarten enrollees despite profesor count == 0"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Kindergarten operates at full rate with zero profesors, unlike school and university tiers which require a profesor tier",
+        "No degraded or blocked state caused by the missing profesor tier at kindergarten"
+      ],
+      "owning_story_titles": [
+        "Progress a citizen through education tiers by seat-time"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "30"
+        }
+      ]
+    },
+    {
+      "title": "Medical university graduate can staff a hospital profesor slot; technical graduate cannot",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "One citizen graduated with specialisation = medical",
+        "One citizen graduated with specialisation = technical",
+        "A hospital has an open profesor-tier staff slot"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to assign the medical graduate to the hospital profesor slot",
+          "expected": [
+            "Assignment succeeds"
+          ]
+        },
+        {
+          "action": "Attempt to assign the technical graduate to the same slot",
+          "expected": [
+            "Assignment is rejected"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Hospital profesor slot filled only by the medical-specialised citizen"
+      ],
+      "owning_story_titles": [
+        "Send a graduate to a university specialisation feeding the matching profession"
+      ],
+      "sources": [
+        {
+          "file": "spec/education.md",
+          "lines": "41-44"
+        },
+        {
+          "file": "spec/healthcare.md",
+          "lines": "40-43"
+        }
+      ]
+    },
+    {
+      "title": "Citizen near an idle hospital with satisfied needs does not sicken",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A citizen's food/warmth/water need-satisfaction values are all at maximum",
+        "A hospital is placed adjacent to the citizen's home but never dispatches to or receives them"
+      ],
+      "steps": [
+        {
+          "action": "Simulate a long run (e.g. equivalent of several in-game months)",
+          "expected": [
+            "The citizen's sickness probability stays at its needs-derived baseline regardless of hospital proximity"
+          ]
+        }
+      ],
+      "final_observables": [
+        "sick == false throughout",
+        "No health field changed due to hospital adjacency alone"
+      ],
+      "owning_story_titles": [
+        "Get sick from unmet needs, not proximity to a hospital"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "16-21"
+        }
+      ]
+    },
+    {
+      "title": "Sick citizen is cured only proportional to hospital staffing",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A sick citizen occupies a hospital bed",
+        "The hospital currently has zero staff present"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks with zero staff",
+          "expected": [
+            "Cure progress remains at zero"
+          ]
+        },
+        {
+          "action": "Staff the hospital to full required ratio and simulate further ticks",
+          "expected": [
+            "Cure progress begins advancing"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Citizen's sick flag clears only after cure progress accumulated during staffed ticks reaches the cure threshold"
+      ],
+      "owning_story_titles": [
+        "Treat a sick citizen via dispatch, bed occupancy, and staffed cure rate"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "22-34"
+        }
+      ]
+    },
+    {
+      "title": "Cure rate is reduced, not zero, when only one hospital staff tier is present",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A hospital is staffed with 50 workers and 0 profesors",
+        "A patient occupies a bed"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks with worker-only staffing",
+          "expected": [
+            "Cure progress advances, but at a reduced rate below the full two-tier rate"
+          ]
+        },
+        {
+          "action": "Staff the hospital with the required 50 profesors and simulate further ticks",
+          "expected": [
+            "Cure progress rate rises to the full two-tier rate"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Cure rate at worker-only staffing is strictly between zero and the full-staffing rate"
+      ],
+      "owning_story_titles": [
+        "Treat a sick citizen via dispatch, bed occupancy, and staffed cure rate"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "42"
+        }
+      ]
+    },
+    {
+      "title": "Hospital treatment throughput is capped below its bed count",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A hospital with beds = 100 and 10 occupied beds holding sick citizens",
+        "Serve-rate cap of 3 patients per cycle"
+      ],
+      "steps": [
+        {
+          "action": "Simulate one cycle",
+          "expected": [
+            "At most 3 of the 10 occupied patients receive cure progress this cycle",
+            "The other 7 occupied patients' cure progress is unchanged this cycle"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Patients advanced per cycle <= 3 regardless of free bed count",
+        "occupied.len() unaffected by the serve-rate cap"
+      ],
+      "owning_story_titles": [
+        "Treat a sick citizen via dispatch, bed occupancy, and staffed cure rate"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "34"
+        }
+      ]
+    },
+    {
+      "title": "Unfuelled hospital dispatches no ambulance; citizen falls back to self-travel",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A hospital has fuelStore == 0 and a free bed",
+        "A sick citizen posts a treatment request within the hospital's catchment"
+      ],
+      "steps": [
+        {
+          "action": "Advance the tick where dispatch would normally trigger",
+          "expected": [
+            "No ambulance trip is created"
+          ]
+        },
+        {
+          "action": "Continue simulating",
+          "expected": [
+            "The citizen either self-travels to a hospital with a free bed and fuel, or remains untreated without any simulation error"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No ambulance entity spawned from the unfuelled hospital",
+        "No panic or stalled tick"
+      ],
+      "owning_story_titles": [
+        "Treat a sick citizen via dispatch, bed occupancy, and staffed cure rate"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "27-29"
+        }
+      ]
+    },
+    {
+      "title": "Cure rate degrades smoothly as medicine stock depletes, never halting outright",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A fully staffed hospital with a patient in a bed",
+        "medicineStore starts full and is not resupplied"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks as medicineStore depletes toward zero from consumption",
+          "expected": [
+            "Cure rate per tick decreases proportionally as medicineStore falls"
+          ]
+        },
+        {
+          "action": "Continue simulating after medicineStore reaches zero",
+          "expected": [
+            "Cure rate approaches but does not become negative; patient does not instantly worsen or die from medicine shortage alone"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Cure progress accrual rate is a monotonic function of medicineStore level",
+        "No hard stop or error state on medicine exhaustion"
+      ],
+      "owning_story_titles": [
+        "Gate hospital cure rate on a physically supplied medicine chain, degrading rather than halting on shortage"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "36-38"
+        }
+      ]
+    },
+    {
+      "title": "Citizen death from prolonged untreated sickness never surfaces as a game-over state",
+      "kind": "failure-recovery",
+      "proof_seam": "e2e",
+      "preconditions": [
+        "A citizen is sick with no reachable hospital and remains untreated past the death threshold duration"
+      ],
+      "steps": [
+        {
+          "action": "Simulate through the death threshold",
+          "expected": [
+            "The citizen entity is removed from the simulation"
+          ]
+        },
+        {
+          "action": "Continue simulating the rest of the population",
+          "expected": [
+            "The simulation continues running normally with no pause, no failure screen, no termination signal"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Population count decreases by one",
+        "Simulation tick loop continues uninterrupted",
+        "No game-over UI or state is presented"
+      ],
+      "owning_story_titles": [
+        "Gate hospital cure rate on a physically supplied medicine chain, degrading rather than halting on shortage"
+      ],
+      "sources": [
+        {
+          "file": "spec/healthcare.md",
+          "lines": "44-47"
+        },
+        {
+          "file": "CLAUDE.md",
+          "lines": "1-20"
+        }
+      ]
+    },
+    {
+      "title": "Crime buffer accrues from turn one with zero police buildings placed",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A fresh simulation with occupied buildings and no PoliceStation anywhere on the map",
+        "At least one occupant has nonzero unemployment duration"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks from game start",
+          "expected": [
+            "The occupied building's crimeBuffer becomes nonzero purely from occupant crimePropensity, with no police-unlock gate blocking accrual"
+          ]
+        }
+      ],
+      "final_observables": [
+        "crimeBuffer > 0 despite zero PoliceStation buildings existing"
+      ],
+      "owning_story_titles": [
+        "Generate per-building crime pressure from unemployment and unhappiness"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "16-30"
+        }
+      ]
+    },
+    {
+      "title": "Crime buffer never exceeds the occupant-count cap",
+      "kind": "contract",
+      "proof_seam": "unit",
+      "preconditions": [
+        "A building with occupantCount = 5"
+      ],
+      "steps": [
+        {
+          "action": "Force maximum crimePropensity on all occupants and simulate many ticks including night multiplier windows",
+          "expected": [
+            "crimeBuffer growth stops at 5 * 100 = 500"
+          ]
+        }
+      ],
+      "final_observables": [
+        "crimeBuffer <= occupantCount * 100 at all times"
+      ],
+      "owning_story_titles": [
+        "Generate per-building crime pressure from unemployment and unhappiness"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "16-21"
+        }
+      ]
+    },
+    {
+      "title": "Police officer arrests a specific named citizen, not a radius debit",
+      "kind": "surface",
+      "proof_seam": "e2e",
+      "preconditions": [
+        "A building's crimeBuffer exceeds the arrest threshold with 3 identifiable occupants",
+        "A staffed PoliceStation with an available officer/vehicle exists in reach"
+      ],
+      "steps": [
+        {
+          "action": "Trigger the dispatch and arrest cycle",
+          "expected": [
+            "An officer entity travels to the building",
+            "Exactly one specific occupant citizen is flagged arrested: true",
+            "Other occupants remain unarrested and unaffected"
+          ]
+        }
+      ],
+      "final_observables": [
+        "One citizen entity has arrested == true and is en route/transported to Court for sentencing",
+        "crimeBuffer at the building is not simply decremented by mere officer presence without a named arrest"
+      ],
+      "owning_story_titles": [
+        "Arrest a specific criminal and hold them in a fed prison cell"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "31-34"
+        }
+      ]
+    },
+    {
+      "title": "Unfuelled police station dispatches no officer",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A PoliceStation has zero fuel in its vehicle fuel store",
+        "A building in its catchment has crimeBuffer above the arrest threshold"
+      ],
+      "steps": [
+        {
+          "action": "Advance the tick where dispatch would normally trigger",
+          "expected": [
+            "No officer trip is created"
+          ]
+        },
+        {
+          "action": "Continue simulating",
+          "expected": [
+            "crimeBuffer at the affected building keeps accruing undisturbed",
+            "No arrest occurs until the station is refuelled"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No officer entity spawned from the unfuelled station",
+        "No panic or stalled tick"
+      ],
+      "owning_story_titles": [
+        "Arrest a specific criminal and hold them in a fed prison cell"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "52"
+        }
+      ]
+    },
+    {
+      "title": "Arrests back up in a queue when court capacity is exceeded",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A staffed Court with caseThroughput = 2 cases per cycle",
+        "5 citizens are arrested and awaiting sentencing this cycle"
+      ],
+      "steps": [
+        {
+          "action": "Simulate one cycle of court processing",
+          "expected": [
+            "Exactly 2 citizens are sentenced and transported onward to Prison",
+            "The remaining 3 stay queued awaiting sentencing"
+          ]
+        },
+        {
+          "action": "Simulate a further cycle with no new arrests",
+          "expected": [
+            "The court processes up to 2 more of the queued citizens"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Pending-sentencing queue count decreases only by caseThroughput per cycle",
+        "No simulation error or dropped arrest while the queue is nonzero"
+      ],
+      "owning_story_titles": [
+        "Throttle sentencing through a staffed court between arrest and prison"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "41-53"
+        }
+      ]
+    },
+    {
+      "title": "Arrest is deferred, not dropped, when the prison is full",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A Prison with cells == occupied.len() (full)",
+        "A new arrest is triggered elsewhere"
+      ],
+      "steps": [
+        {
+          "action": "Attempt to complete the arrest transport to the full prison",
+          "expected": [
+            "The citizen stays flagged arrested: true but is not force-inserted beyond capacity"
+          ]
+        },
+        {
+          "action": "Free a cell (e.g. release or transfer an inmate) and continue simulating",
+          "expected": [
+            "The pending arrested citizen is admitted to the now-free cell"
+          ]
+        }
+      ],
+      "final_observables": [
+        "prison.occupied.len() never exceeds cells",
+        "No simulation error on a full prison"
+      ],
+      "owning_story_titles": [
+        "Arrest a specific criminal and hold them in a fed prison cell"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "31-34"
+        }
+      ]
+    },
+    {
+      "title": "Unsupplied prison degrades inmate quality-of-living without killing or releasing inmates",
+      "kind": "failure-recovery",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A Prison holds inmates and its foodDemand goes unsupplied for an extended period"
+      ],
+      "steps": [
+        {
+          "action": "Simulate ticks with zero food deliveries",
+          "expected": [
+            "Inmate quality-of-living/health value decreases over time"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Inmates remain incarcerated (not auto-released, not removed)",
+        "No simulation failure or game-over triggered by prison starvation alone"
+      ],
+      "owning_story_titles": [
+        "Arrest a specific criminal and hold them in a fed prison cell"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "35-38"
+        }
+      ]
+    },
+    {
+      "title": "Black-market leak rate rises with shortage severity and falls with enforcement",
+      "kind": "surface",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A district with a warehouse holding surplus stock of an item citizens have unmet demand for",
+        "Baseline enforcement presence in that district"
+      ],
+      "steps": [
+        {
+          "action": "Increase local unmet demand (shortage severity) while holding enforcement constant",
+          "expected": [
+            "leakRate for that district increases"
+          ]
+        },
+        {
+          "action": "Increase enforcement presence while holding shortage constant",
+          "expected": [
+            "leakRate for that district decreases"
+          ]
+        }
+      ],
+      "final_observables": [
+        "leakRate is monotonic in shortage severity and inversely monotonic in enforcement, per the specified formula shape"
+      ],
+      "owning_story_titles": [
+        "Leak state inventory into a shortage-driven black market"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "43-46"
+        }
+      ]
+    },
+    {
+      "title": "Black-market goods are drawn from real inventory, never conjured",
+      "kind": "contract",
+      "proof_seam": "integration",
+      "preconditions": [
+        "A warehouse holds a known stock quantity of an item",
+        "A citizen has an unmet need for that item and the district's leakRate is nonzero"
+      ],
+      "steps": [
+        {
+          "action": "Simulate a black-market leak event satisfying the citizen's need",
+          "expected": [
+            "The warehouse's stock quantity decreases by exactly the leaked amount"
+          ]
+        }
+      ],
+      "final_observables": [
+        "sum(warehouse stock decrease) == sum(citizen need satisfied via black market)",
+        "No item quantity appears from nothing"
+      ],
+      "owning_story_titles": [
+        "Leak state inventory into a shortage-driven black market"
+      ],
+      "sources": [
+        {
+          "file": "spec/crime.md",
+          "lines": "43-46"
+        },
+        {
+          "file": "CLAUDE.md",
+          "lines": "1-6"
+        }
+      ]
+    }
+  ]
+}
