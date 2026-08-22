@@ -9,63 +9,33 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A Vehicle entity carries fuel level and fuel type fields, and an empty tank halts its movement/dispatch eligibility. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44]",
+          "text": "A Vehicle entity carries fuel level and fuel type fields, and an empty tank halts its movement/dispatch eligibility. [SUBSTRATE: ABSENT \u2014 transportation/vehicle.rs:34-44]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A Vehicle entity carries a wear/condition value that increases with distance travelled and load, exposed for later repair/scrap logic. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44]",
+          "text": "A Vehicle entity carries a wear/condition value that increases with distance travelled and load, exposed for later repair/scrap logic. [SUBSTRATE: ABSENT \u2014 transportation/vehicle.rs:34-44]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-3",
-          "text": "A Vehicle entity carries a cargoClass and capacity field so that only compatible resource classes up to that capacity can be loaded onto it. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44]",
+          "text": "A Vehicle entity carries a cargoClass and capacity field so that only compatible resource classes up to that capacity can be loaded onto it. [SUBSTRATE: ABSENT \u2014 transportation/vehicle.rs:34-44]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-4",
-          "text": "A Vehicle entity carries an owner/depot reference and a driver reference (citizen), so a trip can be attributed to a finite fleet and bound labour. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44, no owner/driver field exists on the struct]",
-          "behavioral_impact": "cross-surface",
+          "text": "Existing kinematic behaviour (position, speed, steering, `VehicleState::Panicking` gridlock handling) is unchanged by the new asset fields \u2014 a regression test on vehicle movement passes before and after the schema change. [SUBSTRATE: PROVIDED \u2014 transportation/vehicle.rs:34-44, vehicle.rs:19-20]",
+          "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-5",
-          "text": "Existing kinematic behaviour (position, speed, steering, `VehicleState::Panicking` gridlock handling) is unchanged by the new asset fields — a regression test on vehicle movement passes before and after the schema change. [SUBSTRATE: PROVIDED — transportation/vehicle.rs:34-44, vehicle.rs:19-20]",
-          "behavioral_impact": "local",
-          "proof_seam": "integration"
-        },
-        {
-          "id": "AC-6",
-          "text": "Driver binding differentiates by vehicle role: private cars and key-service vehicles (fire/ambulance/personal) bind a specific citizen-driver for the trip, while bulk freight-pool vehicles may dispatch without a per-trip citizen assignment (abstracted labour). [SUBSTRATE: ABSENT — greenfield; transportation/vehicle.rs:34-44 has one undifferentiated driver field, no per-role binding rule]",
+          "text": "A Vehicle entity carries speed, power and empty-weight fields (movement physics), and its capacity field is denominated in tonnes for freight cargo classes or persons for the passenger cargo class. [SUBSTRATE: ABSENT \u2014 transportation/vehicle.rs:34-44 has no power/weight fields or a capacity-unit distinction]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
-        },
-        {
-          "id": "AC-7",
-          "text": "A Vehicle entity carries speed, power and empty-weight fields (movement physics), and its capacity field is denominated in tonnes for freight cargo classes or persons for the passenger cargo class. [SUBSTRATE: ABSENT — transportation/vehicle.rs:34-44 has no power/weight fields or a capacity-unit distinction]",
-          "behavioral_impact": "local",
-          "proof_seam": "unit"
-        },
-        {
-          "id": "AC-8",
-          "text": "A Vehicle entity's fuelType may be `electric`; an electric vehicle is exempt from the empty-tank movement halt (AC-1) because it draws propulsion from the electrical grid rather than a depletable fuel stock. [SUBSTRATE: ABSENT — greenfield; no propulsion-type distinction exists in transportation/vehicle.rs, electricity itself is modelled separately via map/electricity_cache.rs]",
-          "behavioral_impact": "local",
-          "proof_seam": "unit"
-        },
-        {
-          "id": "AC-9",
-          "text": "A Vehicle type may carry a lifespan (age limit in years, as an authored field on specific types such as trolleybuses, not a universal field); a vehicle whose age exceeds its lifespan is retired from dispatch eligibility independent of its wear/condition value. [SUBSTRATE: ABSENT — greenfield; no age/lifespan field exists in transportation/vehicle.rs]",
-          "behavioral_impact": "local",
-          "proof_seam": "unit"
-        },
-        {
-          "id": "AC-10",
-          "text": "A Vehicle type may carry an available-from/available-to historical production-window field; manufacturing or importing that vehicle type outside its window is rejected. [SUBSTRATE: ABSENT — greenfield; no era-gating exists for vehicle types anywhere in the codebase]",
-          "behavioral_impact": "local",
-          "proof_seam": "integration"
         }
       ],
       "sources": [
@@ -84,19 +54,19 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "When no idle compatible vehicle exists for a dispatch, the delivery request waits (stays queued) instead of a new vehicle being spawned to fulfill it. [SUBSTRATE: ABSENT — greenfield; current dispatch has no vehicle-availability gate to test against]",
+          "text": "When no idle compatible vehicle exists for a dispatch, the delivery request waits (stays queued) instead of a new vehicle being spawned to fulfill it. [SUBSTRATE: ABSENT \u2014 greenfield; current dispatch has no vehicle-availability gate to test against]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A vehicle that completes a trip returns to its depot/parking slot and persists as an entity (its ID and asset fields remain queryable), rather than being deleted. [SUBSTRATE: PROVIDED (partially reusable) — map_dynamic/parking.rs:42,58 gives physical reserved parking slots; vehicle deletion-on-arrival is not present in current code so nothing to break here, but no depot-return behaviour exists yet]",
+          "text": "A vehicle that completes a trip returns to its depot/parking slot and persists as an entity (its ID and asset fields remain queryable), rather than being deleted. [SUBSTRATE: PROVIDED (partially reusable) \u2014 map_dynamic/parking.rs:42,58 gives physical reserved parking slots; vehicle deletion-on-arrival is not present in current code so nothing to break here, but no depot-return behaviour exists yet]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "A vehicle stuck in gridlock is never force-deleted to clear congestion; it remains parked/panicking and eventually resumes, matching the existing 200s Panicking-then-resume behaviour. [SUBSTRATE: PROVIDED — transportation/vehicle.rs VehicleState::Panicking, vehicle.rs:19-20]",
+          "text": "A vehicle stuck in gridlock is never force-deleted to clear congestion; it remains parked/panicking and eventually resumes, matching the existing 200s Panicking-then-resume behaviour. [SUBSTRATE: PROVIDED \u2014 transportation/vehicle.rs VehicleState::Panicking, vehicle.rs:19-20]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
@@ -117,13 +87,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A depot cannot own more vehicles than it has reserved parking slots for; assigning a vehicle to a full depot fails or queues rather than silently over-allocating. [SUBSTRATE: PARTIAL — map_dynamic/parking.rs:42,58 provides physical reserved-slot parking, but no depot-to-fleet-size linkage exists]",
+          "text": "A depot cannot own more vehicles than it has reserved parking slots for; assigning a vehicle to a full depot fails or queues rather than silently over-allocating. [SUBSTRATE: PARTIAL \u2014 map_dynamic/parking.rs:42,58 provides physical reserved-slot parking, but no depot-to-fleet-size linkage exists]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A depot/office is a generic hauler that stores no cargo of its own (only its own fuel tank); it owns and dispatches vehicles that shuttle between a separately-designated export bucket and import bucket, and never itself accumulates the resource being moved. [SUBSTRATE: ABSENT — greenfield; map_dynamic/parking.rs provides slots but no depot-as-hauler-not-warehouse role exists, spec/logistics.md:53]",
+          "text": "A depot/office is a generic hauler that stores no cargo of its own (only its own fuel tank); it owns and dispatches vehicles that shuttle between a separately-designated export bucket and import bucket, and never itself accumulates the resource being moved. [SUBSTRATE: ABSENT \u2014 greenfield; map_dynamic/parking.rs provides slots but no depot-as-hauler-not-warehouse role exists, spec/logistics.md:53]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -144,19 +114,19 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A vehicle factory recipe consumes steel/plastics/components/electronics inputs and produces a `vehicles` cargo item that must be physically delivered to a depot before it becomes a usable, dispatchable Vehicle entity. [SUBSTRATE: ABSENT — greenfield; recipe machinery exists generically (prototypes/src/types/recipe.rs:35-47) but no vehicle-producing recipe or vehicles-cargo-to-Vehicle-entity conversion exists]",
+          "text": "A vehicle factory recipe consumes steel/plastics/components/electronics inputs and produces a `vehicles` cargo item that must be physically delivered to a depot before it becomes a usable, dispatchable Vehicle entity. [SUBSTRATE: ABSENT \u2014 greenfield; recipe machinery exists generically (prototypes/src/types/recipe.rs:35-47) but no vehicle-producing recipe or vehicles-cargo-to-Vehicle-entity conversion exists]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "Importing a vehicle debits Government.money at a price derived from the domestic bill of materials (not a hand-typed constant), and yields the same usable Vehicle entity as domestic manufacture. [SUBSTRATE: ABSENT — greenfield; Government.money exists (governance.rs:10) but no vehicle price-from-BOM or import path exists]",
+          "text": "Importing a vehicle debits Government.money at a price derived from the domestic bill of materials (not a hand-typed constant), and yields the same usable Vehicle entity as domestic manufacture. [SUBSTRATE: ABSENT \u2014 greenfield; Government.money exists (governance.rs:10) but no vehicle price-from-BOM or import path exists]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "A vehicle type's import price is denominated per its origin bloc (ruble-priced Eastern-bloc vehicles vs dollar-priced Western-bloc vehicles); for 1.0 all vehicle purchases resolve through the single rouble currency and the dollar/Western-bloc pricing mechanism is captured as data on the vehicle type but its settlement is deferred to a later milestone. [SUBSTRATE: OURS/DEFERRED — greenfield; single-rouble-for-1.0 decision (2026-08-22) defers the USD-bloc settlement half, spec/vehicles.md:38,47]",
+          "text": "A vehicle type's import price is denominated per its origin bloc (ruble-priced Eastern-bloc vehicles vs dollar-priced Western-bloc vehicles); for 1.0 all vehicle purchases resolve through the single rouble currency and the dollar/Western-bloc pricing mechanism is captured as data on the vehicle type but its settlement is deferred to a later milestone. [SUBSTRATE: OURS/DEFERRED \u2014 greenfield; single-rouble-for-1.0 decision (2026-08-22) defers the USD-bloc settlement half, spec/vehicles.md:38,47]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -177,13 +147,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Attempting to load a resource whose transport class does not match a vehicle's cargoClass is rejected (no trade/dispatch is created for that pair). [SUBSTRATE: ABSENT — greenfield; BuyOrder/SellOrder in economy/market.rs carry no transport-class or cargoClass field to gate on]",
+          "text": "Attempting to load a resource whose transport class does not match a vehicle's cargoClass is rejected (no trade/dispatch is created for that pair). [SUBSTRATE: ABSENT \u2014 greenfield; BuyOrder/SellOrder in economy/market.rs carry no transport-class or cargoClass field to gate on]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "The internal market matcher only proposes (seller, buyer) trade pairs for a resource when at least one compatible-class vehicle exists at the scheduler's disposal; incompatible pairs never enter the sorted-by-distance candidate list. [SUBSTRATE: CONFLICTS/PARTIAL — economy/market.rs:219 ranks candidate pairs purely by squared distance with no transport-class gating at all]",
+          "text": "The internal market matcher only proposes (seller, buyer) trade pairs for a resource when at least one compatible-class vehicle exists at the scheduler's disposal; incompatible pairs never enter the sorted-by-distance candidate list. [SUBSTRATE: CONFLICTS/PARTIAL \u2014 economy/market.rs:219 ranks candidate pairs purely by squared distance with no transport-class gating at all]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -204,19 +174,19 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A StoragePolicy {resourceId, minPct, maxPct} can be set on a storage bucket and persists across save/load. [SUBSTRATE: ABSENT — greenfield; no policy token exists anywhere in current code, confirmed absent in W&R data too per audit §Purpose]",
+          "text": "A StoragePolicy {resourceId, minPct, maxPct} can be set on a storage bucket and persists across save/load. [SUBSTRATE: ABSENT \u2014 greenfield; no policy token exists anywhere in current code, confirmed absent in W&R data too per audit \u00a7Purpose]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A storage bucket below its policy minPct is treated as demand (a buy order is posted); a bucket above its maxPct is treated as supply (a sell order is posted). [SUBSTRATE: PARTIAL — economy/market.rs BuyOrder/SellOrder machinery exists (market.rs:150-175) but is driven by direct qty calls today, not by a policy-threshold translation layer]",
+          "text": "A storage bucket below its policy minPct is treated as demand (a buy order is posted); a bucket above its maxPct is treated as supply (a sell order is posted). [SUBSTRATE: PARTIAL \u2014 economy/market.rs BuyOrder/SellOrder machinery exists (market.rs:150-175) but is driven by direct qty calls today, not by a policy-threshold translation layer]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "By default the scheduler auto-matches a demand bucket to the nearest/best compatible supply bucket within a district without requiring the player to manually wire source to destination; the player may set an explicit source-destination override that the scheduler then honours instead of auto-matching for that pair. [SUBSTRATE: ABSENT — greenfield; economy/market.rs has no wiring/override concept, spec/logistics.md:101]",
+          "text": "By default the scheduler auto-matches a demand bucket to the nearest/best compatible supply bucket within a district without requiring the player to manually wire source to destination; the player may set an explicit source-destination override that the scheduler then honours instead of auto-matching for that pair. [SUBSTRATE: ABSENT \u2014 greenfield; economy/market.rs has no wiring/override concept, spec/logistics.md:101]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -237,13 +207,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Given two buy orders for the same item at equal distance from a seller but different target-level deficits, the trade matcher selects the order with the larger deficit first. [SUBSTRATE: CONFLICTS — economy/market.rs:219 scores candidate pairs purely by `sorder.pos.distance2(border.pos)`; no priority or deficit term exists in the score at all, and BuyOrder (market.rs) has no deficit/priority field]",
+          "text": "Given two buy orders for the same item at equal distance from a seller but different target-level deficits, the trade matcher selects the order with the larger deficit first. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:219 scores candidate pairs purely by `sorder.pos.distance2(border.pos)`; no priority or deficit term exists in the score at all, and BuyOrder (market.rs) has no deficit/priority field]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "Given two buy orders with equal deficit but different distances, the nearer buyer is served first (distance remains a live tiebreaker term, unlike CS1's near-zero cargo multiplier). [SUBSTRATE: PARTIAL — economy/market.rs:219 already ranks by squared distance; only the deficit term is missing]",
+          "text": "Given two buy orders with equal deficit but different distances, the nearer buyer is served first (distance remains a live tiebreaker term, unlike CS1's near-zero cargo multiplier). [SUBSTRATE: PARTIAL \u2014 economy/market.rs:219 already ranks by squared distance; only the deficit term is missing]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "unit"
         }
@@ -264,31 +234,31 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "An unmet buy order for which `find_external` returns a customs partner is NOT satisfied unless a real vehicle trip (freight station dispatch, travel time) is scheduled to deliver it; the trade must not resolve on the same tick it is posted. [SUBSTRATE: CONFLICTS — economy/market.rs:285-304 (buy side) resolves every unmet buy order instantly and unconditionally in the same `make_trades` call, with no vehicle, no capacity limit, no delay]",
+          "text": "An unmet buy order for which `find_external` returns a customs partner is NOT satisfied unless a real vehicle trip (freight station dispatch, travel time) is scheduled to deliver it; the trade must not resolve on the same tick it is posted. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:285-304 (buy side) resolves every unmet buy order instantly and unconditionally in the same `make_trades` call, with no vehicle, no capacity limit, no delay]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "An unmet sell-side surplus for which `find_external` returns a partner is likewise gated on a real freight-station vehicle trip before capital/money changes hands. [SUBSTRATE: CONFLICTS — economy/market.rs:307-331 (sell side) is symmetric to the buy-side bug: instant, unconditional, no vehicle trip, no capacity]",
+          "text": "An unmet sell-side surplus for which `find_external` returns a partner is likewise gated on a real freight-station vehicle trip before capital/money changes hands. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:307-331 (sell side) is symmetric to the buy-side bug: instant, unconditional, no vehicle trip, no capacity]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "The external partner has a finite per-tick or per-customs-house throughput limit; when the limit is exceeded, further unmet orders remain queued (unresolved) rather than being cleared. [SUBSTRATE: CONFLICTS — economy/market.rs:285-331 has no capacity limit of any kind on the external loops, exactly the CS1 'unlimited priority-0 offer' pattern spec/logistics.md names and rejects]",
+          "text": "The external partner has a finite per-tick or per-customs-house throughput limit; when the limit is exceeded, further unmet orders remain queued (unresolved) rather than being cleared. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:285-331 has no capacity limit of any kind on the external loops, exactly the CS1 'unlimited priority-0 offer' pattern spec/logistics.md names and rejects]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "The customs house is a per-transport-class pass-through with a token-bucket capacity of 1 per class; it stockpiles no cargo between vehicle trips, so a customs implementation that accumulates goods as a warehouse violates this AC. [SUBSTRATE: ABSENT — greenfield; economy/market.rs external loops have no customs-house entity at all, spec/logistics.md:76]",
+          "text": "The customs house is a per-transport-class pass-through with a token-bucket capacity of 1 per class; it stockpiles no cargo between vehicle trips, so a customs implementation that accumulates goods as a warehouse violates this AC. [SUBSTRATE: ABSENT \u2014 greenfield; economy/market.rs external loops have no customs-house entity at all, spec/logistics.md:76]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-5",
-          "text": "The border crossing point a good uses is selected by its transport medium (a road-medium good crosses at a road border building, a rail-medium good at a rail border building, a utility crosses at its dedicated utility border building), matching the domestic medium gate rather than a single generic crossing. [SUBSTRATE: ABSENT — greenfield; no medium-specific border-building selection exists, spec/logistics.md:76]",
+          "text": "The border crossing point a good uses is selected by its transport medium (a road-medium good crosses at a road border building, a rail-medium good at a rail border building, a utility crosses at its dedicated utility border building), matching the domestic medium gate rather than a single generic crossing. [SUBSTRATE: ABSENT \u2014 greenfield; no medium-specific border-building selection exists, spec/logistics.md:76]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -309,13 +279,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "On the buy side, when `find_external(order.pos)` returns `None`, `capital` for the buyer is left unchanged (currently it is credited at market.rs:291 before the `None` check at market.rs:293, so goods appear with no trade and no debit). A test that forces `find_external` to return `None` and then asserts `capital[buyer]` is unchanged must pass. [SUBSTRATE: CONFLICTS — economy/market.rs:291 credits capital before the existence check at market.rs:293]",
+          "text": "On the buy side, when `find_external(order.pos)` returns `None`, `capital` for the buyer is left unchanged (currently it is credited at market.rs:291 before the `None` check at market.rs:293, so goods appear with no trade and no debit). A test that forces `find_external` to return `None` and then asserts `capital[buyer]` is unchanged must pass. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:291 credits capital before the existence check at market.rs:293]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "On the sell side, when `find_external(order.pos)` returns `None`, `capital` and `order.qty` for the seller are left unchanged (currently `cap -= qty_sell` at market.rs:317 and `order.qty -= qty_sell` at market.rs:318 both run before the `None` check at market.rs:320, so goods vanish with no trade record and no credit). A test that forces `find_external` to return `None` and asserts both fields are unchanged must pass. [SUBSTRATE: CONFLICTS — economy/market.rs:317-318 mutate before the existence check at market.rs:320]",
+          "text": "On the sell side, when `find_external(order.pos)` returns `None`, `capital` and `order.qty` for the seller are left unchanged (currently `cap -= qty_sell` at market.rs:317 and `order.qty -= qty_sell` at market.rs:318 both run before the `None` check at market.rs:320, so goods vanish with no trade record and no credit). A test that forces `find_external` to return `None` and asserts both fields are unchanged must pass. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:317-318 mutate before the existence check at market.rs:320]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -336,13 +306,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A storage bucket has a loading-rate field; a vehicle at that dock can only transfer up to `rate * elapsed_time` per tick, even if it has spare capacity and the bucket has spare stock. [SUBSTRATE: ABSENT — greenfield; no storage/dock entity or loading-rate field exists in simulation/src]",
+          "text": "A storage bucket has a loading-rate field; a vehicle at that dock can only transfer up to `rate * elapsed_time` per tick, even if it has spare capacity and the bucket has spare stock. [SUBSTRATE: ABSENT \u2014 greenfield; no storage/dock entity or loading-rate field exists in simulation/src]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A storage bucket's dock also draws electrical power while loading; a dock with no power available cannot transfer cargo even if its loading-rate budget and vehicle capacity both have headroom. [SUBSTRATE: ABSENT — greenfield; no coupling exists between simulation/src storage/dock logic and map/electricity_cache.rs, spec/logistics.md:39]",
+          "text": "A storage bucket's dock also draws electrical power while loading; a dock with no power available cannot transfer cargo even if its loading-rate budget and vehicle capacity both have headroom. [SUBSTRATE: ABSENT \u2014 greenfield; no coupling exists between simulation/src storage/dock logic and map/electricity_cache.rs, spec/logistics.md:39]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
@@ -363,13 +333,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Items flagged as network-borne (electricity/heat/water/sewage) are never posted as BuyOrder/SellOrder entries in the vehicle-matched market, or are routed to a separate non-vehicle solver entirely. [SUBSTRATE: UNAUDITED — no per-item network-borne flag exists on ItemPrototype (prototypes/src/prototypes/item.rs:8-12 is `{base, id, optout_exttrade}` only); electricity itself is modelled via a separate ElectricityCache union-find (map/electricity_cache.rs:39-63), not via economy/market.rs, so today's separation is incidental rather than enforced by a flag]",
+          "text": "Items flagged as network-borne (electricity/heat/water/sewage) are never posted as BuyOrder/SellOrder entries in the vehicle-matched market, or are routed to a separate non-vehicle solver entirely. [SUBSTRATE: UNAUDITED \u2014 no per-item network-borne flag exists on ItemPrototype (prototypes/src/prototypes/item.rs:8-12 is `{base, id, optout_exttrade}` only); electricity itself is modelled via a separate ElectricityCache union-find (map/electricity_cache.rs:39-63), not via economy/market.rs, so today's separation is incidental rather than enforced by a flag]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "Solid/liquid cargo items flagged for fixed conveyance (adjacent-building conveyor/bulk-chute/pipe transfer) move at a metered rate between the two adjacent buildings without ever being posted as a BuyOrder/SellOrder or assigned a vehicle dispatch, distinct from the network-borne utility exclusion above. [SUBSTRATE: ABSENT — greenfield; no fixed-conveyance edge type exists in map/ or economy/market.rs, spec/logistics.md:58]",
+          "text": "Solid/liquid cargo items flagged for fixed conveyance (adjacent-building conveyor/bulk-chute/pipe transfer) move at a metered rate between the two adjacent buildings without ever being posted as a BuyOrder/SellOrder or assigned a vehicle dispatch, distinct from the network-borne utility exclusion above. [SUBSTRATE: ABSENT \u2014 greenfield; no fixed-conveyance edge type exists in map/ or economy/market.rs, spec/logistics.md:58]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -390,13 +360,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A LogisticsEdge between two adjacent buildings may be flagged as fixed-conveyance (conveyor/bulk-chute/pipe/cable/heat), in which case goods cross it at a bounded per-tick rate and never enter the vehicle-matched BuyOrder/SellOrder market. [SUBSTRATE: ABSENT — greenfield; no LogisticsEdge or fixed-conveyance concept exists in economy/market.rs or map/, spec/logistics.md:58]",
+          "text": "A LogisticsEdge between two adjacent buildings may be flagged as fixed-conveyance (conveyor/bulk-chute/pipe/cable/heat), in which case goods cross it at a bounded per-tick rate and never enter the vehicle-matched BuyOrder/SellOrder market. [SUBSTRATE: ABSENT \u2014 greenfield; no LogisticsEdge or fixed-conveyance concept exists in economy/market.rs or map/, spec/logistics.md:58]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A fixed-conveyance edge still obeys transport-class compatibility (the same resource-class gate that governs vehicle cargo); an incompatible resource cannot cross a conveyance edge built for a different class. [SUBSTRATE: ABSENT — greenfield, spec/logistics.md:58]",
+          "text": "A fixed-conveyance edge still obeys transport-class compatibility (the same resource-class gate that governs vehicle cargo); an incompatible resource cannot cross a conveyance edge built for a different class. [SUBSTRATE: ABSENT \u2014 greenfield, spec/logistics.md:58]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -417,13 +387,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Not every resource/store pair is re-evaluated by the matcher on every tick; matching work for distinct materials is round-robined across frames (`GetFrameReason`-style amortisation), so a single tick's matcher pass touches a bounded subset of materials. [SUBSTRATE: ABSENT — economy/market.rs make_trades has no frame-amortisation, it scans all orders every call it's invoked on, spec/logistics.md:72]",
+          "text": "Not every resource/store pair is re-evaluated by the matcher on every tick; matching work for distinct materials is round-robined across frames (`GetFrameReason`-style amortisation), so a single tick's matcher pass touches a bounded subset of materials. [SUBSTRATE: ABSENT \u2014 economy/market.rs make_trades has no frame-amortisation, it scans all orders every call it's invoked on, spec/logistics.md:72]",
           "behavioral_impact": "none",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "Trade matching is spatially partitioned so a demand in one region is not compared against every supply on the map every tick; a local match is preferred within a bounded radius/district before falling back to a wider search. [SUBSTRATE: CONFLICTS — economy/market.rs:219 ranks ALL candidate pairs for a resource by squared distance with no spatial partitioning, spec/logistics.md:99]",
+          "text": "Trade matching is spatially partitioned so a demand in one region is not compared against every supply on the map every tick; a local match is preferred within a bounded radius/district before falling back to a wider search. [SUBSTRATE: CONFLICTS \u2014 economy/market.rs:219 ranks ALL candidate pairs for a resource by squared distance with no spatial partitioning, spec/logistics.md:99]",
           "behavioral_impact": "none",
           "proof_seam": "integration"
         }
@@ -444,15 +414,27 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A Dispatch carries a state field constrained to travel-to-source, loading, travel-to-destination, unloading (in that order); a dispatch cannot enter loading before reaching the source, and cannot enter unloading before reaching the destination. [SUBSTRATE: ABSENT — greenfield; no Dispatch entity or state field exists in economy/market.rs or transportation/, spec/logistics.md:111,32]",
+          "text": "A Dispatch carries a state field constrained to travel-to-source, loading, travel-to-destination, unloading (in that order); a dispatch cannot enter loading before reaching the source, and cannot enter unloading before reaching the destination. [SUBSTRATE: ABSENT \u2014 greenfield; no Dispatch entity or state field exists in economy/market.rs or transportation/, spec/logistics.md:111,32]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "When a dispatch's unloading state completes, the vehicle becomes idle and either returns empty toward its depot or immediately accepts a new assignment; it is never left mid-cycle with stale cargo or a stale destination. [SUBSTRATE: ABSENT — greenfield, spec/logistics.md:15,111]",
+          "text": "When a dispatch's unloading state completes, the vehicle becomes idle and either returns empty toward its depot or immediately accepts a new assignment; it is never left mid-cycle with stale cargo or a stale destination. [SUBSTRATE: ABSENT \u2014 greenfield, spec/logistics.md:15,111]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
+        },
+        {
+          "id": "AC-3",
+          "text": "Seller stock decrements only on the dispatch's transition into `loading`, and buyer stock increments only on the transition into `unloading`; between those transitions the quantity is held by the dispatch itself and counted in neither bucket. [SUBSTRATE: CONFLICTS \u2014 today economy/market.rs:277-279 moves stock at trade-MATCH time (`*cap_buyer += trade.qty;` then `*capital.get_mut(&trade.seller.0).unwrap() -= trade.qty;`), before any physical dispatch runs, so without this AC the dispatch state machine could pass while the truck is decorative]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-4",
+          "text": "The dispatch state machine is implemented as an extension of the existing `map_dynamic::Dispatcher` (already imported and used by souls/freight_station.rs:5-9), not a bespoke parallel trip mechanism that would later need to be torn out. [SUBSTRATE: PARTIAL \u2014 map_dynamic::Dispatcher exists and is in use, souls/freight_station.rs:5-9]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
         }
       ],
       "sources": [
@@ -471,7 +453,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A passenger-class vehicle (e.g. bus) has a cargoClass of Passenger and a capacity denominated in persons, and is gated by the same cargoClass-compatibility check used for freight (AC of 'Gate cargo assignment by resource transport-class compatibility') rather than a separate passenger-only code path. [SUBSTRATE: ABSENT — greenfield; no passenger cargo class or citizen-as-cargo concept exists in economy/market.rs or transportation/vehicle.rs, spec/vehicles.md:36]",
+          "text": "A passenger-class vehicle (e.g. bus) has a cargoClass of Passenger and a capacity denominated in persons, and is gated by the same cargoClass-compatibility check used for freight (AC of 'Gate cargo assignment by resource transport-class compatibility') rather than a separate passenger-only code path. [SUBSTRATE: ABSENT \u2014 greenfield; no passenger cargo class or citizen-as-cargo concept exists in economy/market.rs or transportation/vehicle.rs, spec/vehicles.md:36]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -487,24 +469,24 @@
       "title": "Split rail vehicles into locomotive and wagon consists",
       "epic_theme": "Vehicle asset lifecycle",
       "as_a": "planner",
-      "i_want": "rail vehicles to be represented as two coupled asset types — a locomotive providing propulsion with zero cargo capacity, and a wagon providing cargo capacity with no propulsion — purchased and dispatched together as a consist",
+      "i_want": "rail vehicles to be represented as two coupled asset types \u2014 a locomotive providing propulsion with zero cargo capacity, and a wagon providing cargo capacity with no propulsion \u2014 purchased and dispatched together as a consist",
       "so_that": "rail freight matches the confirmed W&R rule instead of forcing trains into the flat one-vehicle model built for trucks",
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A rail Locomotive has power and speed fields and a capacity of zero; cargo cannot be assigned to a Locomotive directly. [SUBSTRATE: ABSENT — greenfield; transportation/vehicle.rs has one flat Vehicle schema with no locomotive/wagon distinction, spec/vehicles.md:37]",
+          "text": "A rail Locomotive has power and speed fields and a capacity of zero; cargo cannot be assigned to a Locomotive directly. [SUBSTRATE: ABSENT \u2014 greenfield; transportation/vehicle.rs has one flat Vehicle schema with no locomotive/wagon distinction, spec/vehicles.md:37]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A rail Wagon has a capacity/cargoClass field and no power field; a Wagon cannot move or be dispatched unless coupled to a Locomotive in the same consist. [SUBSTRATE: ABSENT — greenfield, spec/vehicles.md:37]",
+          "text": "A rail Wagon has a capacity/cargoClass field and no power field; a Wagon cannot move or be dispatched unless coupled to a Locomotive in the same consist. [SUBSTRATE: ABSENT \u2014 greenfield, spec/vehicles.md:37]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-3",
-          "text": "A rail consist (one Locomotive plus one or more Wagons) is purchased and assigned as a single bundle; individual Wagons are not independently tradeable or dispatchable outside a consist. [SUBSTRATE: ABSENT — greenfield, spec/vehicles.md:37]",
+          "text": "A rail consist (one Locomotive plus one or more Wagons) is purchased and assigned as a single bundle; individual Wagons are not independently tradeable or dispatchable outside a consist. [SUBSTRATE: ABSENT \u2014 greenfield, spec/vehicles.md:37]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
@@ -525,7 +507,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "When a Vehicle's condition reaches zero (or its age exceeds its lifespan), it is removed from the fleet and a scrapyard produces waste_steel and waste_aluminium cargo in its place, rather than the vehicle entity being deleted with no material output. [SUBSTRATE: ABSENT — greenfield; no scrap/end-of-life path exists for transportation/vehicle.rs entities, spec/vehicles.md:67]",
+          "text": "When a Vehicle's condition reaches zero (or its age exceeds its lifespan), it is removed from the fleet and a scrapyard produces waste_steel and waste_aluminium cargo in its place, rather than the vehicle entity being deleted with no material output. [SUBSTRATE: ABSENT \u2014 greenfield; no scrap/end-of-life path exists for transportation/vehicle.rs entities, spec/vehicles.md:67]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -546,7 +528,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A cargo station accepts a compatible-class cargo delivery from a vehicle of one medium (e.g. rail) and makes it available for pickup by a vehicle of a different medium (e.g. road) without the cargo ever existing outside a vehicle or the station's dock buffer. [SUBSTRATE: ABSENT — greenfield; no cargo-station/transshipment node exists in economy/market.rs or map/, spec/logistics.md:41]",
+          "text": "A cargo station accepts a compatible-class cargo delivery from a vehicle of one medium (e.g. rail) and makes it available for pickup by a vehicle of a different medium (e.g. road) without the cargo ever existing outside a vehicle or the station's dock buffer. [SUBSTRATE: ABSENT \u2014 greenfield; no cargo-station/transshipment node exists in economy/market.rs or map/, spec/logistics.md:41]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         }
@@ -555,6 +537,81 @@
         {
           "file": "spec/logistics.md",
           "lines": "41"
+        }
+      ]
+    },
+    {
+      "title": "Bind a vehicle trip to a specific citizen driver",
+      "epic_theme": "Labour Allocation & Workplace Binding",
+      "as_a": "planner",
+      "i_want": "a vehicle trip to be attributed to a finite fleet and a specific bound citizen-driver, differentiated by vehicle role",
+      "so_that": "labour allocation governs who drives, not an abstracted or magic pool",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Vehicle entity carries an owner/depot reference and a driver reference (citizen), so a trip can be attributed to a finite fleet and bound labour. [SUBSTRATE: ABSENT \u2014 transportation/vehicle.rs:34-44, no owner/driver field exists on the struct]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "Driver binding differentiates by vehicle role: private cars and key-service vehicles (fire/ambulance/personal) bind a specific citizen-driver for the trip, while bulk freight-pool vehicles may dispatch without a per-trip citizen assignment (abstracted labour). [SUBSTRATE: ABSENT \u2014 greenfield; transportation/vehicle.rs:34-44 has one undifferentiated driver field, no per-role binding rule]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/vehicles.md",
+          "lines": "1-33"
+        }
+      ]
+    },
+    {
+      "title": "Exempt electric vehicles from the fuel halt via live grid draw",
+      "epic_theme": "Electricity \u2014 wired network replaces coverage",
+      "as_a": "planner",
+      "i_want": "electric vehicles to draw propulsion from the live electrical grid instead of a depletable fuel stock",
+      "so_that": "electric fleets are not incorrectly halted by the empty-tank rule meant for combustion vehicles",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Vehicle entity's fuelType may be `electric`; an electric vehicle is exempt from the empty-tank movement halt (AC-1 of \"Model the vehicle as an owned physical asset\") because it draws propulsion live from the electrical grid rather than a depletable fuel stock. This exemption is only falsifiable once laid-wire connectivity exists \u2014 under today's ElectricityCache union-find every road-adjacent building (and by extension any grid-tied vehicle) is powered unconditionally, so the exemption test would pass vacuously until explicit wired connectivity lands. [SUBSTRATE: ABSENT \u2014 greenfield; no propulsion-type distinction exists in transportation/vehicle.rs, electricity itself is modelled via union-find coverage in map/electricity_cache.rs:244-280 with no laid-wire model, audit \u00a76]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/vehicles.md",
+          "lines": "1-33"
+        }
+      ]
+    },
+    {
+      "title": "Retire vehicles by lifespan and gate them by historical availability window",
+      "epic_theme": "Environmental production modifiers (greenfield)",
+      "as_a": "planner",
+      "i_want": "vehicle types to carry an age-limit lifespan and a historical production window",
+      "so_that": "aging fleets retire realistically and vehicle types cannot be manufactured or imported outside their era",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A Vehicle type may carry a lifespan (age limit in years, as an authored field on specific types such as trolleybuses, not a universal field); a vehicle whose age exceeds its lifespan is retired from dispatch eligibility independent of its wear/condition value. [SUBSTRATE: ABSENT \u2014 greenfield; no age/lifespan field exists in transportation/vehicle.rs]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
+        },
+        {
+          "id": "AC-2",
+          "text": "A Vehicle type may carry an available-from/available-to historical production-window field; manufacturing or importing that vehicle type outside its window is rejected. [SUBSTRATE: ABSENT \u2014 greenfield; no era-gating exists for vehicle types anywhere in the codebase]",
+          "behavioral_impact": "local",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/vehicles.md",
+          "lines": "1-33"
         }
       ]
     }

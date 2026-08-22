@@ -1,79 +1,69 @@
-# EPIC-029 — Water — quality-graded pipe network
+# EPIC-029 — Education — schooling pipeline
 
-**Summary:** Water — quality-graded pipe network
-**Stories:** STORY-0109, STORY-0110, STORY-0111, STORY-0112
-**Primary sources:** `spec/water.md`
-**Status:** 0/4 done
+**Summary:** Education — schooling pipeline
+**Stories:** STORY-0121, STORY-0122, STORY-0123
+**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/education.md`
+**Status:** 0/3 done
 
-## STORY-0109
+## STORY-0121
 
-**Epic:** EPIC-029 — Water — quality-graded pipe network
-**Title:** Water sourced, treated, and piped with a quality grade
+**Epic:** EPIC-029 — Education — schooling pipeline
+**Title:** Enrol a child in a staffed school as a workplace-slot binding
 
-**As a** planner
-**I want** water to flow from a source through treatment and pipes to consumers, carrying a 0-1 quality value end to end
-**So that** shortage and contamination propagate as unmet need, not a coverage toggle
+**As a** citizen (child of school age)
+**I want** to be assigned a seat at a reachable, staffed school the same way a worker is assigned a job
+**So that** education capacity is physically constrained by real buildings and staff, not an ambient radius
 
 **Acceptance criteria:**
-- AC-1: A water source has an output rate and source quality; a treatment plant consumes dirty water plus chemicals plus power and outputs water capped at quality 0.99. [SUBSTRATE: ABSENT — greenfield, zero water-system footprint in simulation/src per keyword sweep] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0127`
-- AC-2: Quality degrades through use and pipe transport is tracked per flow, not reset to a fixed value at each hop. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0127`
-- AC-3: A sensitive consumer with a declared required quality is gated: it receives no usable water input if delivered quality is below its own class threshold, even though flow rate is sufficient — an animal farm gates below 0.93, a food factory below 0.97, and nuclear cooling below 0.60, so different consumer classes gate at different numeric thresholds, not one shared cutoff. [SUBSTRATE: ABSENT — greenfield, thresholds sourced from research/utilities.md §D2] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0127`
-- AC-4: The water network includes reservoirs/switches as in-line storage and junction hardware, distinct from substations acting as leaf buffers — a reservoir smooths a temporary supply/demand mismatch by drawing down its stored volume instead of immediately failing delivery downstream. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0127`
+- AC-1: A school building exposes a finite `studentCapacity` and an `enrolled[]` list; a citizen can only hold a seat if `enrolled.len() < studentCapacity`, mirroring CS1's serviceable-seat throttle, where `studentCapacity` derives from `StudentCount * 5/4` slots and is additionally throttled down by the school's current production rate. No `School` type, capacity field, or enrolment list exists anywhere in the codebase today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
+- AC-2: Enrolment occupies the same binding slot a job occupies: while a citizen is enrolled they cannot simultaneously hold a `Work.workplace` binding. The attachment point is `WorkKind` in `souls/desire/work.rs:11-17`, which today is only `Driver | Worker` — a `Student` variant (or a sibling `School.enrolled_at` binding with the same mutual-exclusion invariant as `Work.workplace`) must be added there. [SUBSTRATE: ABSENT — greenfield, attaches at souls/desire/work.rs:11-17] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
+- AC-3: A citizen without a reachable school with a free seat remains unenrolled indefinitely (a legibility signal to the planner) rather than being silently granted education progress; this never blocks or fails the simulation tick. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0100`
+- AC-4: A citizen's decision to seek enrolment is scored as a new desire module in the shape of existing desires (`score()` returning a utility, arbitrated by max alongside `BuyFood`/`Home`/`Work` in `souls/human.rs:190-231`), not a bespoke code path bolted elsewhere. [SUBSTRATE: ABSENT — greenfield, follow pattern at souls/human.rs:190-231 and souls/desire/buyfood.rs] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0100`
+- AC-5: Serviceable seat count degrades below raw `studentCapacity` when the school's production rate falls below full (e.g. partial staffing), distinct from the flat capacity cap — a citizen can be refused enrolment even when `enrolled.len() < studentCapacity` if the school is underproducing. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
+- AC-6: A school requires its own two-tier staff complement to operate (workers 10 + profesors 15, per `school.ini:25-26`), distinct from a merely nonzero-staff check; a school staffed below this composition (e.g. workers present but profesors short) produces a proportionally reduced production rate rather than a binary staffed/unstaffed toggle. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
 
 **Sources:**
-- `spec/water.md:16-23`
-- `spec/water.md:18`
+- `spec/education.md:16-23`
+- `docs/egregoria-substrate-audit.md:148-158`
 
 **Status:** pending
 
-## STORY-0110
+## STORY-0122
 
-**Epic:** EPIC-029 — Water — quality-graded pipe network
-**Title:** Pipe network with capacity and pump-hop loss
+**Epic:** EPIC-029 — Education — schooling pipeline
+**Title:** Progress a citizen through education tiers by seat-time
 
 **As a** planner
-**I want** water pipes to have throughput capacity and pumps that push water over distance
-**So that** network topology and pump placement are real engineering decisions
+**I want** citizens to advance through kindergarten → school → university strictly by accumulated months physically enrolled at an operating, staffed facility
+**So that** the labour market's qualification supply is a real, tractable pipeline the planner can see and invest in, not an instant unlock
 
 **Acceptance criteria:**
-- AC-1: A pipe segment carrying flow above its capacity delivers no more than its capacity downstream. [SUBSTRATE: OURS/ABSENT — greenfield, no $CAPACITY token in W&R source data either] · impact:`local` · seam:`unit`
+- AC-1: A citizen gains a `seatTimeMonths` counter that increments only while enrolled at a school currently operating (staffed and not blacked out); a citizen at an unstaffed or unpowered school accrues zero seat-time. `HumanEnt`/`PersonalInfo` today carries no such field. [SUBSTRATE: ABSENT — greenfield, add to PersonalInfo or a new field on HumanEnt] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0104`
+- AC-2: Crossing a tier's required seat-time threshold sets `educationTier` to the next ordered value (kindergarten < school < university); a citizen never regresses a tier once earned, matching the CS1 ordered-levels shape adopted for our qualification ladder. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0104`
+- AC-3: Each education tier enforces its own throughput ceiling on simultaneous `enrolled[]`, narrowing up the ladder per `$CITIZEN_ABLE_SERVE`: kindergarten 10 per cycle, school 12 per cycle, university 3 per cycle — university's cap is a hard cap tighter than school's, so the pipeline visibly bottlenecks upward at each tier, not only at the university stage. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0104`
+- AC-4: Because job matching today is pure Euclidean-distance barter of an `ItemID::new("job-opening")` with no tier/overqualification concept (`souls/human.rs:267-269`, `market.rs:216`), an AC requiring a school-graduated citizen to preferentially fill a tier-matched vacancy CANNOT be proven until that labour-allocation rewrite lands; this story stops at producing a correct `educationTier` value, and downstream tier-matched hiring is out of scope pending that dependency. [SUBSTRATE: CONFLICTS — souls/human.rs:267-269, market.rs:216] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0104`
 
 **Sources:**
-- `spec/water.md:24-27`
+- `spec/education.md:24-40`
+- `docs/egregoria-substrate-audit.md:156-158`
 
 **Status:** pending
 
-## STORY-0111
+## STORY-0123
 
-**Epic:** EPIC-029 — Water — quality-graded pipe network
-**Title:** Water tanker as off-grid delivery
-
-**As a** planner
-**I want** a building not connected to the pipe network to instead be served by a water tanker truck via the logistics dispatcher
-**So that** water reaches buildings the pipe grid hasn't reached yet, at a real logistics cost
-
-**Acceptance criteria:**
-- AC-1: Water is registered as an ItemID so a truck can carry it as ordinary cargo between a water station and an off-grid building's local buffer. [SUBSTRATE: PARTIAL — item registration substrate exists (prototypes/src/prototypes/item.rs:8-12) but no water dispatch office or truck cargo type is wired up] · impact:`cross-surface` · seam:`integration`
-- AC-2: An off-grid building fed by tanker shows the same shortage/queue behaviour under insufficient truck capacity as a pipe-fed building shows under insufficient pipe capacity — no special-cased unlimited truck supply. [SUBSTRATE: ABSENT — greenfield, depends on the logistics dispatcher (spec/logistics.md) which the audit could not confirm as a generic reusable abstraction] · impact:`cross-surface` · seam:`integration`
-
-**Sources:**
-- `spec/water.md:28-30`
-
-**Status:** pending
-
-## STORY-0112
-
-**Epic:** EPIC-029 — Water — quality-graded pipe network
-**Title:** Reserve substations from cross-class draw
+**Epic:** EPIC-029 — Education — schooling pipeline
+**Title:** Send a graduate to a university specialisation feeding the matching profession
 
 **As a** planner
-**I want** to flag a substation as reserved for one consumer class so another class cannot draw from it
-**So that** critical residential water supply cannot be crowded out by industrial demand at a shared endstation
+**I want** a university choice (medical, technical, general) to determine what kind of qualified staff a citizen becomes
+**So that** medical and technical institutions can only be staffed by the education pipeline the planner deliberately funded, making education planning a real allocation decision
 
 **Acceptance criteria:**
-- AC-1: A substation flagged residential-only rejects draw requests from industrial consumers even when it has spare capacity; industrial demand is routed elsewhere or left unmet rather than drawing from the reserved substation. [SUBSTRATE: ABSENT — greenfield, adopted planner policy per spec/water.md:32-34] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0137`
+- AC-1: A citizen enrolled at a university gains a `specialisation` field (e.g. medical, technical) taken from the university's own subtype, persisted on graduation; no specialisation or subtype concept exists on any building or human type today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0108`
+- AC-2: A hospital or university's `profesor`-tier staff slot can only be filled by a citizen whose `specialisation` matches the required kind (medical for hospitals, per spec/healthcare.md staff loop); an unmatched citizen is rejected from that staffing slot rather than silently accepted. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0108`
+- AC-3: At game start, with zero graduates in existence, a university requiring 100 profesor-tier staff to run (per the two-tier W&R staff shape) cannot self-bootstrap; the planner must either import specialists (an external-trade equivalent) or accept the university runs at reduced/zero throughput until its own graduates arrive — this chicken-and-egg is intentional, never a hard failure or game-over. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0108`
 
 **Sources:**
-- `spec/water.md:32-34`
+- `spec/education.md:24-44`
 
 **Status:** pending

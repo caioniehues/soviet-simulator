@@ -4,7 +4,7 @@ import json, re, sys
 
 IMPACT = {'none', 'local', 'cross-surface', 'journey'}
 SEAM = {'unit', 'integration', 'app-level', 'process-level', 'e2e'}
-KIND = {'surface', 'failure-recovery', 'contract'}
+KIND = {'surface', 'failure-recovery', 'contract', 'journey'}
 
 p = sys.argv[1]
 d = json.load(open(p))

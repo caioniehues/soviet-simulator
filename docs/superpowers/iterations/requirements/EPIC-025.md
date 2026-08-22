@@ -1,69 +1,98 @@
-# EPIC-025 — Education — schooling pipeline
+# EPIC-025 — Resource ontology (greenfield)
 
-**Summary:** Education — schooling pipeline
-**Stories:** STORY-0091, STORY-0092, STORY-0093
-**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/education.md`
-**Status:** 0/3 done
+**Summary:** Resource ontology (greenfield)
+**Stories:** STORY-0108, STORY-0109, STORY-0110, STORY-0111, STORY-0112
+**Primary sources:** `spec/resources.md`
+**Status:** 0/5 done
 
-## STORY-0091
+## STORY-0108
 
-**Epic:** EPIC-025 — Education — schooling pipeline
-**Title:** Enrol a child in a staffed school as a workplace-slot binding
+**Epic:** EPIC-025 — Resource ontology (greenfield)
+**Title:** Give every resource item physical handling metadata
 
-**As a** citizen (child of school age)
-**I want** to be assigned a seat at a reachable, staffed school the same way a worker is assigned a job
-**So that** education capacity is physically constrained by real buildings and staff, not an ambient radius
+**As a** planner and the logistics/construction systems built on top of resources
+**I want** each resource to declare mass, volume, a storage class, and a transport class
+**So that** logistics can decide which vehicle/container/network can carry a given resource and storage buildings can reject incompatible goods
 
 **Acceptance criteria:**
-- AC-1: A school building exposes a finite `studentCapacity` and an `enrolled[]` list; a citizen can only hold a seat if `enrolled.len() < studentCapacity`, mirroring CS1's serviceable-seat throttle, where `studentCapacity` derives from `StudentCount * 5/4` slots and is additionally throttled down by the school's current production rate. No `School` type, capacity field, or enrolment list exists anywhere in the codebase today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
-- AC-2: Enrolment occupies the same binding slot a job occupies: while a citizen is enrolled they cannot simultaneously hold a `Work.workplace` binding. The attachment point is `WorkKind` in `souls/desire/work.rs:11-17`, which today is only `Driver | Worker` — a `Student` variant (or a sibling `School.enrolled_at` binding with the same mutual-exclusion invariant as `Work.workplace`) must be added there. [SUBSTRATE: ABSENT — greenfield, attaches at souls/desire/work.rs:11-17] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
-- AC-3: A citizen without a reachable school with a free seat remains unenrolled indefinitely (a legibility signal to the planner) rather than being silently granted education progress; this never blocks or fails the simulation tick. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0100`
-- AC-4: A citizen's decision to seek enrolment is scored as a new desire module in the shape of existing desires (`score()` returning a utility, arbitrated by max alongside `BuyFood`/`Home`/`Work` in `souls/human.rs:190-231`), not a bespoke code path bolted elsewhere. [SUBSTRATE: ABSENT — greenfield, follow pattern at souls/human.rs:190-231 and souls/desire/buyfood.rs] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0100`
-- AC-5: Serviceable seat count degrades below raw `studentCapacity` when the school's production rate falls below full (e.g. partial staffing), distinct from the flat capacity cap — a citizen can be refused enrolment even when `enrolled.len() < studentCapacity` if the school is underproducing. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
-- AC-6: A school requires its own two-tier staff complement to operate (workers 10 + profesors 15, per `school.ini:25-26`), distinct from a merely nonzero-staff check; a school staffed below this composition (e.g. workers present but profesors short) produces a proportionally reduced production rate rather than a binary staffed/unstaffed toggle. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0100`
+- AC-1: Today ItemPrototype is exactly {base, id, optout_exttrade} — no mass, volume, storageClass, or transportClass field exists on any item. [SUBSTRATE: ABSENT — prototypes/src/prototypes/item.rs:8-12, whole schema] · impact:`none` · seam:`unit`
+- AC-2: Every item prototype must carry a numeric mass (t/unit) and volume (m³/unit) field, loadable from the Lua catalogue like other prototype fields. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0091`
+- AC-3: Every item prototype must carry an optional containerClass (aluminium | bio | construction | plastic | steel | toxic | open) for items that ship in typed containers, matching container_big_{aluminium,bio,construction,plastic,steel,toxic} material classes; a container's material determines what it may legally carry. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:67,86] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0091`
+- AC-4: Every item prototype must carry a category field with exactly one of {raw, processed-material, construction, consumer-good, liquid, energy, waste}, distinct from and in addition to its tier field. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:56] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0091`
 
 **Sources:**
-- `spec/education.md:16-23`
-- `docs/egregoria-substrate-audit.md:148-158`
+- `spec/resources.md:48-90`
 
 **Status:** pending
 
-## STORY-0092
+## STORY-0109
 
-**Epic:** EPIC-025 — Education — schooling pipeline
-**Title:** Progress a citizen through education tiers by seat-time
+**Epic:** EPIC-025 — Resource ontology (greenfield)
+**Title:** Give every resource item an economic tier classification
 
 **As a** planner
-**I want** citizens to advance through kindergarten → school → university strictly by accumulated months physically enrolled at an operating, staffed facility
-**So that** the labour market's qualification supply is a real, tractable pipeline the planner can see and invest in, not an instant unlock
+**I want** each resource to declare whether it is raw, intermediate, finished, or luxury
+**So that** planning priority and trade value can be driven by tier without reintroducing floating money-based worth
 
 **Acceptance criteria:**
-- AC-1: A citizen gains a `seatTimeMonths` counter that increments only while enrolled at a school currently operating (staffed and not blacked out); a citizen at an unstaffed or unpowered school accrues zero seat-time. `HumanEnt`/`PersonalInfo` today carries no such field. [SUBSTRATE: ABSENT — greenfield, add to PersonalInfo or a new field on HumanEnt] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0104`
-- AC-2: Crossing a tier's required seat-time threshold sets `educationTier` to the next ordered value (kindergarten < school < university); a citizen never regresses a tier once earned, matching the CS1 ordered-levels shape adopted for our qualification ladder. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0104`
-- AC-3: Each education tier enforces its own throughput ceiling on simultaneous `enrolled[]`, narrowing up the ladder per `$CITIZEN_ABLE_SERVE`: kindergarten 10 per cycle, school 12 per cycle, university 3 per cycle — university's cap is a hard cap tighter than school's, so the pipeline visibly bottlenecks upward at each tier, not only at the university stage. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0104`
-- AC-4: Because job matching today is pure Euclidean-distance barter of an `ItemID::new("job-opening")` with no tier/overqualification concept (`souls/human.rs:267-269`, `market.rs:216`), an AC requiring a school-graduated citizen to preferentially fill a tier-matched vacancy CANNOT be proven until that labour-allocation rewrite lands; this story stops at producing a correct `educationTier` value, and downstream tier-matched hiring is out of scope pending that dependency. [SUBSTRATE: CONFLICTS — souls/human.rs:267-269, market.rs:216] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0104`
+- AC-1: Every item prototype must carry a tier field with exactly one of {raw, intermediate, finished, luxury}. [SUBSTRATE: ABSENT — greenfield, no such field exists in prototypes/src/prototypes/item.rs] · impact:`local` · seam:`unit`
 
 **Sources:**
-- `spec/education.md:24-40`
-- `docs/egregoria-substrate-audit.md:156-158`
+- `spec/resources.md:108-115`
 
 **Status:** pending
 
-## STORY-0093
+## STORY-0110
 
-**Epic:** EPIC-025 — Education — schooling pipeline
-**Title:** Send a graduate to a university specialisation feeding the matching profession
+**Epic:** EPIC-025 — Resource ontology (greenfield)
+**Title:** Give perishable and hazardous items lifecycle metadata
 
 **As a** planner
-**I want** a university choice (medical, technical, general) to determine what kind of qualified staff a citizen becomes
-**So that** medical and technical institutions can only be staffed by the education pipeline the planner deliberately funded, making education planning a real allocation decision
+**I want** perishable goods (food, meat) to decay past a shelf life outside cold storage, and hazardous goods (uranium, some waste) to be flagged as such
+**So that** refrigerated logistics and radioactive handling are physically meaningful rather than cosmetic categories
 
 **Acceptance criteria:**
-- AC-1: A citizen enrolled at a university gains a `specialisation` field (e.g. medical, technical) taken from the university's own subtype, persisted on graduation; no specialisation or subtype concept exists on any building or human type today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0108`
-- AC-2: A hospital or university's `profesor`-tier staff slot can only be filled by a citizen whose `specialisation` matches the required kind (medical for hospitals, per spec/healthcare.md staff loop); an unmatched citizen is rejected from that staffing slot rather than silently accepted. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0108`
-- AC-3: At game start, with zero graduates in existence, a university requiring 100 profesor-tier staff to run (per the two-tier W&R staff shape) cannot self-bootstrap; the planner must either import specialists (an external-trade equivalent) or accept the university runs at reduced/zero throughput until its own graduates arrive — this chicken-and-egg is intentional, never a hard failure or game-over. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0108`
+- AC-1: An item may optionally declare a shelfLife; when stored outside a storageClass=cooled bucket (or its equivalent) past shelfLife, its stored quantity is reduced or removed rather than persisting indefinitely. [SUBSTRATE: ABSENT — greenfield; no decay mechanism exists anywhere in the simulation crate per audit] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0092`
+- AC-2: An item may optionally declare a hazardClass (e.g. radioactive, toxic); items with a hazardClass set are distinguishable at the prototype level from ordinary goods (for later systems — construction siting, waste routing — to query). [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0092`
 
 **Sources:**
-- `spec/education.md:24-44`
+- `spec/resources.md:48-78`
+
+**Status:** pending
+
+## STORY-0111
+
+**Epic:** EPIC-025 — Resource ontology (greenfield)
+**Title:** Replace the inverted opt-out trade flag with an explicit tradeable declaration
+
+**As a** planner and the trade system
+**I want** each resource to declare tradeable directly rather than the codebase reasoning about the negation of optout_exttrade everywhere it needs to know
+**So that** trade eligibility reads as a positive, unambiguous fact matching the spec's Resource.tradeable field
+
+**Acceptance criteria:**
+- AC-1: Today the only trade-related field is optout_exttrade — the inverse of the spec's tradeable — and every caller must negate it to get the spec's semantics. [SUBSTRATE: PARTIAL — prototypes/src/prototypes/item.rs:8-12, optout_exttrade is the sole existing field] · impact:`none` · seam:`unit`
+- AC-2: A tradeable accessor (or renamed field) exists such that tradeable == !optout_exttrade for every existing item, verified against every entry in the current catalogue with no behavioural change to which items trade externally. [SUBSTRATE: ABSENT — greenfield naming/accessor, behaviour-preserving] · impact:`none` · seam:`unit`
+
+**Sources:**
+- `spec/resources.md:48-78`
+
+**Status:** pending
+
+## STORY-0112
+
+**Epic:** EPIC-025 — Resource ontology (greenfield)
+**Title:** Support storage buckets pinned to a single resource and consumer-demand buffer tiers
+
+**As a** planner
+**I want** a building's storage to support a bucket reserved for one named resource and separate consumer-demand buffer tiers
+**So that** import docks that only accept one commodity and shop demand buffers are representable, not just a generic storageClass bucket
+
+**Acceptance criteria:**
+- AC-1: Today storage buckets are undifferentiated by class only; no bucket type exists that pins itself to a single named resource id or that models a tiered consumer-demand buffer. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84] · impact:`none` · seam:`unit`
+- AC-2: A building may declare an import bucket pinned to exactly one resource id and capacity; the bucket accepts only that resource and rejects any other, even one of a compatible storageClass. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_IMPORT_SPECIAL)] · impact:`local` · seam:`unit`
+- AC-3: A shop building may declare one of four consumer-demand buffer tiers (basic | advanced | hotel | prison), each an independent capacity bucket distinct from ordinary import/export storage. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_DEMAND_BASIC/_ADVANCED/_HOTEL/_PRISON)] · impact:`local` · seam:`unit`
+
+**Sources:**
+- `spec/resources.md:84`
 
 **Status:** pending

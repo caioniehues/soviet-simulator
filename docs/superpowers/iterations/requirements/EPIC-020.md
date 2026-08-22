@@ -1,62 +1,25 @@
-# EPIC-020 — Hoarding & quota deception (walking skeleton)
+# EPIC-020 — Scale & Performance
 
-**Summary:** Hoarding & quota deception (walking skeleton)
-**Stories:** STORY-0076, STORY-0077, STORY-0078
-**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/production.md`
-**Status:** 0/3 done
+**Summary:** Scale & Performance
+**Stories:** STORY-0087
+**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/citizens.md`
+**Status:** 0/1 done
 
-## STORY-0076
+## STORY-0087
 
-**Epic:** EPIC-020 — Hoarding & quota deception (walking skeleton)
-**Title:** Let a building request more input than its recipe strictly needs
+**Epic:** EPIC-020 — Scale & Performance
+**Title:** Keep the per-citizen decision loop performant as population grows
 
-**As a** planner
-**I want** an enterprise's declared input requirement to be a separate, inflatable number from the recipe's true consumption rate
-**So that** the core loop — enterprises hoard inputs and inflate their requests — has something to inflate; today the requested amount is always item.amount, so there is nothing to see through
-
-**Acceptance criteria:**
-- AC-1: Today Market::buy_until, called from recipe_init/recipe_act, always requests exactly item.amount — the literal recipe quantity — with no distinction between plan quota and honest requirement. [SUBSTRATE: PROVIDED (as the un-deceptive baseline) — market.rs:161-167, called from souls/goods_company.rs:23,47] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0089`
-- AC-2: A building must be able to hold a reported requested quantity per input that is independently settable and can exceed the recipe's true per-cycle consumption. [SUBSTRATE: ABSENT — greenfield; this is the hoarding hook the audit names as the cleanest insertion point] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0089`
-- AC-3: Market::buy_until (or its successor) requests the reported quantity, not the recipe's literal amount, when the two diverge — the enterprise actually receives and stockpiles the inflated amount if the market can supply it. [SUBSTRATE: ABSENT — greenfield; requires additive fields on BuyOrder per audit §4] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0089`
-
-**Sources:**
-- `spec/production.md:1-9`
-- `docs/egregoria-substrate-audit.md:1-1`
-
-**Status:** pending
-
-## STORY-0077
-
-**Epic:** EPIC-020 — Hoarding & quota deception (walking skeleton)
-**Title:** Distinguish true consumption from reported request in the production ledger
-
-**As a** planner
-**I want** the sim to track, per building per cycle, both what was actually consumed by the recipe and what was requested/received from the market
-**So that** a gap between the two is a measurable, queryable fact rather than something only visible by reading source
+**As a** Planner
+**I want** citizen decision-making to preserve its per-human staggering and stay within a measured tick budget as headcount rises
+**So that** the game remains playable at realistic city population sizes instead of degrading unnoticed
 
 **Acceptance criteria:**
-- AC-1: A building accumulates unconsumed surplus stock when received input exceeds what the recipe consumes per cycle, rather than the surplus being silently discarded or never arising (today request == consumption, so no surplus is possible). [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0089`
-- AC-2: The per-building surplus/hoard quantity for a given input is queryable (e.g. via a component or market inspection API) distinctly from the input's in-flight order quantity. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0089`
+- AC-1: Each human's re-decision interval remains a randomized 30-80 tick stagger, spatially seeded, so the population is not all re-evaluated on the same tick. [SUBSTRATE: PROVIDED — souls/human.rs:185, 30 + rand2(pos)*50 ticks] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0067`
+- AC-2: A profiled population ceiling exists and is documented — full-human-collection update time per tick stays under a stated frame budget at that ceiling. [SUBSTRATE: UNAUDITED — population ceiling is UNCONFIRMED per egregoria-substrate-audit.md sec.5/sec.9, needs runtime profiling, not a code read] · impact:`journey` · seam:`process-level` · scenario:`SCENARIO-0067`
 
 **Sources:**
-- `spec/production.md:1-9`
-
-**Status:** pending
-
-## STORY-0078
-
-**Epic:** EPIC-020 — Hoarding & quota deception (walking skeleton)
-**Title:** Let the planner detect a hoarding enterprise from observable state alone
-
-**As a** player acting as THE PLANNER
-**I want** to compare a factory's requested/received input quantity against what it actually consumes and notice when they diverge
-**So that** hoarding is a discoverable gameplay fact — the emotional core of the design — not an invisible backend number
-
-**Acceptance criteria:**
-- AC-1: Selecting a building shows, for at least one input, both the requested/received quantity and the recipe's true per-cycle consumption, or a derived surplus figure, in the same panel. [SUBSTRATE: ABSENT — greenfield UI, no existing panel exposes recipe consumption vs order quantity] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0090`
-- AC-2: Given two otherwise-identical buildings of the same type, one with an honest requested quantity and one with an inflated requested quantity, the inflated one visibly accumulates a growing surplus stock over multiple production cycles while the honest one does not. [SUBSTRATE: ABSENT — greenfield, depends on AC from surplus-tracking story] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0090`
-
-**Sources:**
-- `spec/production.md:1-9`
+- `spec/citizens.md:70-72`
+- `docs/egregoria-substrate-audit.md:119-135`
 
 **Status:** pending

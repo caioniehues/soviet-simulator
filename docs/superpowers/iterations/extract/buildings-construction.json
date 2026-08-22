@@ -9,26 +9,32 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Placing a building blueprint creates a ConstructionProject with zero active capabilities (no dwelling/workplace/storage usable) until the final phase completes. [SUBSTRATE: CONFLICTS — Building::make (map/objects/building.rs) and Road::make materialize fully and instantly today per audit §1 'Roads/buildings as construction output: CONFLICTS'; no ConstructionProject type exists (audit §3)]",
+          "text": "Placing a building blueprint creates a ConstructionProject with zero active capabilities (no dwelling/workplace/storage usable) until the final phase completes. [SUBSTRATE: CONFLICTS \u2014 Building::make (map/objects/building.rs) and Road::make materialize fully and instantly today per audit \u00a71 'Roads/buildings as construction output: CONFLICTS'; no ConstructionProject type exists (audit \u00a73)]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "No Money is debited or credited at the moment a blueprint is placed. [SUBSTRATE: CONFLICTS — BuildingPrototype.price: Money (prototypes/src/prototypes/building.rs:33) is the flat purchase price spec/construction.md:26-36 explicitly rejects]",
+          "text": "No Money is debited or credited at the moment a blueprint is placed. [SUBSTRATE: CONFLICTS \u2014 BuildingPrototype.price: Money (prototypes/src/prototypes/building.rs:33) is the flat purchase price spec/construction.md:26-36 explicitly rejects]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "Querying a building entity mid-construction (e.g. for housing allocation or production) returns no available capacity — it is invisible to consumers of finished buildings. [SUBSTRATE: ABSENT — greenfield; today's Building is fully queryable the instant Building::make returns]",
+          "text": "Querying a building entity mid-construction (e.g. for housing allocation or production) returns no available capacity \u2014 it is invisible to consumers of finished buildings. [SUBSTRATE: ABSENT \u2014 greenfield; today's Building is fully queryable the instant Building::make returns]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "1-24"},
-        {"file": "spec/buildings.md", "lines": "34-42"}
+        {
+          "file": "spec/construction.md",
+          "lines": "1-24"
+        },
+        {
+          "file": "spec/buildings.md",
+          "lines": "34-42"
+        }
       ]
     },
     {
@@ -40,20 +46,26 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A building prototype declares, per construction phase, a list of (material class, quantity) pairs and a work amount, replacing or augmenting the current flat price field. [SUBSTRATE: CONFLICTS — building.rs:33 price: Money is the only cost field today; no per-phase bill-of-quantities schema exists, greenfield per audit §3]",
+          "text": "A building prototype declares, per construction phase, a list of (material class, quantity) pairs and a work amount, replacing or augmenting the current flat price field. [SUBSTRATE: CONFLICTS \u2014 building.rs:33 price: Money is the only cost field today; no per-phase bill-of-quantities schema exists, greenfield per audit \u00a73]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "Editing a building's bill of quantities in the Lua catalogue and restarting the game changes the material/work required for the next construction of that type; no running session picks up the change without a restart. [SUBSTRATE: PROVIDED (as a constraint to honour) — prototypes load once into a leaked static with no hot reload, prototypes/load.rs:17-31,61-63 per audit §3 and ADR-0017]",
+          "text": "Editing a building's bill of quantities in the Lua catalogue and restarting the game changes the material/work required for the next construction of that type; no running session picks up the change without a restart. [SUBSTRATE: PROVIDED (as a constraint to honour) \u2014 prototypes load once into a leaked static with no hot reload, prototypes/load.rs:17-31,61-63 per audit \u00a73 and ADR-0017]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "26-36"},
-        {"file": "spec/construction.md", "lines": "100-119"}
+        {
+          "file": "spec/construction.md",
+          "lines": "26-36"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "100-119"
+        }
       ]
     },
     {
@@ -65,46 +77,58 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A phase cannot begin accumulating work while its predecessor phase is not yet marked complete, and a building's phase list declares only the subset of phases its construction method actually uses (e.g. a panel building lists PANELS_LAYING, not BRICKS_LAYING), in craft order; the earthworks phase always carries a zero work-multiplier (pure earthmoving, never itself a material stall). [SUBSTRATE: ABSENT — no ConstructionPhase/ConstructionProject type exists anywhere in the fork, greenfield per audit §3]",
+          "text": "A phase cannot begin accumulating work while its predecessor phase is not yet marked complete, and a building's phase list declares only the subset of phases its construction method actually uses (e.g. a panel building lists PANELS_LAYING, not BRICKS_LAYING), in craft order; the earthworks phase always carries a zero work-multiplier (pure earthmoving, never itself a material stall). [SUBSTRATE: ABSENT \u2014 no ConstructionPhase/ConstructionProject type exists anywhere in the fork, greenfield per audit \u00a73]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A phase makes zero progress while its required material class has not been fully delivered to the site, and resumes automatically the tick delivery satisfies the bill — no manual retrigger needed. [SUBSTRATE: ABSENT — audit §3 'Full construction process: ABSENT/CONFLICTS'; nearest existing gate is the boolean all-or-nothing input check in recipe_should_produce, souls/goods_company.rs:36-39, not phase-aware]",
+          "text": "A phase makes zero progress while its required material class has not been fully delivered to the site, and resumes automatically the tick delivery satisfies the bill \u2014 no manual retrigger needed. [SUBSTRATE: ABSENT \u2014 audit \u00a73 'Full construction process: ABSENT/CONFLICTS'; nearest existing gate is the boolean all-or-nothing input check in recipe_should_produce, souls/goods_company.rs:36-39, not phase-aware]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "A phase makes zero progress while no vehicle carrying the phase's required construction skill (CRANE/GROUNDWORKS/ASPHALT_LAYING/etc.) is assigned and parked at its station slot, even if all materials are on site. [SUBSTRATE: ABSENT — greenfield; Vehicle (transportation/vehicle.rs:34-44) carries no skill/economic fields at all per audit §2]",
+          "text": "A phase makes zero progress while no vehicle carrying the phase's required construction skill (CRANE/GROUNDWORKS/ASPHALT_LAYING/etc.) is assigned and parked at its station slot, even if all materials are on site. [SUBSTRATE: ABSENT \u2014 greenfield; Vehicle (transportation/vehicle.rs:34-44) carries no skill/economic fields at all per audit \u00a72]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "The project exposes a bottleneck field reporting no-material / no-machine / no-worker, readable by the same UI/data surface that reports production bottlenecks. [SUBSTRATE: PARTIAL — recipe_should_produce returns a bare bool with no reason (souls/goods_company.rs:36-39), so the shape exists but reason-surfacing is ABSENT per audit §3]",
+          "text": "The project exposes a bottleneck field reporting no-material / no-machine / no-worker, readable by the same UI/data surface that reports production bottlenecks. [SUBSTRATE: PARTIAL \u2014 recipe_should_produce returns a bare bool with no reason (souls/goods_company.rs:36-39), so the shape exists but reason-surfacing is ABSENT per audit \u00a73]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "app-level"
         },
         {
           "id": "AC-5",
-          "text": "A phase makes zero progress while its assigned worker count sourced from the office's WORKERS pool is below the phase's requirement, and its bottleneck reports no-worker distinctly from no-machine. [SUBSTRATE: ABSENT — greenfield; no worker-sourcing-to-phase mechanism exists, and bottleneck today is a bare bool per audit §3]",
+          "text": "A phase makes zero progress while its assigned worker count sourced from the office's WORKERS pool is below the phase's requirement, and its bottleneck reports no-worker distinctly from no-machine. [SUBSTRATE: ABSENT \u2014 greenfield; no worker-sourcing-to-phase mechanism exists, and bottleneck today is a bare bool per audit \u00a73]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-6",
-          "text": "Construction material accounting is recomputed at the medium simulation-clock frequency while assigned vehicle movement to/from the site is simulated at high frequency — the two subsystems never share a single tick rate. [SUBSTRATE: OURS — spec/construction.md:119 names this dual-frequency requirement; architecture/simulation-clock.md defines the tiers, no construction system exists yet to check against]",
+          "text": "Construction material accounting is recomputed at the medium simulation-clock frequency while assigned vehicle movement to/from the site is simulated at high frequency \u2014 the two subsystems never share a single tick rate. [SUBSTRATE: OURS \u2014 spec/construction.md:119 names this dual-frequency requirement; architecture/simulation-clock.md defines the tiers, no construction system exists yet to check against]",
           "behavioral_impact": "local",
           "proof_seam": "process-level"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "27-30"},
-        {"file": "spec/construction.md", "lines": "37-56"},
-        {"file": "spec/construction.md", "lines": "72-74"},
-        {"file": "spec/construction.md", "lines": "100-119"}
+        {
+          "file": "spec/construction.md",
+          "lines": "27-30"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "37-56"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "72-74"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "100-119"
+        }
       ]
     },
     {
@@ -116,26 +140,32 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Assigning a second crane to a structure phase reduces its remaining completion time versus one crane, all else equal, in proportion to the added throughput; a vehicle's declared skill throughput falls within its class's spec-named range (cranes 21-95, groundworks 15-37, rolling 18-27). [SUBSTRATE: UNAUDITED — greenfield; nearest existing pattern, Recipe { duration } (prototypes/src/types/recipe.rs:35-47), is a fixed duration independent of assigned worker count and is not the throughput-summed law this spec requires]",
+          "text": "Assigning a second crane to a structure phase reduces its remaining completion time versus one crane, all else equal, in proportion to the added throughput; a vehicle's declared skill throughput falls within its class's spec-named range (cranes 21-95, groundworks 15-37, rolling 18-27). [SUBSTRATE: UNAUDITED \u2014 greenfield; nearest existing pattern, Recipe { duration } (prototypes/src/types/recipe.rs:35-47), is a fixed duration independent of assigned worker count and is not the throughput-summed law this spec requires]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A phase whose material bill is fully delivered but which has zero matching vehicles assigned makes no progress indefinitely — it stalls, it does not fail or time out. [SUBSTRATE: ABSENT — greenfield; contrasts with CS1's rejected fixed constructionTime ramp cited in spec/construction.md:57-66]",
+          "text": "A phase whose material bill is fully delivered but which has zero matching vehicles assigned makes no progress indefinitely \u2014 it stalls, it does not fail or time out. [SUBSTRATE: ABSENT \u2014 greenfield; contrasts with CS1's rejected fixed constructionTime ramp cited in spec/construction.md:57-66]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-3",
-          "text": "The building's rendered construction progress (a 0-255 visual ramp) moves only when phase_work / Σskill actually advances; advancing simulation ticks with zero eligible vehicles assigned leaves the render value unchanged, never advancing on elapsed time alone. [SUBSTRATE: OURS — spec/construction.md:119 requires the ramp be driven by real material/machine state, explicitly rejecting CS1's timer-driven m_constructState, no such render state exists yet]",
+          "text": "The building's rendered construction progress (a 0-255 visual ramp) moves only when phase_work / \u03a3skill actually advances; advancing simulation ticks with zero eligible vehicles assigned leaves the render value unchanged, never advancing on elapsed time alone. [SUBSTRATE: OURS \u2014 spec/construction.md:119 requires the ramp be driven by real material/machine state, explicitly rejecting CS1's timer-driven m_constructState, no such render state exists yet]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "57-66"},
-        {"file": "spec/construction.md", "lines": "119"}
+        {
+          "file": "spec/construction.md",
+          "lines": "57-66"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "119"
+        }
       ]
     },
     {
@@ -147,20 +177,26 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "The existing Recipe type (consumption, production, duration) is reused or extended as the per-phase bill-of-quantities representation rather than a parallel type invented from scratch. [SUBSTRATE: PROVIDED — Recipe exists with consumption/production/duration, prototypes/src/types/recipe.rs:35-47, though it lacks per-material work-skill matching needed for construction]",
+          "text": "The existing Recipe type (consumption, production, duration) is reused or extended as the per-phase bill-of-quantities representation rather than a parallel type invented from scratch. [SUBSTRATE: PROVIDED \u2014 Recipe exists with consumption/production/duration, prototypes/src/types/recipe.rs:35-47, though it lacks per-material work-skill matching needed for construction]",
           "behavioral_impact": "none",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A construction phase's stall detection calls the same underlying gating primitive as a production recipe's producibility check, extended to report a reason rather than a bare bool. [SUBSTRATE: PARTIAL — souls/goods_company.rs:36-39 recipe_should_produce is boolean/all-or-nothing today, not yet the multiplicative Liebig or reason-surfacing model per audit §3 'Liebig multiplicative bottleneck: PARTIAL', 'Bottleneck reason surfaced to player: ABSENT']",
+          "text": "A construction phase's stall detection calls the same underlying gating primitive as a production recipe's producibility check, extended to report a reason rather than a bare bool. [SUBSTRATE: PARTIAL \u2014 souls/goods_company.rs:36-39 recipe_should_produce is boolean/all-or-nothing today, not yet the multiplicative Liebig or reason-surfacing model per audit \u00a73 'Liebig multiplicative bottleneck: PARTIAL', 'Bottleneck reason surfaced to player: ABSENT']",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "50-56"},
-        {"file": "spec/construction.md", "lines": "75-82"}
+        {
+          "file": "spec/construction.md",
+          "lines": "50-56"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "75-82"
+        }
       ]
     },
     {
@@ -172,31 +208,34 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A construction-office prototype declares resource-source flags per material class — WORKERS, GRAVEL, ASPHALT, CONCRETE, OPEN[steel/boards], OPEN_BRICKS, OPEN_PANELS, OPEN_BOARDS, plus the covered-storage classes COVERED and COVERED_ELECTRO (e.g. for weather-sensitive electrical components) — mirroring the $RESOURCE_SOURCE_* grammar, with covered classes tracked distinctly from open ones. [SUBSTRATE: ABSENT — greenfield; FreightStation (souls/freight_station.rs) is the nearest existing 'logistics office' shape to imitate per audit §3, explicitly 'a pattern to copy, not code to reuse']",
+          "text": "A construction-office prototype declares resource-source flags per material class \u2014 WORKERS, GRAVEL, ASPHALT, CONCRETE, OPEN[steel/boards], OPEN_BRICKS, OPEN_PANELS, OPEN_BOARDS, plus the covered-storage classes COVERED and COVERED_ELECTRO (e.g. for weather-sensitive electrical components) \u2014 mirroring the $RESOURCE_SOURCE_* grammar, with covered classes tracked distinctly from open ones. [SUBSTRATE: ABSENT \u2014 greenfield; FreightStation (souls/freight_station.rs) is the nearest existing 'logistics office' shape to imitate per audit \u00a73, explicitly 'a pattern to copy, not code to reuse']",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "The office owns a fleet sized by a declared vehicle count, tiered 8-24 vehicles by office tier ($WORKING_VEHICLES_NEEDED), and dispatches an idle vehicle to the nearest stalled site that needs its skill; a higher-tier office declares a larger fleet than a lower-tier office of the same kind. [SUBSTRATE: ABSENT — greenfield, no dispatch logic exists for construction vehicles]",
+          "text": "The office owns a fleet sized by a declared vehicle count, tiered 8-24 vehicles by office tier ($WORKING_VEHICLES_NEEDED), and dispatches an idle vehicle to the nearest stalled site that needs its skill; a higher-tier office declares a larger fleet than a lower-tier office of the same kind. [SUBSTRATE: ABSENT \u2014 greenfield, no dispatch logic exists for construction vehicles]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "A construction site with no reachable office in logistics range never receives materials, and its phases stall indefinitely rather than erroring or silently completing. [SUBSTRATE: UNAUDITED — no construction-office or site-reachability logic exists to check against]",
+          "text": "A construction site with no reachable office in logistics range never receives materials, and its phases stall indefinitely rather than erroring or silently completing. [SUBSTRATE: UNAUDITED \u2014 no construction-office or site-reachability logic exists to check against]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "Workers assigned to a phase are sourced from the dispatching office's $RESOURCE_SOURCE_WORKERS pool like any other material class; a very large job additionally bills a fixed $COST_RESOURCE workers <n> lump that must be satisfied from the same pool before the phase can proceed. [SUBSTRATE: ABSENT — greenfield; no worker-sourcing-from-office mechanism exists, spec/construction.md:72 names this pool and the lump-sum variant]",
+          "text": "Workers assigned to a phase are sourced from the dispatching office's $RESOURCE_SOURCE_WORKERS pool like any other material class; a very large job additionally bills a fixed $COST_RESOURCE workers <n> lump that must be satisfied from the same pool before the phase can proceed. [SUBSTRATE: ABSENT \u2014 greenfield; no worker-sourcing-from-office mechanism exists, spec/construction.md:72 names this pool and the lump-sum variant]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "68-74"}
+        {
+          "file": "spec/construction.md",
+          "lines": "68-74"
+        }
       ]
     },
     {
@@ -208,20 +247,26 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A crane vehicle assigned to an earthworks phase (which requires GROUNDWORKS skill) contributes zero throughput to that phase's progress. [SUBSTRATE: ABSENT — greenfield; Vehicle (transportation/vehicle.rs:34-44) is a bare kinematic shell with no skill or economic fields at all, audit §2 'Vehicle as economic asset: ABSENT']",
+          "text": "A crane vehicle assigned to an earthworks phase (which requires GROUNDWORKS skill) contributes zero throughput to that phase's progress. [SUBSTRATE: ABSENT \u2014 greenfield; Vehicle (transportation/vehicle.rs:34-44) is a bare kinematic shell with no skill or economic fields at all, audit \u00a72 'Vehicle as economic asset: ABSENT']",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A vehicle's throughput counts toward a phase only after it has physically travelled to and parked in that phase's declared station slot. [SUBSTRATE: ABSENT — greenfield, no station-slot or vehicle-assignment concept exists]",
+          "text": "A vehicle's throughput counts toward a phase only after it has physically travelled to and parked in that phase's declared station slot. [SUBSTRATE: ABSENT \u2014 greenfield, no station-slot or vehicle-assignment concept exists]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "68-74"},
-        {"file": "spec/construction.md", "lines": "100-119"}
+        {
+          "file": "spec/construction.md",
+          "lines": "68-74"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "100-119"
+        }
       ]
     },
     {
@@ -233,38 +278,44 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Demolishing a building consumes explosives plus machine-work over multiple ticks and only removes the building entity once the demolition process completes — no single-tick deletion path exists for a player-triggered demolition. [SUBSTRATE: ABSENT — greenfield; no demolition mechanic exists in audited code, and the audit does not confirm today's removal path either way, so this AC is a design requirement, not a proven regression]",
+          "text": "Demolishing a building consumes explosives plus machine-work over multiple ticks and only removes the building entity once the demolition process completes \u2014 no single-tick deletion path exists for a player-triggered demolition. [SUBSTRATE: ABSENT \u2014 greenfield; no demolition mechanic exists in audited code, and the audit does not confirm today's removal path either way, so this AC is a design requirement, not a proven regression]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A completed demolition emits typed rubble items (e.g. waste_gravel, waste_steel, waste_toxic) into the logistics/market system; no Money is credited to the player as a refund. [SUBSTRATE: ABSENT — greenfield; Money(i64) (prototypes/src/types/money.rs:14) has no refund-on-demolish path today because demolition itself does not exist]",
+          "text": "A completed demolition emits typed rubble items (e.g. waste_gravel, waste_steel, waste_toxic) into the logistics/market system; no Money is credited to the player as a refund. [SUBSTRATE: ABSENT \u2014 greenfield; Money(i64) (prototypes/src/types/money.rs:14) has no refund-on-demolish path today because demolition itself does not exist]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "A repair process restores a degraded building's condition by consuming a materials/work bill over time, dispatched from a distinct repair-office building entity ($TYPE_REPAIR_OFFICE/$REPAIR_AREA) rather than merely following a separate code path from the demolition office. [SUBSTRATE: ABSENT — greenfield; spec/construction.md:73 names repair and demolition as separate physical offices, not just separate flows]",
+          "text": "A repair process restores a degraded building's condition by consuming a materials/work bill over time, dispatched from a distinct repair-office building entity ($TYPE_REPAIR_OFFICE/$REPAIR_AREA) rather than merely following a separate code path from the demolition office. [SUBSTRATE: ABSENT \u2014 greenfield; spec/construction.md:73 names repair and demolition as separate physical offices, not just separate flows]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "Once a demolition process completes and the building entity is removed, the underlying lot/land becomes available for a new siting checklist pass and a new ConstructionProject — it is not left permanently blocked. [SUBSTRATE: ABSENT — greenfield; spec/buildings.md:41 states demolition 'frees land', no lot-availability path exists to verify]",
+          "text": "Once a demolition process completes and the building entity is removed, the underlying lot/land becomes available for a new siting checklist pass and a new ConstructionProject \u2014 it is not left permanently blocked. [SUBSTRATE: ABSENT \u2014 greenfield; spec/buildings.md:41 states demolition 'frees land', no lot-availability path exists to verify]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-5",
-          "text": "A demolition process makes zero progress while its required explosives have not been delivered to the site, resuming automatically once explosives arrive — mirroring the material-stall behaviour of ordinary construction phases. [SUBSTRATE: ABSENT — greenfield; spec/construction.md:73 names explosives as a required input, not a formality]",
+          "text": "A demolition process makes zero progress while its required explosives have not been delivered to the site, resuming automatically once explosives arrive \u2014 mirroring the material-stall behaviour of ordinary construction phases. [SUBSTRATE: ABSENT \u2014 greenfield; spec/construction.md:73 names explosives as a required input, not a formality]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "68-74"},
-        {"file": "spec/buildings.md", "lines": "41"}
+        {
+          "file": "spec/construction.md",
+          "lines": "68-74"
+        },
+        {
+          "file": "spec/buildings.md",
+          "lines": "41"
+        }
       ]
     },
     {
@@ -276,25 +327,28 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Starting a renovation project on an operating building does not remove, relocate, or interrupt its current occupants' or workers' assignment. [SUBSTRATE: ABSENT — greenfield; no renovation mechanic or building-lifecycle state machine exists in the fork]",
+          "text": "Starting a renovation project on an operating building does not remove, relocate, or interrupt its current occupants' or workers' assignment. [SUBSTRATE: ABSENT \u2014 greenfield; no renovation mechanic or building-lifecycle state machine exists in the fork]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A renovation project is driven by the same phased construction machinery (bill of quantities, ordered phases, stall/bottleneck reporting) as new construction, not a separate code path. [SUBSTRATE: ABSENT — greenfield, depends on the ConstructionProject model itself being greenfield]",
+          "text": "A renovation project is driven by the same phased construction machinery (bill of quantities, ordered phases, stall/bottleneck reporting) as new construction, not a separate code path. [SUBSTRATE: ABSENT \u2014 greenfield, depends on the ConstructionProject model itself being greenfield]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "On renovation completion the building's declared capacity increases (e.g. more dwelling slots) without changing its lot footprint or position. [SUBSTRATE: UNAUDITED — no capacity-mutation-in-place path exists to check]",
+          "text": "On renovation completion the building's declared capacity increases (e.g. more dwelling slots) without changing its lot footprint or position. [SUBSTRATE: UNAUDITED \u2014 no capacity-mutation-in-place path exists to check]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/buildings.md", "lines": "34-42"}
+        {
+          "file": "spec/buildings.md",
+          "lines": "34-42"
+        }
       ]
     },
     {
@@ -302,29 +356,32 @@
       "epic_theme": "Building Lifecycle",
       "as_a": "the simulation",
       "i_want": "an operating building to lose condition/quality when denied ongoing maintenance inputs (heat, repairs, materials) and become uninhabitable or unusable below a threshold",
-      "so_that": "neglect has a visible physical consequence rather than an abstract land-value stat, and the game never ends — only degrades leaner",
+      "so_that": "neglect has a visible physical consequence rather than an abstract land-value stat, and the game never ends \u2014 only degrades leaner",
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Any operating building — residential or non-residential — that goes without its declared maintenance input (e.g. heat, repairs, materials) for N consecutive ticks has its condition value drop below full; residential buildings use $QUALITY_OF_LIVING as their named precedent, and non-residential buildings degrade by the same starvation mechanism. [SUBSTRATE: ABSENT — greenfield; buildings.md:39 names $QUALITY_OF_LIVING as the residential precedent for a maintenance-input sink applying to buildings generally, and no such sink or condition field exists anywhere in the audited code]",
+          "text": "Any operating building \u2014 residential or non-residential \u2014 that goes without its declared maintenance input (e.g. heat, repairs, materials) for N consecutive ticks has its condition value drop below full; residential buildings use $QUALITY_OF_LIVING as their named precedent, and non-residential buildings degrade by the same starvation mechanism. [SUBSTRATE: ABSENT \u2014 greenfield; buildings.md:39 names $QUALITY_OF_LIVING as the residential precedent for a maintenance-input sink applying to buildings generally, and no such sink or condition field exists anywhere in the audited code]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A building whose condition reaches zero becomes uninhabitable/unusable (its dwelling/workplace/service capacity is withdrawn) until renovated or repaired, and is never automatically demolished or deleted. [SUBSTRATE: ABSENT — greenfield; contrasts with CS1's rejected auto-despawn-on-mismatch, spec/zoning.md:16-23]",
+          "text": "A building whose condition reaches zero becomes uninhabitable/unusable (its dwelling/workplace/service capacity is withdrawn) until renovated or repaired, and is never automatically demolished or deleted. [SUBSTRATE: ABSENT \u2014 greenfield; contrasts with CS1's rejected auto-despawn-on-mismatch, spec/zoning.md:16-23]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "Restoring the maintenance input halts further condition decay but does not by itself restore condition — a separate repair process is required to raise it. [SUBSTRATE: UNAUDITED — design intent inferred from the spec's degrading/renovation split (buildings.md:34-42), no code exists either way]",
+          "text": "Restoring the maintenance input halts further condition decay but does not by itself restore condition \u2014 a separate repair process is required to raise it. [SUBSTRATE: UNAUDITED \u2014 design intent inferred from the spec's degrading/renovation split (buildings.md:34-42), no code exists either way]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/buildings.md", "lines": "34-49"}
+        {
+          "file": "spec/buildings.md",
+          "lines": "34-49"
+        }
       ]
     },
     {
@@ -336,37 +393,34 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A building prototype declares exactly one function-type token (e.g. LIVING, FACTORY, SHOP) with no separate zone/class layer standing in for it. [SUBSTRATE: PARTIAL — ADR-0017 confirms one-recipe-per-building for goods companies (GoodsCompanyPrototype.recipe: Option<Recipe>, PROVIDED) but no generic function-type enum spanning dwelling/service/shop buildings exists per audit §3]",
+          "text": "A building prototype declares exactly one function-type token (e.g. LIVING, FACTORY, SHOP) with no separate zone/class layer standing in for it. [SUBSTRATE: PARTIAL \u2014 ADR-0017 confirms one-recipe-per-building for goods companies (GoodsCompanyPrototype.recipe: Option<Recipe>, PROVIDED) but no generic function-type enum spanning dwelling/service/shop buildings exists per audit \u00a73]",
           "behavioral_impact": "none",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A building prototype declares explicit connection points (road, heating, rail siding) with literal coordinates, and is powered/connected only through that explicit declaration — not by mere geometric adjacency to a road or intersection. [SUBSTRATE: CONFLICTS — ElectricityCache makes every building auto-adjacent to its road via union-find (map/electricity_cache.rs:244-280) with no laid-wire or explicit connection-point model, audit §6]",
-          "behavioral_impact": "cross-surface",
-          "proof_seam": "integration"
+          "text": "A material referenced by a building's construction bill of quantities carries at minimum mass, volume, and storage/transport-class metadata usable to compute delivery logistics. [SUBSTRATE: ABSENT \u2014 ItemPrototype is `{base, id, optout_exttrade}` only (prototypes/src/prototypes/item.rs:8-12), no item ontology per audit \u00a73]",
+          "behavioral_impact": "local",
+          "proof_seam": "unit"
         },
         {
           "id": "AC-3",
-          "text": "A material referenced by a building's construction bill of quantities carries at minimum mass, volume, and storage/transport-class metadata usable to compute delivery logistics. [SUBSTRATE: ABSENT — ItemPrototype is `{base, id, optout_exttrade}` only (prototypes/src/prototypes/item.rs:8-12), no item ontology per audit §3]",
+          "text": "A building prototype declares its staffing requirement as $WORKERS_NEEDED and, where relevant, $CITIZEN_ABLE_SERVE, as flat data on the prototype; workers filling that requirement are sourced at runtime by labour allocation, not baked into the declaration. [SUBSTRATE: ABSENT \u2014 greenfield; no workforce-declaration field exists on any building prototype today, buildings.md:22 names both tokens]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-4",
-          "text": "A building prototype declares its staffing requirement as $WORKERS_NEEDED and, where relevant, $CITIZEN_ABLE_SERVE, as flat data on the prototype; workers filling that requirement are sourced at runtime by labour allocation, not baked into the declaration. [SUBSTRATE: ABSENT — greenfield; no workforce-declaration field exists on any building prototype today, buildings.md:22 names both tokens]",
-          "behavioral_impact": "local",
-          "proof_seam": "unit"
-        },
-        {
-          "id": "AC-5",
-          "text": "A building prototype declares its own operating storage capacity per transport class ($STORAGE <class> <n>, $STORAGE_DEMAND_*) and, for residential buildings, a dwelling capacity expressed as a people-bucket — distinct from the construction-material metadata of AC-3. [SUBSTRATE: ABSENT — greenfield; buildings.md:21 names both the storage-class and dwelling-bucket declarations, no such fields exist on any prototype today]",
+          "text": "A building prototype declares its own operating storage capacity per transport class ($STORAGE <class> <n>, $STORAGE_DEMAND_*) and, for residential buildings, a dwelling capacity expressed as a people-bucket \u2014 distinct from the construction-material metadata of AC-3. [SUBSTRATE: ABSENT \u2014 greenfield; buildings.md:21 names both the storage-class and dwelling-bucket declarations, no such fields exist on any prototype today]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
       ],
       "sources": [
-        {"file": "spec/buildings.md", "lines": "14-27"}
+        {
+          "file": "spec/buildings.md",
+          "lines": "14-27"
+        }
       ]
     },
     {
@@ -378,20 +432,26 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Building any road segment produces zero new Lot entities as a side effect, immediately and after subsequent ticks. [SUBSTRATE: CONFLICTS — Lot::generate_along_road (map/objects/lot.rs:59-104) currently auto-spawns randomly-sized (20/30/40m) lots along every road built; decision 2026-08-22 is to disable this entirely, per audit §2 and the task brief]",
+          "text": "Building any road segment produces zero new Lot entities as a side effect, immediately and after subsequent ticks. [SUBSTRATE: CONFLICTS \u2014 Lot::generate_along_road (map/objects/lot.rs:59-104) currently auto-spawns randomly-sized (20/30/40m) lots along every road built; decision 2026-08-22 is to disable this entirely, per audit \u00a72 and the task brief]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "Disabling the auto-spawn call site does not remove or break any explicit/manual lot-siting path the planner uses, if one exists elsewhere in map/objects/lot.rs. [SUBSTRATE: UNAUDITED — audit did not enumerate other callers of Lot construction]",
+          "text": "Disabling the auto-spawn call site does not remove or break any explicit/manual lot-siting path the planner uses, if one exists elsewhere in map/objects/lot.rs. [SUBSTRATE: UNAUDITED \u2014 audit did not enumerate other callers of Lot construction]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/zoning.md", "lines": "10-13"},
-        {"file": "spec/zoning.md", "lines": "24-27"}
+        {
+          "file": "spec/zoning.md",
+          "lines": "10-13"
+        },
+        {
+          "file": "spec/zoning.md",
+          "lines": "24-27"
+        }
       ]
     },
     {
@@ -399,36 +459,42 @@
       "epic_theme": "Zoning & Siting",
       "as_a": "the planner",
       "i_want": "to paint district-level land-use polygons (residential/industrial/agricultural/mixed) that constrain what may be sited there and surface mismatches",
-      "so_that": "zoning expresses plan intent — a plan not yet fulfilled, not latent market demand — without ever causing a building to exist on its own",
+      "so_that": "zoning expresses plan intent \u2014 a plan not yet fulfilled, not latent market demand \u2014 without ever causing a building to exist on its own",
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Painting a zoning polygon over empty land creates no building entity and no ConstructionProject, immediately or on any later tick. [SUBSTRATE: ABSENT — greenfield, no zoning-as-overlay data structure exists. Note: Building.zone (map/objects/building.rs:49,78) is an unrelated per-company production-footprint polygon and must not be conflated with city zoning, per audit §2]",
+          "text": "Painting a zoning polygon over empty land creates no building entity and no ConstructionProject, immediately or on any later tick. [SUBSTRATE: ABSENT \u2014 greenfield, no zoning-as-overlay data structure exists. Note: Building.zone (map/objects/building.rs:49,78) is an unrelated per-company production-footprint polygon and must not be conflated with city zoning, per audit \u00a72]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A district zoned residential but left empty persists indefinitely with no timer or probability roll ever causing a building to spawn there — contrasting directly with CS1's `rand(100) < demand` spawn gate. [SUBSTRATE: ABSENT — greenfield; the anti-pattern (ZoneBlock.cs:1156-1177 per spec/zoning.md:18-20) has no analog in this codebase to begin with, so this is a requirement to never introduce one]",
+          "text": "A district zoned residential but left empty persists indefinitely with no timer or probability roll ever causing a building to spawn there \u2014 contrasting directly with CS1's `rand(100) < demand` spawn gate. [SUBSTRATE: ABSENT \u2014 greenfield; the anti-pattern (ZoneBlock.cs:1156-1177 per spec/zoning.md:18-20) has no analog in this codebase to begin with, so this is a requirement to never introduce one]",
           "behavioral_impact": "journey",
           "proof_seam": "e2e"
         },
         {
           "id": "AC-3",
-          "text": "Siting a building whose function type mismatches its district's declared land-use is rejected or flagged per a defined policy, never silently rewritten to match. [SUBSTRATE: UNAUDITED — policy explicitly left open in spec/zoning.md:35-40 ('Does zone mismatch ever force anything... or is it advisory only?')]",
+          "text": "Siting a building whose function type mismatches its district's declared land-use is rejected or flagged per a defined policy, never silently rewritten to match. [SUBSTRATE: UNAUDITED \u2014 policy explicitly left open in spec/zoning.md:35-40 ('Does zone mismatch ever force anything... or is it advisory only?')]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "Independent of whatever mismatch-enforcement policy is chosen, a building whose function mismatches its district's rezoned land-use is never automatically demolished or removed as a consequence of the mismatch alone. [SUBSTRATE: OURS — spec/zoning.md:38 confirms CS1's auto-despawn-on-mismatch is rejected, even though the broader enforcement policy itself is left open]",
+          "text": "Independent of whatever mismatch-enforcement policy is chosen, a building whose function mismatches its district's rezoned land-use is never automatically demolished or removed as a consequence of the mismatch alone. [SUBSTRATE: OURS \u2014 spec/zoning.md:38 confirms CS1's auto-despawn-on-mismatch is rejected, even though the broader enforcement policy itself is left open]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/zoning.md", "lines": "28-34"},
-        {"file": "spec/zoning.md", "lines": "35-40"}
+        {
+          "file": "spec/zoning.md",
+          "lines": "28-34"
+        },
+        {
+          "file": "spec/zoning.md",
+          "lines": "35-40"
+        }
       ]
     },
     {
@@ -440,20 +506,26 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Attempting to site a building on land that fails the flatness/adjacency/occupancy/utility-reach checklist is rejected and creates no ConstructionProject. [SUBSTRATE: ABSENT — greenfield; no siting validator exists in the fork today, and it must specifically avoid the road-adjacent ZoneBlock-grid pattern (ZoneBlock.cs:6-56, spec/zoning.md:16-17) that the fork's own Lot::generate_along_road (map/objects/lot.rs:59-104) structurally resembles per audit §2]",
+          "text": "Attempting to site a building on land that fails the flatness/adjacency/occupancy/utility-reach checklist is rejected and creates no ConstructionProject. [SUBSTRATE: ABSENT \u2014 greenfield; no siting validator exists in the fork today, and it must specifically avoid the road-adjacent ZoneBlock-grid pattern (ZoneBlock.cs:6-56, spec/zoning.md:16-17) that the fork's own Lot::generate_along_road (map/objects/lot.rs:59-104) structurally resembles per audit \u00a72]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "The checklist evaluates at the cursor's exact chosen footprint, not against a fixed grid cell or the 4-cell/32m depth cap CS1 imposes. [SUBSTRATE: UNAUDITED — no placement-validation code exists to check against]",
+          "text": "The checklist evaluates at the cursor's exact chosen footprint, not against a fixed grid cell or the 4-cell/32m depth cap CS1 imposes. [SUBSTRATE: UNAUDITED \u2014 no placement-validation code exists to check against]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
       ],
       "sources": [
-        {"file": "spec/zoning.md", "lines": "16-23"},
-        {"file": "spec/zoning.md", "lines": "28-34"}
+        {
+          "file": "spec/zoning.md",
+          "lines": "16-23"
+        },
+        {
+          "file": "spec/zoning.md",
+          "lines": "28-34"
+        }
       ]
     },
     {
@@ -465,49 +537,118 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A rising homeless-minus-vacancies number never itself triggers a building to be created, at any value. [SUBSTRATE: ABSENT — no RCI-style spawner exists in the fork to begin with; the underlying number itself is ABSENT since households and needs beyond food are unmodelled, audit §5 'Needs as 0..1 satisfaction: ABSENT', 'Households: ABSENT']",
+          "text": "A rising homeless-minus-vacancies number never itself triggers a building to be created, at any value. [SUBSTRATE: ABSENT \u2014 no RCI-style spawner exists in the fork to begin with; the underlying number itself is ABSENT since households and needs beyond food are unmodelled, audit \u00a75 'Needs as 0..1 satisfaction: ABSENT', 'Households: ABSENT']",
           "behavioral_impact": "journey",
           "proof_seam": "e2e"
         },
         {
           "id": "AC-2",
-          "text": "The dashboard's housing-shortage number is read from the same housing-queue data structure other systems use (single source of truth), not a separately tracked demand scalar that can drift from it. [SUBSTRATE: ABSENT — greenfield, no housing queue exists yet per audit §5]",
+          "text": "The dashboard's housing-shortage number is read from the same housing-queue data structure other systems use (single source of truth), not a separately tracked demand scalar that can drift from it. [SUBSTRATE: ABSENT \u2014 greenfield, no housing queue exists yet per audit \u00a75]",
           "behavioral_impact": "local",
           "proof_seam": "integration"
         }
       ],
       "sources": [
-        {"file": "spec/zoning.md", "lines": "28-34"}
+        {
+          "file": "spec/zoning.md",
+          "lines": "28-34"
+        }
       ]
     },
     {
       "title": "Progress road and infrastructure construction through its own physical phase pipeline",
       "epic_theme": "Construction Process",
       "as_a": "the simulation",
-      "i_want": "a road/infrastructure segment to progress through its own phase sequence — earthworks, sub-base (gravel), paving (concrete), surfacing (asphalt), markings, open — worked in order by GROUNDWORKS, then ASPHALT_LAYING/ROLLING vehicles, parallel to but distinct from the building phase table",
-      "so_that": "the player can watch a highway visibly progress grading, laying, surfacing — the mechanic the project is named for — and see exactly where it stalls, instead of the road appearing the instant it is drawn",
+      "i_want": "a road/infrastructure segment to progress through its own phase sequence \u2014 earthworks, sub-base (gravel), paving (concrete), surfacing (asphalt), markings, open \u2014 worked in order by GROUNDWORKS, then ASPHALT_LAYING/ROLLING vehicles, parallel to but distinct from the building phase table",
+      "so_that": "the player can watch a highway visibly progress grading, laying, surfacing \u2014 the mechanic the project is named for \u2014 and see exactly where it stalls, instead of the road appearing the instant it is drawn",
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A road/infrastructure construction project advances through its own ordered phase sequence — earthworks, sub-base, paving, surfacing, markings, open — distinct from the building phase table, and a later phase cannot begin while its predecessor is incomplete. [SUBSTRATE: CONFLICTS — Road::make (map/objects/road.rs) materialises a road fully and instantly today, no phase sequence of any kind exists for roads; spec/construction.md:53 names this pipeline OURS and 'the mechanic the project is named for']",
+          "text": "A road/infrastructure construction project advances through its own ordered phase sequence \u2014 earthworks, sub-base, paving, surfacing, markings, open \u2014 distinct from the building phase table, and a later phase cannot begin while its predecessor is incomplete. [SUBSTRATE: CONFLICTS \u2014 Road::make (map/objects/road.rs) materialises a road fully and instantly today, no phase sequence of any kind exists for roads; spec/construction.md:53 names this pipeline OURS and 'the mechanic the project is named for']",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "The sub-base phase consumes gravel and the surfacing phase consumes asphalt, worked respectively by GROUNDWORKS-then-ASPHALT_LAYING-then-ROLLING skilled vehicles in that order; a phase makes zero progress while its required material class has not been delivered, resuming automatically once delivered. [SUBSTRATE: ABSENT — greenfield; no road material-gating or vehicle-skill matching exists, spec/construction.md:53 names the material and vehicle-skill sequence explicitly]",
+          "text": "The sub-base phase consumes gravel and the surfacing phase consumes asphalt, worked respectively by GROUNDWORKS-then-ASPHALT_LAYING-then-ROLLING skilled vehicles in that order; a phase makes zero progress while its required material class has not been delivered, resuming automatically once delivered. [SUBSTRATE: ABSENT \u2014 greenfield; no road material-gating or vehicle-skill matching exists, spec/construction.md:53 names the material and vehicle-skill sequence explicitly]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "TUNNELING is available as a special earthworks-phase variant substituting for ordinary earthworks when a road/infrastructure project is declared as underground work. [SUBSTRATE: ABSENT — greenfield; spec/construction.md:51 names TUNNELING as a special earthworks variant for underground work, no such variant exists in the fork]",
+          "text": "TUNNELING is available as a special earthworks-phase variant substituting for ordinary earthworks when a road/infrastructure project is declared as underground work. [SUBSTRATE: ABSENT \u2014 greenfield; spec/construction.md:51 names TUNNELING as a special earthworks variant for underground work, no such variant exists in the fork]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
       ],
       "sources": [
-        {"file": "spec/construction.md", "lines": "41-56"}
+        {
+          "file": "spec/construction.md",
+          "lines": "41-56"
+        }
+      ]
+    },
+    {
+      "title": "Bind a building to electricity only through a declared connection point",
+      "epic_theme": "Electricity \u2014 wired network replaces coverage",
+      "as_a": "a designer authoring the building catalogue",
+      "i_want": "a building prototype to declare an explicit electrical connection point with literal coordinates",
+      "so_that": "power reaches a building only via a declared connection, not mere geometric adjacency to a road or intersection",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building prototype declares an explicit electrical connection point with literal coordinates, and is powered only through that explicit declaration \u2014 not by mere geometric adjacency to a road or intersection. [SUBSTRATE: CONFLICTS \u2014 ElectricityCache makes every building auto-adjacent to its road via union-find (map/electricity_cache.rs:244-280) with no laid-wire or explicit connection-point model, audit \u00a76]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/buildings.md",
+          "lines": "14-27"
+        }
+      ]
+    },
+    {
+      "title": "Bind a building to district heating only through a declared connection point",
+      "epic_theme": "Heating \u2014 district network with temperature-driven demand",
+      "as_a": "a designer authoring the building catalogue",
+      "i_want": "a building prototype to declare an explicit district-heating connection point with literal coordinates",
+      "so_that": "heat reaches a building only via a declared connection, not mere geometric adjacency to a road or intersection",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building prototype declares an explicit district-heating connection point with literal coordinates, and receives heat only through that explicit declaration \u2014 not by mere geometric adjacency to a road or intersection. [SUBSTRATE: CONFLICTS \u2014 ElectricityCache makes every building auto-adjacent to its road via union-find (map/electricity_cache.rs:244-280) with no laid-wire or explicit connection-point model, audit \u00a76]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/buildings.md",
+          "lines": "14-27"
+        }
+      ]
+    },
+    {
+      "title": "Bind a building to rail only through a declared siding connection point",
+      "epic_theme": "Transport-class compatibility",
+      "as_a": "a designer authoring the building catalogue",
+      "i_want": "a building prototype to declare an explicit rail-siding connection point with literal coordinates",
+      "so_that": "rail service reaches a building only via a declared siding connection, not mere geometric adjacency to a road or intersection",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "A building prototype declares an explicit rail-siding connection point with literal coordinates, and is served by rail only through that explicit declaration \u2014 not by mere geometric adjacency to a road or intersection. [SUBSTRATE: CONFLICTS \u2014 ElectricityCache makes every building auto-adjacent to its road via union-find (map/electricity_cache.rs:244-280) with no laid-wire or explicit connection-point model, audit \u00a76]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/buildings.md",
+          "lines": "14-27"
+        }
       ]
     }
   ],
@@ -516,188 +657,559 @@
       "title": "Building a road creates no automatic lots",
       "kind": "contract",
       "proof_seam": "integration",
-      "preconditions": ["Empty map with no lots", "Lot::generate_along_road disabled per 2026-08-22 decision"],
-      "steps": [
-        {"action": "Player draws and builds a road segment through empty land", "expected": ["Road entity is created", "No Lot entity is created"]}
+      "preconditions": [
+        "Empty map with no lots",
+        "Lot::generate_along_road disabled per 2026-08-22 decision"
       ],
-      "final_observables": ["Total Lot count in the map is unchanged from before the road was built"],
-      "owning_story_titles": ["Stop roads from auto-spawning speculative building lots"],
-      "sources": [{"file": "spec/zoning.md", "lines": "24-27"}]
+      "steps": [
+        {
+          "action": "Player draws and builds a road segment through empty land",
+          "expected": [
+            "Road entity is created",
+            "No Lot entity is created"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Total Lot count in the map is unchanged from before the road was built"
+      ],
+      "owning_story_titles": [
+        "Stop roads from auto-spawning speculative building lots"
+      ],
+      "sources": [
+        {
+          "file": "spec/zoning.md",
+          "lines": "24-27"
+        }
+      ]
     },
     {
       "title": "Blueprint placement defers all capability activation",
       "kind": "surface",
       "proof_seam": "integration",
-      "preconditions": ["Player has authorised, validated land for a residential building", "Player has sufficient plan allocation (not money)"],
-      "steps": [
-        {"action": "Player places a residential building blueprint", "expected": ["A ConstructionProject is created at Planned/Under-construction state", "The building's dwelling slots report zero available capacity", "No Money balance changes"]},
-        {"action": "Query the building entity for housing allocation before any phase completes", "expected": ["Housing allocation system finds zero usable dwelling slots at this building"]}
+      "preconditions": [
+        "Player has authorised, validated land for a residential building",
+        "Player has sufficient plan allocation (not money)"
       ],
-      "final_observables": ["Building capabilities remain inactive until the final construction phase completes"],
-      "owning_story_titles": ["Gate building activation on physical construction completion"],
-      "sources": [{"file": "spec/construction.md", "lines": "1-24"}]
+      "steps": [
+        {
+          "action": "Player places a residential building blueprint",
+          "expected": [
+            "A ConstructionProject is created at Planned/Under-construction state",
+            "The building's dwelling slots report zero available capacity",
+            "No Money balance changes"
+          ]
+        },
+        {
+          "action": "Query the building entity for housing allocation before any phase completes",
+          "expected": [
+            "Housing allocation system finds zero usable dwelling slots at this building"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Building capabilities remain inactive until the final construction phase completes"
+      ],
+      "owning_story_titles": [
+        "Gate building activation on physical construction completion"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "1-24"
+        }
+      ]
     },
     {
       "title": "Construction phase stalls without required material, resumes on delivery",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["A ConstructionProject exists in its foundations phase requiring 28 tonnes of concrete", "No concrete has been delivered to the site", "A crane vehicle is already assigned"],
-      "steps": [
-        {"action": "Advance simulation ticks with zero concrete delivered", "expected": ["Phase work-progress stays at 0", "Project.bottleneck reports no-material"]},
-        {"action": "Deliver 21 of the 28 tonnes of concrete to the site", "expected": ["Phase work-progress begins advancing proportionally to the 21/28 tonnes delivered", "Project.bottleneck still reports no-material for the missing 7 tonnes"]},
-        {"action": "Deliver the remaining 7 tonnes to complete the full concrete bill", "expected": ["Phase work-progress advances at full rate", "Project.bottleneck clears"]}
+      "preconditions": [
+        "A ConstructionProject exists in its foundations phase requiring 28 tonnes of concrete",
+        "No concrete has been delivered to the site",
+        "A crane vehicle is already assigned"
       ],
-      "final_observables": ["The foundations phase eventually completes once material and machine are both present; partial delivery produced partial, proportional progress rather than an all-or-nothing wait"],
-      "owning_story_titles": ["Progress a construction project through ordered, stallable phases"],
-      "sources": [{"file": "spec/construction.md", "lines": "37-56"}]
+      "steps": [
+        {
+          "action": "Advance simulation ticks with zero concrete delivered",
+          "expected": [
+            "Phase work-progress stays at 0",
+            "Project.bottleneck reports no-material"
+          ]
+        },
+        {
+          "action": "Deliver 21 of the 28 tonnes of concrete to the site",
+          "expected": [
+            "Phase work-progress begins advancing proportionally to the 21/28 tonnes delivered",
+            "Project.bottleneck still reports no-material for the missing 7 tonnes"
+          ]
+        },
+        {
+          "action": "Deliver the remaining 7 tonnes to complete the full concrete bill",
+          "expected": [
+            "Phase work-progress advances at full rate",
+            "Project.bottleneck clears"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The foundations phase eventually completes once material and machine are both present; partial delivery produced partial, proportional progress rather than an all-or-nothing wait"
+      ],
+      "owning_story_titles": [
+        "Progress a construction project through ordered, stallable phases"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "37-56"
+        }
+      ]
     },
     {
       "title": "Construction phase stalls without matching vehicle skill",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["A ConstructionProject's structure phase has its full material bill delivered", "No CRANE-skilled vehicle is assigned to the phase's station slot"],
-      "steps": [
-        {"action": "Advance simulation ticks with materials present but no crane assigned", "expected": ["Phase work-progress stays at 0", "Project.bottleneck reports no-machine"]},
-        {"action": "Assign a crane vehicle and let it travel to and park in the station slot", "expected": ["Phase work-progress begins advancing once the vehicle is parked"]}
+      "preconditions": [
+        "A ConstructionProject's structure phase has its full material bill delivered",
+        "No CRANE-skilled vehicle is assigned to the phase's station slot"
       ],
-      "final_observables": ["A phase never completes purely from having materials without a matching machine"],
-      "owning_story_titles": ["Progress a construction project through ordered, stallable phases", "Model construction vehicles with a skill-typed work throughput"],
-      "sources": [{"file": "spec/construction.md", "lines": "37-56"}, {"file": "spec/construction.md", "lines": "68-74"}]
+      "steps": [
+        {
+          "action": "Advance simulation ticks with materials present but no crane assigned",
+          "expected": [
+            "Phase work-progress stays at 0",
+            "Project.bottleneck reports no-machine"
+          ]
+        },
+        {
+          "action": "Assign a crane vehicle and let it travel to and park in the station slot",
+          "expected": [
+            "Phase work-progress begins advancing once the vehicle is parked"
+          ]
+        }
+      ],
+      "final_observables": [
+        "A phase never completes purely from having materials without a matching machine"
+      ],
+      "owning_story_titles": [
+        "Progress a construction project through ordered, stallable phases",
+        "Model construction vehicles with a skill-typed work throughput"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "37-56"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "68-74"
+        }
+      ]
     },
     {
       "title": "Second crane assigned shortens phase completion time",
       "kind": "surface",
       "proof_seam": "unit",
-      "preconditions": ["A structure phase has its full material bill delivered", "One crane (skill throughput X) is assigned and parked"],
-      "steps": [
-        {"action": "Record remaining ticks-to-completion with one crane", "expected": ["A finite remaining duration D1 is computed as phase_work / X"]},
-        {"action": "Assign a second matching crane (skill throughput Y) and park it", "expected": ["Remaining duration recomputes to phase_work / (X + Y)"]}
+      "preconditions": [
+        "A structure phase has its full material bill delivered",
+        "One crane (skill throughput X) is assigned and parked"
       ],
-      "final_observables": ["Remaining duration with two cranes is strictly less than with one, in proportion to added throughput"],
-      "owning_story_titles": ["Derive construction phase duration from assigned machine throughput, never a fixed timer"],
-      "sources": [{"file": "spec/construction.md", "lines": "57-66"}]
+      "steps": [
+        {
+          "action": "Record remaining ticks-to-completion with one crane",
+          "expected": [
+            "A finite remaining duration D1 is computed as phase_work / X"
+          ]
+        },
+        {
+          "action": "Assign a second matching crane (skill throughput Y) and park it",
+          "expected": [
+            "Remaining duration recomputes to phase_work / (X + Y)"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Remaining duration with two cranes is strictly less than with one, in proportion to added throughput"
+      ],
+      "owning_story_titles": [
+        "Derive construction phase duration from assigned machine throughput, never a fixed timer"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "57-66"
+        }
+      ]
     },
     {
       "title": "Demolition emits sorted rubble, never a money refund",
       "kind": "contract",
       "proof_seam": "integration",
-      "preconditions": ["An operating building exists with known material composition", "A demolition office is dispatched to it"],
-      "steps": [
-        {"action": "Demolition office assigns explosives and machine-work to the site over several ticks", "expected": ["Building remains present and operating/inert until the process completes", "No Money is credited to the player treasury during or after"]},
-        {"action": "Demolition process completes", "expected": ["Building entity is removed", "Typed rubble items (e.g. waste_gravel, waste_steel) appear in the logistics system near the site"]}
+      "preconditions": [
+        "An operating building exists with known material composition",
+        "A demolition office is dispatched to it"
       ],
-      "final_observables": ["Treasury balance is unchanged by the demolition; rubble items exist and are haulable"],
-      "owning_story_titles": ["Demolish and repair buildings as separate physical office-dispatched processes"],
-      "sources": [{"file": "spec/construction.md", "lines": "68-74"}]
+      "steps": [
+        {
+          "action": "Demolition office assigns explosives and machine-work to the site over several ticks",
+          "expected": [
+            "Building remains present and operating/inert until the process completes",
+            "No Money is credited to the player treasury during or after"
+          ]
+        },
+        {
+          "action": "Demolition process completes",
+          "expected": [
+            "Building entity is removed",
+            "Typed rubble items (e.g. waste_gravel, waste_steel) appear in the logistics system near the site"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Treasury balance is unchanged by the demolition; rubble items exist and are haulable"
+      ],
+      "owning_story_titles": [
+        "Demolish and repair buildings as separate physical office-dispatched processes"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "68-74"
+        }
+      ]
     },
     {
       "title": "Renovation adds capacity without evicting occupants",
       "kind": "surface",
       "proof_seam": "integration",
-      "preconditions": ["An operating residential building is fully occupied", "Player starts a renovation project on it"],
-      "steps": [
-        {"action": "Renovation project begins and progresses through its phases", "expected": ["All existing occupants remain assigned to the building throughout", "Building continues operating (still habitable) during renovation"]},
-        {"action": "Renovation completes", "expected": ["Declared dwelling capacity increases", "Existing occupants are still assigned; new slots are available for allocation"]}
+      "preconditions": [
+        "An operating residential building is fully occupied",
+        "Player starts a renovation project on it"
       ],
-      "final_observables": ["No occupant was relocated or evicted at any point in the process"],
-      "owning_story_titles": ["Renovate or expand an operating building in place without evicting occupants"],
-      "sources": [{"file": "spec/buildings.md", "lines": "34-42"}]
+      "steps": [
+        {
+          "action": "Renovation project begins and progresses through its phases",
+          "expected": [
+            "All existing occupants remain assigned to the building throughout",
+            "Building continues operating (still habitable) during renovation"
+          ]
+        },
+        {
+          "action": "Renovation completes",
+          "expected": [
+            "Declared dwelling capacity increases",
+            "Existing occupants are still assigned; new slots are available for allocation"
+          ]
+        }
+      ],
+      "final_observables": [
+        "No occupant was relocated or evicted at any point in the process"
+      ],
+      "owning_story_titles": [
+        "Renovate or expand an operating building in place without evicting occupants"
+      ],
+      "sources": [
+        {
+          "file": "spec/buildings.md",
+          "lines": "34-42"
+        }
+      ]
     },
     {
       "title": "Building condition decays under starved maintenance input and cannot be auto-demolished",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["An operating residential building has a declared heat maintenance requirement", "Heat supply to the building is cut"],
-      "steps": [
-        {"action": "Advance simulation N ticks with heat supply absent", "expected": ["Building condition value decreases from full toward zero"]},
-        {"action": "Continue until condition reaches zero", "expected": ["Building capacity (dwelling/workplace) is withdrawn — becomes unusable", "Building entity is NOT removed or auto-demolished"]},
-        {"action": "Restore heat supply without repairing", "expected": ["Further decay halts", "Condition value does not increase on its own"]}
+      "preconditions": [
+        "An operating residential building has a declared heat maintenance requirement",
+        "Heat supply to the building is cut"
       ],
-      "final_observables": ["A zero-condition building persists, uninhabitable, until an explicit repair process runs"],
-      "owning_story_titles": ["Degrade an operating building's condition when maintenance inputs are starved"],
-      "sources": [{"file": "spec/buildings.md", "lines": "34-49"}]
+      "steps": [
+        {
+          "action": "Advance simulation N ticks with heat supply absent",
+          "expected": [
+            "Building condition value decreases from full toward zero"
+          ]
+        },
+        {
+          "action": "Continue until condition reaches zero",
+          "expected": [
+            "Building capacity (dwelling/workplace) is withdrawn \u2014 becomes unusable",
+            "Building entity is NOT removed or auto-demolished"
+          ]
+        },
+        {
+          "action": "Restore heat supply without repairing",
+          "expected": [
+            "Further decay halts",
+            "Condition value does not increase on its own"
+          ]
+        }
+      ],
+      "final_observables": [
+        "A zero-condition building persists, uninhabitable, until an explicit repair process runs"
+      ],
+      "owning_story_titles": [
+        "Degrade an operating building's condition when maintenance inputs are starved"
+      ],
+      "sources": [
+        {
+          "file": "spec/buildings.md",
+          "lines": "34-49"
+        }
+      ]
     },
     {
       "title": "Zoning polygon paint alone creates no building",
       "kind": "contract",
       "proof_seam": "e2e",
-      "preconditions": ["Empty, unzoned land with room for four separate districts"],
-      "steps": [
-        {"action": "Player paints a residential land-use polygon over one area", "expected": ["A zoning district record with category=residential is created", "No building or ConstructionProject entity is created"]},
-        {"action": "Player paints industrial, agricultural, and mixed polygons over the three remaining areas", "expected": ["Three further district records are created with category=industrial, agricultural, mixed respectively", "No building or ConstructionProject entity is created for any of them"]},
-        {"action": "Advance simulation many ticks with all four districts left empty", "expected": ["No building or ConstructionProject appears in any of the four districts at any point"]}
+      "preconditions": [
+        "Empty, unzoned land with room for four separate districts"
       ],
-      "final_observables": ["All four districts remain zoned-but-empty indefinitely — a visible plan backlog, never a spawn"],
-      "owning_story_titles": ["Author land-use zoning as a planning overlay, never a spawn trigger"],
-      "sources": [{"file": "spec/zoning.md", "lines": "28-34"}]
+      "steps": [
+        {
+          "action": "Player paints a residential land-use polygon over one area",
+          "expected": [
+            "A zoning district record with category=residential is created",
+            "No building or ConstructionProject entity is created"
+          ]
+        },
+        {
+          "action": "Player paints industrial, agricultural, and mixed polygons over the three remaining areas",
+          "expected": [
+            "Three further district records are created with category=industrial, agricultural, mixed respectively",
+            "No building or ConstructionProject entity is created for any of them"
+          ]
+        },
+        {
+          "action": "Advance simulation many ticks with all four districts left empty",
+          "expected": [
+            "No building or ConstructionProject appears in any of the four districts at any point"
+          ]
+        }
+      ],
+      "final_observables": [
+        "All four districts remain zoned-but-empty indefinitely \u2014 a visible plan backlog, never a spawn"
+      ],
+      "owning_story_titles": [
+        "Author land-use zoning as a planning overlay, never a spawn trigger"
+      ],
+      "sources": [
+        {
+          "file": "spec/zoning.md",
+          "lines": "28-34"
+        }
+      ]
     },
     {
       "title": "Placement rejected on land failing the physical siting checklist",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["A steeply sloped or already-occupied tile exists on the map", "A flat, unoccupied tile with no road adjacency exists on the map", "A flat, unoccupied, road-adjacent tile outside utility (electricity) reach exists on the map"],
-      "steps": [
-        {"action": "Player attempts to place a building blueprint on the invalid (sloped/occupied) tile", "expected": ["Placement is rejected", "No ConstructionProject is created", "No Lot or building entity is created"]},
-        {"action": "Player attempts to place the blueprint on the flat, unoccupied tile with no network adjacency", "expected": ["Placement is rejected for failing network-adjacency", "No ConstructionProject is created"]},
-        {"action": "Player attempts to place the blueprint on the flat, unoccupied, road-adjacent tile outside utility reach", "expected": ["Placement is rejected for failing utility-reach", "No ConstructionProject is created"]},
-        {"action": "Player attempts to place the same blueprint on a valid, flat, unoccupied, network-adjacent, in-utility-reach tile", "expected": ["Placement succeeds", "A ConstructionProject is created"]}
+      "preconditions": [
+        "A steeply sloped or already-occupied tile exists on the map",
+        "A flat, unoccupied tile with no road adjacency exists on the map",
+        "A flat, unoccupied, road-adjacent tile outside utility (electricity) reach exists on the map"
       ],
-      "final_observables": ["Only the fully valid placement produced a construction project; each of the four checklist criteria independently rejected placement when it alone was violated"],
-      "owning_story_titles": ["Validate building placement against a physical siting checklist, not a spawn grid"],
-      "sources": [{"file": "spec/zoning.md", "lines": "16-23"}]
+      "steps": [
+        {
+          "action": "Player attempts to place a building blueprint on the invalid (sloped/occupied) tile",
+          "expected": [
+            "Placement is rejected",
+            "No ConstructionProject is created",
+            "No Lot or building entity is created"
+          ]
+        },
+        {
+          "action": "Player attempts to place the blueprint on the flat, unoccupied tile with no network adjacency",
+          "expected": [
+            "Placement is rejected for failing network-adjacency",
+            "No ConstructionProject is created"
+          ]
+        },
+        {
+          "action": "Player attempts to place the blueprint on the flat, unoccupied, road-adjacent tile outside utility reach",
+          "expected": [
+            "Placement is rejected for failing utility-reach",
+            "No ConstructionProject is created"
+          ]
+        },
+        {
+          "action": "Player attempts to place the same blueprint on a valid, flat, unoccupied, network-adjacent, in-utility-reach tile",
+          "expected": [
+            "Placement succeeds",
+            "A ConstructionProject is created"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Only the fully valid placement produced a construction project; each of the four checklist criteria independently rejected placement when it alone was violated"
+      ],
+      "owning_story_titles": [
+        "Validate building placement against a physical siting checklist, not a spawn grid"
+      ],
+      "sources": [
+        {
+          "file": "spec/zoning.md",
+          "lines": "16-23"
+        }
+      ]
     },
     {
       "title": "Construction office dispatches idle vehicle to nearest stalled site",
       "kind": "surface",
       "proof_seam": "integration",
-      "preconditions": ["A construction office has stocked concrete and owns an idle crane", "Two construction sites are stalled: one on no-material, one on no-machine, both within range"],
-      "steps": [
-        {"action": "Office evaluates dispatch on its tick", "expected": ["Office sends a delivery vehicle carrying concrete toward the no-material site", "Office sends the idle crane toward the no-machine site"]}
+      "preconditions": [
+        "A construction office has stocked concrete and owns an idle crane",
+        "Two construction sites are stalled: one on no-material, one on no-machine, both within range"
       ],
-      "final_observables": ["Both previously-stalled sites receive the resource they were missing without player intervention"],
-      "owning_story_titles": ["Stand up a construction office that stocks materials and dispatches its own vehicle fleet"],
-      "sources": [{"file": "spec/construction.md", "lines": "68-74"}]
+      "steps": [
+        {
+          "action": "Office evaluates dispatch on its tick",
+          "expected": [
+            "Office sends a delivery vehicle carrying concrete toward the no-material site",
+            "Office sends the idle crane toward the no-machine site"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Both previously-stalled sites receive the resource they were missing without player intervention"
+      ],
+      "owning_story_titles": [
+        "Stand up a construction office that stocks materials and dispatches its own vehicle fleet"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "68-74"
+        }
+      ]
     },
     {
       "title": "Construction phase stalls on no-worker distinct from no-machine",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["A ConstructionProject's utilities phase has its full material bill delivered", "A technician-skilled vehicle is assigned and parked", "The office's WORKERS pool has zero workers available to assign to this phase"],
-      "steps": [
-        {"action": "Advance simulation ticks with materials and machine present but zero workers assigned", "expected": ["Phase work-progress stays at 0", "Project.bottleneck reports no-worker, not no-machine"]},
-        {"action": "Office's WORKERS pool gains enough workers to fill the phase requirement", "expected": ["Phase work-progress begins advancing", "Project.bottleneck clears"]}
+      "preconditions": [
+        "A ConstructionProject's utilities phase has its full material bill delivered",
+        "A technician-skilled vehicle is assigned and parked",
+        "The office's WORKERS pool has zero workers available to assign to this phase"
       ],
-      "final_observables": ["A phase never completes purely from having materials and a machine without sufficient sourced workers"],
-      "owning_story_titles": ["Progress a construction project through ordered, stallable phases"],
-      "sources": [{"file": "spec/construction.md", "lines": "72-74"}, {"file": "spec/construction.md", "lines": "114"}]
+      "steps": [
+        {
+          "action": "Advance simulation ticks with materials and machine present but zero workers assigned",
+          "expected": [
+            "Phase work-progress stays at 0",
+            "Project.bottleneck reports no-worker, not no-machine"
+          ]
+        },
+        {
+          "action": "Office's WORKERS pool gains enough workers to fill the phase requirement",
+          "expected": [
+            "Phase work-progress begins advancing",
+            "Project.bottleneck clears"
+          ]
+        }
+      ],
+      "final_observables": [
+        "A phase never completes purely from having materials and a machine without sufficient sourced workers"
+      ],
+      "owning_story_titles": [
+        "Progress a construction project through ordered, stallable phases"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "72-74"
+        },
+        {
+          "file": "spec/construction.md",
+          "lines": "114"
+        }
+      ]
     },
     {
       "title": "Demolition stalls without explosives, resumes on delivery",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["A demolition office has dispatched machine-work to a site", "No explosives have been delivered to the site"],
-      "steps": [
-        {"action": "Advance simulation ticks with zero explosives delivered", "expected": ["Demolition progress stays at 0", "Building entity remains present, unremoved"]},
-        {"action": "Deliver the required explosives to the site", "expected": ["Demolition progress begins advancing on the next tick"]}
+      "preconditions": [
+        "A demolition office has dispatched machine-work to a site",
+        "No explosives have been delivered to the site"
       ],
-      "final_observables": ["Demolition never completes purely from machine-work without explosives on site"],
-      "owning_story_titles": ["Demolish and repair buildings as separate physical office-dispatched processes"],
-      "sources": [{"file": "spec/construction.md", "lines": "73"}]
+      "steps": [
+        {
+          "action": "Advance simulation ticks with zero explosives delivered",
+          "expected": [
+            "Demolition progress stays at 0",
+            "Building entity remains present, unremoved"
+          ]
+        },
+        {
+          "action": "Deliver the required explosives to the site",
+          "expected": [
+            "Demolition progress begins advancing on the next tick"
+          ]
+        }
+      ],
+      "final_observables": [
+        "Demolition never completes purely from machine-work without explosives on site"
+      ],
+      "owning_story_titles": [
+        "Demolish and repair buildings as separate physical office-dispatched processes"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "73"
+        }
+      ]
     },
     {
       "title": "Road construction progresses through its own phase pipeline and stalls without gravel or asphalt",
       "kind": "failure-recovery",
       "proof_seam": "integration",
-      "preconditions": ["A road segment blueprint has been placed and authorised as a RoadConstructionProject", "GROUNDWORKS and ASPHALT_LAYING/ROLLING vehicles are assigned to their respective phase station slots"],
-      "steps": [
-        {"action": "Advance simulation ticks through the earthworks phase", "expected": ["Earthworks phase completes using only GROUNDWORKS vehicle work, no material bill required"]},
-        {"action": "Advance ticks into the sub-base phase with zero gravel delivered", "expected": ["Sub-base phase work-progress stays at 0", "Project.bottleneck reports no-material"]},
-        {"action": "Deliver gravel, letting sub-base and paving (concrete) phases complete, then advance into the surfacing phase with zero asphalt delivered", "expected": ["Surfacing phase work-progress stays at 0", "Project.bottleneck reports no-material for asphalt"]},
-        {"action": "Deliver asphalt to the site", "expected": ["Surfacing phase work-progress resumes and completes", "Markings phase begins"]}
+      "preconditions": [
+        "A road segment blueprint has been placed and authorised as a RoadConstructionProject",
+        "GROUNDWORKS and ASPHALT_LAYING/ROLLING vehicles are assigned to their respective phase station slots"
       ],
-      "final_observables": ["The road reaches the open state only after passing through earthworks, sub-base, paving, surfacing, and markings in order, stalling exactly where gravel or asphalt was missing"],
-      "owning_story_titles": ["Progress road and infrastructure construction through its own physical phase pipeline"],
-      "sources": [{"file": "spec/construction.md", "lines": "53"}]
+      "steps": [
+        {
+          "action": "Advance simulation ticks through the earthworks phase",
+          "expected": [
+            "Earthworks phase completes using only GROUNDWORKS vehicle work, no material bill required"
+          ]
+        },
+        {
+          "action": "Advance ticks into the sub-base phase with zero gravel delivered",
+          "expected": [
+            "Sub-base phase work-progress stays at 0",
+            "Project.bottleneck reports no-material"
+          ]
+        },
+        {
+          "action": "Deliver gravel, letting sub-base and paving (concrete) phases complete, then advance into the surfacing phase with zero asphalt delivered",
+          "expected": [
+            "Surfacing phase work-progress stays at 0",
+            "Project.bottleneck reports no-material for asphalt"
+          ]
+        },
+        {
+          "action": "Deliver asphalt to the site",
+          "expected": [
+            "Surfacing phase work-progress resumes and completes",
+            "Markings phase begins"
+          ]
+        }
+      ],
+      "final_observables": [
+        "The road reaches the open state only after passing through earthworks, sub-base, paving, surfacing, and markings in order, stalling exactly where gravel or asphalt was missing"
+      ],
+      "owning_story_titles": [
+        "Progress road and infrastructure construction through its own physical phase pipeline"
+      ],
+      "sources": [
+        {
+          "file": "spec/construction.md",
+          "lines": "53"
+        }
+      ]
     }
   ]
 }

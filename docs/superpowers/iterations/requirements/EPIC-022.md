@@ -1,62 +1,93 @@
-# EPIC-022 — Byproducts and waste (greenfield)
+# EPIC-022 — Recipe machinery (already provided)
 
-**Summary:** Byproducts and waste (greenfield)
-**Stories:** STORY-0084, STORY-0085, STORY-0086
-**Primary sources:** `spec/production.md`
-**Status:** 0/3 done
+**Summary:** Recipe machinery (already provided)
+**Stories:** STORY-0093, STORY-0094, STORY-0095, STORY-0096, STORY-0097
+**Primary sources:** `docs/adr/0017-a-building-is-its-product.md`, `spec/production.md`
+**Status:** 0/5 done
 
-## STORY-0084
+## STORY-0093
 
-**Epic:** EPIC-022 — Byproducts and waste (greenfield)
-**Title:** Let recipes emit byproducts alongside their primary outputs
+**Epic:** EPIC-022 — Recipe machinery (already provided)
+**Title:** Verify recipes transform multiple inputs into multiple outputs over duration
 
 **As a** planner
-**I want** a recipe to produce sewage, air/ground pollution, or solid waste (ash) as a side effect of its primary output
-**So that** production isn't clean — dirty chains have a physical consequence the player must route or absorb, not a free externality
+**I want** a building's recipe to consume several distinct inputs and produce several distinct outputs over a fixed duration
+**So that** co-product chains like an oil refinery's fuel+bitumen are representable without new engine work
 
 **Acceptance criteria:**
-- AC-1: Today Recipe has only consumption/production fields; no byproducts, pollutionTier, or waste emission field exists anywhere in the recipe type. [SUBSTRATE: ABSENT — prototypes/src/types/recipe.rs, per audit §3] · impact:`none` · seam:`unit`
-- AC-2: A recipe may declare a byproducts list (e.g. sewage rate, ash quantity) that is emitted every production cycle alongside its primary outputs, using the same output mechanism (must go somewhere — a byproduct with no output-space capacity throttles the recipe exactly like a primary output would). [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0093`
-- AC-3: A recipe may declare a categorical pollutionTier (small | medium | high) distinct from any numeric byproduct, matching the confirmed W&R POLLUTION_* token shape. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0093`
-- AC-4: A recipe's sewage byproduct (declared via a numeric sewage rate) is routed through a network connection to downstream sewage infrastructure, distinct from the bucket-storage mechanism used for solid waste byproducts like ash — sewage never occupies an output-storage slot. [SUBSTRATE: ABSENT — greenfield; spec/production.md:92 ($CONNECTION_SEWAGE_OUTPUT)] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0093`
+- AC-1: A Recipe can declare 2+ input items and 2+ output items simultaneously, each with independent quantities and a shared production duration. [SUBSTRATE: PROVIDED — prototypes/src/types/recipe.rs:35-47] · impact:`local` · seam:`unit` · scenario:`JOURNEY-0001`
+- AC-2: One building type is bound to exactly one recipe (ADR-0017's W&R shape: a building is its product, not a generic machine with a swappable recipe category). [SUBSTRATE: PROVIDED — GoodsCompanyPrototype.recipe: Option<Recipe>, per docs/adr/0017-a-building-is-its-product.md] · impact:`local` · seam:`unit` · scenario:`JOURNEY-0001`
 
 **Sources:**
-- `spec/production.md:90-95`
+- `spec/production.md:39-71`
+- `docs/adr/0017-a-building-is-its-product.md:1-56`
 
 **Status:** pending
 
-## STORY-0085
+## STORY-0094
 
-**Epic:** EPIC-022 — Byproducts and waste (greenfield)
-**Title:** Require waste to be physically stored and hauled, not vanish
+**Epic:** EPIC-022 — Recipe machinery (already provided)
+**Title:** Verify extraction buildings produce with no consumed inputs
 
 **As a** planner
-**I want** solid waste byproducts (e.g. ash) to occupy real output storage and require freight to clear, exactly like any other good
-**So that** waste follows the same nothing-teleports rule as every other resource in the economy
+**I want** a mine or field to output raw material from labour and time alone, consuming no input items
+**So that** the base of every supply chain (ore, timber, crops) exists without a phantom input recipe
 
 **Acceptance criteria:**
-- AC-1: A waste byproduct accumulates in the producing building's output storage and is subject to the same output-space backpressure gate as primary outputs — a full waste buffer halts the recipe exactly like a full goods buffer does. [SUBSTRATE: ABSENT — greenfield; depends on byproducts existing at all] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0093`
+- AC-1: A Recipe with an empty inputs list is valid and produces output at its declared rate whenever labour/power/output-space gates are satisfied. [SUBSTRATE: PROVIDED — base_mod/companies.lua:56] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0082`
 
 **Sources:**
-- `spec/production.md:90-95`
+- `spec/production.md:60-64`
 
 **Status:** pending
 
-## STORY-0086
+## STORY-0095
 
-**Epic:** EPIC-022 — Byproducts and waste (greenfield)
-**Title:** Let recipes recover a fractional yield of material from waste inputs
+**Epic:** EPIC-022 — Recipe machinery (already provided)
+**Title:** Verify full output storage halts production (the cascade engine)
 
 **As a** planner
-**I want** a recycling recipe to consume a waste class as an input and recover only a stated fraction of it as usable output
-**So that** recycling is the physical reverse of the waste-byproduct chain, not a free 1:1 conversion
+**I want** a factory to stop producing once its output buffer is full
+**So that** a jammed downstream (freight backed up, warehouse full) visibly and physically stalls the factory instead of goods vanishing or piling up unboundedly
 
 **Acceptance criteria:**
-- AC-1: Today no recipe field represents consuming a waste class at a fractional recovery yield; waste can only be produced as a byproduct, never consumed and partially recovered. [SUBSTRATE: ABSENT — greenfield; spec/production.md:63,94] · impact:`none` · seam:`unit`
-- AC-2: A recycling recipe may declare a waste input class and a recovery yield fraction (0..1), e.g. waste_steel at 0.98 or waste_plastic at 0.9; consuming 100 units of the declared waste class at yield 0.98 produces exactly 98 units of recovered output, not 100. [SUBSTRATE: ABSENT — greenfield; spec/production.md:63 ($WASTE_EXTRACTION waste_steel 0.98)] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0098`
+- AC-1: When a recipe's output storage cannot accept another batch, production halts entirely (rate → 0) until space frees, and resumes automatically once it does. [SUBSTRATE: PROVIDED — recipe_should_produce, souls/goods_company.rs:36-39] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0083`
 
 **Sources:**
-- `spec/production.md:63`
-- `spec/production.md:94`
+- `spec/production.md:73-87`
+
+**Status:** pending
+
+## STORY-0096
+
+**Epic:** EPIC-022 — Recipe machinery (already provided)
+**Title:** Verify declared workforce is sourced live from present population, not stockpiled
+
+**As a** planner
+**I want** a factory's WORKERS_NEEDED figure to be satisfied by whichever citizens are actually present and working that tick
+**So that** labour behaves as a physical, non-storable input rather than an inventory the player can bank
+
+**Acceptance criteria:**
+- AC-1: Workforce sourcing is computed per-tick from n_workers present at the building, never drawn from a stored labour stock. [SUBSTRATE: PROVIDED — goods_company.rs:25,266-295] · impact:`local` · seam:`integration`
+
+**Sources:**
+- `spec/production.md:66-71`
+
+**Status:** pending
+
+## STORY-0097
+
+**Epic:** EPIC-022 — Recipe machinery (already provided)
+**Title:** Verify production never checks the treasury before running
+
+**As a** planner
+**I want** production to run purely on physical availability (labour, power, inputs, output space)
+**So that** the game's one rule holds: nothing is produced merely because money is available, and nothing is blocked merely because money is short
+
+**Acceptance criteria:**
+- AC-1: No internal recipe execution path reads or checks Money/treasury balance; production gates are exclusively physical factors. [SUBSTRATE: PROVIDED — internal recipes never touch Money, per audit §3] · impact:`cross-surface` · seam:`integration`
+
+**Sources:**
+- `spec/production.md:73-79`
 
 **Status:** pending

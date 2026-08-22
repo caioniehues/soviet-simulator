@@ -1,70 +1,43 @@
-# EPIC-015 — Needs & Consumption
+# EPIC-015 — Stall handling as a planning signal
 
-**Summary:** Needs & Consumption
-**Stories:** STORY-0057, STORY-0058, STORY-0059
-**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/citizens.md`, `spec/needs.md`
-**Status:** 0/3 done
+**Summary:** Stall handling as a planning signal
+**Stories:** STORY-0070, STORY-0071
+**Primary sources:** `spec/traffic.md`
+**Status:** 0/2 done
 
-## STORY-0057
+## STORY-0070
 
-**Epic:** EPIC-015 — Needs & Consumption
-**Title:** Protect purchase settlement on physical arrival, not on trade match
+**Epic:** EPIC-015 — Stall handling as a planning signal
+**Title:** Never delete a vehicle for being gridlocked
 
-**As a** Planner
-**I want** shop stock to debit and a buyer's goods to credit only when the buyer physically arrives at the shop
-**So that** the CS1 teleport-credit exploit (goods appearing before the trip completes) cannot return as a regression
+**As a** planner watching the plan execute
+**I want** a vehicle stuck in traffic to remain in the simulation indefinitely rather than being despawned
+**So that** a blocked delivery is a visible plan failure to fix, never a silently erased trip
 
 **Acceptance criteria:**
-- AC-1: When a buy order is matched but the citizen has not yet arrived at the shop, neither shop stock nor citizen/household inventory changes. [SUBSTRATE: PROVIDED — souls/desire/buyfood.rs:50-54, the spec's target bug is already fixed] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0059`
-- AC-2: Stock debit and buyer credit occur atomically at the tick of physical arrival, not at the tick the trade was matched. [SUBSTRATE: PROVIDED — souls/desire/buyfood.rs:50-54] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0059`
+- AC-1: A vehicle blocked in traffic is never removed from the simulation purely for being blocked; there is no despawn-on-gridlock timer analogous to CS1's 100-150 frame deletion. [SUBSTRATE: PROVIDED — transportation/vehicle.rs:19-20] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0038`
+- AC-2: After roughly 200 seconds blocked, the vehicle transitions to a Panicking state and continues seeking to resume rather than being removed. [SUBSTRATE: PROVIDED — transportation/vehicle.rs:19-20, VehicleState::Panicking] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0038`
 
 **Sources:**
-- `spec/citizens.md:63-66`
-- `docs/egregoria-substrate-audit.md:119-129`
+- `spec/traffic.md:26-34`
 
 **Status:** pending
 
-## STORY-0058
+## STORY-0071
 
-**Epic:** EPIC-015 — Needs & Consumption
-**Title:** Model per-citizen need satisfaction beyond food
+**Epic:** EPIC-015 — Stall handling as a planning signal
+**Title:** Escalate a stalled vehicle to re-route, then to a planner-visible bottleneck event
 
-**As a** Planner
-**I want** each citizen to track 0..1 satisfaction across warmth, water, health, housing space/quality and rest, not only food
-**So that** shortages other than hunger become visible economic signals instead of invisible gaps
-
-**Acceptance criteria:**
-- AC-1: A CitizenNeeds structure exists with distinct 0..1 fields for food, warmth, water, health, housingSpace, housingQuality and rest. [SUBSTRATE: ABSENT — greenfield; today only three score() functions (Home constant 0.2, Work binary window, BuyFood hunger clock) exist in souls/human.rs:190-231, no CitizenNeeds struct] · impact:`journey` · seam:`unit` · scenario:`SCENARIO-0077`
-- AC-2: Each need decays over simulated time and refills only on a real satisfying event (goods delivered, or a trip to a stocked/staffed building), never by ambient coverage. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0077`
-- AC-3: Wants (consumer goods, culture, leisure) and aspirations (car, bigger flat, education) are tracked as a separate slower-updating layer whose chronic pressure can cross a threshold and become economic demand. [SUBSTRATE: ABSENT — greenfield, OURS per spec/needs.md] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0077`
-- AC-4: A loyalty/political-legitimacy meta-need is tracked as a satisfaction-driven aggregate distinct from the per-citizen needs/wants/aspirations fields, moved by broadcast/propaganda and monument-style sources. [SUBSTRATE: ABSENT — greenfield, W&R $MONUMENT_GOVERNMENT_LOYALTY per spec/needs.md:67] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0077`
-- AC-5: The wants layer has named fields (goods, alcohol, culture, sport, spiritual, recreation) and each field's satisfaction is spatial and quality-weighted: pollution near the serving building lowers it, nature/water proximity raises it. [SUBSTRATE: ABSENT — greenfield, W&R $ATTRACTIVE_FACTOR_* per spec/needs.md:30-36,72-75] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0077`
-- AC-6: Durable needs (housing, appliances, car) resolve and are tracked at household level, while consumable needs (food, health, education) resolve and are tracked at individual-citizen level. [SUBSTRATE: ABSENT — greenfield per spec/needs.md:82 open-question resolution] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0077`
-- AC-7: Needs recompute on the simulation clock's low-frequency band while aspirations recompute on the distinctly slower very-low (months) band; an aspiration's pressure value does not change on a tick where only the needs band fired. [SUBSTRATE: ABSENT — greenfield, architecture/simulation-clock.md per spec/needs.md:79] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0077`
-
-**Sources:**
-- `spec/needs.md:13-40`
-- `spec/needs.md:58-73`
-- `docs/egregoria-substrate-audit.md:119-129`
-
-**Status:** pending
-
-## STORY-0059
-
-**Epic:** EPIC-015 — Needs & Consumption
-**Title:** Make unmet needs legible: wait, substitute, or visibly go without
-
-**As a** Planner
-**I want** a citizen whose need cannot currently be met to show a visible queuing or going-without state, rather than an order that silently sits unmatched
-**So that** shortage is felt and actionable — a longer queue or going without, never an invisible stall or a game-over
+**As a** logistics system managing a delivery fleet
+**I want** a vehicle stalled past a threshold to first attempt a re-route if an alternative path exists, and otherwise register a stall event the planner can see
+**So that** gridlock becomes an actionable bottleneck signal feeding infrastructure decisions and delivery-delay consequences, instead of a truck that silently sits forever or silently disappears
 
 **Acceptance criteria:**
-- AC-1: An unmatched buy order surfaces the citizen in an observable waiting/queued state rather than the order sitting with no player-visible signal. [SUBSTRATE: ABSENT — greenfield; there is no wait/substitute/go-without state machine, an unmatched buy order just sits, economy/market.rs] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0066`
-- AC-2: Wait-time urgency reuses the elapsed-since-last-satisfied clock already computed for hunger as its felt-urgency signal. [SUBSTRATE: PARTIAL — souls/human.rs:190-231, BuyFood::score already computes urgency from elapsed time since last eating, ready-made hook per audit sec.5] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0066`
-- AC-3: When urgency crosses a threshold and no substitute good/building is available, the citizen enters an observable 'going without' state rather than despawning, error-looping, or waiting silently forever. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0066`
+- AC-1: No hook currently exists connecting the vehicle's blocked/Panicking state to a re-route request; the vehicle resumes on its existing route rather than evaluating an alternative. [SUBSTRATE: ABSENT — transportation/vehicle.rs:19-20 has the Panicking state but no re-route call; audit §7 names this the missing piece] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0039`
+- AC-2: When a stalled vehicle has no viable alternative route, a bottleneck/stall event is emitted that a planner-facing system can observe, feeding the corridor-utilisation readout and downstream delivery-delay consequences. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`app-level` · scenario:`SCENARIO-0039`
+- AC-3: The stall response follows a strict order — the vehicle first waits in place (the jam persists physically), only after the stall threshold does it attempt a re-route, and only if no alternative exists does it register a stall event; a vehicle never skips straight to re-routing or stall-registration before waiting out the threshold. [SUBSTRATE: UNAUDITED — spec/traffic.md:30-32] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0039`
 
 **Sources:**
-- `spec/needs.md:1-11`
-- `docs/egregoria-substrate-audit.md:119-129`
+- `spec/traffic.md:26-34`
 
 **Status:** pending

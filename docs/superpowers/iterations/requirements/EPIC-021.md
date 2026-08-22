@@ -1,100 +1,102 @@
-# EPIC-021 — Resource ontology (greenfield)
+# EPIC-021 — Crime — deviance and the justice chain
 
-**Summary:** Resource ontology (greenfield)
-**Stories:** STORY-0079, STORY-0080, STORY-0081, STORY-0082, STORY-0083
-**Primary sources:** `spec/resources.md`
+**Summary:** Crime — deviance and the justice chain
+**Stories:** STORY-0088, STORY-0089, STORY-0090, STORY-0091, STORY-0092
+**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/citizens.md`, `spec/crime.md`
 **Status:** 0/5 done
 
-## STORY-0079
+## STORY-0088
 
-**Epic:** EPIC-021 — Resource ontology (greenfield)
-**Title:** Give every resource item physical handling metadata
+**Epic:** EPIC-021 — Crime — deviance and the justice chain
+**Title:** Couple wellbeing to work attendance and crime propensity
 
-**As a** planner and the logistics/construction systems built on top of resources
-**I want** each resource to declare mass, volume, a storage class, and a transport class
-**So that** logistics can decide which vehicle/container/network can carry a given resource and storage buildings can reject incompatible goods
+**As a** Planner
+**I want** a citizen's wellbeing to cost them when filling a below-tier slot, and sustained low wellbeing to raise crime propensity and lower work attendance
+**So that** wellbeing is a plannable lever on both labour supply and crime, not a cosmetic stat
 
 **Acceptance criteria:**
-- AC-1: Today ItemPrototype is exactly {base, id, optout_exttrade} — no mass, volume, storageClass, or transportClass field exists on any item. [SUBSTRATE: ABSENT — prototypes/src/prototypes/item.rs:8-12, whole schema] · impact:`none` · seam:`unit`
-- AC-2: Every item prototype must carry a numeric mass (t/unit) and volume (m³/unit) field, loadable from the Lua catalogue like other prototype fields. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0091`
-- AC-3: Every item prototype must carry a storageClass (aggregate | covered | liquid | cooled | open | special) and a transportClass (compatible vehicle/network kinds), and two resources with disjoint transportClass sets cannot both be loaded onto the same transport instance. [SUBSTRATE: ABSENT — greenfield; no storage/transport compatibility check exists anywhere in the codebase per audit] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0091`
-- AC-4: Every item prototype must carry an optional containerClass (aluminium | bio | construction | plastic | steel | toxic | open) for items that ship in typed containers, matching container_big_{aluminium,bio,construction,plastic,steel,toxic} material classes; a container's material determines what it may legally carry. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:67,86] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0091`
-- AC-5: Every item prototype must carry a category field with exactly one of {raw, processed-material, construction, consumer-good, liquid, energy, waste}, distinct from and in addition to its tier field. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:56] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0091`
-- AC-6: A network-borne resource (electricity, heat) declares no vehicle-compatible transportClass, and a query for vehicle-transportable resources excludes it entirely — never merely returning a transport-class mismatch as it would for two ordinary physical goods. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:125] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0091`
+- AC-1: An overqualified citizen may fill a lower-tier slot but a lower-tier citizen is never assigned above their tier; filling below tier costs the citizen wellbeing. [SUBSTRATE: ABSENT — greenfield; no wellbeing field or overqualification cascade exists on HumanEnt today] · impact:`journey` · seam:`integration`
+- AC-2: A citizen's work-attendance probability scales continuously with wellbeing (workProbability(wellbeing)), and sustained low wellbeing raises that citizen's contribution to the crime rate, mirroring the CS1 GetCrimeRate/GetWorkProbability coupling. [SUBSTRATE: ABSENT — greenfield; no wellbeing-driven crime or attendance-probability coupling exists today, CS1 CONFIRMED per spec/needs.md:65] · impact:`cross-surface` · seam:`integration`
 
 **Sources:**
-- `spec/resources.md:48-90`
+- `spec/citizens.md:37-46`
+- `docs/egregoria-substrate-audit.md:119-129`
 
 **Status:** pending
 
-## STORY-0080
+## STORY-0089
 
-**Epic:** EPIC-021 — Resource ontology (greenfield)
-**Title:** Give every resource item an economic tier classification
+**Epic:** EPIC-021 — Crime — deviance and the justice chain
+**Title:** Generate per-building crime pressure from unemployment and unhappiness
 
 **As a** planner
-**I want** each resource to declare whether it is raw, intermediate, finished, or luxury
-**So that** planning priority and trade value can be driven by tier without reintroducing floating money-based worth
+**I want** crime to build up in a building as a function of its occupants' unemployment duration and wellbeing, present from turn one
+**So that** crime is a legible, physical consequence of neglect rather than a random dice-roll or a mechanic locked behind unlocking police
 
 **Acceptance criteria:**
-- AC-1: Every item prototype must carry a tier field with exactly one of {raw, intermediate, finished, luxury}. [SUBSTRATE: ABSENT — greenfield, no such field exists in prototypes/src/prototypes/item.rs] · impact:`local` · seam:`unit`
+- AC-1: Each citizen gains a `crimePropensity` computed as min(rate(unemploymentLength), maxRate(wellbeing)) — unemployment duration bands 0/1/2/3/4/5+ mapping to 10/15/20/25/35/50, wellbeing cap ranging VeryUnhappy=100 down to VeryHappy=40 — with a ~4x multiplier for citizens already flagged `criminal`. No unemployment-duration tracking, wellbeing scalar, or crimePropensity field exists on HumanEnt today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0116`
+- AC-2: Each building accrues a `crimeBuffer` as a randomized sum over its current occupants' `crimePropensity`, increased 25% at night, hard-capped at `occupantCount * 100`; no `crimeBuffer` field exists on any building type today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0116`
+- AC-3: Crime buffer accrual happens from the first simulated tick with zero police buildings placed — there is no gating condition requiring a PoliceStation to exist before crimeBuffer can be non-zero, unlike CS1's unlock-gated version which we explicitly reject. [SUBSTRATE: ABSENT — greenfield; explicit rejection of CS1's police-unlock gate] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0116`
 
 **Sources:**
-- `spec/resources.md:108-115`
+- `spec/crime.md:16-30`
 
 **Status:** pending
 
-## STORY-0081
+## STORY-0090
 
-**Epic:** EPIC-021 — Resource ontology (greenfield)
-**Title:** Give perishable and hazardous items lifecycle metadata
+**Epic:** EPIC-021 — Crime — deviance and the justice chain
+**Title:** Arrest a specific criminal and hold them in a fed prison cell
 
 **As a** planner
-**I want** perishable goods (food, meat) to decay past a shelf life outside cold storage, and hazardous goods (uranium, some waste) to be flagged as such
-**So that** refrigerated logistics and radioactive handling are physically meaningful rather than cosmetic categories
+**I want** a staffed police station to send an officer who travels to and arrests a specific citizen, then transports and holds them in a real prison cell that must be fed
+**So that** crime clearance is a physical logistics loop, not a radius-based coverage debit
 
 **Acceptance criteria:**
-- AC-1: An item may optionally declare a shelfLife; when stored outside a storageClass=cooled bucket (or its equivalent) past shelfLife, its stored quantity is reduced or removed rather than persisting indefinitely. [SUBSTRATE: ABSENT — greenfield; no decay mechanism exists anywhere in the simulation crate per audit] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0092`
-- AC-2: An item may optionally declare a hazardClass (e.g. radioactive, toxic); items with a hazardClass set are distinguishable at the prototype level from ordinary goods (for later systems — construction siting, waste routing — to query). [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0092`
+- AC-1: A PoliceStation dispatches an officer (a vehicle trip) to a building whose `crimeBuffer` exceeds a threshold; on arrival, a specific citizen is flagged `arrested: bool = true` and transported to a Court to await sentencing (see 'Throttle sentencing through a staffed court between arrest and prison'), then on to Prison once sentenced — mirroring CS1's `ArrestCriminals`/`CriminalMove` path. We keep only this arrest path; the coverage-style patrol-drain-on-arrival mechanic (CS1's second clearance channel) is explicitly dropped. No PoliceStation, Prison, Court, arrest flag, or dispatch logic exists today. [SUBSTRATE: ABSENT — greenfield; explicit rejection of CS1's patrol-debit channel] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0118`
+- AC-2: A Prison exposes `cells: u32`; an arrested citizen occupies one cell up to capacity, otherwise the arrest is deferred (the citizen stays flagged `arrested` pending a free cell) rather than the simulation failing. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0118`
+- AC-3: A Prison carries a `foodDemand` fed via the freight/storage-demand chain (dry + refrigerated, per the W&R prison grammar) and the lowest quality-of-living value in the simulation; an unsupplied prison degrades inmate quality-of-living/health rather than instantly killing or releasing inmates — consistent with the project's never-game-over, leaner-tranche rule. [SUBSTRATE: ABSENT — greenfield, storage-demand grammar mirrors spec/logistics.md pattern] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0118`
+- AC-4: A PoliceStation with zero fuel in its vehicle fuel store dispatches no officer, mirroring the identical unfuelled-hospital-dispatches-nothing rule (`PoliceStation { staff; vehicles+fuel; cells }`); `crimeBuffer` at affected buildings continues accruing undisturbed rather than the simulation stalling or an arrest being silently teleported. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0118`
+- AC-5: A Prison requires worker-guards staffed to admit new inmates (prison is worker-guards only, per the staffed-shell grammar); a prison with zero guards on duty defers admission of arrested citizens — the same deferred-not-dropped behavior as a full prison — rather than accepting inmates unstaffed. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0118`
 
 **Sources:**
-- `spec/resources.md:48-78`
+- `spec/crime.md:31-38`
 
 **Status:** pending
 
-## STORY-0082
+## STORY-0091
 
-**Epic:** EPIC-021 — Resource ontology (greenfield)
-**Title:** Replace the inverted opt-out trade flag with an explicit tradeable declaration
-
-**As a** planner and the trade system
-**I want** each resource to declare tradeable directly rather than the codebase reasoning about the negation of optout_exttrade everywhere it needs to know
-**So that** trade eligibility reads as a positive, unambiguous fact matching the spec's Resource.tradeable field
-
-**Acceptance criteria:**
-- AC-1: Today the only trade-related field is optout_exttrade — the inverse of the spec's tradeable — and every caller must negate it to get the spec's semantics. [SUBSTRATE: PARTIAL — prototypes/src/prototypes/item.rs:8-12, optout_exttrade is the sole existing field] · impact:`none` · seam:`unit`
-- AC-2: A tradeable accessor (or renamed field) exists such that tradeable == !optout_exttrade for every existing item, verified against every entry in the current catalogue with no behavioural change to which items trade externally. [SUBSTRATE: ABSENT — greenfield naming/accessor, behaviour-preserving] · impact:`none` · seam:`unit`
-
-**Sources:**
-- `spec/resources.md:48-78`
-
-**Status:** pending
-
-## STORY-0083
-
-**Epic:** EPIC-021 — Resource ontology (greenfield)
-**Title:** Support storage buckets pinned to a single resource and consumer-demand buffer tiers
+**Epic:** EPIC-021 — Crime — deviance and the justice chain
+**Title:** Throttle sentencing through a staffed court between arrest and prison
 
 **As a** planner
-**I want** a building's storage to support a bucket reserved for one named resource and separate consumer-demand buffer tiers
-**So that** import docks that only accept one commodity and shop demand buffers are representable, not just a generic storageClass bucket
+**I want** an arrested citizen to await sentencing at a staffed Court whose caseThroughput limits how many cases resolve per cycle, before being transported to prison
+**So that** arrest volume cannot outpace the justice system's own capacity to process it, mirroring the police -> court -> prison pipeline the spec adopts
 
 **Acceptance criteria:**
-- AC-1: Today storage buckets are undifferentiated by class only; no bucket type exists that pins itself to a single named resource id or that models a tiered consumer-demand buffer. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84] · impact:`none` · seam:`unit`
-- AC-2: A building may declare an import bucket pinned to exactly one resource id and capacity; the bucket accepts only that resource and rejects any other, even one of a compatible storageClass. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_IMPORT_SPECIAL)] · impact:`local` · seam:`unit`
-- AC-3: A shop building may declare one of four consumer-demand buffer tiers (basic | advanced | hotel | prison), each an independent capacity bucket distinct from ordinary import/export storage. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:84 ($STORAGE_DEMAND_BASIC/_ADVANCED/_HOTEL/_PRISON)] · impact:`local` · seam:`unit`
+- AC-1: A Court building exposes `staff` and `caseThroughput`; an arrested citizen queues at the Court and is only transported onward to Prison once a court slot processes their case, capped at `caseThroughput` cases resolved per cycle — court capacity throttles sentencing throughput between arrest and prison. No `Court` type, staff field, or caseThroughput field exists anywhere in the codebase today. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0120`
+- AC-2: Court staffing follows the adopted staffed-shell grammar (profesor-judges only); a zero-staffed court resolves zero cases per cycle, and arrested citizens accumulate in a pending-sentencing queue rather than being dropped or teleported straight to Prison. This degrades throughput, it never hard-fails the simulation. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0120`
 
 **Sources:**
-- `spec/resources.md:84`
+- `spec/crime.md:41-53`
+
+**Status:** pending
+
+## STORY-0092
+
+**Epic:** EPIC-021 — Crime — deviance and the justice chain
+**Title:** Leak state inventory into a shortage-driven black market
+
+**As a** citizen with a chronically unmet need
+**I want** a parallel, unofficial allocation channel to satisfy shortages from state inventories at the cost of feeding crime and corruption pressure
+**So that** chronic planned-economy shortage has a visible, physical, in-world consequence rather than staying an invisible statistic
+
+**Acceptance criteria:**
+- AC-1: A warehouse or district gains a `leakRate` computed from local shortage severity (unmet demand vs. supply) and inversely from local enforcement presence (police staffing/crimeBuffer clearance activity); this entire mechanic — black market, leak rate, shortage-to-crime linkage — has no substrate in either reference game and no code today. [SUBSTRATE: ABSENT — greenfield, this is OURS per spec with no CS1 or W&R precedent] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0123`
+- AC-2: Goods leaked via the black market are drawn from real state inventory stock (decrementing an existing warehouse/market quantity), never conjured — satisfying the project's 'nothing teleports' rule; the leaked goods measurably satisfy the receiving citizen's unmet need. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0123`
+- AC-3: Black-market activity in a district increases that district's aggregate crime pressure (feeding back into `crimeBuffer`/enforcement dynamics) without ever producing a hard-fail or game-over state — chronic shortage degrades into visible unofficial redistribution and rising unrest, not simulation termination. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0123`
+
+**Sources:**
+- `spec/crime.md:43-46`
 
 **Status:** pending

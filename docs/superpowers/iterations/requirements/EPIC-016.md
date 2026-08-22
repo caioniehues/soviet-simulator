@@ -1,65 +1,85 @@
-# EPIC-016 — Households & Housing
+# EPIC-016 — Persistent Identity & Lifecycle
 
-**Summary:** Households & Housing
-**Stories:** STORY-0060, STORY-0061, STORY-0062
-**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/households.md`
-**Status:** 0/3 done
+**Summary:** Persistent Identity & Lifecycle
+**Stories:** STORY-0072, STORY-0073, STORY-0074, STORY-0075
+**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/citizens.md`, `spec/households.md`, `spec/needs.md`
+**Status:** 0/4 done
 
-## STORY-0060
+## STORY-0072
 
-**Epic:** EPIC-016 — Households & Housing
-**Title:** Introduce households as shared-pantry family units
+**Epic:** EPIC-016 — Persistent Identity & Lifecycle
+**Title:** Protect persistent citizen identity across save/load
 
 **As a** Planner
-**I want** citizens grouped into household entities that share a single dwelling and a single pantry
-**So that** housing allocation and shopping demand are computed at the family level, not artificially per-person
+**I want** every citizen's identity and personal state to survive a save/load cycle unchanged
+**So that** I can follow a specific person across sessions instead of a respawned, fungible population
 
 **Acceptance criteria:**
-- AC-1: A Household entity groups member citizens under one dwellingRef and one shared pantry buffer, capped at an authored constant (not hardcoded to CS1's fixed value of 5) so the cap can be tuned without a code change. [SUBSTRATE: ABSENT — greenfield; every human currently owns its own home and its own pantry, no Household entity exists; cap value is an open question per spec/households.md:65] · impact:`journey` · seam:`unit` · scenario:`SCENARIO-0060`
-- AC-2: Consumption by any household member debits the shared household pantry, not a private per-citizen stock. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0060`
-- AC-3: A dwellingRef of zero represents a household with no assigned flat (in the housing queue), distinct from an assigned dwelling. [SUBSTRATE: ABSENT — greenfield] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0060`
-- AC-4: A new household pantry starts at 200, drains 20 per step from consumption, and triggers a shopping trip once it falls below 200, refilling by 100 per completed trip. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED constants per spec/households.md:34] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0060`
+- AC-1: Saving then loading the simulation reproduces every HumanEnt's PersonalInfo fields byte-identical to the pre-save state. [SUBSTRATE: PROVIDED — souls/human.rs PersonalInfo in HumanEnt, whole sim serialized via CompressedBincode] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0056`
+- AC-2: Two citizens with identical attribute values (age, education, etc.) remain distinguishable by stable entity/soul reference after a reload — souls are not fungible. [SUBSTRATE: PROVIDED — HumanEnt entity identity via ECS, egregoria-substrate-audit.md sec.5] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0056`
 
 **Sources:**
-- `spec/households.md:18-29`
+- `spec/citizens.md:22-35`
 - `docs/egregoria-substrate-audit.md:119-129`
 
 **Status:** pending
 
-## STORY-0061
+## STORY-0073
 
-**Epic:** EPIC-016 — Households & Housing
-**Title:** Allocate housing through an explicit, player-visible queue
+**Epic:** EPIC-016 — Persistent Identity & Lifecycle
+**Title:** Model health, sickness and hospital-capacity resolution
 
 **As a** Planner
-**I want** unhoused households to sit in a policy-weighted, visible queue rather than being matched invisibly or deleted
-**So that** housing shortage is a legible planning failure, not a silent population loss
+**I want** citizen health to be derived from physical service inputs and sickness to be a resolvable service event
+**So that** neglecting people (no water/sewage/care coverage) physically reduces output through a legible causal chain
 
 **Acceptance criteria:**
-- AC-1: A household with no vacancy assigned enters a queue ranked by policy weights (priority class, workplace proximity, family-size-to-flat-size fit); queue length is a value the player can read, and no dwelling or household carries a price/affordability field of any kind — queue position, never money, gates assignment. [SUBSTRATE: ABSENT — greenfield, OURS per spec/households.md; CS1's equivalent is an invisible priority x distance market, no visible queue exists; spec/households.md:16 'No RCI bar'] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0061`
-- AC-2: A household displaced by building loss or eviction re-enters the queue; it is never deleted from the simulation for lack of housing. [SUBSTRATE: ABSENT — greenfield; explicitly rejects CS1's ResidentAI.cs:2434-2445 citizen-deletion pattern per spec/households.md evidence log] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0061`
-- AC-3: Overcrowding (two households doubled into one flat) is a representable, distinguishable state from a normally-assigned flat. [SUBSTRATE: ABSENT — greenfield; capacity is authored as flats x max_household_size specifically to make overcrowding representable] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0061`
+- AC-1: Citizen health recomputes from physical inputs only (water/sewage access, pollution, garbage, care coverage vs. age-phase requirement) — money never appears in the calculation. [SUBSTRATE: ABSENT — greenfield; HumanEnt has no health or wellbeing field today, only age set once at spawn] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0064`
+- AC-2: A sustained low-health streak triggers a sickness roll; a sick citizen posts a hospital-transport need whose resolution consumes hospital capacity. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0064`
+- AC-3: While sick, a citizen's economic life (work attendance, shopping trips) is frozen until the sickness resolves. [SUBSTRATE: ABSENT — greenfield] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0064`
+- AC-4: A citizen's work efficiency scales continuously across the 10-100% range as a function of health, not as a binary sick/not-sick cutoff. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED table `workEfficiency(health)` per spec/citizens.md:61] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0064`
 
 **Sources:**
-- `spec/households.md:31-40`
-- `spec/households.md:82-92`
+- `spec/citizens.md:48-52`
+- `spec/needs.md:13-21`
 
 **Status:** pending
 
-## STORY-0062
+## STORY-0074
 
-**Epic:** EPIC-016 — Households & Housing
-**Title:** Author dwelling quality and default-on service requirements
+**Epic:** EPIC-016 — Persistent Identity & Lifecycle
+**Title:** Progress citizen age and introduce death without deleting the household
 
 **As a** Planner
-**I want** each dwelling prefab to carry an authored qualityOfLiving scalar and to require heat/electricity by default
-**So that** housing quality feeds citizen satisfaction and no residential building can silently opt out of basic services
+**I want** citizen age to advance over simulated time and citizens to die within a widened age window, freeing a household slot rather than dissolving the household
+**So that** the population has a real demographic lifecycle instead of a frozen age field
 
 **Acceptance criteria:**
-- AC-1: Each dwelling prefab carries an authored qualityOfLiving scalar in the observed CONFIRMED range (0.60 khrushchyovka to 1.02 village house), and this value feeds a household member's housingQuality need. [SUBSTRATE: ABSENT — greenfield, W&R CONFIRMED range per spec/households.md:48] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0080`
-- AC-2: A residential building requires heat and electricity by default (no dwelling prefab declares a heating/electricity opt-out); only a non-residential prefab may opt out via an explicit disable flag. [SUBSTRATE: ABSENT — greenfield, W&R CONFIRMED-by-absence per spec/households.md:48] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0080`
+- AC-1: A citizen's age field increases as simulated time passes. [SUBSTRATE: ABSENT — greenfield; age is set once at spawn and never incremented, per egregoria-substrate-audit.md sec.5] · impact:`journey` · seam:`unit` · scenario:`SCENARIO-0065`
+- AC-2: Death occurs by an age window widened by poor health and a small accident chance; on death the citizen's household persists with the slot freed, not dissolved. [SUBSTRATE: ABSENT — greenfield] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0065`
+- AC-3: Population aging or decline never halts or ends the simulation — it only produces a visible demographic strain signal, consistent with the project's no-game-over principle. [SUBSTRATE: ABSENT — greenfield; no death/lifecycle exists today so no failure-mode behaviour to regress against] · impact:`journey` · seam:`app-level` · scenario:`SCENARIO-0065`
+- AC-4: A citizen transitions through coarse lifecycle stages (child -> student -> worker -> pensioner) at named age thresholds, gaining/losing school- and job-eligibility at each transition, rather than a fixed life-stage that never changes as age increases. [SUBSTRATE: ABSENT — greenfield, CS1 shape (AgeGroup thresholds a la 15/45/90/180/240) per spec/citizens.md:32,70] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0065`
 
 **Sources:**
-- `spec/households.md:48`
+- `spec/citizens.md:68-69`
+- `spec/households.md:72-76`
+
+**Status:** pending
+
+## STORY-0075
+
+**Epic:** EPIC-016 — Persistent Identity & Lifecycle
+**Title:** Grow the population through household birth
+
+**As a** Planner
+**I want** eligible couples with a free household slot to have a per-step chance of a birth, boosted by childcare access
+**So that** population growth is a real demographic event coupled to service coverage, not a fixed/absent counter
+
+**Acceptance criteria:**
+- AC-1: A birth can occur only when a household has a present couple, both adults, and a free member slot; a household missing any of these three preconditions never produces a birth. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED birth gate per spec/households.md:54] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0068`
+- AC-2: The per-step birth chance rises from a baseline of 1/12 to 1/8 when the household has childcare access, so improving childcare coverage measurably raises the observed birth rate. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED constants per spec/households.md:54] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0068`
+
+**Sources:**
+- `spec/households.md:54`
 
 **Status:** pending

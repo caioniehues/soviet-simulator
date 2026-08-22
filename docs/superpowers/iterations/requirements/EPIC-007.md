@@ -1,144 +1,129 @@
-# EPIC-007 — Physical foreign trade
+# EPIC-007 — Transport-class compatibility
 
-**Summary:** Physical foreign trade
-**Stories:** STORY-0023, STORY-0024, STORY-0025, STORY-0026, STORY-0027, STORY-0028, STORY-0029
-**Primary sources:** `docs/egregoria-substrate-audit.md`, `spec/logistics.md`, `spec/trade.md`
+**Summary:** Transport-class compatibility
+**Stories:** STORY-0033, STORY-0034, STORY-0035, STORY-0036, STORY-0037, STORY-0038, STORY-0039
+**Primary sources:** `spec/buildings.md`, `spec/logistics.md`, `spec/resources.md`, `spec/vehicles.md`
 **Status:** 0/7 done
 
-## STORY-0023
+## STORY-0033
 
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Seed a stocked starter warehouse at game start
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Bind a building to rail only through a declared siding connection point
 
-**As a** planner
-**I want** a pre-stocked warehouse of essential goods present at turn one
-**So that** the very first production chains have something to draw on before any internal chain or import route exists
+**As a** a designer authoring the building catalogue
+**I want** a building prototype to declare an explicit rail-siding connection point with literal coordinates
+**So that** rail service reaches a building only via a declared siding connection, not mere geometric adjacency to a road or intersection
 
 **Acceptance criteria:**
-- AC-1: On a new game start, a designated starter warehouse building/store holds a non-zero, config-defined quantity of at least the goods required to bootstrap the opening production chains, before any player action. [SUBSTRATE: ABSENT — greenfield, decided 2026-08-22: 'a stocked starter warehouse seeds turn one', docs/egregoria-substrate-audit.md:159-161] · impact:`cross-surface` · seam:`e2e` · scenario:`SCENARIO-0015`
-- AC-2: Goods drawn from the starter warehouse are consumed via the same physical recipe-input path as any other sourced input (Market::buy_until / recipe_init), never a special-cased free-goods branch. [SUBSTRATE: PARTIAL — buy_until always requests exactly item.amount from the static recipe with no distinction of source today, economy/market.rs:161-167, souls/goods_company.rs:23,47, docs/egregoria-substrate-audit.md:142-144] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0015`
+- AC-1: A building prototype declares an explicit rail-siding connection point with literal coordinates, and is served by rail only through that explicit declaration — not by mere geometric adjacency to a road or intersection. [SUBSTRATE: CONFLICTS — ElectricityCache makes every building auto-adjacent to its road via union-find (map/electricity_cache.rs:244-280) with no laid-wire or explicit connection-point model, audit §6] · impact:`cross-surface` · seam:`integration`
 
 **Sources:**
-- `docs/egregoria-substrate-audit.md:159-161`
+- `spec/buildings.md:14-27`
 
 **Status:** pending
 
-## STORY-0024
+## STORY-0034
 
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Offer customs imports at a markup as a permanent paid deadlock escape
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Enforce transport-class compatibility when loading a vehicle
 
-**As a** planner
-**I want** to pay a price premium at customs to import a good whenever a domestic supply chain is deadlocked
-**So that** a stalled chain always has a costly-but-available way out, distinct from the one-time starter warehouse
+**As a** planner and the logistics systems built on top of resources
+**I want** transport-class compatibility to be enforced at load time against a vehicle's cargoClass
+**So that** two disjoint-class resources cannot share a transport instance and network-borne resources are never offered as vehicle-transportable
 
 **Acceptance criteria:**
-- AC-1: At any point in the game (not only turn one) the player can place a customs import order for a deficit good at a price strictly higher than its domestic administered/shadow price, and this option remains available for the life of the save. [SUBSTRATE: ABSENT — greenfield, decided 2026-08-22: 'customs imports at a markup remain the permanent paid escape hatch whenever a chain deadlocks', docs/egregoria-substrate-audit.md:159-161] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0016`
-- AC-2: A customs import order debits the treasury's hard-currency (foreign rouble) account, never the enterprise beznal or household nal circuits, distinguishing this from internal trade. [SUBSTRATE: ABSENT — greenfield; today the only money pool at all is Government.money and it is undifferentiated, economy/government.rs:10, docs/egregoria-substrate-audit.md:127-128] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0016`
-- AC-3: The markup import does not resolve instantly: it still requires the same physical border-clearance and inland haul as any other foreign trade order (see border-crossing story), it is not a same-tick money-for-goods shortcut. [SUBSTRATE: CONFLICTS — today every unmet buy order is satisfied instantly and unconditionally by an infinite external partner with no vehicle trip, economy/market.rs:285-304, docs/egregoria-substrate-audit.md:130-135] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0016`
+- AC-1: Every item prototype must carry a storageClass (aggregate | covered | liquid | cooled | open | special) and a transportClass (compatible vehicle/network kinds), and two resources with disjoint transportClass sets cannot both be loaded onto the same transport instance. [SUBSTRATE: ABSENT — greenfield; no storage/transport compatibility check exists anywhere in the codebase per audit] · impact:`cross-surface` · seam:`integration`
+- AC-2: A network-borne resource (electricity, heat) declares no vehicle-compatible transportClass, and a query for vehicle-transportable resources excludes it entirely — never merely returning a transport-class mismatch as it would for two ordinary physical goods. [SUBSTRATE: ABSENT — greenfield; spec/resources.md:125] · impact:`cross-surface` · seam:`integration`
 
 **Sources:**
-- `docs/egregoria-substrate-audit.md:130-135,159-161`
-- `spec/trade.md:9-12`
+- `spec/resources.md:48-90`
 
 **Status:** pending
 
-## STORY-0025
+## STORY-0035
 
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Require a physical vehicle trip to move goods across the border
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Gate cargo assignment by resource transport-class compatibility
 
 **As a** planner
-**I want** an ordered import/export to remain unfulfilled until a vehicle physically hauls the goods across a customs building
-**So that** money at the border is never sufficient by itself — the one rule that nothing teleports holds at the border too
+**I want** a resource to only be loadable onto a vehicle whose cargoClass matches the resource's transport class
+**So that** gravel tippers never carry bagged goods and oil tankers never carry ore, as in the confirmed W&R gate
 
 **Acceptance criteria:**
-- AC-1: Placing a foreign trade order does not immediately mutate any goods quantity or capital field; goods only appear/disappear from domestic stock after a vehicle entity completes a trip through a border-crossing building. [SUBSTRATE: CONFLICTS — today external buy/sell loops mutate capital in the same tick with no vehicle trip at all, economy/market.rs:285-304 (buy side), :307-331 (sell side), docs/egregoria-substrate-audit.md:130-135] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0017`
-- AC-2: If no freight/vehicle capacity exists to service a foreign trade order, the order remains queued and no capital or money changes hands — replacing today's behaviour where capital is credited before existence of a freight station is even checked. [SUBSTRATE: CONFLICTS — confirmed bug: both external loops mutate capital before checking a freight station exists (market.rs:291 credits, :293 checks; symmetric at :317/:320); if find_external returns None goods appear with no trade record and no money debit, docs/egregoria-substrate-audit.md:136-141] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0017`
-- AC-3: Foreign trade throughput is capped by physical means (customs bay count, fleet size, border-edge capacity) rather than by any numeric trade-volume token, so a saturated customs house measurably slows import/export rate. [SUBSTRATE: ABSENT — greenfield; no vehicle-bay or throughput model exists at the border today, docs/egregoria-substrate-audit.md:130-135] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0017`
+- AC-1: Attempting to load a resource whose transport class does not match a vehicle's cargoClass is rejected (no trade/dispatch is created for that pair). [SUBSTRATE: ABSENT — greenfield; BuyOrder/SellOrder in economy/market.rs carry no transport-class or cargoClass field to gate on] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0147`
+- AC-2: The internal market matcher only proposes (seller, buyer) trade pairs for a resource when at least one compatible-class vehicle exists at the scheduler's disposal; incompatible pairs never enter the sorted-by-distance candidate list. [SUBSTRATE: CONFLICTS/PARTIAL — economy/market.rs:219 ranks candidate pairs purely by squared distance with no transport-class gating at all] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0147`
 
 **Sources:**
-- `spec/trade.md:9-17`
-- `docs/egregoria-substrate-audit.md:130-141`
+- `spec/logistics.md:31-40`
 
 **Status:** pending
 
-## STORY-0026
+## STORY-0036
 
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Build customs houses as typed border-crossing buildings
-
-**As a** planner
-**I want** to construct a customs house with a transport mode (road/rail/air), a per-cargo-class buffer, vehicle bays, and both a domestic-facing and a border-facing edge
-**So that** foreign trade has a physical building the player sites and can bottleneck, not an implicit map-edge shop
-
-**Acceptance criteria:**
-- AC-1: A customs house is a placeable building entity distinct from ordinary production buildings, with fields for mode, per-transport-class buffer (1-unit buffer per cargo class), bay list, domestic edge, and border edge. [SUBSTRATE: ABSENT — greenfield; no BorderCrossing/customs building type exists in the codebase, docs/egregoria-substrate-audit.md:130-135 (external partner has no building at all)] · impact:`cross-surface` · seam:`app-level` · scenario:`SCENARIO-0025`
-- AC-2: There is no map-edge 'infinite external partner' reachable without passing through a built customs house — every export/import order resolves only via a player-built or pre-placed customs house entity. [SUBSTRATE: CONFLICTS — today the external partner exists with no capacity limit and is reachable with no building constructed, economy/market.rs:285-331, docs/egregoria-substrate-audit.md:130-135] · impact:`journey` · seam:`e2e` · scenario:`SCENARIO-0025`
-- AC-3: Electricity import/export transformers and border pipelines exist as separate typed border-crossing endpoints from road/rail/air customs houses, with the transport medium of a good deciding which border building it crosses at (the same routing rule used domestically). [SUBSTRATE: ABSENT — greenfield; no utility border building type exists, only a road/rail/air customs house concept is modelled at all, spec/trade.md:14-15] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0025`
-- AC-4: A customs house may be either a pre-placed/map-provided instance or a player-constructed instance (the `$SUBTYPE_OWN_CUSTOM` distinction), and both variants participate in border trade identically once built. [SUBSTRATE: ABSENT — greenfield; no customs house entity exists yet to have this ownership distinction, spec/trade.md:13] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0025`
-
-**Sources:**
-- `spec/trade.md:9-17`
-- `docs/egregoria-substrate-audit.md:130-135`
-
-**Status:** pending
-
-## STORY-0027
-
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Settle foreign trade only on physical border clearance
-
-**As a** planner
-**I want** treasury debit/credit for a trade to occur at the moment the vehicle clears the border, not at order-match time
-**So that** treasury and simulation state never diverge
-
-**Acceptance criteria:**
-- AC-1: A trade order's status progresses ordered -> atCustoms -> cleared, and the treasury balance changes only on the transition into cleared, never earlier. [SUBSTRATE: CONFLICTS — settlement happens at match time today (the same tick the pair is drained in make_trades), not at any border-clearance event, economy/market.rs:193-336, docs/egregoria-substrate-audit.md:130-135] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0016`
-- AC-2: If a save is loaded mid-transit (a trade order in the atCustoms state), the treasury balance on load reflects only cleared trades, and the in-flight order resumes without double-crediting or losing the goods. [SUBSTRATE: ABSENT — greenfield; no in-flight trade state or save-compatible representation of it exists today, docs/egregoria-substrate-audit.md:130-135] · impact:`cross-surface` · seam:`process-level` · scenario:`SCENARIO-0016`
-- AC-3: (OPEN/DEFERRED — whether a trade order locks its price at order time or floats to the clearance-time price is an undecided design question per spec/trade.md:57,63, not scheduled for 1.0 until resolved) A trade order's price-snapshot policy is not yet defined; the draft data model reserves an optional `priceAtOrder?` field for whichever policy is later chosen. [SUBSTRATE: ABSENT — greenfield; no policy decision or field exists in code, spec/trade.md:57,63] · impact:`none` · seam:`unit`
-- AC-4: A cleared trade's paired ledger entry is tagged as import or export at settlement, enabling per-direction trade-balance reporting distinct from a currency-only or amount-only record. [SUBSTRATE: ABSENT — greenfield; no ledger entry type distinguishes import/export direction today, spec/trade.md:26] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0016`
-
-**Sources:**
-- `spec/trade.md:26-29,57,63`
-
-**Status:** pending
-
-## STORY-0028
-
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Make the external partner a finite, physical customs crossing
-
-**As a** planner
-**I want** unmet buy/sell orders to only clear through a real, capacity-limited customs vehicle trip, never an unconditional instant partner
-**So that** excess demand becomes a visible queue instead of teleporting goods across a fictional border, matching Kornai's shortage-economy target
-
-**Acceptance criteria:**
-- AC-1: An unmet buy order for which `find_external` returns a customs partner is NOT satisfied unless a real vehicle trip (freight station dispatch, travel time) is scheduled to deliver it; the trade must not resolve on the same tick it is posted. [SUBSTRATE: CONFLICTS — economy/market.rs:285-304 (buy side) resolves every unmet buy order instantly and unconditionally in the same `make_trades` call, with no vehicle, no capacity limit, no delay] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0142`
-- AC-2: An unmet sell-side surplus for which `find_external` returns a partner is likewise gated on a real freight-station vehicle trip before capital/money changes hands. [SUBSTRATE: CONFLICTS — economy/market.rs:307-331 (sell side) is symmetric to the buy-side bug: instant, unconditional, no vehicle trip, no capacity] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0142`
-- AC-3: The external partner has a finite per-tick or per-customs-house throughput limit; when the limit is exceeded, further unmet orders remain queued (unresolved) rather than being cleared. [SUBSTRATE: CONFLICTS — economy/market.rs:285-331 has no capacity limit of any kind on the external loops, exactly the CS1 'unlimited priority-0 offer' pattern spec/logistics.md names and rejects] · impact:`journey` · seam:`integration` · scenario:`SCENARIO-0142`
-- AC-4: The customs house is a per-transport-class pass-through with a token-bucket capacity of 1 per class; it stockpiles no cargo between vehicle trips, so a customs implementation that accumulates goods as a warehouse violates this AC. [SUBSTRATE: ABSENT — greenfield; economy/market.rs external loops have no customs-house entity at all, spec/logistics.md:76] · impact:`local` · seam:`integration` · scenario:`SCENARIO-0142`
-- AC-5: The border crossing point a good uses is selected by its transport medium (a road-medium good crosses at a road border building, a rail-medium good at a rail border building, a utility crosses at its dedicated utility border building), matching the domestic medium gate rather than a single generic crossing. [SUBSTRATE: ABSENT — greenfield; no medium-specific border-building selection exists, spec/logistics.md:76] · impact:`cross-surface` · seam:`integration` · scenario:`SCENARIO-0142`
-
-**Sources:**
-- `spec/logistics.md:48-58,95-100`
-
-**Status:** pending
-
-## STORY-0029
-
-**Epic:** EPIC-007 — Physical foreign trade
-**Title:** Fix capital mutation ordering on the external-trade seam
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Exclude network-borne resources from the vehicle scheduler
 
 **As a** developer
-**I want** the external buy/sell loops to check that a freight station exists before mutating capital, not after
-**So that** goods never appear or vanish with no trade record and no money debit once the queue/vehicle requirement lands on this seam
+**I want** electricity, heat, water and sewage to never be assigned a vehicle dispatch
+**So that** utility flows stay on their own grids and don't pollute the physical logistics matcher
 
 **Acceptance criteria:**
-- AC-1: On the buy side, when `find_external(order.pos)` returns `None`, `capital` for the buyer is left unchanged (currently it is credited at market.rs:291 before the `None` check at market.rs:293, so goods appear with no trade and no debit). A test that forces `find_external` to return `None` and then asserts `capital[buyer]` is unchanged must pass. [SUBSTRATE: CONFLICTS — economy/market.rs:291 credits capital before the existence check at market.rs:293] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0144`
-- AC-2: On the sell side, when `find_external(order.pos)` returns `None`, `capital` and `order.qty` for the seller are left unchanged (currently `cap -= qty_sell` at market.rs:317 and `order.qty -= qty_sell` at market.rs:318 both run before the `None` check at market.rs:320, so goods vanish with no trade record and no credit). A test that forces `find_external` to return `None` and asserts both fields are unchanged must pass. [SUBSTRATE: CONFLICTS — economy/market.rs:317-318 mutate before the existence check at market.rs:320] · impact:`local` · seam:`unit` · scenario:`SCENARIO-0144`
+- AC-1: Items flagged as network-borne (electricity/heat/water/sewage) are never posted as BuyOrder/SellOrder entries in the vehicle-matched market, or are routed to a separate non-vehicle solver entirely. [SUBSTRATE: UNAUDITED — no per-item network-borne flag exists on ItemPrototype (prototypes/src/prototypes/item.rs:8-12 is `{base, id, optout_exttrade}` only); electricity itself is modelled via a separate ElectricityCache union-find (map/electricity_cache.rs:39-63), not via economy/market.rs, so today's separation is incidental rather than enforced by a flag] · impact:`cross-surface` · seam:`integration`
+- AC-2: Solid/liquid cargo items flagged for fixed conveyance (adjacent-building conveyor/bulk-chute/pipe transfer) move at a metered rate between the two adjacent buildings without ever being posted as a BuyOrder/SellOrder or assigned a vehicle dispatch, distinct from the network-borne utility exclusion above. [SUBSTRATE: ABSENT — greenfield; no fixed-conveyance edge type exists in map/ or economy/market.rs, spec/logistics.md:58] · impact:`cross-surface` · seam:`integration`
 
 **Sources:**
-- `spec/logistics.md:95-100`
+- `spec/logistics.md:33-37`
+
+**Status:** pending
+
+## STORY-0037
+
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Move goods across fixed conveyance edges without a vehicle
+
+**As a** planner
+**I want** adjacent buildings (e.g. a mine feeding its processor) to be linkable by a fixed conveyor/bulk-chute/pipe/cable edge that moves goods at a metered rate with no vehicle at all
+**So that** tightly-coupled adjacent production stays free of truck-fleet overhead while still respecting the nothing-teleports rule (goods flow at a rate, not instantaneously)
+
+**Acceptance criteria:**
+- AC-1: A LogisticsEdge between two adjacent buildings may be flagged as fixed-conveyance (conveyor/bulk-chute/pipe/cable/heat), in which case goods cross it at a bounded per-tick rate and never enter the vehicle-matched BuyOrder/SellOrder market. [SUBSTRATE: ABSENT — greenfield; no LogisticsEdge or fixed-conveyance concept exists in economy/market.rs or map/, spec/logistics.md:58] · impact:`cross-surface` · seam:`integration`
+- AC-2: A fixed-conveyance edge still obeys transport-class compatibility (the same resource-class gate that governs vehicle cargo); an incompatible resource cannot cross a conveyance edge built for a different class. [SUBSTRATE: ABSENT — greenfield, spec/logistics.md:58] · impact:`local` · seam:`unit`
+
+**Sources:**
+- `spec/logistics.md:58,39-41`
+
+**Status:** pending
+
+## STORY-0038
+
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Transport passengers under the same cargo-class model as freight
+
+**As a** planner
+**I want** a bus/tram to carry citizens as a passenger cargo class using the exact same capacity/cargoClass gating vehicles use for freight
+**So that** passenger transport is not a bolted-on separate system but a confirmed reuse of the freight vehicle model
+
+**Acceptance criteria:**
+- AC-1: A passenger-class vehicle (e.g. bus) has a cargoClass of Passenger and a capacity denominated in persons, and is gated by the same cargoClass-compatibility check used for freight (AC of 'Gate cargo assignment by resource transport-class compatibility') rather than a separate passenger-only code path. [SUBSTRATE: ABSENT — greenfield; no passenger cargo class or citizen-as-cargo concept exists in economy/market.rs or transportation/vehicle.rs, spec/vehicles.md:36] · impact:`cross-surface` · seam:`integration`
+
+**Sources:**
+- `spec/vehicles.md:36`
+
+**Status:** pending
+
+## STORY-0039
+
+**Epic:** EPIC-007 — Transport-class compatibility
+**Title:** Route cargo through medium-transfer cargo stations
+
+**As a** planner
+**I want** a cargo station building to transship goods between transport media (rail to road, road to ship, ship to air) as an explicit node in a multi-modal delivery
+**So that** a delivery whose fastest/cheapest route crosses media isn't blocked by the single-medium vehicle model
+
+**Acceptance criteria:**
+- AC-1: A cargo station accepts a compatible-class cargo delivery from a vehicle of one medium (e.g. rail) and makes it available for pickup by a vehicle of a different medium (e.g. road) without the cargo ever existing outside a vehicle or the station's dock buffer. [SUBSTRATE: ABSENT — greenfield; no cargo-station/transshipment node exists in economy/market.rs or map/, spec/logistics.md:41] · impact:`journey` · seam:`integration`
+
+**Sources:**
+- `spec/logistics.md:41`
 
 **Status:** pending

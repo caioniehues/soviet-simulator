@@ -1,5 +1,52 @@
 # Behavior Scenarios
 
+## Journey Scenarios
+
+## JOURNEY-0001 — A mill hoards coal and the planner catches it from observable state alone
+
+**Kind:** journey
+**Proof seam:** e2e
+**Owning stories:** STORY-0105, STORY-0106, STORY-0107, STORY-0093
+
+**Preconditions:**
+- A deterministic TestCtx world with one coal mine, one steel mill, one road connecting them, and one truck
+- The mill runs a recipe consuming coal and producing steel
+- The mill is configured to request more coal than its recipe strictly needs
+- No money, wages or foreign trade machinery is required for this journey
+- Coal and steel item prototypes are authored with optout_exttrade = true — otherwise economy/market.rs:284-296 credits any unmet buy order to the buyer unconditionally, and does so BEFORE calling find_external, so the mill would receive coal even with no external partner and the journey's "nothing teleports" observable would fail at the first market pass
+
+**Steps:**
+1. Tick the world until the mine has produced coal into its export bucket
+   → Coal stock at the mine is greater than zero
+   → No coal has appeared at the mill — nothing teleports
+2. Let the dispatcher assign the truck to carry coal from mine to mill
+   → The truck traverses travel -> load -> travel -> unload in that order
+   → Coal leaves the mine bucket only at load and appears at the mill only at unload
+   → At no tick does coal exist in both places or neither
+3. Tick the world while the mill produces steel
+   → Steel stock at the mill rises
+   → Coal is consumed at the recipe's true rate, not the requested rate
+4. Read the mill's production ledger
+   → Requested coal quantity is strictly greater than consumed coal quantity
+   → The surplus accumulates in the mill's input store rather than vanishing
+5. Open the mill's inspection panel as the planner
+   → The panel exposes requested-versus-consumed for the mill
+   → A hoarding enterprise is distinguishable from an honest one using only state the player can see
+   → No hidden debug-only field is required to reach the conclusion
+
+**Final observables:**
+- The mill holds more coal than its production consumed, sourced entirely by physical vehicle delivery
+- The planner can identify the mill as hoarding from the inspection panel alone
+- Running an honest mill through the identical journey produces different requested-versus-consumed figures than the hoarding mill — the signal discriminates, it is not a shared flag or threshold
+- The run is deterministic: identical seed and inputs yield identical ledger figures
+
+**Automation status:** pending
+**Execution command:** TBD
+
+**Sources:**
+- `spec/production.md:84-86`
+- `spec/logistics.md:24-31`
+
 ## Surface Scenarios
 
 ## SCENARIO-0001 — Building a road creates no automatic lots
@@ -397,7 +444,7 @@
 
 **Kind:** surface
 **Proof seam:** e2e
-**Owning stories:** STORY-0023
+**Owning stories:** STORY-0046
 
 **Preconditions:**
 - Fresh new-game start, no player actions taken yet
@@ -421,7 +468,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0024, STORY-0027
+**Owning stories:** STORY-0047, STORY-0050
 
 **Preconditions:**
 - A production chain has zero domestic supply of a required input and no path to acquire it internally (simulated deadlock)
@@ -449,7 +496,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0025
+**Owning stories:** STORY-0048
 
 **Preconditions:**
 - A foreign trade order is placed
@@ -474,7 +521,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0020
+**Owning stories:** STORY-0043
 
 **Preconditions:**
 - An enterprise holds a beznal balance sufficient to cover a retail good's price
@@ -499,7 +546,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0021
+**Owning stories:** STORY-0044
 
 **Preconditions:**
 - Administered retail price for a good is set and held fixed
@@ -524,7 +571,7 @@
 
 **Kind:** contract
 **Proof seam:** process-level
-**Owning stories:** STORY-0027
+**Owning stories:** STORY-0050
 
 **Preconditions:**
 - A foreign trade order has been matched and is in the atCustoms (in-transit) state, not yet cleared
@@ -551,7 +598,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0030
+**Owning stories:** STORY-0053
 
 **Preconditions:**
 - Treasury holds a large rouble balance and zero dollars
@@ -575,7 +622,7 @@
 
 **Kind:** contract
 **Proof seam:** process-level
-**Owning stories:** STORY-0017
+**Owning stories:** STORY-0040
 
 **Preconditions:**
 - A citizen holds a non-zero nal balance
@@ -599,7 +646,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0018
+**Owning stories:** STORY-0041
 
 **Preconditions:**
 - A human is bound to a workplace via Work.workplace
@@ -625,7 +672,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0019
+**Owning stories:** STORY-0042
 
 **Preconditions:**
 - Two domestic enterprises complete an internal (non-border) trade of goods
@@ -649,7 +696,7 @@
 
 **Kind:** surface
 **Proof seam:** app-level
-**Owning stories:** STORY-0026
+**Owning stories:** STORY-0049
 
 **Preconditions:**
 - Player has access to the build menu
@@ -671,7 +718,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0026
+**Owning stories:** STORY-0049
 
 **Preconditions:**
 - No customs house has been built on the map
@@ -696,7 +743,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0033
+**Owning stories:** STORY-0056
 
 **Preconditions:**
 - An item's availability window and bloc tag are set
@@ -720,7 +767,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0034
+**Owning stories:** STORY-0057
 
 **Preconditions:**
 - Two otherwise-identical vehicles exist, one new (full condition) and one worn (reduced condition)
@@ -744,7 +791,7 @@
 
 **Kind:** surface
 **Proof seam:** app-level
-**Owning stories:** STORY-0022
+**Owning stories:** STORY-0045
 
 **Preconditions:**
 - A traded good's border price changes due to a modelled driver (e.g. cumulative export volume)
@@ -769,7 +816,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0035
+**Owning stories:** STORY-0058
 
 **Preconditions:**
 - A road network with an intersection where a specific turn (e.g. left turn from lane A to lane B) is not permitted
@@ -792,7 +839,7 @@
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0035
+**Owning stories:** STORY-0058
 
 **Preconditions:**
 - Two parallel lanes connecting the same origin and destination with equal length but different speed limits, zero load on both
@@ -815,7 +862,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0035
+**Owning stories:** STORY-0058
 
 **Preconditions:**
 - Two agents request a path between the same origin/destination pair in the same tick
@@ -838,7 +885,7 @@
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0036
+**Owning stories:** STORY-0059
 
 **Preconditions:**
 - A dirt-class road segment and a paved-class road segment of identical length, curvature and terrain
@@ -861,7 +908,7 @@
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0042
+**Owning stories:** STORY-0065
 
 **Preconditions:**
 - A single lane with its EMA counter initialized at zero load
@@ -885,7 +932,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0043
+**Owning stories:** STORY-0066
 
 **Preconditions:**
 - A lane with known freeflow cost t0 and known capacity c
@@ -911,7 +958,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0044
+**Owning stories:** STORY-0067
 
 **Preconditions:**
 - A lane with remembered cost R0 and a newly observed cost O that differs sharply from R0
@@ -935,7 +982,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** process-level
-**Owning stories:** STORY-0044
+**Owning stories:** STORY-0067
 
 **Preconditions:**
 - Two parallel corridors of equal base cost between the same origin/destination
@@ -961,7 +1008,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0047
+**Owning stories:** STORY-0070
 
 **Preconditions:**
 - A vehicle boxed in by a permanent gridlock with no possible movement
@@ -984,7 +1031,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0048
+**Owning stories:** STORY-0071
 
 **Preconditions:**
 - A vehicle stalled past the stall threshold on a segment with a viable alternative path to its destination
@@ -1007,7 +1054,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** app-level
-**Owning stories:** STORY-0048
+**Owning stories:** STORY-0071
 
 **Preconditions:**
 - A vehicle stalled past the stall threshold with no viable alternative route (e.g. single road in and out)
@@ -1030,7 +1077,7 @@
 
 **Kind:** contract
 **Proof seam:** app-level
-**Owning stories:** STORY-0045
+**Owning stories:** STORY-0068
 
 **Preconditions:**
 - A corridor with a known, directly-set EMA load value
@@ -1052,7 +1099,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0046
+**Owning stories:** STORY-0069
 
 **Preconditions:**
 - Two vehicles on the same lane, the lead vehicle traveling slower than the trailing vehicle
@@ -1075,7 +1122,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0037
+**Owning stories:** STORY-0060
 
 **Preconditions:**
 - A route between origin and destination whose shortest geometric path crosses a pedestrian-only lane
@@ -1099,7 +1146,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0037
+**Owning stories:** STORY-0060
 
 **Preconditions:**
 - Three lanes of identical base cost: one flagged car-banned, one flagged transit-lane, one flagged closed
@@ -1125,7 +1172,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0035
+**Owning stories:** STORY-0058
 
 **Preconditions:**
 - A vehicle mid-route on a lane whose EMA/BPR cost rises significantly after the route was computed
@@ -1149,7 +1196,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0035
+**Owning stories:** STORY-0058
 
 **Preconditions:**
 - A vehicle holds an active route through a segment
@@ -1173,7 +1220,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0038
+**Owning stories:** STORY-0061
 
 **Preconditions:**
 - More path requests are issued in a single tick than the configured per-tick solver budget
@@ -1198,7 +1245,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0039
+**Owning stories:** STORY-0062
 
 **Preconditions:**
 - A RoadNode with exactly 8 attached RoadSegments
@@ -1221,7 +1268,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0040
+**Owning stories:** STORY-0063
 
 **Preconditions:**
 - A planned road segment with a construction project not yet complete
@@ -1245,7 +1292,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0040
+**Owning stories:** STORY-0063
 
 **Preconditions:**
 - A dirt-class road segment
@@ -1270,7 +1317,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0041
+**Owning stories:** STORY-0064
 
 **Preconditions:**
 - A large compound with an authored internal connection graph between two internal points not connected by any public road segment
@@ -1292,7 +1339,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0048
+**Owning stories:** STORY-0071
 
 **Preconditions:**
 - A vehicle that becomes blocked, with a viable alternative route available only after the stall threshold
@@ -1318,7 +1365,7 @@
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0036
+**Owning stories:** STORY-0059
 
 **Preconditions:**
 - A dirt-class road segment
@@ -1341,7 +1388,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0036
+**Owning stories:** STORY-0059
 
 **Preconditions:**
 - A road-type prefab definition with two lanes
@@ -1363,7 +1410,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0046
+**Owning stories:** STORY-0069
 
 **Preconditions:**
 - A vehicle of known half-length L, speed v, and braking deceleration a
@@ -1385,7 +1432,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0049
+**Owning stories:** STORY-0072
 
 **Preconditions:**
 - Running simulation with N citizens having distinct PersonalInfo values
@@ -1412,7 +1459,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0049
+**Owning stories:** STORY-0072
 
 **Preconditions:**
 - TestCtx harness available, per simulation/src/tests/mod.rs
@@ -1436,7 +1483,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0053
+**Owning stories:** STORY-0076
 
 **Preconditions:**
 - A citizen with an assigned Work.workplace
@@ -1461,7 +1508,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0057
+**Owning stories:** STORY-0081
 
 **Preconditions:**
 - A citizen's buy order has been matched to a seller
@@ -1488,7 +1535,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0060
+**Owning stories:** STORY-0084
 
 **Preconditions:**
 - A household with two or more members and one shared pantry
@@ -1512,7 +1559,7 @@
 
 **Kind:** surface
 **Proof seam:** app-level
-**Owning stories:** STORY-0061
+**Owning stories:** STORY-0085
 
 **Preconditions:**
 - No vacant flat available in the simulation
@@ -1536,7 +1583,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0061
+**Owning stories:** STORY-0085
 
 **Preconditions:**
 - A housed household occupies a flat that is condemned/destroyed
@@ -1561,7 +1608,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0054
+**Owning stories:** STORY-0077
 
 **Preconditions:**
 - Two open vacancies: a near tier-0 slot and a far tier-1 slot
@@ -1586,7 +1633,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0050
+**Owning stories:** STORY-0073
 
 **Preconditions:**
 - A citizen has sustained a low-health streak and rolled sick
@@ -1613,7 +1660,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0051
+**Owning stories:** STORY-0074
 
 **Preconditions:**
 - A household with a member near the upper end of the death age window and poor health
@@ -1639,7 +1686,7 @@
 
 **Kind:** surface
 **Proof seam:** app-level
-**Owning stories:** STORY-0059
+**Owning stories:** STORY-0083
 
 **Preconditions:**
 - A citizen's buy order cannot currently be matched (no seller/stock available)
@@ -1664,7 +1711,7 @@
 
 **Kind:** surface
 **Proof seam:** process-level
-**Owning stories:** STORY-0063
+**Owning stories:** STORY-0087
 
 **Preconditions:**
 - Simulation seeded with the profiled ceiling population
@@ -1688,7 +1735,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0052
+**Owning stories:** STORY-0075
 
 **Preconditions:**
 - A household with a present couple, both adults, and a free member slot
@@ -1713,7 +1760,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0061
+**Owning stories:** STORY-0085
 
 **Preconditions:**
 - A household with an adult child member eligible to leave
@@ -1737,7 +1784,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0061
+**Owning stories:** STORY-0085
 
 **Preconditions:**
 - The plan recruits a new immigrant household (not demand-gated auto-fabrication at the map edge)
@@ -1761,7 +1808,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0055
+**Owning stories:** STORY-0078
 
 **Preconditions:**
 - A school at its authored throughput ceiling
@@ -1788,7 +1835,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0056
+**Owning stories:** STORY-0079
 
 **Preconditions:**
 - A construction site posts a short-lived labour demand
@@ -1813,7 +1860,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0054
+**Owning stories:** STORY-0077
 
 **Preconditions:**
 - A population of citizens with assigned workplaces over multiple simulated days
@@ -1835,7 +1882,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0054
+**Owning stories:** STORY-0077
 
 **Preconditions:**
 - A citizen with sustained low wellbeing
@@ -1861,7 +1908,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0050
+**Owning stories:** STORY-0073
 
 **Preconditions:**
 - A citizen with a fixed workplace slot
@@ -1883,7 +1930,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0051
+**Owning stories:** STORY-0074
 
 **Preconditions:**
 - A citizen aging from childhood toward pension age
@@ -1909,7 +1956,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0058
+**Owning stories:** STORY-0082
 
 **Preconditions:**
 - Two otherwise-identical want-serving buildings (e.g. two parks/culture venues), one in a polluted area and one near nature/water
@@ -1933,7 +1980,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0058
+**Owning stories:** STORY-0082
 
 **Preconditions:**
 - A citizen with car-aspiration pressure already above the demand threshold, driven mainly by a large mobility gap
@@ -1957,7 +2004,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0058
+**Owning stories:** STORY-0082
 
 **Preconditions:**
 - Two otherwise-identical citizens whose schedules allow rest, one with a long commute and one with a short commute
@@ -1979,7 +2026,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0062
+**Owning stories:** STORY-0086
 
 **Preconditions:**
 - Two dwelling prefabs with different authored qualityOfLiving values
@@ -2004,7 +2051,7 @@
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0064
+**Owning stories:** STORY-0093
 
 **Preconditions:**
 - A recipe is defined with 1 input item and 2 output items, plus a nonzero duration
@@ -2028,7 +2075,7 @@
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0065
+**Owning stories:** STORY-0094
 
 **Preconditions:**
 - A recipe is defined with an empty inputs list and one output
@@ -2051,7 +2098,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0066
+**Owning stories:** STORY-0095
 
 **Preconditions:**
 - A factory is actively producing
@@ -2078,7 +2125,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0069
+**Owning stories:** STORY-0098
 
 **Preconditions:**
 - staffFrac = 0.5, worker efficiency e = 1.0
@@ -2101,7 +2148,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0070
+**Owning stories:** STORY-0099
 
 **Preconditions:**
 - A factory is fully staffed and fully supplied on inputs
@@ -2125,7 +2172,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0071
+**Owning stories:** STORY-0100
 
 **Preconditions:**
 - A recipe has two inputs; input A is at 80% of required stock, input B is at 30%
@@ -2147,7 +2194,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0072
+**Owning stories:** STORY-0101
 
 **Preconditions:**
 - f_labour = 0.5 (understaffed)
@@ -2173,7 +2220,7 @@
 
 **Kind:** surface
 **Proof seam:** app-level
-**Owning stories:** STORY-0073
+**Owning stories:** STORY-0102
 
 **Preconditions:**
 - A factory is stalled because its steel input reached zero while labour and power remain fully available
@@ -2195,7 +2242,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0076, STORY-0077
+**Owning stories:** STORY-0105, STORY-0106
 
 **Preconditions:**
 - Two identical buildings of the same recipe type exist
@@ -2221,7 +2268,7 @@
 
 **Kind:** surface
 **Proof seam:** e2e
-**Owning stories:** STORY-0078
+**Owning stories:** STORY-0107
 
 **Preconditions:**
 - Building B (from the hoarding scenario above) has accumulated visible surplus stock over several cycles
@@ -2246,7 +2293,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0079
+**Owning stories:** STORY-0108
 
 **Preconditions:**
 - Steel item prototype has transportClass = OPEN (flatbed)
@@ -2271,7 +2318,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0081
+**Owning stories:** STORY-0110
 
 **Preconditions:**
 - A meat item prototype declares shelfLife = N ticks and storageClass = cooled as its compatible class
@@ -2297,7 +2344,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0084, STORY-0085
+**Owning stories:** STORY-0113, STORY-0114
 
 **Preconditions:**
 - A recipe declares a primary output plus a waste_ash byproduct
@@ -2322,7 +2369,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0079
+**Owning stories:** STORY-0108
 
 **Preconditions:**
 - A storage bucket declares storageClass = cooled
@@ -2347,7 +2394,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0079
+**Owning stories:** STORY-0108
 
 **Preconditions:**
 - Electricity item prototype declares no vehicle-compatible transportClass (network-only)
@@ -2371,7 +2418,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** unit
-**Owning stories:** STORY-0074
+**Owning stories:** STORY-0103
 
 **Preconditions:**
 - A recipe declares waterQualityMin = 0.6
@@ -2399,7 +2446,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0075
+**Owning stories:** STORY-0104
 
 **Preconditions:**
 - A factory is producing at full rate with all factors satisfied
@@ -2422,7 +2469,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0086
+**Owning stories:** STORY-0115
 
 **Preconditions:**
 - A recycling recipe declares waste input class = waste_steel with recovery yield = 0.98
@@ -2444,7 +2491,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0088
+**Owning stories:** STORY-0117
 
 **Preconditions:**
 - A recipe declares workersNeeded and professorsNeeded
@@ -2470,7 +2517,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0091
+**Owning stories:** STORY-0121
 
 **Preconditions:**
 - One school exists with studentCapacity = 2 and 2 citizens already enrolled
@@ -2496,7 +2543,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0091
+**Owning stories:** STORY-0121
 
 **Preconditions:**
 - A school with studentCapacity = 10 (StudentCount * 5/4), enrolled.len() = 4
@@ -2520,7 +2567,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0091
+**Owning stories:** STORY-0121
 
 **Preconditions:**
 - A school has its full worker complement (10) staffed but only half its profesor complement (7 of 15)
@@ -2542,7 +2589,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0091
+**Owning stories:** STORY-0121
 
 **Preconditions:**
 - A citizen is enrolled at a school (holds a Student/education binding)
@@ -2564,7 +2611,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0092
+**Owning stories:** STORY-0122
 
 **Preconditions:**
 - A citizen is enrolled at a school
@@ -2589,7 +2636,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0092
+**Owning stories:** STORY-0122
 
 **Preconditions:**
 - A university with capacity for 3 simultaneous students
@@ -2614,7 +2661,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0092
+**Owning stories:** STORY-0122
 
 **Preconditions:**
 - A school with a throughput ceiling of 12 per cycle and 15 candidates seeking school-tier processing
@@ -2639,7 +2686,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0092
+**Owning stories:** STORY-0122
 
 **Preconditions:**
 - A kindergarten-tier school is staffed with workers only and zero profesors
@@ -2662,7 +2709,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0093
+**Owning stories:** STORY-0123
 
 **Preconditions:**
 - One citizen graduated with specialisation = medical
@@ -2689,7 +2736,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0094
+**Owning stories:** STORY-0124
 
 **Preconditions:**
 - A citizen's food/warmth/water need-satisfaction values are all at maximum
@@ -2713,7 +2760,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0095
+**Owning stories:** STORY-0125
 
 **Preconditions:**
 - A sick citizen occupies a hospital bed
@@ -2738,7 +2785,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0095
+**Owning stories:** STORY-0125
 
 **Preconditions:**
 - A hospital is staffed with 50 workers and 0 profesors
@@ -2763,7 +2810,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0095
+**Owning stories:** STORY-0125
 
 **Preconditions:**
 - A hospital with beds = 100 and 10 occupied beds holding sick citizens
@@ -2788,7 +2835,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0095
+**Owning stories:** STORY-0125
 
 **Preconditions:**
 - A hospital has fuelStore == 0 and a free bed
@@ -2814,7 +2861,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0096
+**Owning stories:** STORY-0126
 
 **Preconditions:**
 - A fully staffed hospital with a patient in a bed
@@ -2840,7 +2887,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** e2e
-**Owning stories:** STORY-0096
+**Owning stories:** STORY-0126
 
 **Preconditions:**
 - A citizen is sick with no reachable hospital and remains untreated past the death threshold duration
@@ -2867,7 +2914,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0097
+**Owning stories:** STORY-0089
 
 **Preconditions:**
 - A fresh simulation with occupied buildings and no PoliceStation anywhere on the map
@@ -2890,7 +2937,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0097
+**Owning stories:** STORY-0089
 
 **Preconditions:**
 - A building with occupantCount = 5
@@ -2912,7 +2959,7 @@
 
 **Kind:** surface
 **Proof seam:** e2e
-**Owning stories:** STORY-0098
+**Owning stories:** STORY-0090
 
 **Preconditions:**
 - A building's crimeBuffer exceeds the arrest threshold with 3 identifiable occupants
@@ -2938,7 +2985,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0098
+**Owning stories:** STORY-0090
 
 **Preconditions:**
 - A PoliceStation has zero fuel in its vehicle fuel store
@@ -2965,7 +3012,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0099
+**Owning stories:** STORY-0091
 
 **Preconditions:**
 - A staffed Court with caseThroughput = 2 cases per cycle
@@ -2992,7 +3039,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0098
+**Owning stories:** STORY-0090
 
 **Preconditions:**
 - A Prison with cells == occupied.len() (full)
@@ -3018,7 +3065,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0098
+**Owning stories:** STORY-0090
 
 **Preconditions:**
 - A Prison holds inmates and its foodDemand goes unsupplied for an extended period
@@ -3041,7 +3088,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0100
+**Owning stories:** STORY-0092
 
 **Preconditions:**
 - A district with a warehouse holding surplus stock of an item citizens have unmet demand for
@@ -3066,7 +3113,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0100
+**Owning stories:** STORY-0092
 
 **Preconditions:**
 - A warehouse holds a known stock quantity of an item
@@ -3091,7 +3138,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0101
+**Owning stories:** STORY-0018
 
 **Preconditions:**
 - A producer with spare capacity exists on the map
@@ -3116,7 +3163,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0104
+**Owning stories:** STORY-0021
 
 **Preconditions:**
 - One subnetwork with a hospital, a housing block, and an industrial consumer, all wired to the same underpowered producer
@@ -3141,7 +3188,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0109
+**Owning stories:** STORY-0127
 
 **Preconditions:**
 - A treatment plant delivering water at quality 0.80 to a food-factory recipe building requiring quality >= 0.97
@@ -3165,7 +3212,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0114
+**Owning stories:** STORY-0132
 
 **Preconditions:**
 - A sewage treatment plant configured per spec (chemicals+power+workers -> water)
@@ -3188,7 +3235,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0115
+**Owning stories:** STORY-0133
 
 **Preconditions:**
 - A producer generating sewage into a local buffer
@@ -3212,7 +3259,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0118
+**Owning stories:** STORY-0030
 
 **Preconditions:**
 - A building with temperature-driven heat demand wired into the district heat network
@@ -3236,7 +3283,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0119
+**Owning stories:** STORY-0031
 
 **Preconditions:**
 - A building's heat pipe delivery is below its (mocked/fixed) temperature-driven demand
@@ -3260,7 +3307,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0122, STORY-0116
+**Owning stories:** STORY-0136, STORY-0028
 
 **Preconditions:**
 - An incinerator building configured to consume waste_burnable
@@ -3286,7 +3333,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0121
+**Owning stories:** STORY-0135
 
 **Preconditions:**
 - A garbage office with an available truck
@@ -3310,7 +3357,7 @@
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0106
+**Owning stories:** STORY-0023
 
 **Preconditions:**
 - An import transformer built at a border tile
@@ -3334,7 +3381,7 @@
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0107
+**Owning stories:** STORY-0024
 
 **Preconditions:**
 - A building wired to a powered network with no active recipe running
@@ -3357,7 +3404,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0108
+**Owning stories:** STORY-0025
 
 **Preconditions:**
 - A wire network large enough that a full resolve cannot complete within one tick's budget
@@ -3380,7 +3427,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0112
+**Owning stories:** STORY-0130
 
 **Preconditions:**
 - A substation flagged residential-only with spare capacity
@@ -3404,7 +3451,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0122
+**Owning stories:** STORY-0136
 
 **Preconditions:**
 - One container with per-type sorting bins in use
@@ -3429,7 +3476,7 @@
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0117
+**Owning stories:** STORY-0029
 
 **Preconditions:**
 - A district heat trunk line running through a pumping station to downstream buildings
@@ -3453,7 +3500,7 @@
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0109
+**Owning stories:** STORY-0127
 
 **Preconditions:**
 - An animal farm, a food factory, and a nuclear cooling consumer each wired to the same network
@@ -3474,11 +3521,42 @@
 **Sources:**
 - `spec/water.md:20`
 
-## SCENARIO-0141 — Delivery waits when no compatible vehicle is idle
+## SCENARIO-0141 — Outdoor temperature is reproducible across a save/load round-trip
+
+**Kind:** contract
+**Proof seam:** integration
+**Owning stories:** STORY-0138
+
+**Preconditions:**
+- A deterministic TestCtx world with a fixed seed and weather enabled
+- No other systems need to be active for this scenario
+
+**Action:**
+- Tick the world to an arbitrary point mid-cycle and record T(t)
+- Save the world, then load it back into a fresh TestCtx
+- Tick the loaded world by zero ticks and read T(t) again
+- Tick both the original (had it kept running) and the loaded world forward by the same number of ticks and compare
+
+**Expected observables:**
+- T(t) is a finite value consistent with the annual/diurnal cycle
+- The load succeeds with no error
+- T(t) immediately after load equals T(t) immediately before save, bit-for-bit
+- The two T(t) trajectories are identical
+- The per-tick state hash is identical between the two runs
+- T(t) is bit-for-bit reproducible across a save/load round-trip
+- No nondeterminism is introduced by the weather subsystem
+
+**Automation status:** pending
+**Execution command:** TBD
+
+**Sources:**
+- `spec/heating.md:26-36`
+
+## SCENARIO-0142 — Delivery waits when no compatible vehicle is idle
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0125
+**Owning stories:** STORY-0140
 
 **Preconditions:**
 - A buy order and matching sell order exist for a resource
@@ -3500,11 +3578,11 @@
 **Sources:**
 - `spec/vehicles.md:95-97`
 
-## SCENARIO-0142 — External buy order does not resolve instantly once queue requirement is in place
+## SCENARIO-0143 — External buy order does not resolve instantly once queue requirement is in place
 
 **Kind:** contract
 **Proof seam:** integration
-**Owning stories:** STORY-0028
+**Owning stories:** STORY-0051
 
 **Preconditions:**
 - A buy order is unmet by any internal seller
@@ -3526,11 +3604,11 @@
 **Sources:**
 - `spec/logistics.md:48-58`
 
-## SCENARIO-0143 — External customs partner has a throughput cap
+## SCENARIO-0144 — External customs partner has a throughput cap
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0028
+**Owning stories:** STORY-0051
 
 **Preconditions:**
 - N buy orders exceed the customs partner's per-tick throughput limit
@@ -3551,11 +3629,11 @@
 **Sources:**
 - `spec/logistics.md:48-58,95-100`
 
-## SCENARIO-0144 — External buy fails cleanly when no freight station exists
+## SCENARIO-0145 — External buy fails cleanly when no freight station exists
 
 **Kind:** failure-recovery
 **Proof seam:** unit
-**Owning stories:** STORY-0029
+**Owning stories:** STORY-0052
 
 **Preconditions:**
 - An unmet buy order exists
@@ -3576,11 +3654,11 @@
 **Sources:**
 - `spec/logistics.md:95-100`
 
-## SCENARIO-0145 — External sell fails cleanly when no freight station exists
+## SCENARIO-0146 — External sell fails cleanly when no freight station exists
 
 **Kind:** failure-recovery
 **Proof seam:** unit
-**Owning stories:** STORY-0029
+**Owning stories:** STORY-0052
 
 **Preconditions:**
 - A sell order has surplus qty_sell > 0
@@ -3602,11 +3680,11 @@
 **Sources:**
 - `spec/logistics.md:95-100`
 
-## SCENARIO-0146 — Incompatible cargo class is never matched
+## SCENARIO-0147 — Incompatible cargo class is never matched
 
 **Kind:** contract
 **Proof seam:** unit
-**Owning stories:** STORY-0130
+**Owning stories:** STORY-0035
 
 **Preconditions:**
 - A sell order for gravel and a buy order for bagged goods exist at the same position (distance2 = 0)
@@ -3626,11 +3704,11 @@
 **Sources:**
 - `spec/logistics.md:31-40`
 
-## SCENARIO-0147 — Deficit priority outranks pure distance
+## SCENARIO-0148 — Deficit priority outranks pure distance
 
 **Kind:** surface
 **Proof seam:** unit
-**Owning stories:** STORY-0136
+**Owning stories:** STORY-0146
 
 **Preconditions:**
 - Seller with sufficient stock exists
@@ -3650,11 +3728,11 @@
 **Sources:**
 - `spec/logistics.md:60-72`
 
-## SCENARIO-0148 — Empty fuel tank halts vehicle dispatch
+## SCENARIO-0149 — Empty fuel tank halts vehicle dispatch
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0124
+**Owning stories:** STORY-0139
 
 **Preconditions:**
 - A Vehicle entity has fuel = 0
@@ -3674,11 +3752,11 @@
 **Sources:**
 - `spec/vehicles.md:56-58`
 
-## SCENARIO-0149 — Depot cannot exceed its physical parking slot count
+## SCENARIO-0150 — Depot cannot exceed its physical parking slot count
 
 **Kind:** failure-recovery
 **Proof seam:** integration
-**Owning stories:** STORY-0126
+**Owning stories:** STORY-0141
 
 **Preconditions:**
 - A depot has N reserved parking slots, all currently occupied by N vehicles
@@ -3696,11 +3774,11 @@
 **Sources:**
 - `spec/vehicles.md:22-24,64`
 
-## SCENARIO-0150 — Dispatch progresses through all four states in order
+## SCENARIO-0151 — Dispatch progresses through all four states in order
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0139
+**Owning stories:** STORY-0149
 
 **Preconditions:**
 - A vehicle is assigned a fresh dispatch for a buy/sell pair at different positions
@@ -3725,11 +3803,11 @@
 **Sources:**
 - `spec/logistics.md:32,111`
 
-## SCENARIO-0151 — Vehicle at zero condition produces scrap materials, not deletion
+## SCENARIO-0152 — Vehicle at zero condition produces scrap materials, not deletion
 
 **Kind:** surface
 **Proof seam:** integration
-**Owning stories:** STORY-0129
+**Owning stories:** STORY-0144
 
 **Preconditions:**
 - A Vehicle entity's condition has reached zero this tick

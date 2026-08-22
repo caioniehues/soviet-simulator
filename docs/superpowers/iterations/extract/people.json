@@ -9,13 +9,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Saving then loading the simulation reproduces every HumanEnt's PersonalInfo fields byte-identical to the pre-save state. [SUBSTRATE: PROVIDED — souls/human.rs PersonalInfo in HumanEnt, whole sim serialized via CompressedBincode]",
+          "text": "Saving then loading the simulation reproduces every HumanEnt's PersonalInfo fields byte-identical to the pre-save state. [SUBSTRATE: PROVIDED \u2014 souls/human.rs PersonalInfo in HumanEnt, whole sim serialized via CompressedBincode]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "Two citizens with identical attribute values (age, education, etc.) remain distinguishable by stable entity/soul reference after a reload — souls are not fungible. [SUBSTRATE: PROVIDED — HumanEnt entity identity via ECS, egregoria-substrate-audit.md sec.5]",
+          "text": "Two citizens with identical attribute values (age, education, etc.) remain distinguishable by stable entity/soul reference after a reload \u2014 souls are not fungible. [SUBSTRATE: PROVIDED \u2014 HumanEnt entity identity via ECS, egregoria-substrate-audit.md sec.5]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -40,13 +40,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A citizen's Work.workplace value does not change absent an explicit reassignment event (job loss, workplace destroyed, plan reassignment). [SUBSTRATE: PROVIDED — souls/desire/work.rs:20-26]",
+          "text": "A citizen's Work.workplace value does not change absent an explicit reassignment event (job loss, workplace destroyed, plan reassignment). [SUBSTRATE: PROVIDED \u2014 souls/desire/work.rs:20-26]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "The workplace binding persists unchanged across a save/load cycle. [SUBSTRATE: PROVIDED — souls/human.rs HumanEnt via CompressedBincode]",
+          "text": "The workplace binding persists unchanged across a save/load cycle. [SUBSTRATE: PROVIDED \u2014 souls/human.rs HumanEnt via CompressedBincode]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -71,13 +71,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "When a buy order is matched but the citizen has not yet arrived at the shop, neither shop stock nor citizen/household inventory changes. [SUBSTRATE: PROVIDED — souls/desire/buyfood.rs:50-54, the spec's target bug is already fixed]",
+          "text": "When a buy order is matched but the citizen has not yet arrived at the shop, neither shop stock nor citizen/household inventory changes. [SUBSTRATE: PROVIDED \u2014 souls/desire/buyfood.rs:50-54, the spec's target bug is already fixed]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "Stock debit and buyer credit occur atomically at the tick of physical arrival, not at the tick the trade was matched. [SUBSTRATE: PROVIDED — souls/desire/buyfood.rs:50-54]",
+          "text": "Stock debit and buyer credit occur atomically at the tick of physical arrival, not at the tick the trade was matched. [SUBSTRATE: PROVIDED \u2014 souls/desire/buyfood.rs:50-54]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -102,43 +102,43 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A CitizenNeeds structure exists with distinct 0..1 fields for food, warmth, water, health, housingSpace, housingQuality and rest. [SUBSTRATE: ABSENT — greenfield; today only three score() functions (Home constant 0.2, Work binary window, BuyFood hunger clock) exist in souls/human.rs:190-231, no CitizenNeeds struct]",
+          "text": "A CitizenNeeds structure exists with distinct 0..1 fields for food, warmth, water, health, housingSpace, housingQuality and rest. [SUBSTRATE: ABSENT \u2014 greenfield; today only three score() functions (Home constant 0.2, Work binary window, BuyFood hunger clock) exist in souls/human.rs:190-231, no CitizenNeeds struct]",
           "behavioral_impact": "journey",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "Each need decays over simulated time and refills only on a real satisfying event (goods delivered, or a trip to a stocked/staffed building), never by ambient coverage. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "Each need decays over simulated time and refills only on a real satisfying event (goods delivered, or a trip to a stocked/staffed building), never by ambient coverage. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "Wants (consumer goods, culture, leisure) and aspirations (car, bigger flat, education) are tracked as a separate slower-updating layer whose chronic pressure can cross a threshold and become economic demand. [SUBSTRATE: ABSENT — greenfield, OURS per spec/needs.md]",
+          "text": "Wants (consumer goods, culture, leisure) and aspirations (car, bigger flat, education) are tracked as a separate slower-updating layer whose chronic pressure can cross a threshold and become economic demand. [SUBSTRATE: ABSENT \u2014 greenfield, OURS per spec/needs.md]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "A loyalty/political-legitimacy meta-need is tracked as a satisfaction-driven aggregate distinct from the per-citizen needs/wants/aspirations fields, moved by broadcast/propaganda and monument-style sources. [SUBSTRATE: ABSENT — greenfield, W&R $MONUMENT_GOVERNMENT_LOYALTY per spec/needs.md:67]",
+          "text": "A loyalty/political-legitimacy meta-need is tracked as a satisfaction-driven aggregate distinct from the per-citizen needs/wants/aspirations fields, moved by broadcast/propaganda and monument-style sources. [SUBSTRATE: ABSENT \u2014 greenfield, W&R $MONUMENT_GOVERNMENT_LOYALTY per spec/needs.md:67]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-5",
-          "text": "The wants layer has named fields (goods, alcohol, culture, sport, spiritual, recreation) and each field's satisfaction is spatial and quality-weighted: pollution near the serving building lowers it, nature/water proximity raises it. [SUBSTRATE: ABSENT — greenfield, W&R $ATTRACTIVE_FACTOR_* per spec/needs.md:30-36,72-75]",
+          "text": "The wants layer has named fields (goods, alcohol, culture, sport, spiritual, recreation) and each field's satisfaction is spatial and quality-weighted: pollution near the serving building lowers it, nature/water proximity raises it. [SUBSTRATE: ABSENT \u2014 greenfield, W&R $ATTRACTIVE_FACTOR_* per spec/needs.md:30-36,72-75]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-6",
-          "text": "Durable needs (housing, appliances, car) resolve and are tracked at household level, while consumable needs (food, health, education) resolve and are tracked at individual-citizen level. [SUBSTRATE: ABSENT — greenfield per spec/needs.md:82 open-question resolution]",
+          "text": "Durable needs (housing, appliances, car) resolve and are tracked at household level, while consumable needs (food, health, education) resolve and are tracked at individual-citizen level. [SUBSTRATE: ABSENT \u2014 greenfield per spec/needs.md:82 open-question resolution]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-7",
-          "text": "Needs recompute on the simulation clock's low-frequency band while aspirations recompute on the distinctly slower very-low (months) band; an aspiration's pressure value does not change on a tick where only the needs band fired. [SUBSTRATE: ABSENT — greenfield, architecture/simulation-clock.md per spec/needs.md:79]",
+          "text": "Needs recompute on the simulation clock's low-frequency band while aspirations recompute on the distinctly slower very-low (months) band; an aspiration's pressure value does not change on a tick where only the needs band fired. [SUBSTRATE: ABSENT \u2014 greenfield, architecture/simulation-clock.md per spec/needs.md:79]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -167,25 +167,25 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A Household entity groups member citizens under one dwellingRef and one shared pantry buffer, capped at an authored constant (not hardcoded to CS1's fixed value of 5) so the cap can be tuned without a code change. [SUBSTRATE: ABSENT — greenfield; every human currently owns its own home and its own pantry, no Household entity exists; cap value is an open question per spec/households.md:65]",
+          "text": "A Household entity groups member citizens under one dwellingRef and one shared pantry buffer, capped at an authored constant (not hardcoded to CS1's fixed value of 5) so the cap can be tuned without a code change. [SUBSTRATE: ABSENT \u2014 greenfield; every human currently owns its own home and its own pantry, no Household entity exists; cap value is an open question per spec/households.md:65]",
           "behavioral_impact": "journey",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "Consumption by any household member debits the shared household pantry, not a private per-citizen stock. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "Consumption by any household member debits the shared household pantry, not a private per-citizen stock. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "A dwellingRef of zero represents a household with no assigned flat (in the housing queue), distinct from an assigned dwelling. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "A dwellingRef of zero represents a household with no assigned flat (in the housing queue), distinct from an assigned dwelling. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-4",
-          "text": "A new household pantry starts at 200, drains 20 per step from consumption, and triggers a shopping trip once it falls below 200, refilling by 100 per completed trip. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED constants per spec/households.md:34]",
+          "text": "A new household pantry starts at 200, drains 20 per step from consumption, and triggers a shopping trip once it falls below 200, refilling by 100 per completed trip. [SUBSTRATE: ABSENT \u2014 greenfield, CS1 CONFIRMED constants per spec/households.md:34]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -210,19 +210,19 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A household with no vacancy assigned enters a queue ranked by policy weights (priority class, workplace proximity, family-size-to-flat-size fit); queue length is a value the player can read, and no dwelling or household carries a price/affordability field of any kind — queue position, never money, gates assignment. [SUBSTRATE: ABSENT — greenfield, OURS per spec/households.md; CS1's equivalent is an invisible priority x distance market, no visible queue exists; spec/households.md:16 'No RCI bar']",
+          "text": "A household with no vacancy assigned enters a queue ranked by policy weights (priority class, workplace proximity, family-size-to-flat-size fit); queue length is a value the player can read, and no dwelling or household carries a price/affordability field of any kind \u2014 queue position, never money, gates assignment. [SUBSTRATE: ABSENT \u2014 greenfield, OURS per spec/households.md; CS1's equivalent is an invisible priority x distance market, no visible queue exists; spec/households.md:16 'No RCI bar']",
           "behavioral_impact": "journey",
           "proof_seam": "app-level"
         },
         {
           "id": "AC-2",
-          "text": "A household displaced by building loss or eviction re-enters the queue; it is never deleted from the simulation for lack of housing. [SUBSTRATE: ABSENT — greenfield; explicitly rejects CS1's ResidentAI.cs:2434-2445 citizen-deletion pattern per spec/households.md evidence log]",
+          "text": "A household displaced by building loss or eviction re-enters the queue; it is never deleted from the simulation for lack of housing. [SUBSTRATE: ABSENT \u2014 greenfield; explicitly rejects CS1's ResidentAI.cs:2434-2445 citizen-deletion pattern per spec/households.md evidence log]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "Overcrowding (two households doubled into one flat) is a representable, distinguishable state from a normally-assigned flat. [SUBSTRATE: ABSENT — greenfield; capacity is authored as flats x max_household_size specifically to make overcrowding representable]",
+          "text": "Overcrowding (two households doubled into one flat) is a representable, distinguishable state from a normally-assigned flat. [SUBSTRATE: ABSENT \u2014 greenfield; capacity is authored as flats x max_household_size specifically to make overcrowding representable]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -247,31 +247,19 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A vacancy is only filled by a citizen who meets the slot's minimum education tier. [SUBSTRATE: CONFLICTS — today a job vacancy is literally traded as ItemID::new(\"job-opening\") matched purely by squared Euclidean distance, souls/human.rs:267-269 and economy/market.rs:216, with no education check at all]",
+          "text": "A vacancy is only filled by a citizen who meets the slot's minimum education tier. [SUBSTRATE: CONFLICTS \u2014 today a job vacancy is literally traded as ItemID::new(\"job-opening\") matched purely by squared Euclidean distance, souls/human.rs:267-269 and economy/market.rs:216, with no education check at all]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A candidate whose commute time (or distance under an authored feasibility threshold) exceeds the allocator's limit is not assigned to that vacancy even if no closer candidate exists. [SUBSTRATE: CONFLICTS — no commute feasibility check exists in the current distance-ranked trade, market.rs:216-219]",
+          "text": "A candidate whose commute time (or distance under an authored feasibility threshold) exceeds the allocator's limit is not assigned to that vacancy even if no closer candidate exists. [SUBSTRATE: CONFLICTS \u2014 no commute feasibility check exists in the current distance-ranked trade, market.rs:216-219]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "An overqualified citizen may fill a lower-tier slot but a lower-tier citizen is never assigned above their tier; filling below tier costs the citizen wellbeing. [SUBSTRATE: ABSENT — greenfield; no wellbeing field or overqualification cascade exists on HumanEnt today]",
-          "behavioral_impact": "journey",
-          "proof_seam": "integration"
-        },
-        {
-          "id": "AC-4",
-          "text": "A citizen's work-attendance probability scales continuously with wellbeing (workProbability(wellbeing)), and sustained low wellbeing raises that citizen's contribution to the crime rate, mirroring the CS1 GetCrimeRate/GetWorkProbability coupling. [SUBSTRATE: ABSENT — greenfield; no wellbeing-driven crime or attendance-probability coupling exists today, CS1 CONFIRMED per spec/needs.md:65]",
-          "behavioral_impact": "cross-surface",
-          "proof_seam": "integration"
-        },
-        {
-          "id": "AC-5",
-          "text": "Commute trips are timed by a time-of-day probability curve rather than a uniform/random departure time, matching the CS1 commute-timing shape. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED shape per spec/citizens.md:65]",
+          "text": "Commute trips are timed by a time-of-day probability curve rather than a uniform/random departure time, matching the CS1 commute-timing shape. [SUBSTRATE: ABSENT \u2014 greenfield, CS1 CONFIRMED shape per spec/citizens.md:65]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -296,25 +284,25 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Citizen health recomputes from physical inputs only (water/sewage access, pollution, garbage, care coverage vs. age-phase requirement) — money never appears in the calculation. [SUBSTRATE: ABSENT — greenfield; HumanEnt has no health or wellbeing field today, only age set once at spawn]",
+          "text": "Citizen health recomputes from physical inputs only (water/sewage access, pollution, garbage, care coverage vs. age-phase requirement) \u2014 money never appears in the calculation. [SUBSTRATE: ABSENT \u2014 greenfield; HumanEnt has no health or wellbeing field today, only age set once at spawn]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A sustained low-health streak triggers a sickness roll; a sick citizen posts a hospital-transport need whose resolution consumes hospital capacity. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "A sustained low-health streak triggers a sickness roll; a sick citizen posts a hospital-transport need whose resolution consumes hospital capacity. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "While sick, a citizen's economic life (work attendance, shopping trips) is frozen until the sickness resolves. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "While sick, a citizen's economic life (work attendance, shopping trips) is frozen until the sickness resolves. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-4",
-          "text": "A citizen's work efficiency scales continuously across the 10-100% range as a function of health, not as a binary sick/not-sick cutoff. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED table `workEfficiency(health)` per spec/citizens.md:61]",
+          "text": "A citizen's work efficiency scales continuously across the 10-100% range as a function of health, not as a binary sick/not-sick cutoff. [SUBSTRATE: ABSENT \u2014 greenfield, CS1 CONFIRMED table `workEfficiency(health)` per spec/citizens.md:61]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -339,25 +327,25 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A citizen's age field increases as simulated time passes. [SUBSTRATE: ABSENT — greenfield; age is set once at spawn and never incremented, per egregoria-substrate-audit.md sec.5]",
+          "text": "A citizen's age field increases as simulated time passes. [SUBSTRATE: ABSENT \u2014 greenfield; age is set once at spawn and never incremented, per egregoria-substrate-audit.md sec.5]",
           "behavioral_impact": "journey",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "Death occurs by an age window widened by poor health and a small accident chance; on death the citizen's household persists with the slot freed, not dissolved. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "Death occurs by an age window widened by poor health and a small accident chance; on death the citizen's household persists with the slot freed, not dissolved. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-3",
-          "text": "Population aging or decline never halts or ends the simulation — it only produces a visible demographic strain signal, consistent with the project's no-game-over principle. [SUBSTRATE: ABSENT — greenfield; no death/lifecycle exists today so no failure-mode behaviour to regress against]",
+          "text": "Population aging or decline never halts or ends the simulation \u2014 it only produces a visible demographic strain signal, consistent with the project's no-game-over principle. [SUBSTRATE: ABSENT \u2014 greenfield; no death/lifecycle exists today so no failure-mode behaviour to regress against]",
           "behavioral_impact": "journey",
           "proof_seam": "app-level"
         },
         {
           "id": "AC-4",
-          "text": "A citizen transitions through coarse lifecycle stages (child -> student -> worker -> pensioner) at named age thresholds, gaining/losing school- and job-eligibility at each transition, rather than a fixed life-stage that never changes as age increases. [SUBSTRATE: ABSENT — greenfield, CS1 shape (AgeGroup thresholds a la 15/45/90/180/240) per spec/citizens.md:32,70]",
+          "text": "A citizen transitions through coarse lifecycle stages (child -> student -> worker -> pensioner) at named age thresholds, gaining/losing school- and job-eligibility at each transition, rather than a fixed life-stage that never changes as age increases. [SUBSTRATE: ABSENT \u2014 greenfield, CS1 shape (AgeGroup thresholds a la 15/45/90/180/240) per spec/citizens.md:32,70]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         }
@@ -378,23 +366,23 @@
       "epic_theme": "Needs & Consumption",
       "as_a": "Planner",
       "i_want": "a citizen whose need cannot currently be met to show a visible queuing or going-without state, rather than an order that silently sits unmatched",
-      "so_that": "shortage is felt and actionable — a longer queue or going without, never an invisible stall or a game-over",
+      "so_that": "shortage is felt and actionable \u2014 a longer queue or going without, never an invisible stall or a game-over",
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "An unmatched buy order surfaces the citizen in an observable waiting/queued state rather than the order sitting with no player-visible signal. [SUBSTRATE: ABSENT — greenfield; there is no wait/substitute/go-without state machine, an unmatched buy order just sits, economy/market.rs]",
+          "text": "An unmatched buy order surfaces the citizen in an observable waiting/queued state rather than the order sitting with no player-visible signal. [SUBSTRATE: ABSENT \u2014 greenfield; there is no wait/substitute/go-without state machine, an unmatched buy order just sits, economy/market.rs]",
           "behavioral_impact": "journey",
           "proof_seam": "app-level"
         },
         {
           "id": "AC-2",
-          "text": "Wait-time urgency reuses the elapsed-since-last-satisfied clock already computed for hunger as its felt-urgency signal. [SUBSTRATE: PARTIAL — souls/human.rs:190-231, BuyFood::score already computes urgency from elapsed time since last eating, ready-made hook per audit sec.5]",
+          "text": "Wait-time urgency reuses the elapsed-since-last-satisfied clock already computed for hunger as its felt-urgency signal. [SUBSTRATE: PARTIAL \u2014 souls/human.rs:190-231, BuyFood::score already computes urgency from elapsed time since last eating, ready-made hook per audit sec.5]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-3",
-          "text": "When urgency crosses a threshold and no substitute good/building is available, the citizen enters an observable 'going without' state rather than despawning, error-looping, or waiting silently forever. [SUBSTRATE: ABSENT — greenfield]",
+          "text": "When urgency crosses a threshold and no substitute good/building is available, the citizen enters an observable 'going without' state rather than despawning, error-looping, or waiting silently forever. [SUBSTRATE: ABSENT \u2014 greenfield]",
           "behavioral_impact": "journey",
           "proof_seam": "app-level"
         }
@@ -419,13 +407,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Each human's re-decision interval remains a randomized 30-80 tick stagger, spatially seeded, so the population is not all re-evaluated on the same tick. [SUBSTRATE: PROVIDED — souls/human.rs:185, 30 + rand2(pos)*50 ticks]",
+          "text": "Each human's re-decision interval remains a randomized 30-80 tick stagger, spatially seeded, so the population is not all re-evaluated on the same tick. [SUBSTRATE: PROVIDED \u2014 souls/human.rs:185, 30 + rand2(pos)*50 ticks]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-2",
-          "text": "A profiled population ceiling exists and is documented — full-human-collection update time per tick stays under a stated frame budget at that ceiling. [SUBSTRATE: UNAUDITED — population ceiling is UNCONFIRMED per egregoria-substrate-audit.md sec.5/sec.9, needs runtime profiling, not a code read]",
+          "text": "A profiled population ceiling exists and is documented \u2014 full-human-collection update time per tick stays under a stated frame budget at that ceiling. [SUBSTRATE: UNAUDITED \u2014 population ceiling is UNCONFIRMED per egregoria-substrate-audit.md sec.5/sec.9, needs runtime profiling, not a code read]",
           "behavioral_impact": "journey",
           "proof_seam": "process-level"
         }
@@ -450,13 +438,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A birth can occur only when a household has a present couple, both adults, and a free member slot; a household missing any of these three preconditions never produces a birth. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED birth gate per spec/households.md:54]",
+          "text": "A birth can occur only when a household has a present couple, both adults, and a free member slot; a household missing any of these three preconditions never produces a birth. [SUBSTRATE: ABSENT \u2014 greenfield, CS1 CONFIRMED birth gate per spec/households.md:54]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "The per-step birth chance rises from a baseline of 1/12 to 1/8 when the household has childcare access, so improving childcare coverage measurably raises the observed birth rate. [SUBSTRATE: ABSENT — greenfield, CS1 CONFIRMED constants per spec/households.md:54]",
+          "text": "The per-step birth chance rises from a baseline of 1/12 to 1/8 when the household has childcare access, so improving childcare coverage measurably raises the observed birth rate. [SUBSTRATE: ABSENT \u2014 greenfield, CS1 CONFIRMED constants per spec/households.md:54]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -477,19 +465,19 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "A student is assigned a school seat through the same planned-allocation mechanism as a job vacancy (using workBuilding + a Student flag), unifying commute and capacity accounting between work and study. [SUBSTRATE: ABSENT — greenfield, CS1's SetStudentplace trick, CONFIRMED per spec/citizens.md:51]",
+          "text": "A student is assigned a school seat through the same planned-allocation mechanism as a job vacancy (using workBuilding + a Student flag), unifying commute and capacity accounting between work and study. [SUBSTRATE: ABSENT \u2014 greenfield, CS1's SetStudentplace trick, CONFIRMED per spec/citizens.md:51]",
           "behavioral_impact": "journey",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "Each education tier enforces an attended-capacity throughput ceiling (kindergarten 10, school 12, university 3); a citizen cannot occupy a seat beyond the tier's authored throughput. [SUBSTRATE: ABSENT — greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per spec/citizens.md:52]",
+          "text": "Each education tier enforces an attended-capacity throughput ceiling (kindergarten 10, school 12, university 3); a citizen cannot occupy a seat beyond the tier's authored throughput. [SUBSTRATE: ABSENT \u2014 greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per spec/citizens.md:52]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         },
         {
           "id": "AC-3",
-          "text": "A citizen with no attended school/university seat never gains the associated education-tier credential, rejecting CS1's ambient education field where coverage alone grants diplomas. [SUBSTRATE: ABSENT — greenfield; explicitly rejects CS1's ResidentAI.cs:1259-1330 ambient-coverage pattern per spec/citizens.md:52]",
+          "text": "A citizen with no attended school/university seat never gains the associated education-tier credential, rejecting CS1's ambient education field where coverage alone grants diplomas. [SUBSTRATE: ABSENT \u2014 greenfield; explicitly rejects CS1's ResidentAI.cs:1259-1330 ambient-coverage pattern per spec/citizens.md:52]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -510,7 +498,7 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "The labour-pool office dispatches unassigned/temporary workers to a short-lived demand (e.g. a construction site) and, after the demand ends, every dispatched citizen's fixed Work.workplace value is unchanged from before the dispatch. [SUBSTRATE: ABSENT — greenfield, W&R $RESOURCE_SOURCE_WORKERS CONFIRMED, kept as the one W&R pattern per spec/citizens.md:47]",
+          "text": "The labour-pool office dispatches unassigned/temporary workers to a short-lived demand (e.g. a construction site) and, after the demand ends, every dispatched citizen's fixed Work.workplace value is unchanged from before the dispatch. [SUBSTRATE: ABSENT \u2014 greenfield, W&R $RESOURCE_SOURCE_WORKERS CONFIRMED, kept as the one W&R pattern per spec/citizens.md:47]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         }
@@ -531,13 +519,13 @@
       "acceptance_criteria": [
         {
           "id": "AC-1",
-          "text": "Each dwelling prefab carries an authored qualityOfLiving scalar in the observed CONFIRMED range (0.60 khrushchyovka to 1.02 village house), and this value feeds a household member's housingQuality need. [SUBSTRATE: ABSENT — greenfield, W&R CONFIRMED range per spec/households.md:48]",
+          "text": "Each dwelling prefab carries an authored qualityOfLiving scalar in the observed CONFIRMED range (0.60 khrushchyovka to 1.02 village house), and this value feeds a household member's housingQuality need. [SUBSTRATE: ABSENT \u2014 greenfield, W&R CONFIRMED range per spec/households.md:48]",
           "behavioral_impact": "cross-surface",
           "proof_seam": "integration"
         },
         {
           "id": "AC-2",
-          "text": "A residential building requires heat and electricity by default (no dwelling prefab declares a heating/electricity opt-out); only a non-residential prefab may opt out via an explicit disable flag. [SUBSTRATE: ABSENT — greenfield, W&R CONFIRMED-by-absence per spec/households.md:48]",
+          "text": "A residential building requires heat and electricity by default (no dwelling prefab declares a heating/electricity opt-out); only a non-residential prefab may opt out via an explicit disable flag. [SUBSTRATE: ABSENT \u2014 greenfield, W&R CONFIRMED-by-absence per spec/households.md:48]",
           "behavioral_impact": "local",
           "proof_seam": "unit"
         }
@@ -546,6 +534,37 @@
         {
           "file": "spec/households.md",
           "lines": "48"
+        }
+      ]
+    },
+    {
+      "title": "Couple wellbeing to work attendance and crime propensity",
+      "epic_theme": "Crime \u2014 deviance and the justice chain",
+      "as_a": "Planner",
+      "i_want": "a citizen's wellbeing to cost them when filling a below-tier slot, and sustained low wellbeing to raise crime propensity and lower work attendance",
+      "so_that": "wellbeing is a plannable lever on both labour supply and crime, not a cosmetic stat",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "An overqualified citizen may fill a lower-tier slot but a lower-tier citizen is never assigned above their tier; filling below tier costs the citizen wellbeing. [SUBSTRATE: ABSENT \u2014 greenfield; no wellbeing field or overqualification cascade exists on HumanEnt today]",
+          "behavioral_impact": "journey",
+          "proof_seam": "integration"
+        },
+        {
+          "id": "AC-2",
+          "text": "A citizen's work-attendance probability scales continuously with wellbeing (workProbability(wellbeing)), and sustained low wellbeing raises that citizen's contribution to the crime rate, mirroring the CS1 GetCrimeRate/GetWorkProbability coupling. [SUBSTRATE: ABSENT \u2014 greenfield; no wellbeing-driven crime or attendance-probability coupling exists today, CS1 CONFIRMED per spec/needs.md:65]",
+          "behavioral_impact": "cross-surface",
+          "proof_seam": "integration"
+        }
+      ],
+      "sources": [
+        {
+          "file": "spec/citizens.md",
+          "lines": "37-46"
+        },
+        {
+          "file": "docs/egregoria-substrate-audit.md",
+          "lines": "119-129"
         }
       ]
     }

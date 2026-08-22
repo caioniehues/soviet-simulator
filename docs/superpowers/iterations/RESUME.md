@@ -65,5 +65,16 @@ and add it to the sentinel set.
   the wrong monitor.
 - Egregoria pins git *branches* (`egui` master, a personal `yakui` fork's `dev`); lock to commits
   before any distribution.
-- `Lot::generate_along_road` is disabled; nothing may depend on auto-lot generation.
-- Prefer `integration` seams anchored on `TestCtx` (`simulation/src/tests/test_iso.rs`).
+- **`Lot::generate_along_road` is NOT disabled — corrected 2026-08-22.** The inherited brief said it
+  was, and that claim was propagated into ~20 agent dispatches before anyone checked. It is called
+  live from `Map::connect` (`simulation/src/map/map.rs:719`, inside `connect` at :682-733), so roads
+  DO auto-spawn lots today. Disabling it is *pending work*: STORY-0013 "Stop roads from auto-spawning
+  speculative building lots", verdict CONFLICTS, scheduled ITER-0005.
+  Consequence to sequence: `TestCtx::build_house_near` selects from `map().lots()`, which is only
+  populated because auto-generation runs. When STORY-0013 lands, that helper and the `vehicles.rs`
+  tests using it break. The harness must stop depending on auto-lots before ITER-0005.
+- Prefer `integration` seams anchored on `TestCtx` — defined in `simulation/src/tests/mod.rs`
+  (NOT `test_iso.rs`, which is merely a consumer; the earlier citation was wrong). Its `tick()` does
+  serialize → deserialize → per-key hash comparison every tick, a genuine determinism check.
+  It is `pub(crate)` and `#![cfg(test)]`, so an external integration-test crate cannot reach it —
+  a scenario runner must either live inside the crate or the visibility must change.
