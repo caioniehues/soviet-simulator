@@ -32,6 +32,13 @@ pub struct SingleMarket {
     capital: BTreeMap<SoulID, i32>,
     buy_orders: BTreeMap<SoulID, BuyOrder>,
     sell_orders: BTreeMap<SoulID, SellOrder>,
+    /// Stock that has been matched to a buyer but not yet picked up by a dispatch
+    /// (still physically at the seller, so not resellable, but also not yet debited
+    /// from `capital` until the dispatch reaches the `Loading` state).
+    reserved: BTreeMap<SoulID, u32>,
+    /// The quantity a soul wants to request per cycle, which may exceed what its
+    /// recipe actually consumes. Defaults to the recipe amount when unset.
+    requested: BTreeMap<SoulID, u32>,
     pub ext_value: Money,
     optout_exttrade: bool,
 }
@@ -42,6 +49,8 @@ impl SingleMarket {
             capital: Default::default(),
             buy_orders: Default::default(),
             sell_orders: Default::default(),
+            reserved: Default::default(),
+            requested: Default::default(),
             ext_value,
             optout_exttrade,
         }
@@ -56,6 +65,9 @@ impl SingleMarket {
     pub fn sell_order(&self, soul: SoulID) -> Option<&SellOrder> {
         self.sell_orders.get(&soul)
     }
+    pub fn requested(&self, soul: SoulID) -> Option<u32> {
+        self.requested.get(&soul).copied()
+    }
 
     pub fn capital_map(&self) -> &BTreeMap<SoulID, i32> {
         &self.capital
@@ -68,6 +80,9 @@ impl SingleMarket {
 #[derive(Serialize, Deserialize)]
 pub struct Market {
     markets: BTreeMap<ItemID, SingleMarket>,
+    /// Goods that have been matched to a buyer but haven't finished their
+    /// travel-to-source/loading/travel-to-destination/unloading cycle yet.
+    dispatches: Vec<Dispatch>,
     // reuse the trade vec to avoid allocations
     #[serde(skip)]
     all_trades: Vec<Trade>,
@@ -94,6 +109,35 @@ pub fn find_trade_place(target: TradeTarget, binfos: &BuildingInfos) -> Option<B
     binfos.building_owned_by(target.0)
 }
 
+/// How many ticks a dispatch spends travelling to the source, and again travelling
+/// to the destination. ponytail: fixed proxy for travel time, not real vehicle
+/// pathing/speed; upgrade to real trip duration once goods dispatches ride actual
+/// vehicles.
+const DISPATCH_TRAVEL_TICKS: u32 = 3;
+
+/// The stage of a goods dispatch. A trade match doesn't move stock immediately:
+/// the quantity is only debited from the seller when the dispatch transitions into
+/// `Loading`, and only credited to the buyer when it transitions into `Unloading`.
+/// Between those two transitions, the quantity is held by the dispatch itself and
+/// counted in neither soul's capital.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DispatchState {
+    ToSource,
+    Loading,
+    ToDestination,
+    Unloading,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct Dispatch {
+    pub buyer: SoulID,
+    pub seller: SoulID,
+    pub kind: ItemID,
+    pub qty: u32,
+    pub state: DispatchState,
+    ticks_left: u32,
+}
+
 impl Default for Market {
     fn default() -> Self {
         let prices = calculate_prices(1.25);
@@ -101,6 +145,7 @@ impl Default for Market {
             markets: prototypes_iter::<ItemPrototype>()
                 .map(|v| (v.id, SingleMarket::new(prices[&v.id], v.optout_exttrade)))
                 .collect(),
+            dispatches: Default::default(),
             all_trades: Default::default(),
             potential: Default::default(),
         }
@@ -171,6 +216,21 @@ impl Market {
         self.markets.get(&kind).unwrap().capital(soul).unwrap_or(0)
     }
 
+    /// Set the quantity a soul wants to request per cycle for an item. May exceed
+    /// (or fall under) what its recipe actually consumes.
+    pub fn set_requested(&mut self, soul: SoulID, kind: ItemID, qty: u32) {
+        self.m(kind).requested.insert(soul, qty);
+    }
+
+    /// The requested quantity for a soul/item, if one was set with `set_requested`.
+    pub fn requested(&self, soul: SoulID, kind: ItemID) -> Option<u32> {
+        self.markets.get(&kind).and_then(|m| m.requested(soul))
+    }
+
+    pub fn dispatches(&self) -> &[Dispatch] {
+        &self.dispatches
+    }
+
     /// Registers a soul to the market, not obligatory
     pub fn register(&mut self, soul: SoulID, kind: ItemID) {
         self.m(kind).capital.entry(soul).or_default();
@@ -235,19 +295,23 @@ impl Market {
                 buy_orders,
                 sell_orders,
                 capital,
+                reserved,
                 optout_exttrade,
                 ext_value,
                 ..
             } = market;
 
+            let dispatch_start = self.all_trades.len();
+
             self.all_trades
                 .extend(self.potential.drain(..).filter_map(|(trade, _)| {
-                    let cap_seller = capital.entry(trade.seller.0).or_default();
-                    if *cap_seller < trade.qty {
+                    let cap_seller = *capital.entry(trade.seller.0).or_default();
+                    let already_reserved =
+                        reserved.get(&trade.seller.0).copied().unwrap_or(0) as i32;
+                    if cap_seller - already_reserved < trade.qty {
                         return None;
                     }
 
-                    let cap_buyer = capital.entry(trade.buyer.0).or_default();
                     let border = buy_orders.entry(trade.buyer.0);
 
                     match border {
@@ -274,12 +338,24 @@ impl Market {
                         sorderocc.remove();
                     }
 
-                    // Safety: buyer cannot be the same as seller
-                    *cap_buyer += trade.qty;
-                    *capital.get_mut(&trade.seller.0).unwrap() -= trade.qty;
+                    // The goods stay physically at the seller (neither capital bucket
+                    // moves yet) until a dispatch actually loads/unloads them; only
+                    // reserve them so they can't be sold again.
+                    *reserved.entry(trade.seller.0).or_default() += trade.qty as u32;
 
                     Some(trade)
                 }));
+
+            for &trade in &self.all_trades[dispatch_start..] {
+                self.dispatches.push(Dispatch {
+                    buyer: trade.buyer.0,
+                    seller: trade.seller.0,
+                    kind,
+                    qty: trade.qty as u32,
+                    state: DispatchState::ToSource,
+                    ticks_left: DISPATCH_TRAVEL_TICKS,
+                });
+            }
 
             // External trading
             if !*optout_exttrade {
@@ -337,6 +413,60 @@ impl Market {
 
     pub fn inner(&self) -> &BTreeMap<ItemID, SingleMarket> {
         &self.markets
+    }
+
+    /// Advances every in-flight dispatch by one tick, sequencing it through
+    /// ToSource -> Loading -> ToDestination -> Unloading. The seller's capital is
+    /// debited exactly on the transition into `Loading`, and the buyer's capital is
+    /// credited exactly on the transition into `Unloading`; must be called once per
+    /// tick for dispatches to ever complete.
+    pub fn advance_dispatches(&mut self) {
+        let mut i = 0;
+        while i < self.dispatches.len() {
+            let (seller, buyer, kind, qty, state, ticks_left) = {
+                let d = &self.dispatches[i];
+                (d.seller, d.buyer, d.kind, d.qty, d.state, d.ticks_left)
+            };
+
+            let mut remove = false;
+            match state {
+                DispatchState::ToSource => {
+                    if ticks_left == 0 {
+                        self.dispatches[i].state = DispatchState::Loading;
+                    } else {
+                        self.dispatches[i].ticks_left = ticks_left - 1;
+                    }
+                }
+                DispatchState::Loading => {
+                    let m = self.m(kind);
+                    *m.capital.entry(seller).or_default() -= qty as i32;
+                    if let Some(r) = m.reserved.get_mut(&seller) {
+                        *r = r.saturating_sub(qty);
+                    }
+                    let d = &mut self.dispatches[i];
+                    d.state = DispatchState::ToDestination;
+                    d.ticks_left = DISPATCH_TRAVEL_TICKS;
+                }
+                DispatchState::ToDestination => {
+                    if ticks_left == 0 {
+                        self.dispatches[i].state = DispatchState::Unloading;
+                    } else {
+                        self.dispatches[i].ticks_left = ticks_left - 1;
+                    }
+                }
+                DispatchState::Unloading => {
+                    let m = self.m(kind);
+                    *m.capital.entry(buyer).or_default() += qty as i32;
+                    remove = true;
+                }
+            }
+
+            if remove {
+                self.dispatches.swap_remove(i);
+            } else {
+                i += 1;
+            }
+        }
     }
 }
 
@@ -412,7 +542,7 @@ mod tests {
     use crate::world::CompanyID;
     use crate::{FreightStationID, SoulID};
 
-    use super::Market;
+    use super::{DispatchState, Market, DISPATCH_TRAVEL_TICKS};
 
     fn mk_ent(id: u64) -> CompanyID {
         CompanyID::from(slotmapd::KeyData::from_ffi(id))
@@ -537,6 +667,150 @@ mod tests {
         assert_eq!(
             prices[&wheat],
             (price_cereal * 2 + 5 * WORKER_CONSUMPTION_PER_MINUTE * 10) / 2
+        );
+    }
+
+    /// SCENARIO: a matched trade must not move stock on its own. Stock only
+    /// leaves the seller when the dispatch enters `Loading`, and only reaches the
+    /// buyer when it enters `Unloading`. Proves the truck is load-bearing, not
+    /// decorative: revert the match-time reservation-only change in `make_trades`
+    /// back to an immediate capital transfer and this test fails at the
+    /// "match must not move seller/buyer stock" assertions.
+    #[test]
+    fn test_dispatch_gates_stock_not_match() {
+        let seller = SoulID::GoodsCompany(mk_ent((1 << 32) | 10));
+        let buyer = SoulID::GoodsCompany(mk_ent((1 << 32) | 11));
+        let freight = SoulID::FreightStation(FreightStationID::from(slotmapd::KeyData::from_ffi(
+            (1 << 32) | 12,
+        )));
+
+        test_prototypes(
+            r#"
+        data:extend {
+          { type = "item", name = "cereal", label = "Cereal" }
+        }
+        "#,
+        );
+
+        let mut m = Market::default();
+        let cereal = ItemID::new("cereal");
+
+        m.produce(seller, cereal, 5);
+        m.sell(seller, Vec2::X, cereal, 5, 0);
+        m.buy(buyer, Vec2::ZERO, cereal, 5);
+
+        let trades = m.make_trades(|_| Some(freight));
+        assert_eq!(trades.len(), 1);
+
+        // The match happened (trade recorded, order book updated) but stock must
+        // still be sitting with the seller, held by the dispatch.
+        assert_eq!(
+            m.capital(seller, cereal),
+            5,
+            "match must not move seller stock"
+        );
+        assert_eq!(
+            m.capital(buyer, cereal),
+            0,
+            "match must not move buyer stock"
+        );
+        assert_eq!(m.dispatches().len(), 1);
+        assert_eq!(m.dispatches()[0].state, DispatchState::ToSource);
+
+        // Burn down ToSource, then the tick that transitions into Loading.
+        let calls_to_debit = DISPATCH_TRAVEL_TICKS + 2;
+        for _ in 0..calls_to_debit - 1 {
+            m.advance_dispatches();
+            assert_eq!(m.capital(seller, cereal), 5, "seller debited too early");
+            assert_eq!(m.capital(buyer, cereal), 0, "buyer credited too early");
+        }
+        m.advance_dispatches();
+        assert_eq!(
+            m.capital(seller, cereal),
+            0,
+            "seller must be debited exactly on entering Loading"
+        );
+        assert_eq!(m.capital(buyer, cereal), 0, "buyer still must not have it");
+
+        // Burn down ToDestination, then the tick that transitions into Unloading.
+        let calls_to_credit = 2 * (DISPATCH_TRAVEL_TICKS + 2);
+        for _ in calls_to_debit..calls_to_credit - 1 {
+            m.advance_dispatches();
+            assert_eq!(m.capital(buyer, cereal), 0, "buyer credited too early");
+        }
+        m.advance_dispatches();
+        assert_eq!(
+            m.capital(buyer, cereal),
+            5,
+            "buyer must be credited exactly on entering Unloading"
+        );
+        assert!(m.dispatches().is_empty());
+    }
+
+    /// SCENARIO: two otherwise-identical companies buy the same item, one honest
+    /// (requests exactly what its recipe consumes) and one inflated (requests more
+    /// than it consumes). Only the inflated one should accumulate surplus stock
+    /// over several cycles.
+    #[test]
+    fn test_inflated_request_hoards_honest_does_not() {
+        let seller = SoulID::GoodsCompany(mk_ent((1 << 32) | 20));
+        let honest = SoulID::GoodsCompany(mk_ent((1 << 32) | 21));
+        let inflated = SoulID::GoodsCompany(mk_ent((1 << 32) | 22));
+        let freight = SoulID::FreightStation(FreightStationID::from(slotmapd::KeyData::from_ffi(
+            (1 << 32) | 23,
+        )));
+
+        test_prototypes(
+            r#"
+        data:extend {
+          { type = "item", name = "cereal", label = "Cereal" }
+        }
+        "#,
+        );
+
+        let mut m = Market::default();
+        let cereal = ItemID::new("cereal");
+
+        const TRUE_CONSUMPTION: u32 = 2;
+        const INFLATED_REQUEST: u32 = 5;
+
+        m.produce(seller, cereal, 1000);
+        m.sell(seller, Vec2::X, cereal, 1000, 0);
+
+        m.set_requested(honest, cereal, TRUE_CONSUMPTION);
+        m.set_requested(inflated, cereal, INFLATED_REQUEST);
+
+        let calls_to_credit = 2 * (DISPATCH_TRAVEL_TICKS + 2);
+
+        for _ in 0..3 {
+            // Both consume exactly what their recipe needs, same as `recipe_act`.
+            let honest_consumed = m.capital(honest, cereal).min(TRUE_CONSUMPTION as i32);
+            m.produce(honest, cereal, -honest_consumed);
+            let inflated_consumed = m.capital(inflated, cereal).min(TRUE_CONSUMPTION as i32);
+            m.produce(inflated, cereal, -inflated_consumed);
+
+            // Both re-request up to their reported (possibly inflated) quantity,
+            // same as `recipe_init`/`recipe_act`.
+            let hq = m.requested(honest, cereal).unwrap();
+            m.buy_until(honest, Vec2::ZERO, cereal, hq);
+            let iq = m.requested(inflated, cereal).unwrap();
+            m.buy_until(inflated, vec2(0.0, 1.0), cereal, iq);
+
+            m.make_trades(|_| Some(freight));
+            for _ in 0..calls_to_credit {
+                m.advance_dispatches();
+            }
+        }
+
+        assert!(
+            m.capital(honest, cereal) <= TRUE_CONSUMPTION as i32,
+            "honest company must not hoard beyond what it truly consumes: {}",
+            m.capital(honest, cereal)
+        );
+        assert!(
+            m.capital(inflated, cereal) > TRUE_CONSUMPTION as i32,
+            "inflated company must accumulate surplus above true consumption: {}",
+            m.capital(inflated, cereal)
         );
     }
 }

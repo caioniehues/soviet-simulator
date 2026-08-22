@@ -99,4 +99,6 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
             SoulID::FreightStation(_) => {}
         }
     }
+
+    m.advance_dispatches();
 }

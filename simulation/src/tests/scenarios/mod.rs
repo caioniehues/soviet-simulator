@@ -14,6 +14,8 @@
 
 use super::*;
 
+mod recipe_provided;
+
 /// Harness smoke test: proves the scenario harness works end to end
 /// (roads, lot-independent building placement, multi-tick advance, and the
 /// periodic determinism check all fire). Not a corpus-numbered scenario.
