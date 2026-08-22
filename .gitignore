@@ -1,19 +1,11 @@
+# --- soviet-simulator ---
 .claude/*
 # The agent roster and what those agents learn are project knowledge, not machine
 # state: they are the only record of why a specialist works the way it does.
 !.claude/agents/
 !.claude/agent-memory/
 CLAUDE.md
-bevy.md
-/target
 /screenshots
-
-
-# Added by cargo
-#
-# already existing elements were commented out
-
-#/target
 /saves
 task_plan.md
 findings.md
@@ -21,3 +13,22 @@ progress.md
 
 # Claude Code dumps local-command transcripts at the repo root
 *-local-command-*.txt
+
+# unrelated vendored clone, not part of this workspace
+/vectiler
+
+# --- inherited from Egregoria ---
+.idea/*
+.idea
+logs
+/target
+target*
+*/target*
+**/*.rs.bk
+*.ini
+world/*
+world
+*.bc
+*.exe
+*.tar.gz
+__pycache__
