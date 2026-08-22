@@ -117,6 +117,12 @@ const VERSION: &str = include_str!("../../VERSION");
 pub struct SimulationOptions {
     pub terrain_size: u16,
     pub save_replay: bool,
+    #[serde(default = "default_seed")]
+    pub seed: u64,
+}
+
+fn default_seed() -> u64 {
+    RNG_SEED
 }
 
 impl Default for SimulationOptions {
@@ -124,6 +130,7 @@ impl Default for SimulationOptions {
         SimulationOptions {
             terrain_size: 50,
             save_replay: true,
+            seed: RNG_SEED,
         }
     }
 }
@@ -179,7 +186,7 @@ impl Simulation {
             resources: Default::default(),
         };
 
-        info!("Seed is {}", RNG_SEED);
+        info!("Seed is {}", opts.seed);
         info!("{:?}", opts);
 
         unsafe {

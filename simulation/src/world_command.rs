@@ -329,6 +329,9 @@ impl WorldCommand {
                 }
 
                 sim.resources
+                    .insert::<RandProvider>(RandProvider::new(opts.seed));
+
+                sim.resources
                     .insert::<SimulationOptions>(SimulationOptions::clone(opts));
             }
             UpdateZone { building, ref zone } => {
