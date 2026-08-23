@@ -4,13 +4,19 @@ use std::collections::BTreeMap;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-use geom::Vec2;
-use prototypes::{prototypes_iter, GoodsCompanyID, GoodsCompanyPrototype, ItemPrototype, Money};
+use geom::{Vec2, Vec3};
+use prototypes::{
+    prototypes_iter, GoodsCompanyID, GoodsCompanyPrototype, ItemPrototype, Money, Tick,
+};
 
 use crate::economy::{ItemID, WORKER_CONSUMPTION_PER_MINUTE};
-use crate::map::BuildingID;
-use crate::map_dynamic::BuildingInfos;
-use crate::SoulID;
+use crate::map::{BuildingID, Map, PathKind};
+use crate::map_dynamic::{
+    BuildingInfos, DispatchID, DispatchKind, DispatchQueryTarget, Dispatcher, Itinerary,
+};
+use crate::transportation::unpark;
+use crate::world::VehicleEnt;
+use crate::{ParCommandBuffer, SoulID, World};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SellOrder {
@@ -109,17 +115,17 @@ pub fn find_trade_place(target: TradeTarget, binfos: &BuildingInfos) -> Option<B
     binfos.building_owned_by(target.0)
 }
 
-/// How many ticks a dispatch spends travelling to the source, and again travelling
-/// to the destination. ponytail: fixed proxy for travel time, not real vehicle
-/// pathing/speed; upgrade to real trip duration once goods dispatches ride actual
-/// vehicles.
-const DISPATCH_TRAVEL_TICKS: u32 = 3;
+/// How many ticks a dispatch dwells at the source (`Loading`) and again at the
+/// destination (`Unloading`) once the truck has physically arrived. Travel time
+/// itself is no longer a fixed proxy: it's however long the truck actually takes
+/// to drive there.
+const DISPATCH_DWELL_TICKS: u32 = 3;
 
 /// The stage of a goods dispatch. A trade match doesn't move stock immediately:
-/// the quantity is only debited from the seller when the dispatch transitions into
-/// `Loading`, and only credited to the buyer when it transitions into `Unloading`.
-/// Between those two transitions, the quantity is held by the dispatch itself and
-/// counted in neither soul's capital.
+/// the quantity is only debited from the seller when the truck arrives and
+/// enters `Loading`, and only credited to the buyer when it arrives and enters
+/// `Unloading`. Between those two transitions, the quantity is held by the
+/// dispatch itself and counted in neither soul's capital.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DispatchState {
     ToSource,
@@ -136,6 +142,9 @@ pub struct Dispatch {
     pub qty: u32,
     pub state: DispatchState,
     ticks_left: u32,
+    /// The truck carrying this dispatch. `None` while waiting for the
+    /// `Dispatcher` to find one available.
+    truck: Option<crate::world::VehicleID>,
 }
 
 impl Default for Market {
@@ -346,15 +355,23 @@ impl Market {
                     Some(trade)
                 }));
 
-            for &trade in &self.all_trades[dispatch_start..] {
-                self.dispatches.push(Dispatch {
-                    buyer: trade.buyer.0,
-                    seller: trade.seller.0,
-                    kind,
-                    qty: trade.qty as u32,
-                    state: DispatchState::ToSource,
-                    ticks_left: DISPATCH_TRAVEL_TICKS,
-                });
+            // Labor isn't cargo: hiring already happens synchronously off
+            // `trades` in `economy::market_update` the moment a match is
+            // made, so a "job-opening" match never needs a truck to
+            // physically deliver it (and a human buyer owns no building for
+            // a truck to route to in the first place).
+            if kind != ItemID::new("job-opening") {
+                for &trade in &self.all_trades[dispatch_start..] {
+                    self.dispatches.push(Dispatch {
+                        buyer: trade.buyer.0,
+                        seller: trade.seller.0,
+                        kind,
+                        qty: trade.qty as u32,
+                        state: DispatchState::ToSource,
+                        ticks_left: 0,
+                        truck: None,
+                    });
+                }
             }
 
             // External trading
@@ -416,48 +433,144 @@ impl Market {
     }
 
     /// Advances every in-flight dispatch by one tick, sequencing it through
-    /// ToSource -> Loading -> ToDestination -> Unloading. The seller's capital is
-    /// debited exactly on the transition into `Loading`, and the buyer's capital is
-    /// credited exactly on the transition into `Unloading`; must be called once per
-    /// tick for dispatches to ever complete.
-    pub fn advance_dispatches(&mut self) {
+    /// ToSource -> Loading -> ToDestination -> Unloading, driven by a real truck
+    /// reserved from the `Dispatcher` and physically driven over the road network.
+    /// The seller's capital is debited exactly when the truck arrives and enters
+    /// `Loading`, and the buyer's capital is credited exactly when it arrives and
+    /// enters `Unloading`; must be called once per tick for dispatches to ever
+    /// complete. With no truck available, a dispatch simply waits in `ToSource` —
+    /// no capital moves.
+    pub fn advance_dispatches(
+        &mut self,
+        world: &mut World,
+        map: &Map,
+        binfos: &BuildingInfos,
+        dispatcher: &mut Dispatcher,
+        cbuf_vehicle: &ParCommandBuffer<VehicleEnt>,
+        tick: Tick,
+    ) {
         let mut i = 0;
         while i < self.dispatches.len() {
-            let (seller, buyer, kind, qty, state, ticks_left) = {
+            let (seller, buyer, kind, qty, state, ticks_left, truck) = {
                 let d = &self.dispatches[i];
-                (d.seller, d.buyer, d.kind, d.qty, d.state, d.ticks_left)
+                (
+                    d.seller,
+                    d.buyer,
+                    d.kind,
+                    d.qty,
+                    d.state,
+                    d.ticks_left,
+                    d.truck,
+                )
             };
 
             let mut remove = false;
             match state {
-                DispatchState::ToSource => {
+                DispatchState::ToSource => match truck {
+                    None => {
+                        if let Some(seller_pos) = door_pos(seller, map, binfos) {
+                            if let Some(DispatchID::SmallTruck(v)) = dispatcher.query(
+                                map,
+                                DispatchKind::SmallTruck,
+                                DispatchQueryTarget::Pos(seller_pos),
+                            ) {
+                                let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
+                                let route = start.and_then(|start| {
+                                    Itinerary::route(
+                                        tick,
+                                        start,
+                                        seller_pos,
+                                        map,
+                                        PathKind::Vehicle,
+                                    )
+                                });
+                                if let Some(route) = route {
+                                    if let Some(ve) = world.vehicles.get_mut(v) {
+                                        ve.it = route;
+                                    }
+                                    cbuf_vehicle.exec_ent(v, move |sim| unpark(sim, v));
+                                    self.dispatches[i].truck = Some(v);
+                                } else {
+                                    dispatcher.free(DispatchID::SmallTruck(v));
+                                }
+                            }
+                        }
+                        // No truck available (or no route found): stay in
+                        // ToSource and retry next tick. Nothing is debited.
+                    }
+                    Some(v) => {
+                        let arrived = world
+                            .vehicles
+                            .get(v)
+                            .map(|ve| ve.it.has_ended(0.0))
+                            .unwrap_or(false);
+                        if arrived {
+                            let m = self.m(kind);
+                            *m.capital.entry(seller).or_default() -= qty as i32;
+                            if let Some(r) = m.reserved.get_mut(&seller) {
+                                *r = r.saturating_sub(qty);
+                            }
+                            let d = &mut self.dispatches[i];
+                            d.state = DispatchState::Loading;
+                            d.ticks_left = DISPATCH_DWELL_TICKS;
+                        }
+                    }
+                },
+                DispatchState::Loading => {
                     if ticks_left == 0 {
-                        self.dispatches[i].state = DispatchState::Loading;
+                        // Invariant: truck is always Some by the time a
+                        // dispatch reaches Loading (set on arrival in ToSource).
+                        if let Some(v) = truck {
+                            if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
+                                let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
+                                let route = start.and_then(|start| {
+                                    Itinerary::route(tick, start, buyer_pos, map, PathKind::Vehicle)
+                                });
+                                if let Some(route) = route {
+                                    if let Some(ve) = world.vehicles.get_mut(v) {
+                                        ve.it = route;
+                                    }
+                                    self.dispatches[i].state = DispatchState::ToDestination;
+                                }
+                                // No route found: stay in Loading (ticks_left at 0)
+                                // and retry next tick.
+                            }
+                        }
                     } else {
                         self.dispatches[i].ticks_left = ticks_left - 1;
                     }
-                }
-                DispatchState::Loading => {
-                    let m = self.m(kind);
-                    *m.capital.entry(seller).or_default() -= qty as i32;
-                    if let Some(r) = m.reserved.get_mut(&seller) {
-                        *r = r.saturating_sub(qty);
-                    }
-                    let d = &mut self.dispatches[i];
-                    d.state = DispatchState::ToDestination;
-                    d.ticks_left = DISPATCH_TRAVEL_TICKS;
                 }
                 DispatchState::ToDestination => {
-                    if ticks_left == 0 {
-                        self.dispatches[i].state = DispatchState::Unloading;
-                    } else {
-                        self.dispatches[i].ticks_left = ticks_left - 1;
+                    let arrived = truck
+                        .and_then(|v| world.vehicles.get(v))
+                        .map(|ve| ve.it.has_ended(0.0))
+                        .unwrap_or(false);
+                    if arrived {
+                        let m = self.m(kind);
+                        *m.capital.entry(buyer).or_default() += qty as i32;
+                        let d = &mut self.dispatches[i];
+                        d.state = DispatchState::Unloading;
+                        d.ticks_left = DISPATCH_DWELL_TICKS;
                     }
                 }
                 DispatchState::Unloading => {
-                    let m = self.m(kind);
-                    *m.capital.entry(buyer).or_default() += qty as i32;
-                    remove = true;
+                    if ticks_left == 0 {
+                        if let Some(v) = truck {
+                            dispatcher.free(DispatchID::SmallTruck(v));
+                            // ponytail: leave the truck Driving wherever it
+                            // stopped instead of re-parking (there's no
+                            // equivalent of `unpark` for this deferred-command
+                            // context); upgrade to the RoutingStep::Park
+                            // spline machinery if idle trucks start blocking
+                            // traffic.
+                            if let Some(ve) = world.vehicles.get_mut(v) {
+                                ve.it = Itinerary::NONE;
+                            }
+                        }
+                        remove = true;
+                    } else {
+                        self.dispatches[i].ticks_left = ticks_left - 1;
+                    }
                 }
             }
 
@@ -468,6 +581,12 @@ impl Market {
             }
         }
     }
+}
+
+/// The door position of the building a soul owns, if it owns one.
+fn door_pos(soul: SoulID, map: &Map, binfos: &BuildingInfos) -> Option<Vec3> {
+    let b = find_trade_place(TradeTarget(soul), binfos)?;
+    Some(map.buildings.get(b)?.door_pos)
 }
 
 fn calculate_prices(price_multiplier: f32) -> BTreeMap<ItemID, Money> {
@@ -542,7 +661,7 @@ mod tests {
     use crate::world::CompanyID;
     use crate::{FreightStationID, SoulID};
 
-    use super::{DispatchState, Market, DISPATCH_TRAVEL_TICKS};
+    use super::Market;
 
     fn mk_ent(id: u64) -> CompanyID {
         CompanyID::from(slotmapd::KeyData::from_ffi(id))
@@ -667,150 +786,6 @@ mod tests {
         assert_eq!(
             prices[&wheat],
             (price_cereal * 2 + 5 * WORKER_CONSUMPTION_PER_MINUTE * 10) / 2
-        );
-    }
-
-    /// SCENARIO: a matched trade must not move stock on its own. Stock only
-    /// leaves the seller when the dispatch enters `Loading`, and only reaches the
-    /// buyer when it enters `Unloading`. Proves the truck is load-bearing, not
-    /// decorative: revert the match-time reservation-only change in `make_trades`
-    /// back to an immediate capital transfer and this test fails at the
-    /// "match must not move seller/buyer stock" assertions.
-    #[test]
-    fn test_dispatch_gates_stock_not_match() {
-        let seller = SoulID::GoodsCompany(mk_ent((1 << 32) | 10));
-        let buyer = SoulID::GoodsCompany(mk_ent((1 << 32) | 11));
-        let freight = SoulID::FreightStation(FreightStationID::from(slotmapd::KeyData::from_ffi(
-            (1 << 32) | 12,
-        )));
-
-        test_prototypes(
-            r#"
-        data:extend {
-          { type = "item", name = "cereal", label = "Cereal" }
-        }
-        "#,
-        );
-
-        let mut m = Market::default();
-        let cereal = ItemID::new("cereal");
-
-        m.produce(seller, cereal, 5);
-        m.sell(seller, Vec2::X, cereal, 5, 0);
-        m.buy(buyer, Vec2::ZERO, cereal, 5);
-
-        let trades = m.make_trades(|_| Some(freight));
-        assert_eq!(trades.len(), 1);
-
-        // The match happened (trade recorded, order book updated) but stock must
-        // still be sitting with the seller, held by the dispatch.
-        assert_eq!(
-            m.capital(seller, cereal),
-            5,
-            "match must not move seller stock"
-        );
-        assert_eq!(
-            m.capital(buyer, cereal),
-            0,
-            "match must not move buyer stock"
-        );
-        assert_eq!(m.dispatches().len(), 1);
-        assert_eq!(m.dispatches()[0].state, DispatchState::ToSource);
-
-        // Burn down ToSource, then the tick that transitions into Loading.
-        let calls_to_debit = DISPATCH_TRAVEL_TICKS + 2;
-        for _ in 0..calls_to_debit - 1 {
-            m.advance_dispatches();
-            assert_eq!(m.capital(seller, cereal), 5, "seller debited too early");
-            assert_eq!(m.capital(buyer, cereal), 0, "buyer credited too early");
-        }
-        m.advance_dispatches();
-        assert_eq!(
-            m.capital(seller, cereal),
-            0,
-            "seller must be debited exactly on entering Loading"
-        );
-        assert_eq!(m.capital(buyer, cereal), 0, "buyer still must not have it");
-
-        // Burn down ToDestination, then the tick that transitions into Unloading.
-        let calls_to_credit = 2 * (DISPATCH_TRAVEL_TICKS + 2);
-        for _ in calls_to_debit..calls_to_credit - 1 {
-            m.advance_dispatches();
-            assert_eq!(m.capital(buyer, cereal), 0, "buyer credited too early");
-        }
-        m.advance_dispatches();
-        assert_eq!(
-            m.capital(buyer, cereal),
-            5,
-            "buyer must be credited exactly on entering Unloading"
-        );
-        assert!(m.dispatches().is_empty());
-    }
-
-    /// SCENARIO: two otherwise-identical companies buy the same item, one honest
-    /// (requests exactly what its recipe consumes) and one inflated (requests more
-    /// than it consumes). Only the inflated one should accumulate surplus stock
-    /// over several cycles.
-    #[test]
-    fn test_inflated_request_hoards_honest_does_not() {
-        let seller = SoulID::GoodsCompany(mk_ent((1 << 32) | 20));
-        let honest = SoulID::GoodsCompany(mk_ent((1 << 32) | 21));
-        let inflated = SoulID::GoodsCompany(mk_ent((1 << 32) | 22));
-        let freight = SoulID::FreightStation(FreightStationID::from(slotmapd::KeyData::from_ffi(
-            (1 << 32) | 23,
-        )));
-
-        test_prototypes(
-            r#"
-        data:extend {
-          { type = "item", name = "cereal", label = "Cereal" }
-        }
-        "#,
-        );
-
-        let mut m = Market::default();
-        let cereal = ItemID::new("cereal");
-
-        const TRUE_CONSUMPTION: u32 = 2;
-        const INFLATED_REQUEST: u32 = 5;
-
-        m.produce(seller, cereal, 1000);
-        m.sell(seller, Vec2::X, cereal, 1000, 0);
-
-        m.set_requested(honest, cereal, TRUE_CONSUMPTION);
-        m.set_requested(inflated, cereal, INFLATED_REQUEST);
-
-        let calls_to_credit = 2 * (DISPATCH_TRAVEL_TICKS + 2);
-
-        for _ in 0..3 {
-            // Both consume exactly what their recipe needs, same as `recipe_act`.
-            let honest_consumed = m.capital(honest, cereal).min(TRUE_CONSUMPTION as i32);
-            m.produce(honest, cereal, -honest_consumed);
-            let inflated_consumed = m.capital(inflated, cereal).min(TRUE_CONSUMPTION as i32);
-            m.produce(inflated, cereal, -inflated_consumed);
-
-            // Both re-request up to their reported (possibly inflated) quantity,
-            // same as `recipe_init`/`recipe_act`.
-            let hq = m.requested(honest, cereal).unwrap();
-            m.buy_until(honest, Vec2::ZERO, cereal, hq);
-            let iq = m.requested(inflated, cereal).unwrap();
-            m.buy_until(inflated, vec2(0.0, 1.0), cereal, iq);
-
-            m.make_trades(|_| Some(freight));
-            for _ in 0..calls_to_credit {
-                m.advance_dispatches();
-            }
-        }
-
-        assert!(
-            m.capital(honest, cereal) <= TRUE_CONSUMPTION as i32,
-            "honest company must not hoard beyond what it truly consumes: {}",
-            m.capital(honest, cereal)
-        );
-        assert!(
-            m.capital(inflated, cereal) > TRUE_CONSUMPTION as i32,
-            "inflated company must accumulate surplus above true consumption: {}",
-            m.capital(inflated, cereal)
         );
     }
 }

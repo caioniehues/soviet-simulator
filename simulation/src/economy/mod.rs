@@ -7,7 +7,10 @@
 //! - The market, which is the place where goods are exchanged.
 //! - The government, which is the entity representing the player
 //!
+use crate::map_dynamic::{BuildingInfos, Dispatcher};
 use crate::utils::resources::Resources;
+use crate::world::VehicleEnt;
+use crate::ParCommandBuffer;
 use crate::SoulID;
 use crate::World;
 use egui_inspect::Inspect;
@@ -50,6 +53,10 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
     if tick.0 % TICKS_PER_MINUTE == 0 {
         gvt.money -= n_workers as i64 * WORKER_CONSUMPTION_PER_MINUTE;
     }
+
+    let mut dispatcher = resources.write::<Dispatcher>();
+    let binfos = resources.read::<BuildingInfos>();
+    let cbuf_vehicle = resources.read::<ParCommandBuffer<VehicleEnt>>();
 
     let freights = &world.freight_stations;
 
@@ -100,5 +107,5 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
         }
     }
 
-    m.advance_dispatches();
+    m.advance_dispatches(world, &map, &binfos, &mut dispatcher, &cbuf_vehicle, tick);
 }

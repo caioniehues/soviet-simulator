@@ -14,6 +14,7 @@
 
 use super::*;
 
+mod hoarding;
 mod recipe_provided;
 
 /// Harness smoke test: proves the scenario harness works end to end
