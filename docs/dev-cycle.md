@@ -20,6 +20,53 @@ authoritative for scope.
 Phases 0, 3, 4 and 6 are the ones that catch defects. Phases 1 and 5 are the lead's and are
 never delegated.
 
+## The roster
+
+Fifteen agents in `.claude/agents/`, invoked by name. Every one exists because something specific
+went wrong; each prompt carries that evidence, so the trap is inherited rather than rediscovered.
+
+| Phase | Agent | Tier | Owns |
+|---|---|---|---|
+| 0 | `substrate-cartographer` | opus | What the code, the Lua and the reference game actually do |
+| 0 / 4 | `kornai-economist` | opus | Shortage economy, queue-clearing, the dishonest enterprise |
+| 0 / 4 | `logistics-modeller` | opus | Dispatch, vehicles, routing, congestion — 25 stories |
+| 0 / 4 | `utilities-modeller` | opus | Power, water, sewage, heat, waste, weather — 26 stories |
+| 0 / 4 | `settlement-modeller` | opus | Citizens, households, needs, services — 24 stories |
+| 0 / — | `soviet-authenticity` | sonnet | The fantasy and the look; judges from frames |
+| 2 | `sim-implementer` | sonnet | `simulation/` — ~15,400 lines |
+| 2 | `ui-implementer` | sonnet | `native_app/` — ~3,600 lines |
+| 2 | `data-implementer` | sonnet | `base_mod/*.lua`, `prototypes/` — ~950 lines |
+| 3 | `evidence-auditor` | sonnet | The tests, not the code. Every guard seen failing |
+| 4 | `wiring-auditor` | sonnet | Is it reachable from the running game? |
+| 4 | `ledger-invariant-checker` | opus | Is quantity conserved? Economy diffs only |
+| 4 | `reviewer` *(global)* | opus | General adversarial gate |
+| 6 | `doc-reality-auditor` | sonnet | Docs, agents and tickets vs the code |
+| 6 | `scribe` *(global)* | sonnet | Mines raw transcripts into durable learnings |
+| 7 | `release-engineer` | sonnet | Reproducible builds, pinning, licence |
+| 7 | `perf-engineer` | sonnet | The five bench gates at 250k |
+
+Tiering is deliberate and measured, not cosmetic: **sonnet implements, opus reviews and advises.**
+The quality lever is the review gate, never the implementer's tier. Do not "upgrade" an implementer
+to fix quality — add the gate.
+
+## Starting an iteration
+
+```bash
+br ready                                    # what is unblocked, ranked
+cat docs/superpowers/iterations/RESUME.md   # where the last session stopped
+```
+
+Then Phase 0: dispatch `substrate-cartographer` on every seam the iteration touches, and the domain
+advisor for its cluster. **No brief gets written until the fact-sheet exists.**
+
+Tracking is two-layer, and `br` is the only surface every agent can reach — see `CLAUDE.md`:
+
+| | Where | Who writes |
+|---|---|---|
+| Macro — goal, why, traps | a `br` issue | lead creates, anyone updates |
+| Micro — progress, findings | `br comments add --actor` | the worker itself |
+| Dashboard | Claude tasks | **main session only** — subagents cannot see it |
+
 ---
 
 ## Phase 0 — GROUND
@@ -237,6 +284,31 @@ and persistent cartographer memory are load-bearing, not polish.
   confirmed one.
 - Name the verification command, and require real output rather than a claim.
 - Tell it what NOT to touch, and who owns the files it must not write.
+
+## How this relates to the `iterative-development` skill
+
+Two loops, different scopes. They do not compete.
+
+| | `iterative-development` skill | This document |
+|---|---|---|
+| Scope | The **outer** loop across the whole project | The **inner** loop of one iteration |
+| Answers | *What* to build and in what order | *Who* does each part and *how* it is proven |
+| Artifacts | `requirements/`, `roadmap.md`, `behavior-corpus.md`, `iteration-log.md` | the agent roster, the gates, the phase order |
+
+The skill's `running-an-iteration` gives the canonical steps — sentinel baseline, citation check,
+scope review, decompose into code *and evidence* tasks, dispatch, post-iteration runs, resolve
+`TODO(ITER-NNNN)` markers, wrap up. **Keep following those.** This document refines them with two
+things the generic skill cannot know:
+
+1. **Phase 0 does not exist in the skill.** It was added here because three failures in one session
+   all traced to briefs asserting substrate that did not exist. The skill assumes the requirements
+   describe reality; on a hard fork they frequently do not.
+2. **The skill says "dispatch an implementer"; this says which one, and which gates follow.**
+
+Where the two genuinely conflict, **this document wins**, because it is project-specific and
+evidence-backed. Then fix whichever artifact drifted — do not route around it.
+
+`br` remains authoritative for task state over any plan file, including this one.
 
 ## Standing rules that cut across every phase
 

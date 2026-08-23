@@ -1,4 +1,8 @@
-# Resume — roadmap COMPLETE, the 1.0 scope cut is the open gate
+# Resume — ITER-0000 in flight
+
+**Process: `docs/dev-cycle.md`** — the eight phases and the 15-agent roster. Read it before
+dispatching anything. `br ready` is the live task queue; this file is the narrative handoff.
+
 
 Read this before acting; do not re-derive state. Rewritten 2026-08-22 (the previous
 version said "roadmap is next" — it predated commit `2f0cbf0`).

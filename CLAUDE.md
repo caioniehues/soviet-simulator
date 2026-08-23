@@ -14,8 +14,11 @@ state. Two design pillars constrain every change:
 
 Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
 
+- **How work gets done: `docs/dev-cycle.md`.** Eight phases, the 15-agent roster and what each is
+  for. Every phase names the failure it exists to prevent. Read it before running a wave.
 - Plan of record: `docs/charter-1.0.md`. It **binds on scope**; `spec/` wins on mechanism inside an
   in-scope rung. Its Post-1.0 and Never lists are absolute.
+- Art direction: `docs/art-direction.md`. Palette, the look, and the asset provenance table.
 - Live plan: `docs/superpowers/iterations/` — `roadmap.md`, `RESUME.md` (read this first),
   `requirements/EPIC-*.md`.
 - Substrate reality vs the specs: `docs/egregoria-substrate-audit.md`.

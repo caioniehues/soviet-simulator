@@ -52,6 +52,12 @@ even as flavour text.
 
 ## Where your domain lives
 
+- **`docs/art-direction.md`** — read this first. The existing art bible: "W&R-adjacent industrial
+  realism, achieved with our own procedural geometry + CC0 materials. Gritty, weathered, materially
+  honest." It carries the palette table, the one-paragraph look, and an **asset provenance table** —
+  every non-procedural asset is supposed to have a row. Its stated rule is *no extracted assets*.
+  It predates the hard fork and contains at least two stale engine references, so verify its
+  technical claims while trusting its aesthetic direction.
 - `native_app/src/` — 58 files, ~3,600 lines: panels, HUD, tools, readouts
 - `assets/` — 2,584 PNGs, 31 WGSL shaders under `assets/shaders/`
 - `base_mod/colors.lua` — the palette
