@@ -199,7 +199,19 @@ impl Market {
             market.sell_orders.remove(&soul);
             market.buy_orders.remove(&soul);
             market.capital.remove(&soul);
+            market.reserved.remove(&soul);
+            market.requested.remove(&soul);
         }
+        // Any dispatch naming this soul as buyer or seller is now a dangling
+        // reference: a still-driving one would otherwise resurrect a phantom
+        // capital row for a soul that no longer exists (or credit a buyer
+        // for goods nobody delivers).
+        // ponytail: a cancelled dispatch's truck (if any) is never freed
+        // back to the Dispatcher here, so it drives off and never returns to
+        // the pool. Out of scope for the ledger fix (see sov-dispatch-wedge-ab4);
+        // upgrade by threading the Dispatcher through if trucks start leaking.
+        self.dispatches
+            .retain(|d| d.buyer != soul && d.seller != soul);
     }
 
     /// Called when an agent tells the world it wants to buy something
@@ -347,10 +359,18 @@ impl Market {
                         sorderocc.remove();
                     }
 
-                    // The goods stay physically at the seller (neither capital bucket
-                    // moves yet) until a dispatch actually loads/unloads them; only
-                    // reserve them so they can't be sold again.
-                    *reserved.entry(trade.seller.0).or_default() += trade.qty as u32;
+                    if kind == ItemID::new("job-opening") {
+                        // A "job-opening" match never gets a dispatch (see
+                        // below), so nothing would ever debit capital or
+                        // release a reservation for it; settle immediately
+                        // instead of reserving.
+                        *capital.entry(trade.seller.0).or_default() -= trade.qty;
+                    } else {
+                        // The goods stay physically at the seller (neither capital bucket
+                        // moves yet) until a dispatch actually loads/unloads them; only
+                        // reserve them so they can't be sold again.
+                        *reserved.entry(trade.seller.0).or_default() += trade.qty as u32;
+                    }
 
                     Some(trade)
                 }));
@@ -358,8 +378,7 @@ impl Market {
             // Labor isn't cargo: hiring already happens synchronously off
             // `trades` in `economy::market_update` the moment a match is
             // made, so a "job-opening" match never needs a truck to
-            // physically deliver it (and a human buyer owns no building for
-            // a truck to route to in the first place).
+            // physically deliver it.
             if kind != ItemID::new("job-opening") {
                 for &trade in &self.all_trades[dispatch_start..] {
                     self.dispatches.push(Dispatch {
@@ -381,11 +400,12 @@ impl Market {
                 self.all_trades.reserve(btaken.len());
                 for (buyer, order) in btaken {
                     let qty_buy = order.qty as i32;
-                    *capital.entry(buyer).or_default() += qty_buy;
 
                     let Some(ext) = find_external(order.pos) else {
                         continue;
                     };
+
+                    *capital.entry(buyer).or_default() += qty_buy;
 
                     self.all_trades.push(Trade {
                         buyer: TradeTarget(buyer),
@@ -396,14 +416,21 @@ impl Market {
                     });
                 }
 
-                // Seller surplus goes to external trading
+                // Seller surplus goes to external trading. Stock already
+                // reserved for a domestic buyer (matched but not yet picked
+                // up by a dispatch) isn't free to export: `sell_all` re-posts
+                // the order off the seller's full capital and forgets any
+                // outstanding reservation, so the surplus here must be
+                // computed against what's actually unreserved.
                 for (&seller, order) in sell_orders.iter_mut() {
-                    let qty_sell = order.qty as i32 - order.stock as i32;
+                    let already_reserved = reserved.get(&seller).copied().unwrap_or(0);
+                    let free_qty = order.qty.saturating_sub(already_reserved);
+                    let qty_sell = free_qty as i32 - order.stock as i32;
                     if qty_sell <= 0 {
                         continue;
                     }
                     let cap = capital.entry(seller).or_default();
-                    if *cap < qty_sell {
+                    if *cap - (already_reserved as i32) < qty_sell {
                         log::warn!("{:?} is selling more than it has: {:?}", &seller, qty_sell);
                         continue;
                     }

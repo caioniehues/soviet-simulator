@@ -13,7 +13,7 @@ use crate::world::CompanyID;
 use crate::SoulID;
 use prototypes::{GoodsCompanyID, ItemID};
 
-fn mk_soul(id: u64) -> SoulID {
+pub(super) fn mk_soul(id: u64) -> SoulID {
     SoulID::GoodsCompany(CompanyID::from(slotmapd::KeyData::from_ffi(id)))
 }
 
@@ -21,7 +21,7 @@ fn mk_soul(id: u64) -> SoulID {
 /// the seller: `economy::market_update`'s trade-application loop unwraps
 /// `world.companies` for any GoodsCompany *seller*, so a fabricated SoulID
 /// there panics. Mirrors `recipe_provided::build_company_at`.
-fn build_company_at(
+pub(super) fn build_company_at(
     ctx: &mut TestCtx,
     proto: &prototypes::GoodsCompanyPrototype,
     p: Vec2,
@@ -48,7 +48,7 @@ fn build_company_at(
 /// SoulID owning a plain house — `Market` only needs a `SoulID` + door
 /// position via `BuildingInfos`, and the buyer side of the trade-application
 /// loop never unwraps a missing company.
-fn setup_seller_buyer(ctx: &mut TestCtx, buyer_x: f32) -> (SoulID, SoulID, Vec3, Vec3) {
+pub(super) fn setup_seller_buyer(ctx: &mut TestCtx, buyer_x: f32) -> (SoulID, SoulID, Vec3, Vec3) {
     ctx.build_roads(&[
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(buyer_x + 60.0, 0.0, 0.0),
@@ -73,7 +73,7 @@ fn setup_seller_buyer(ctx: &mut TestCtx, buyer_x: f32) -> (SoulID, SoulID, Vec3,
 
 /// Ticks until every in-flight dispatch has drained, or `max_ticks` is spent.
 /// Returns whether it drained.
-fn drain_dispatches(ctx: &mut TestCtx, max_ticks: u32) -> bool {
+pub(super) fn drain_dispatches(ctx: &mut TestCtx, max_ticks: u32) -> bool {
     let mut spent = 0;
     while spent < max_ticks {
         let chunk = (max_ticks - spent).min(50);
