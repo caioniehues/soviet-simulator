@@ -116,10 +116,14 @@ mutation-tested, and one asserted arithmetic rather than the behaviour its story
 | 3 | `reviewer` | opus | General adversarial gate — re-derives from source, never from a worker's summary |
 | 4 | domain advisor | opus | Hard sign-off, their cluster only |
 
-**Why the order:** an opus gate costing ~112k found, among seven findings, that `set_requested`
-had zero production callers — the hoarding feature existed as an API and was unreachable from the
-running game. Three greps find that. Run the cheap filter first so opus spends its budget on
-findings only opus can reach.
+**Why the order — and it is not about tokens.** A reachability defect makes every later review
+moot: there is no point auditing the logic, conservation or design of code that nothing calls. Run
+the mechanical filter first so the expensive gates are reviewing code that actually runs.
+
+Proven on the first real run: dispatched blind, `wiring-auditor` independently reproduced two
+findings the ~112k opus gate had produced, and added one it had missed — `Market::dispatches()`
+has no in-game observation surface, so the story's own promise that "the planner catches it from
+observable state" is unmet outside `cargo test`.
 
 Every gate re-derives from primary sources. A verifier that reads the producer's summary is
 grading its own work.
@@ -193,7 +197,13 @@ is consulted far outside ITER-0012.
 
 ---
 
-## What a phase costs
+## What a phase has cost
+
+**These are observations for planning, not budgets.** No agent is held to them, and no agent prompt
+should ever cap depth to hit one. An audit that stops early to save tokens produces a cheaper,
+worse answer — `wiring-auditor`'s first run went well past its designed target and that extra depth
+is exactly what surfaced a finding the more expensive general gate had missed. Narrow the scope of
+a role; never narrow its depth.
 
 Measured from real dispatches, not estimated:
 
@@ -214,6 +224,19 @@ Thirteen iterations remain after ITER-0000. That number is why cheap-filter orde
 and persistent cartographer memory are load-bearing, not polish.
 
 ---
+
+## Briefing an agent
+
+- **Never write "report to team-lead".** There is no reachable agent by that name; the session has
+  its own name (`soviet-simulator-NN`). Both agents in the first real wave burned a failed
+  `SendMessage` on it before falling back. **An agent's final message IS its report** — say that
+  instead, and the lead receives it automatically.
+- Give the brief the raw sources, not your conclusions. A pre-digested brief caps what the worker
+  can find — and if your premise is wrong, the worker inherits the error. Say explicitly when you
+  are deliberately *not* telling it what to look for; a blind audit is stronger evidence than a
+  confirmed one.
+- Name the verification command, and require real output rather than a claim.
+- Tell it what NOT to touch, and who owns the files it must not write.
 
 ## Standing rules that cut across every phase
 
