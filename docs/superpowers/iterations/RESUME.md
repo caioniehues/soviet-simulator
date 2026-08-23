@@ -58,7 +58,34 @@ deathcare, epidemics · dual currency (already deferred: STORY-0054).
 
 `Never` list (never schedule): tourism/hotels/attractions; fires and disasters.
 
-## Next step — ITER-0000, the walking skeleton
+## ITER-0000 in flight — where it actually stands
+
+Commits: `1bc80ca` scope cut · `2fcfd94` harness · `6ea4553` hoard + ledger.
+Suite: `cargo test -p simulation -- --test-threads=1` → **22 passed, 0 failed**.
+ALWAYS use `--test-threads=1` — see `sov-test-race-initfuncs-qt6` (P1): `init.rs` pushes into
+`static mut` globals unsynchronized, so the binary segfaults ~1-in-5 under parallel threads. This
+is PRE-EXISTING, reproduced on an unmodified tree. A green parallel run proves little.
+
+Done: STORY-0105, STORY-0106, STORY-0093–0097. STORY-0149 AC-1/2/3.
+
+**The one real gap: STORY-0149 AC-4.** The delivered "truck" was
+`const DISPATCH_TRAVEL_TICKS: u32 = 3` in `economy/market.rs` — a countdown, not a vehicle. The
+ledger contract is honest and mutation-proven (restoring the match-time transfer fails
+`test_dispatch_gates_stock_not_match` with "match must not move seller stock, left: 0, right: 5"),
+but "nothing teleports" held only as bookkeeping, not physics. User chose to wire the real truck
+rather than defer it. Agent T2b is doing that now.
+
+What T2b must know (verified in source, do not re-derive):
+- `DispatchKind::SmallTruck` already exists and maps to `LaneKind::Driving`; `DispatchID::SmallTruck(VehicleID)` exists. Only the registration in `Dispatcher::update()` is commented out (`dispatch.rs:94-102`) — and that commented block has TWO bugs: it says `DispatchID::Truck(ent)` (real variant is `SmallTruck`) and `truck.trans.position` (trains use `.trans.pos`).
+- `souls/freight_station.rs` is the ONLY correct prior art for driving a dispatched delivery: `resources.write::<Dispatcher>()` at :76, `dispatch.query(map, DispatchKind::FreightTrain, DispatchQueryTarget::Pos(destination), ...)` at :145-148, `dispatch.free(v)` at :132.
+- Company delivery runs through `c.sold.0.pop()` + `WorkKind::Driver` + `HumanDecisionKind::DeliverAtBuilding` (`goods_company.rs:244-263`) and never touches `Market` today.
+
+Still owed after T2b: migrate the two hoarding tests out of `market.rs`'s unit-test module into
+`tests/scenarios/hoarding.rs` under real SCENARIO-IDs (user confirmed corpus traceability
+matters — unit tests cannot run as a sentinel set); STORY-0107's inspection panel; JOURNEY-0001;
+and the 15–20s video.
+
+## Original next-step notes — ITER-0000, the walking skeleton
 
 User goal set 2026-08-22: **ITER-0000 end to end** — harness first, then the 9 stories,
 JOURNEY-0001 passing, opus gate, and a 15–20s video. Not "implement all 130"; that was raised and

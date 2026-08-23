@@ -1,4 +1,5 @@
 use crate::map::{LaneID, LaneKind, TraverseDirection};
+use crate::transportation::VehicleKind;
 use crate::utils::resources::Resources;
 use crate::world::{TrainID, VehicleID};
 use crate::{Map, World};
@@ -91,15 +92,16 @@ impl Dispatcher {
             disp_trains.register(DispatchID::FreightTrain(ent), map, train.trans.pos);
         });
 
-        /*
         let disp_trucks = self
             .dispatches
             .entry(DispatchKind::SmallTruck)
             .or_insert_with(|| DispatchOne::new(DispatchKind::SmallTruck.lane_kind()));
 
         world.vehicles.iter().for_each(|(ent, truck)| {
-            disp_trucks.register(DispatchID::Truck(ent), map, truck.trans.position);
-        })*/
+            if matches!(truck.vehicle.kind, VehicleKind::Truck) {
+                disp_trucks.register(DispatchID::SmallTruck(ent), map, truck.trans.pos);
+            }
+        })
     }
 
     /// Frees the entity as it is no longer used
