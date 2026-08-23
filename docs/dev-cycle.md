@@ -285,6 +285,38 @@ and persistent cartographer memory are load-bearing, not polish.
 - Name the verification command, and require real output rather than a claim.
 - Tell it what NOT to touch, and who owns the files it must not write.
 
+## The skill spines, and which owns what
+
+Three skill toolkits are installed. They operate at different layers and do not compete; the
+mistake to avoid is running two of them as rival ticket flows.
+
+| Toolkit | Layer | Use it for |
+|---|---|---|
+| `iterative-development` | Outer loop | Requirements, roadmap, running an iteration, auditing progress. **Load-bearing here** — it produced the 149-story corpus |
+| `superpowers` | Process primitives | TDD red-green, systematic-debugging, verification-before-completion, code review |
+| `mattpocock-skills` | Interrogation, front of the line | `grilling` / `grill-with-docs` / `domain-modeling` / `writing-for-agents` |
+| **this document** | The iteration | Who does each part, and what gates it |
+
+**Why the interrogation layer was added.** This project's signature failure is documents asserting
+things the code does not do — `CLAUDE.md` pointing at a `bevy.md` that never existed, four agents
+targeting paths deleted days earlier, `RESUME.md` miscounting the corpus by ten stories, requirement
+cards citing reference-game constants copied from prose and never checked, a code comment its own
+sibling file disproves. Pre-fork, a project agent recorded that this codebase "has already shipped
+three ratified documents describing architecture that was never built."
+
+`iterative-development` structurally cannot catch that: it is the thing that *generates* those
+documents, and it assumes the requirements describe reality. On a hard fork they frequently do not.
+So grill a claim **before** it becomes ratified, and let Phase 0 and Phase 6 catch what slips
+through.
+
+**Do not** adopt mattpocock's `to-tickets` / `to-spec` / `triage` / `wayfinder` flows. They are good,
+but they duplicate `br` and the roadmap, and two competing ticket systems is worse than either. Its
+TypeScript-specific skills (shoehorn, dependency-cruiser, Husky) do not apply to a Rust project.
+
+`docs/wayfinder-brief.md` is an artifact of an earlier mattpocock `/wayfinder` session, written
+five days before the fork. It is marked historical and superseded — read it for the reasoning behind
+settled identity decisions, never as a plan of record.
+
 ## How this relates to the `iterative-development` skill
 
 Two loops, different scopes. They do not compete.

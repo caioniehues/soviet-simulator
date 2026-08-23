@@ -1,5 +1,17 @@
 # Wayfinder Brief — The Road to 1.0
 
+> **HISTORICAL — do not act on this as current.** Written 2026-08-17, five days before the
+> 2026-08-22 hard fork onto Egregoria that discarded the Bevy track. Its identity and design
+> reasoning largely survived the fork and are worth reading; its architecture, file paths, rung
+> sequencing and "G1 code-complete" status describe a codebase that no longer exists.
+>
+> Superseded by: `docs/charter-1.0.md` (binds on scope),
+> `docs/superpowers/iterations/roadmap.md` (the live plan, 130 scheduled stories),
+> `docs/superpowers/iterations/RESUME.md` (current state), and `docs/dev-cycle.md` (how work runs).
+>
+> Kept for the reasoning behind settled identity decisions, not as a plan of record.
+
+
 **Purpose:** the complete input package for a `/wayfinder` session charting the
 full end-to-end, finished, polished game. Wayfinder produces *decisions, not
 deliverables*; this brief exists so every decision ticket starts from evidence
