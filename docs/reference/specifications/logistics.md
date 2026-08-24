@@ -26,32 +26,43 @@ and W&R material is comparison evidence only.
 
 ## Invariants
 
-- `SPEC-LOGISTICS-001` — A haul has one authoritative fulfillment authority. It records request,
-  allocation, reservation, pickup, custody, delivery, and consumption/release in that order.
+- `SPEC-LOGISTICS-001` — A haul has one authoritative fulfillment authority. It references the
+  requesting subsystem's durable demand and the consuming subsystem's consumption ID, and records
+  allocation, reservation, pickup, in-transit custody, delivery, physical return, or release;
+  it does not own consumed state or quantity.
 - `SPEC-LOGISTICS-002` — Allocation and vehicle reservation do not transfer stock. Pickup changes
   custody from source to a named in-transit record; delivery changes custody to destination; only
   a consuming process may consume delivered stock.
 - `SPEC-LOGISTICS-003` — A vehicle identity is finite and may hold only cargo compatible with its
   declared capacity. Logistics SHALL own cargo identity, quantity, and custody; Vehicle fleet state
-  SHALL own capacity, owner/depot assignment, parking, and recovery. A freight job cannot exceed the
-  referenced vehicle or wagon capacity.
+  SHALL own capacity, owner/depot assignment, recovery state, and a reference to Roads-owned
+  parking. A freight job cannot exceed the referenced vehicle or wagon capacity.
 - `SPEC-LOGISTICS-004` — Missing truck, route, source stock, or destination capacity MUST create
   an observable stalled or waiting job with a recoverable reason. It MUST NOT delete demand,
   stock, reservation, or vehicle identity.
 - `SPEC-LOGISTICS-005` — Domestic dispatch and fulfillment use no money or price priority. Border
   roubles settle only at the separate physical clearance event defined by trade.
+- `SPEC-LOGISTICS-006` — Reservation is a non-additive encumbrance. For pickup quantity `x`, the
+  atomic transition is `H_source -= x`, `R_source -= x`, `C_haul += x`; pre-pickup cancellation
+  changes only `R_source`, while post-pickup cancellation preserves `C_haul` until physical return,
+  reassignment, or delivery.
+- `SPEC-LOGISTICS-007` — Roads solely owns parking-slot reservations. Vehicles references a slot;
+  Logistics requests vehicle recovery and waits for Roads acknowledgement, never instant parking
+  or teleport.
 
 ## Model and state
 
-A haul is the sole authority for domestic allocation, reservation, pickup, custody, delivery, and
-release. It references the requesting/consuming system, Vehicle fleet state, and Pathfinding route
-state by ID rather than copying their authority. A haul contains source/destination, item, quantity,
-capacity requirement, vehicle reference, pickup custody, delivery state, attempts, age, and recovery
-reason. Its
-state is requested → allocated → vehicle-reserved → pickup → in-custody → delivered → consumed or
-released. Completion recovers the vehicle to an accountable physical parking/depot location;
-cancellation returns any unconsumed quantity to an accountable holder, frees its vehicle
-reservation, and recovers its parking/depot state.
+A haul is the sole authority for domestic allocation, reservation, pickup, in-transit custody,
+delivery, physical return, and release. It references the requesting subsystem's demand ID and the
+consuming subsystem's consumption ID, Vehicle fleet state, and Pathfinding route state by ID rather
+than copying their authority. A haul contains source/destination, item, quantity, capacity
+requirement, vehicle reference, pickup custody, delivery state, attempts, age, and recovery reason.
+Its main state is demand-referenced → allocated → vehicle-reserved → pickup → in-custody →
+delivered → released; a post-pickup cancellation branches through physical return or reassigned
+delivery before release. Consumption is a separate Production or Needs transition. Completion
+requests Vehicle recovery, then waits for Roads to acknowledge a parking-slot reservation.
+Pre-pickup cancellation releases only reservation; post-pickup cancellation retains custody until
+physical return, reassignment, or delivery.
 
 ## Failure behavior
 
@@ -73,7 +84,7 @@ is failure, never green. The current 26-test suite proves no target below.
 
 | Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
 |---|---|---|---|---|
-| `EVID-LOGISTICS-001` | `cargo test -p simulation evid_logistics_pickup_delivery_cancel_conservation -- --test-threads=1` | Source-to-custody pickup, custody-to-destination delivery, and cancellation conserve quantity under one haul authority. | Credit destination at pickup or omit custody return on cancellation. | Inspected haul/custody inspector capture. |
+| `EVID-LOGISTICS-001` | `cargo test -p simulation evid_logistics_pickup_delivery_cancel_conservation -- --test-threads=1` | Pickup atomically applies `H_source -= x`, `R_source -= x`, `C_haul += x`; delivery/physical return conserve quantity and consumption remains external to the haul. | Credit destination at pickup, consume through the haul, or omit custody return after post-pickup cancellation. | Inspected haul/custody inspector capture. |
 | `EVID-LOGISTICS-002` | `cargo test -p simulation evid_logistics_no_truck_no_route_recovery -- --test-threads=1` | Missing truck or route yields a visible recoverable stalled job without loss. | Remove the stalled state or discard request/reservation after retry. | Inspected stalled-haul session. |
 
 ## Substrate and decisions

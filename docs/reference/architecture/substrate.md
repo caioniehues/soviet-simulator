@@ -30,7 +30,7 @@ tick while paused. [Foundation fact-sheet](../../research/fact-sheets/wave1-subs
 
 | Claim | Classification | Evidence |
 |---|---|---|
-| Nominal time is 50 ticks/second and command handling precedes the serial schedule. | Partial | Foundation contract / Tick; `simulation/src/lib.rs:244-270` |
+| Nominal time is 50 ticks/second and command handling precedes the serial schedule. | Partial | Foundation contract / Tick; `prototypes/src/types/time.rs:10`; `simulation/src/lib.rs:244-270` |
 | Systems run in registration order and commit command buffers between systems. | Provided | Foundation contract / Schedule; `simulation/src/init.rs:52-109` |
 | Initialization uses unsynchronised `static mut` registries and is unsafe for parallel test initialization. | Conflicting | Foundation contract / Initialization; `simulation/src/init.rs:111-130` |
 | Version mismatch only warns, and failed resource decoding can leave a loaded world with fresh default resources. | Partial/conflicting | Foundation contract / Save-load; `simulation/src/lib.rs:359-448` |

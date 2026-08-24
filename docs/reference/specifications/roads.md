@@ -37,6 +37,9 @@ are Post-1.0 exclusions under the [charter cut line](../../plan/charter-1.0.md#e
   the traffic authority and are not inferred solely from a transient collision.
 - `SPEC-ROADS-005` Automatic lot creation is not accepted as the target placement contract. Any
   automatic land-side effect requires a later explicit specification and Planner-visible verdict.
+- `SPEC-ROADS-006` Roads alone owns physical parking-space reservations. Vehicles may reference a
+  reserved space, Logistics may request recovery, and Traffic may observe blockage, but none may
+  mutate the reservation.
 
 ## Model and state
 
@@ -44,6 +47,7 @@ A road graph records road identities, geometric connections, typed directed lane
 access class, topology revision, and parking capacity/reservations. Road work is linked to a
 physical site when the construction contract is ratified. It references traffic records keyed to
 its road, lane, or corridor, but does not own dynamic load, queues, stalls, or capacity pressure.
+Vehicles reference parking spaces; Logistics requests recovery; Traffic only observes blockage.
 The road-class and lane enum/data contract remains to be ratified; this specification does not
 declare its vocabulary.
 

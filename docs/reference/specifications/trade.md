@@ -19,7 +19,8 @@ production remain price-free.
 ## Scope and exclusions
 
 1.0 includes multiple customs offices, all sixteen charter resources at fixed per-kind prices, and
-one border rouble. Medicine is import-only; Water is never cargo. Dual currency, loans, dynamic
+one border rouble. Medicine is import-only; Water is never cargo and crosses only through a
+physical metered border utility connection. Dual currency, loans, dynamic
 markets, ships, docks, pipelines, cableways, containers, aircraft, vehicle manufacture, and fuel
 lifecycle are not 1.0 mechanisms. Archived CS1 and W&R trade material is comparison evidence only.
 
@@ -37,20 +38,40 @@ lifecycle are not 1.0 mechanisms. Archived CS1 and W&R trade material is compari
 - `SPEC-TRADE-004` — A missing customs endpoint, vehicle, route, or compatible stock produces an
   observable pending order or recoverable failure; it MUST NOT teleport imports or destroy exports.
 - `SPEC-TRADE-005` — Medicine import requires the same request, allocation, reservation, pickup,
-  custody, delivery, and consumption distinctions as any other cargo. Water cannot be a trade
-  cargo.
+  custody, delivery, and consumption distinctions as any other cargo. Water is never cargo, but
+  MAY clear only through a physical metered border utility connection; Trade owns clearance and
+  settlement while the future Water specification owns utility transport and meter implementation.
+- `SPEC-TRADE-006` — Clearance is idempotent by order ID. At import clearance of quantity `q` at
+  fixed price `p`: `foreign_stock -= q`, `customs_stock += q`, `Planner_roubles -= p*q`, and
+  `foreign_counterparty_roubles += p*q`; export applies the exact inverse. The foreign
+  stock/counterparty
+  pair may be an external-ledger abstraction when the foreign world is not simulated. A failed or
+  retried transaction changes none of these balances; insufficient roubles leaves import pending,
+  never negative.
+- `SPEC-TRADE-007` — Transport is tagged: a non-Water order references one Logistics haul, while
+  a Water order references one Water-owned metered utility-transfer ID and MUST NOT have a freight
+  haul. At Water import/export clearance, one atomic transaction changes foreign-network and
+  domestic-network quantities by opposite signed `q`, increments the directional cumulative meter
+  reading (which is not stock), and applies the `SPEC-TRADE-006` signed rouble legs once under the
+  order ID. Failed or retried transfer changes no balance. The future Water specification owns
+  network/meter implementation; Trade owns coordinated clearance and settlement.
 
 ## Model and state
 
-Trade owns order, customs-clearance, and rouble-settlement state. It references Logistics haul and
-custody IDs rather than copying domestic transfer state; Logistics remains the sole authority for
-domestic allocation, reservation, pickup, custody, and delivery. A trade order records direction,
-item, quantity, fixed price, customs office, foreign consignment or domestic logistics job,
-clearance event, and single settlement record. Imports follow order → foreign consignment reaches
-customs → clearance plus single settlement establishes customs custody → domestic reservation →
-pickup → domestic haul/delivery → consumption. Exports follow domestic request/allocation →
-pickup/custody → domestic haul arrives at customs → clearance plus single settlement → leaving
-domestic custody. A failed order retains its goods or demand with an accountable recovery path.
+Trade owns order, customs-clearance, and rouble-settlement state. A non-Water order references a
+Logistics haul and custody IDs rather than copying domestic transfer state; Logistics remains the
+sole authority for domestic allocation, reservation, pickup, custody, and delivery. A Water order
+instead references a Water-owned metered utility-transfer ID and cannot reference a freight haul.
+A trade order records direction, item, quantity, fixed price, customs office, tagged transport
+reference, clearance event, single settlement record, and order-ID idempotency key. Non-Water
+imports follow order → foreign consignment reaches customs → clearance plus single settlement
+establishes customs custody → domestic reservation → pickup → domestic haul/delivery →
+consumption. Non-Water exports follow domestic request/allocation → pickup/custody → domestic haul
+arrives at customs → clearance plus single settlement → leaving domestic custody. Water import or
+export clearance atomically changes foreign and domestic network quantities with opposite signed
+`q`, increments its directional cumulative meter (not stock), and applies the signed rouble legs
+once under the order ID. A failed order retains its goods or demand with an accountable recovery
+path.
 
 ## Failure behavior
 
@@ -72,7 +93,9 @@ is failure, never green. The current 26-test suite proves no target below.
 | Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
 |---|---|---|---|---|
 | `EVID-TRADE-001` | `cargo test -p simulation evid_trade_clearance_single_settlement -- --test-threads=1` | Import stock appears after clearance; export remains in total domestic custody until clearance; each order settles once. | Credit import or settle at order match, or let export leave domestic custody at pickup. | Inspected customs inspector capture. |
-| `EVID-TRADE-002` | `cargo test -p simulation evid_trade_failure_preserves_order -- --test-threads=1` | Missing route or customs endpoint preserves trade order, goods, and rouble balance. | Debit export stock without accountable in-transit custody or discard pending order. | Inspected pending-customs session. |
+| `EVID-TRADE-002` | `cargo test -p simulation evid_trade_failure_preserves_order -- --test-threads=1` | Missing route, customs endpoint, or insufficient roubles preserves order and balances; insufficient roubles remains pending. | Debit export without accountable in-transit custody, discard pending order, or permit negative Planner roubles. | Inspected pending-customs session. |
+| `EVID-TRADE-003` | `cargo test -p simulation evid_trade_idempotent_clearance_ledger -- --test-threads=1` | One order-ID-keyed clearance applies the signed `q`/`p*q` ledger equation exactly once; retry applies no second change. | Apply clearance twice on retry or reverse one export ledger sign. | Inspected customs ledger capture. |
+| `EVID-TRADE-004` | `cargo test -p simulation evid_trade_water_metered_border_clearance -- --test-threads=1` | Water clearance references its utility-transfer ID, atomically changes opposite-signed foreign/domestic network quantities, increments only its directional cumulative meter, and has no freight haul. | Require a freight haul, or credit a domestic network without a meter increment and foreign-network debit. | Inspected border-utility meter capture. |
 
 ## Substrate and decisions
 

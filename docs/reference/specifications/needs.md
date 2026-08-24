@@ -40,15 +40,21 @@ their mechanisms.
   a seller, vehicle, route, or service is unavailable.
 - `SPEC-NEEDS-005` Going without degrades the affected need and is inspectable; it is never a
   game-over transition.
+- `SPEC-NEEDS-006` Each dwelling-consumption event has a unique ID, reduces compatible Resources
+  on-hand stock exactly once, and applies no more than its quantity across explicitly named need
+  records. Reusing an event MUST NOT satisfy a second obligation; partial satisfaction preserves
+  the remaining quantity. Satisfaction follows this transaction only.
 
 ## Model and state
 
-Each need record has an owner, kind, required quantity or service interval, outcome, age, and the
-identities of the allocation request, logistics delivery, and consumption event that concern it.
-Food and Meat retain independent records and histories. Allocation owns requested and reserved
-quantities; logistics owns custody and receipt; consumption owns consumed quantity. Needs reads
-those authorities to determine satisfaction and MUST NOT duplicate them in a parallel fulfillment
-record.
+Needs owns durable need demand, age, outcome, satisfaction, and the dwelling-consumption
+transaction. Each need record has an owner, kind, required quantity or service interval, outcome,
+age, and the identities of its logistics fulfillment and consumption event. Food and Meat retain
+independent records and histories. Logistics alone owns allocation, reservation, pickup,
+transport, delivery, and return. Resources alone owns compatible on-hand stock. The need
+consumption transaction records its unique event ID, named obligations, applied quantity, and any
+remaining quantity. One atomic commit either applies both the Resources stock debit and the bounded
+need quantity, or applies neither; Needs MUST NOT duplicate stock or fulfillment state.
 
 Allocation order is a policy question, not a market. A later ratified economy specification must
 define priority, partial fill, and any permitted substitution before an implementation selects
@@ -65,10 +71,10 @@ the plan.
 
 ## Observability
 
-The Planner can inspect each dwelling's Food and Meat state, age, selected outcome, and the reason
-for any wait or going-without state. It links to the allocation authority for requested/reserved
-quantity, the logistics authority for received quantity, and the consumption authority for
-consumed quantity. Aggregate shortage views may summarize these records but cannot replace the
+The Planner can inspect each dwelling's Food and Meat demand, age, selected outcome,
+dwelling-consumption event ID, applied and remaining quantity, and the reason for any wait or
+going-without state. It links to Logistics for allocation/reservation/delivery state and to
+Resources for on-hand stock; aggregate shortage views may summarize but cannot replace the
 authoritative per-owner state.
 
 ## Acceptance evidence
@@ -79,8 +85,9 @@ is failure, never green. The current 26-test suite proves no target below.
 | Evidence | Future guard command and observable assertion | Negative mutation that must turn it red | Player-facing proof |
 |---|---|---|---|
 | `EVID-NEEDS-001` | `cargo test -p simulation spec_needs_food_meat_distinct -- --test-threads=1` — consuming Food leaves Meat unmet. | Make Food write the Meat satisfaction state. | Inspected dwelling Food/Meat view. |
-| `EVID-NEEDS-002` | `cargo test -p simulation spec_needs_consumption_not_match -- --test-threads=1` — match/reservation/route start do not satisfy; consumption after receipt does. | Mark the need satisfied when allocation matches. | Inspected receipt then consumption session. |
+| `EVID-NEEDS-002` | `cargo test -p simulation spec_needs_consumption_not_match -- --test-threads=1` — allocation/reservation/route start do not satisfy; named consumption after delivery does. | Mark the need satisfied when allocation matches. | Inspected delivery then consumption session. |
 | `EVID-NEEDS-003` | `cargo test -p simulation spec_needs_unmet_persists -- --test-threads=1` — unavailable provision persists with age and visible going without. | Delete the unmet request on failed allocation. | Inspected dwelling wait, going-without, and recovery. |
+| `EVID-NEEDS-004` | `cargo test -p simulation spec_needs_consumption_event_idempotent -- --test-threads=1` — one event debits compatible on-hand stock once, cannot satisfy a second named obligation, and preserves partial remainder. | Reuse one event ID or skip its stock reduction. | Inspected event ID, stock debit, and partial remainder view. |
 
 ## Substrate and decisions
 

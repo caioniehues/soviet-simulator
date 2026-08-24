@@ -29,6 +29,19 @@ Each state transition has one authoritative module. A specification may referenc
 identifier and result through its interface, but it must not define a parallel authoritative copy
 of custody, route, fleet, pressure, consumption, or settlement state.
 
+| State or transition | Authoritative module |
+|---|---|
+| Durable demand and its unmet outcome | Requesting module: Needs, Production, or Trade |
+| Catalogue identity and on-hand stock | Resources |
+| Fulfillment allocation, reservation, pickup, in-transit custody, delivery, and physical return | Logistics |
+| Vehicle identity, capacity, location, owner/depot, and recovery state | Vehicles |
+| Road topology and physical parking-slot reservations | Roads |
+| Route request and result | Pathfinding |
+| Dynamic load, queue, pressure, and stall | Traffic |
+| Industrial consumption and production | Production |
+| Dwelling consumption and satisfaction | Needs |
+| Customs clearance and rouble settlement | Trade |
+
 External observations use `CONFIRMED`, `OBSERVED`, `INFERRED`, or `SPECULATIVE` only as provenance
 labels. `OURS` marks a deliberate project proposal. None of those labels makes comparison evidence
 binding or proves current fork behavior.

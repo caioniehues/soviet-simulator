@@ -37,6 +37,9 @@ manufacture, or any game-over failure mode; each is excluded or deferred by the
   bottleneck can be distinguished from unrelated shortage or route failure.
 - `SPEC-TRAFFIC-005` Traffic does not satisfy needs, clear domestic requests, or settle roubles.
   Any freight effect is reported to the single logistics fulfillment authority.
+- `SPEC-TRAFFIC-006` Traffic only observes blockage at a parking space. Roads alone owns its
+  reservation; Vehicles reference it and Logistics requests recovery, but Traffic MUST NOT mutate
+  the reservation.
 
 ## Model and state
 

@@ -36,14 +36,24 @@ examples are comparison evidence only.
   as a gate. Border rouble settlement belongs only to physical customs clearance.
 - `SPEC-PRODUCTION-005` — A blocked producer retains its unmet input request or records its
   substitute/going-without result; it MUST NOT silently delete demand, inputs, or outputs.
+- `SPEC-PRODUCTION-006` — Atomic consumption asks Resources to debit compatible delivered on-hand
+  stock exactly once and records the consumption ID in the same commit; reservation, custody, or
+  delivery alone cannot consume stock.
+- `SPEC-PRODUCTION-007` — One idempotent recipe-run transaction keyed by run ID SHALL atomically
+  ask Resources to debit every declared input and credit every declared output/byproduct. If any
+  gate or stock mutation fails, none commit; a retry of the same run ID MUST NOT reapply.
 
 ## Model and state
 
-Production owns recipe execution and the consumption/production transitions after delivery. A
-recipe names inputs, outputs, optional byproducts, and capacity; a production record names the
-run, consumed quantities, produced quantities, labour and utility availability, and the binding
-constraint. Logistics remains authoritative for allocation through delivery and is referenced by haul
-ID; Trade remains authoritative for border clearance and settlement. Input flow is request →
+Production owns recipe execution plus the consumption and production transitions after delivery.
+Resources owns on-hand balances; Production invokes its stock-debit interface in the same atomic
+recipe-run transaction rather than copying balances. The transaction is keyed by run ID and debits
+every declared input while crediting every declared output/byproduct, or commits none. When it
+requests input, Production owns that durable demand. A recipe names inputs, outputs, optional
+byproducts, and capacity; a production record names the run, consumption ID, consumed quantities,
+produced quantities, labour and utility availability, and the binding constraint. Logistics remains
+authoritative for allocation through delivery and is referenced by haul ID; Trade remains
+authoritative for border clearance and settlement. Input flow is request →
 allocation → reservation → pickup → custody → delivery → on-hand → consumption. Output flow begins
 at production, remains in producer custody until a separate logistics delivery, and never becomes
 another holder's stock at match time.
@@ -67,8 +77,9 @@ is failure, never green. The current 26-test suite proves no target below.
 
 | Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
 |---|---|---|---|---|
-| `EVID-PRODUCTION-001` | `cargo test -p simulation evid_production_delivered_input_conservation -- --test-threads=1` | Undelivered input blocks output; each completed run conserves declared inputs and outputs. | Consume reserved-but-undelivered input or create output without debiting input. | Inspected binding-constraint and shortage capture. |
+| `EVID-PRODUCTION-001` | `cargo test -p simulation evid_production_delivered_input_conservation -- --test-threads=1` | Undelivered input blocks output; one consumption ID debits compatible on-hand input exactly once and each completed run conserves declared inputs and outputs. | Consume reserved-but-undelivered input, consume the same ID twice, or create output without debiting input. | Inspected binding-constraint and shortage capture. |
 | `EVID-PRODUCTION-002` | `cargo test -p simulation evid_production_request_vs_consumption -- --test-threads=1` | Reported request remains distinguishable from received and consumed quantity. | Set consumed equal to requested without a delivery/run. | Inspected dishonest-enterprise quantity capture. |
+| `EVID-PRODUCTION-003` | `cargo test -p simulation evid_production_run_id_atomicity -- --test-threads=1` | An interrupted/failed run leaves every input, output, and byproduct balance unchanged; retry of one run ID applies once. | Split input debit from output credit or reapply the same run ID. | Inspected recipe-run and binding-constraint capture. |
 
 ## Substrate and decisions
 

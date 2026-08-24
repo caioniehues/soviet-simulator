@@ -36,13 +36,17 @@ never cargo. Archived reference-game vehicle systems are comparison evidence onl
 - `SPEC-VEHICLES-005` — Each freight vehicle and wagon SHALL have finite compatible cargo
   capacity, an accountable owner/depot and physical parking/recovery location, and an observable
   load. Reservation or routing cannot exceed capacity or substitute for custody.
+- `SPEC-VEHICLES-006` — Roads solely owns parking-slot reservation. A Vehicle stores only a slot
+  reference and recovery acknowledgement; it MUST NOT create, release, or instantaneously occupy a
+  parking slot.
 
 ## Model and state
 
-Vehicle identity, class, location, state, reservation, compatible capacity, owner/depot, parking,
-recovery state, and active-haul/load reference are authoritative fleet state. Logistics owns the
-referenced cargo identity, quantity, and custody; Vehicles does not copy that ledger. The latter
-fleet fields are required target mechanics, not current-substrate assertions.
+Vehicle identity, class, location, state, reservation, compatible capacity, owner/depot, recovery
+state, active-haul/load reference, and Roads-owned parking-slot reference are authoritative fleet
+state. Roads alone owns parking reservation; Logistics requests recovery and waits for the Roads
+acknowledgement. Logistics owns the referenced cargo identity, quantity, and custody; Vehicles does
+not copy that ledger. The latter fleet fields are required target mechanics, not current-substrate assertions.
 
 ## Failure behavior
 
@@ -63,7 +67,7 @@ is failure, never green. The current 26-test suite proves no target below.
 
 | Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
 |---|---|---|---|---|
-| `EVID-VEHICLES-001` | `cargo test -p simulation evid_vehicles_exclusive_capacity_parking_recovery -- --test-threads=1` | Reservation is exclusive, load cannot exceed compatible finite capacity, and completion recovers physical parking. | Assign one vehicle twice, accept over-capacity load, or skip parking recovery. | Inspected fleet queue capture. |
+| `EVID-VEHICLES-001` | `cargo test -p simulation evid_vehicles_exclusive_capacity_parking_recovery -- --test-threads=1` | Reservation is exclusive, load cannot exceed compatible finite capacity, and recovery waits for a Roads-owned physical parking acknowledgement. | Assign one vehicle twice, accept over-capacity load, or mark parked without Roads acknowledgement. | Inspected fleet queue capture. |
 | `EVID-VEHICLES-002` | `cargo test -p simulation evid_vehicles_rail_pickup_delivery_custody -- --test-threads=1` | Locomotive/wagon freight changes custody only at pickup and delivery. | Credit destination before wagon delivery. | Inspected rail-haul session. |
 
 ## Substrate and decisions
