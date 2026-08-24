@@ -5,5 +5,8 @@
 - [Inherited claims are untrusted](gotcha-inherited-claims.md) — two false substrate facts from RESUME.md reached ~20 briefs; verify handoff claims against code first
 - [Thoroughness over cost](feedback-agent-thoroughness-over-cost.md) — never cap an agent's depth to save tokens; narrow in scope, never in depth
 - [Specialist gates beat general ones](feedback-specialist-gates.md) — measured: 100.8k vs 112k and 5 findings vs 2 on the same seam
-- [Price a pivot against an open goal](feedback-goal-drift.md) — say what a scope change costs the standing commitment, then do it
+- [Price a pivot against an open goal](feedback-goal-drift.md) — say what a scope change costs the standing commitment, then do it; label what each ✅ is a check of
+- [Never verdict before reading](gotcha-verdict-before-reading.md) — I ranked three frameworks from frontmatter and reversed after reading; always pick, and open the source first
+- [The LSP guard starves workers](gotcha-lsp-guard-starves-workers.md) — hook deadlocks agents with no LSP tool and shares one read budget per cwd; tested fix not yet installed
+- [Plain markdown, not Artifacts](feedback-plain-markdown-docs.md) — process docs are read by agents; repo `.md` + a CLAUDE.md pointer or it doesn't exist
 - [The dev cycle](../../../docs/dev-cycle.md) — 8 phases, each naming the failure it prevents; agents are authored to fit its slots
