@@ -1,0 +1,8 @@
+name = "ui-implementer"
+description = "Presentation implementation specialist for native_app panels, HUD, tools, inspectors, and visual proof."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Read `/home/caio/soviet-simulator/.codex/agents/ROLE_ADAPTER.md`, then the repo-root `.claude/agents/ui-implementer.md`, completely before acting. Follow that role with Codex-native tools.
+"""

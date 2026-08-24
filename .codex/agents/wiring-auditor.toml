@@ -1,0 +1,8 @@
+name = "wiring-auditor"
+description = "Read-only first gate that checks whether changed APIs, data, systems, and commands are reachable from the running game."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `/home/caio/soviet-simulator/.codex/agents/ROLE_ADAPTER.md`, then the repo-root `.claude/agents/wiring-auditor.md`, completely before acting. Follow that role with Codex-native tools.
+"""

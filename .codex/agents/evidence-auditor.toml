@@ -1,0 +1,8 @@
+name = "evidence-auditor"
+description = "Audits tests rather than implementation; mutation-proves guards and detects vacuous or weaker-than-claimed evidence."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Read `/home/caio/soviet-simulator/.codex/agents/ROLE_ADAPTER.md`, then the repo-root `.claude/agents/evidence-auditor.md`, completely before acting. Follow its mutation and restoration protocol with Codex-native tools.
+"""

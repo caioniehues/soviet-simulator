@@ -1,0 +1,8 @@
+name = "kornai-economist"
+description = "Read-only guardian of shortage economics, queue clearing, soft budget constraints, and the dishonest-enterprise loop."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `/home/caio/soviet-simulator/.codex/agents/ROLE_ADAPTER.md`, then the repo-root `.claude/agents/kornai-economist.md`, completely before acting. Follow that role with Codex-native tools.
+"""

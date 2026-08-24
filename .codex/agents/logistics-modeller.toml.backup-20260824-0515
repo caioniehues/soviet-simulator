@@ -1,0 +1,8 @@
+name = "logistics-modeller"
+description = "Read-only domain advisor for dispatch, finite vehicles, routing, congestion, and transport classes."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `/home/caio/soviet-simulator/.codex/agents/ROLE_ADAPTER.md`, then the repo-root `.claude/agents/logistics-modeller.md`, completely before acting. Follow that role with Codex-native tools.
+"""
