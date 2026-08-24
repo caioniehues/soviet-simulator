@@ -1,0 +1,440 @@
+{
+  "authority": "rewritten requirements plus current specification anchors",
+  "requirements": [
+    {
+      "acceptance_criteria": [
+        "A building declaration owns its identity, declared capability, connection declarations, and operating-state prerequisites.",
+        "A completed Site activates exactly once through Buildings and remains observable when a declared prerequisite blocks operation.",
+        "Planner inspection shows the declaration, Site, activation state, and every blocking prerequisite."
+      ],
+      "id": "REQ-BUILDINGS-001",
+      "source": "docs/plan/iterations/requirements/built-world.md",
+      "specification_anchors": [
+        "SPEC-BUILDINGS-001",
+        "SPEC-BUILDINGS-002",
+        "SPEC-BUILDINGS-003",
+        "SPEC-BUILDINGS-004",
+        "SPEC-BUILDINGS-005",
+        "SPEC-BUILDINGS-006"
+      ],
+      "status": "proposed",
+      "title": "Declared buildings and observable activation"
+    },
+    {
+      "acceptance_criteria": [
+        "Each citizen retains one persistent identity through save/load, assignment, unmet need, and death lifecycle.",
+        "Planner policy allocates eligible labour and study work by declared non-price criteria; unreachable work or shortage remains an observable outcome.",
+        "Citizens alone publishes the death transition consumed once by dependent systems."
+      ],
+      "id": "REQ-CITIZENS-001",
+      "source": "docs/plan/iterations/requirements/settlement.md",
+      "specification_anchors": [
+        "SPEC-CITIZENS-001",
+        "SPEC-CITIZENS-002",
+        "SPEC-CITIZENS-003",
+        "SPEC-CITIZENS-004",
+        "SPEC-CITIZENS-005",
+        "SPEC-CITIZENS-006",
+        "SPEC-CITIZENS-007"
+      ],
+      "status": "proposed",
+      "title": "Persistent citizens under shortage and death"
+    },
+    {
+      "acceptance_criteria": [
+        "A proposal records its footprint, material bill, verdict, and refusal reason before it creates one non-operating Site.",
+        "Only received physical material and recorded work make a Site ground broken or complete; completion publishes one Buildings result and never activates an asset early.",
+        "Partial delivery, interruption, rescind, and refusal conserve the material bill and remain inspectable."
+      ],
+      "id": "REQ-CONSTRUCTION-001",
+      "source": "docs/plan/iterations/requirements/built-world.md",
+      "specification_anchors": [
+        "SPEC-BUILDINGS-002",
+        "SPEC-BUILDINGS-003",
+        "SPEC-CONSTRUCTION-001",
+        "SPEC-CONSTRUCTION-002",
+        "SPEC-CONSTRUCTION-003",
+        "SPEC-CONSTRUCTION-004",
+        "SPEC-CONSTRUCTION-005",
+        "SPEC-CONSTRUCTION-006",
+        "SPEC-CONSTRUCTION-007",
+        "SPEC-CONSTRUCTION-008"
+      ],
+      "status": "proposed",
+      "title": "Physical construction and activation"
+    },
+    {
+      "acceptance_criteria": [
+        "The 1.0 catalogue contains exactly School and Technical education, with persistent enrolment, seat reservation, queue, and progress records.",
+        "Progress requires attendance at a staffed operating compatible facility; absence of seat, staff, building, or route remains a visible queue or going-without result.",
+        "Planner policy orders scarce seats by explicit non-price criteria."
+      ],
+      "id": "REQ-EDUCATION-001",
+      "source": "docs/plan/iterations/requirements/settlement.md",
+      "specification_anchors": [
+        "SPEC-EDUCATION-001",
+        "SPEC-EDUCATION-002",
+        "SPEC-EDUCATION-003",
+        "SPEC-EDUCATION-004",
+        "SPEC-EDUCATION-005"
+      ],
+      "status": "proposed",
+      "title": "Capacity-limited school and technical education"
+    },
+    {
+      "acceptance_criteria": [
+        "Electricity owns explicit topology, bounded generation/storage/service, and a once-only allocation result.",
+        "Shortage sheds declared non-price priority loads with visible served, curtailed, and unmet rates; it neither creates energy nor activates a disconnected building.",
+        "Every offered generation result is bounded by a once-accepted Production result and its declared physical source/input."
+      ],
+      "id": "REQ-ELECTRICITY-001",
+      "source": "docs/plan/iterations/requirements/utilities.md",
+      "specification_anchors": [
+        "SPEC-ELECTRICITY-001",
+        "SPEC-ELECTRICITY-002",
+        "SPEC-ELECTRICITY-003",
+        "SPEC-ELECTRICITY-004",
+        "SPEC-ELECTRICITY-005",
+        "SPEC-ELECTRICITY-006",
+        "SPEC-ELECTRICITY-007"
+      ],
+      "status": "proposed",
+      "title": "Finite non-price electricity service"
+    },
+    {
+      "acceptance_criteria": [
+        "Care requests retain citizen, reason, queue, priority, and outcome under Healthcare authority.",
+        "Treatment requires finite staffed capacity, physical arrival or declared remote care, and compatible on-hand Medicine consumed once.",
+        "Scarcity uses declared health priority, leaves waiting or worsening outcomes visible, and never clears by domestic price."
+      ],
+      "id": "REQ-HEALTHCARE-001",
+      "source": "docs/plan/iterations/requirements/settlement.md",
+      "specification_anchors": [
+        "SPEC-HEALTHCARE-001",
+        "SPEC-HEALTHCARE-002",
+        "SPEC-HEALTHCARE-003",
+        "SPEC-HEALTHCARE-004",
+        "SPEC-HEALTHCARE-005",
+        "SPEC-HEALTHCARE-006"
+      ],
+      "status": "proposed",
+      "title": "Finite healthcare with physical Medicine"
+    },
+    {
+      "acceptance_criteria": [
+        "Heating owns a rate-bounded thermal graph, buffer, declared loss, and once-only allocation result.",
+        "Thermal shortfall remains visible unmet heat and can make homes colder; Electricity never substitutes for it.",
+        "Variable temperature demand requires a ratified Weather observation; otherwise the result declares static demand."
+      ],
+      "id": "REQ-HEATING-001",
+      "source": "docs/plan/iterations/requirements/utilities.md",
+      "specification_anchors": [
+        "SPEC-HEATING-001",
+        "SPEC-HEATING-002",
+        "SPEC-HEATING-003",
+        "SPEC-HEATING-004",
+        "SPEC-HEATING-005",
+        "SPEC-HEATING-006",
+        "SPEC-HEATING-007"
+      ],
+      "status": "proposed",
+      "title": "Finite thermal service without electric substitution"
+    },
+    {
+      "acceptance_criteria": [
+        "A household has a persistent member set, a residence queue, and a capacity-bounded residence assignment.",
+        "Food and Meat pantries are distinct shared physical records and cannot be credited by request, allocation, or a duplicated fulfillment.",
+        "Housing priority is observable Planner policy and a Citizens death result removes membership once without deleting household history."
+      ],
+      "id": "REQ-HOUSEHOLDS-001",
+      "source": "docs/plan/iterations/requirements/settlement.md",
+      "specification_anchors": [
+        "SPEC-HOUSEHOLDS-001",
+        "SPEC-HOUSEHOLDS-002",
+        "SPEC-HOUSEHOLDS-003",
+        "SPEC-HOUSEHOLDS-004",
+        "SPEC-HOUSEHOLDS-005",
+        "SPEC-HOUSEHOLDS-006",
+        "SPEC-HOUSEHOLDS-007",
+        "SPEC-HOUSEHOLDS-008"
+      ],
+      "status": "proposed",
+      "title": "Households, housing, and shared pantries"
+    },
+    {
+      "acceptance_criteria": [
+        "A finite compatible vehicle traverses one ordered compatible itinerary to source before pickup and to destination before delivery; elapsed time or route creation alone proves neither transition.",
+        "Allocation and reservation do not transfer stock. Pickup, custody, delivery, cancellation, and recovery preserve one accountable quantity and vehicle identity without teleporting it.",
+        "Target-stock demand uses declared non-price deficit, route distance, stable tie-break, and bounded docks; unavailable capacity waits with a visible reason."
+      ],
+      "id": "REQ-LOGISTICS-001",
+      "source": "docs/plan/iterations/requirements/movement.md",
+      "specification_anchors": [
+        "SPEC-LOGISTICS-001",
+        "SPEC-LOGISTICS-002",
+        "SPEC-LOGISTICS-003",
+        "SPEC-LOGISTICS-004",
+        "SPEC-LOGISTICS-005",
+        "SPEC-LOGISTICS-006",
+        "SPEC-LOGISTICS-007",
+        "SPEC-LOGISTICS-008",
+        "SPEC-LOGISTICS-009",
+        "SPEC-LOGISTICS-010",
+        "SPEC-LOGISTICS-011",
+        "SPEC-VEHICLES-001",
+        "SPEC-VEHICLES-002",
+        "SPEC-VEHICLES-003",
+        "SPEC-VEHICLES-005",
+        "SPEC-VEHICLES-006"
+      ],
+      "status": "proposed",
+      "title": "Physical, finite, cancellable freight fulfillment"
+    },
+    {
+      "acceptance_criteria": [
+        "Food and Meat remain distinct dwelling needs and satisfaction follows one authoritative compatible consumption event after physical availability.",
+        "Domestic need clearing uses no roubles or prices; unsatisfied need persists as waiting, substitution, or inspectable going without.",
+        "Each consumption ID changes compatible Resources stock once and cannot be replayed."
+      ],
+      "id": "REQ-NEEDS-001",
+      "source": "docs/plan/iterations/requirements/settlement.md",
+      "specification_anchors": [
+        "SPEC-NEEDS-001",
+        "SPEC-NEEDS-002",
+        "SPEC-NEEDS-003",
+        "SPEC-NEEDS-004",
+        "SPEC-NEEDS-005",
+        "SPEC-NEEDS-006"
+      ],
+      "status": "proposed",
+      "title": "Distinct dwelling needs and going without"
+    },
+    {
+      "acceptance_criteria": [
+        "A route records origin, destination, compatible lane types, topology revision, and Traffic-derived damped cost.",
+        "Invalid, blocked, or absent paths leave a recoverable reason and never transfer custody or satisfy a request.",
+        "New routes exclude Traffic-blocked lanes and consume Traffic's published cost rather than copying congestion state."
+      ],
+      "id": "REQ-PATHFINDING-001",
+      "source": "docs/plan/iterations/requirements/movement.md",
+      "specification_anchors": [
+        "SPEC-PATHFINDING-001",
+        "SPEC-PATHFINDING-002",
+        "SPEC-PATHFINDING-003",
+        "SPEC-PATHFINDING-004",
+        "SPEC-PATHFINDING-005",
+        "SPEC-PATHFINDING-006",
+        "SPEC-TRAFFIC-007",
+        "SPEC-TRAFFIC-008"
+      ],
+      "status": "proposed",
+      "title": "Compatible route derivation"
+    },
+    {
+      "acceptance_criteria": [
+        "A run consumes only delivered compatible input and remains bounded by declared recipe, labour, utilities, capacity, and storage, with its binding constraint visible.",
+        "Run IDs apply input/output/byproduct changes atomically and once through Resources; domestic money never gates production.",
+        "Underperformance retains an observable, allocation-eligible enterprise without conjured stock; request, receipt, consumption, surplus, and age discrepancies let the Planner infer hoarding without an honesty flag."
+      ],
+      "id": "REQ-PRODUCTION-001",
+      "source": "docs/plan/iterations/requirements/economy.md",
+      "specification_anchors": [
+        "SPEC-PRODUCTION-001",
+        "SPEC-PRODUCTION-002",
+        "SPEC-PRODUCTION-003",
+        "SPEC-PRODUCTION-004",
+        "SPEC-PRODUCTION-005",
+        "SPEC-PRODUCTION-006",
+        "SPEC-PRODUCTION-007",
+        "SPEC-PRODUCTION-008",
+        "SPEC-PRODUCTION-009"
+      ],
+      "status": "proposed",
+      "title": "Input-bounded production and observable dishonest enterprises"
+    },
+    {
+      "acceptance_criteria": [
+        "The catalogue declares the charter resource identities, units, handling compatibility, and import-only Medicine before use.",
+        "Resources alone mutates on-hand balances; request, allocation, reservation, custody, delivery, and consumption remain separate accountable records.",
+        "Failure and cancellation preserve quantity, Water never becomes cargo, and Medicine enters domestic stock only after physical import clearance."
+      ],
+      "id": "REQ-RESOURCES-001",
+      "source": "docs/plan/iterations/requirements/economy.md",
+      "specification_anchors": [
+        "SPEC-RESOURCES-001",
+        "SPEC-RESOURCES-002",
+        "SPEC-RESOURCES-003",
+        "SPEC-RESOURCES-004",
+        "SPEC-RESOURCES-005",
+        "SPEC-RESOURCES-006"
+      ],
+      "status": "proposed",
+      "title": "Physical resource catalogue and accountable stock"
+    },
+    {
+      "acceptance_criteria": [
+        "Road topology is an authoritative Planner-authored typed physical network with declared capacity inputs and refusal feedback.",
+        "Road placement or alteration preserves or explicitly invalidates affected route and parking references.",
+        "Roads alone reserves physical parking; no consumer or dispatcher instant-parks a vehicle."
+      ],
+      "id": "REQ-ROADS-001",
+      "source": "docs/plan/iterations/requirements/movement.md",
+      "specification_anchors": [
+        "SPEC-ROADS-001",
+        "SPEC-ROADS-002",
+        "SPEC-ROADS-003",
+        "SPEC-ROADS-004",
+        "SPEC-ROADS-005",
+        "SPEC-ROADS-006"
+      ],
+      "status": "proposed",
+      "title": "Planner-authored roads and physical parking"
+    },
+    {
+      "acceptance_criteria": [
+        "Sewage owns a separate finite graph, buffers, transfer/treatment/discharge records, and non-price priority.",
+        "Blocked capacity retains physical backlog and a declared service restriction; no other system copies or mutates sewage state.",
+        "Treatment/discharge and an optional Water handoff apply once and conserve accepted quantity into named output, residue, and loss."
+      ],
+      "id": "REQ-SEWAGE-001",
+      "source": "docs/plan/iterations/requirements/utilities.md",
+      "specification_anchors": [
+        "SPEC-SEWAGE-001",
+        "SPEC-SEWAGE-002",
+        "SPEC-SEWAGE-003",
+        "SPEC-SEWAGE-004",
+        "SPEC-SEWAGE-005",
+        "SPEC-SEWAGE-006"
+      ],
+      "status": "proposed",
+      "title": "Finite sewage buffering, treatment, and discharge"
+    },
+    {
+      "acceptance_criteria": [
+        "Domestic matching, allocation, reservation, dispatch, production, and needs use no money or price gate.",
+        "A fixed per-kind rouble amount settles exactly once only after physical customs clearance of the declared order.",
+        "Non-Water orders use a completed Logistics haul; Water clears only after a completed Water-owned metered transfer and never enters freight custody."
+      ],
+      "id": "REQ-TRADE-001",
+      "source": "docs/plan/iterations/requirements/economy.md",
+      "specification_anchors": [
+        "SPEC-RESOURCES-003",
+        "SPEC-RESOURCES-004",
+        "SPEC-TRADE-001",
+        "SPEC-TRADE-002",
+        "SPEC-TRADE-003",
+        "SPEC-TRADE-004",
+        "SPEC-TRADE-005",
+        "SPEC-TRADE-006",
+        "SPEC-TRADE-007",
+        "SPEC-TRADE-008"
+      ],
+      "status": "proposed",
+      "title": "Physical border clearance and the single rouble"
+    },
+    {
+      "acceptance_criteria": [
+        "Moving vehicles remain on compatible physical lanes while queue, pressure, and stall age remain durable state.",
+        "Stall recovery reroutes through Pathfinding or exposes a Planner-visible bottleneck; it never deletes a vehicle or clears a domestic request.",
+        "Traffic publishes EMA load, BPR cost, Gawron damping, and blockage while retaining authority over the dynamic inputs."
+      ],
+      "id": "REQ-TRAFFIC-001",
+      "source": "docs/plan/iterations/requirements/movement.md",
+      "specification_anchors": [
+        "SPEC-TRAFFIC-001",
+        "SPEC-TRAFFIC-002",
+        "SPEC-TRAFFIC-003",
+        "SPEC-TRAFFIC-004",
+        "SPEC-TRAFFIC-005",
+        "SPEC-TRAFFIC-006",
+        "SPEC-TRAFFIC-007",
+        "SPEC-TRAFFIC-008"
+      ],
+      "status": "proposed",
+      "title": "Observable congestion and physical recovery"
+    },
+    {
+      "acceptance_criteria": [
+        "Every operational freight vehicle has durable identity, state, compatible finite capacity, depot/recovery reference, and a Roads-owned parking reference.",
+        "A missing vehicle or failed route preserves the haul and physical recovery state rather than spawning or deleting a substitute.",
+        "The 1.0 rail catalogue is one locomotive type and one wagon type in a fixed compatible consist; passenger rail is not a requirement."
+      ],
+      "id": "REQ-VEHICLES-001",
+      "source": "docs/plan/iterations/requirements/movement.md",
+      "specification_anchors": [
+        "SPEC-LOGISTICS-003",
+        "SPEC-LOGISTICS-007",
+        "SPEC-VEHICLES-001",
+        "SPEC-VEHICLES-002",
+        "SPEC-VEHICLES-003",
+        "SPEC-VEHICLES-004",
+        "SPEC-VEHICLES-005",
+        "SPEC-VEHICLES-006"
+      ],
+      "status": "proposed",
+      "title": "Finite freight vehicles and fixed rail consists"
+    },
+    {
+      "acceptance_criteria": [
+        "Waste owns typed finite containers, collection requests, overflow, processing disposition, and landfill retention.",
+        "Collection requests exactly one compatible Logistics haul and uses a once-only receipt for container-to-custody pickup.",
+        "Each delivered quantity has one conserving disposition through landfill or a bound Production result; blockage retains waste instead of deleting it or direct-crediting outputs."
+      ],
+      "id": "REQ-WASTE-001",
+      "source": "docs/plan/iterations/requirements/utilities.md",
+      "specification_anchors": [
+        "SPEC-WASTE-001",
+        "SPEC-WASTE-002",
+        "SPEC-WASTE-003",
+        "SPEC-WASTE-004",
+        "SPEC-WASTE-005",
+        "SPEC-WASTE-006",
+        "SPEC-WASTE-007"
+      ],
+      "status": "proposed",
+      "title": "Physical waste collection and single disposition"
+    },
+    {
+      "acceptance_criteria": [
+        "Water owns a connected compatible topology, quality, buffers, finite tick capacity, transfer progress, and directional border meter.",
+        "Disconnected, zero-capacity, or partial paths do not deliver or clear; they retain visible unmet transfer without tanker, cargo, early rouble settlement, or created water.",
+        "Trade clears once only after the complete Water-owned metered transfer; each transfer application is idempotent and quantity-conserving."
+      ],
+      "id": "REQ-WATER-001",
+      "source": "docs/plan/iterations/requirements/utilities.md",
+      "specification_anchors": [
+        "SPEC-TRADE-007",
+        "SPEC-TRADE-008",
+        "SPEC-WATER-001",
+        "SPEC-WATER-002",
+        "SPEC-WATER-003",
+        "SPEC-WATER-004",
+        "SPEC-WATER-005",
+        "SPEC-WATER-006"
+      ],
+      "status": "proposed",
+      "title": "Metered, finite Water transfer"
+    },
+    {
+      "acceptance_criteria": [
+        "Planner land-use intent is an inspectable boundary record that Construction consults for Ghost verdicts.",
+        "Changing intent never spawns, activates, demolishes, or deletes Sites or buildings; automatic lot spawning is not accepted as target placement.",
+        "Shortage indicators are decision support only and expose their inputs without becoming an autonomous placement loop."
+      ],
+      "id": "REQ-ZONING-001",
+      "source": "docs/plan/iterations/requirements/built-world.md",
+      "specification_anchors": [
+        "SPEC-ROADS-005",
+        "SPEC-ZONING-001",
+        "SPEC-ZONING-002",
+        "SPEC-ZONING-003",
+        "SPEC-ZONING-004",
+        "SPEC-ZONING-005",
+        "SPEC-ZONING-006"
+      ],
+      "status": "proposed",
+      "title": "Planner land-use intent and siting feedback"
+    }
+  ],
+  "schema": "wave3-requirement-extract/v1"
+}

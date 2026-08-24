@@ -79,6 +79,7 @@ is failure, never green. The current 26-test suite proves no target below.
 | `EVID-ROADS-001` | `cargo test -p simulation spec_roads_typed_topology_command -- --test-threads=1` — a Planner command creates compatible typed topology. | Make the command create an untyped connection. | Inspected road/lane topology view. |
 | `EVID-ROADS-002` | `cargo test -p simulation spec_roads_topology_invalidates_routes -- --test-threads=1` — altered topology invalidates affected routes. | Retain the old route revision after alteration. | Inspected disruption/refusal and route reference. |
 | `EVID-ROADS-003` | `cargo test -p simulation spec_roads_parking_exclusive_no_auto_lots -- --test-threads=1` — parking is exclusive and road placement creates no automatic lots. | Permit a second reservation for one spot or create a roadside lot. | Inspected parking and placement verdict view. |
+| `EVID-ROADS-004` | `cargo test -p simulation evid_roads_static_capacity_traffic_authority -- --test-threads=1` — `SPEC-ROADS-004`: topology publishes static lane/corridor capacity inputs and durable Traffic state by reference; dynamic load, queue, stall, and pressure are mutated only by Traffic, not inferred from a transient collision. | Mutate queue/load from Roads, derive dynamic pressure solely from a collision, or omit the Traffic-state reference. | Inspected topology capacity declaration alongside Traffic pressure and queue provenance. |
 
 ## Substrate and decisions
 

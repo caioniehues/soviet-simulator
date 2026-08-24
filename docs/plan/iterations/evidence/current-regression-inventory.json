@@ -1,0 +1,162 @@
+{
+  "authority": "current simulation test list; not target-proof evidence",
+  "regressions": [
+    {
+      "command": "cargo test -p simulation economy::ecostats::tests::history_is_not_zero -- --test-threads=1",
+      "id": "REGRESSION-001",
+      "scope": "current substrate regression",
+      "test": "economy::ecostats::tests::history_is_not_zero"
+    },
+    {
+      "command": "cargo test -p simulation economy::market::tests::calculate_prices -- --test-threads=1",
+      "id": "REGRESSION-002",
+      "scope": "current substrate regression",
+      "test": "economy::market::tests::calculate_prices"
+    },
+    {
+      "command": "cargo test -p simulation economy::market::tests::test_match_orders -- --test-threads=1",
+      "id": "REGRESSION-003",
+      "scope": "current substrate regression",
+      "test": "economy::market::tests::test_match_orders"
+    },
+    {
+      "command": "cargo test -p simulation map::electricity_cache::tests::test_connectivity -- --test-threads=1",
+      "id": "REGRESSION-004",
+      "scope": "current substrate regression",
+      "test": "map::electricity_cache::tests::test_connectivity"
+    },
+    {
+      "command": "cargo test -p simulation map::electricity_cache::tests::test_loop_removal -- --test-threads=1",
+      "id": "REGRESSION-005",
+      "scope": "current substrate regression",
+      "test": "map::electricity_cache::tests::test_loop_removal"
+    },
+    {
+      "command": "cargo test -p simulation map::procgen::presets::tests::parismap_valid -- --test-threads=1",
+      "id": "REGRESSION-006",
+      "scope": "current substrate regression",
+      "test": "map::procgen::presets::tests::parismap_valid"
+    },
+    {
+      "command": "cargo test -p simulation map::procgen::presets::tests::testfield_valid -- --test-threads=1",
+      "id": "REGRESSION-007",
+      "scope": "current substrate regression",
+      "test": "map::procgen::presets::tests::testfield_valid"
+    },
+    {
+      "command": "cargo test -p simulation map_dynamic::dispatch::tests::bench_query -- --test-threads=1",
+      "id": "REGRESSION-008",
+      "scope": "current substrate regression",
+      "test": "map_dynamic::dispatch::tests::bench_query"
+    },
+    {
+      "command": "cargo test -p simulation map_dynamic::dispatch::tests::dispatch_one_register_one_works -- --test-threads=1",
+      "id": "REGRESSION-009",
+      "scope": "current substrate regression",
+      "test": "map_dynamic::dispatch::tests::dispatch_one_register_one_works"
+    },
+    {
+      "command": "cargo test -p simulation map_dynamic::dispatch::tests::query_same_lane_works -- --test-threads=1",
+      "id": "REGRESSION-010",
+      "scope": "current substrate regression",
+      "test": "map_dynamic::dispatch::tests::query_same_lane_works"
+    },
+    {
+      "command": "cargo test -p simulation map_dynamic::dispatch::tests::query_two_lanes_bfs -- --test-threads=1",
+      "id": "REGRESSION-011",
+      "scope": "current substrate regression",
+      "test": "map_dynamic::dispatch::tests::query_two_lanes_bfs"
+    },
+    {
+      "command": "cargo test -p simulation souls::freight_station::tests::test_deliver_to_freight_station_incrs_station -- --test-threads=1",
+      "id": "REGRESSION-012",
+      "scope": "current substrate regression",
+      "test": "souls::freight_station::tests::test_deliver_to_freight_station_incrs_station"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0082_dispatch_gates_stock_not_match -- --test-threads=1",
+      "id": "REGRESSION-013",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::hoarding::scenario_0082_dispatch_gates_stock_not_match"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0083_zero_trucks_blocks_delivery -- --test-threads=1",
+      "id": "REGRESSION-014",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::hoarding::scenario_0083_zero_trucks_blocks_delivery"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0151_inflated_request_hoards_honest_does_not -- --test-threads=1",
+      "id": "REGRESSION-015",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::hoarding::scenario_0151_inflated_request_hoards_honest_does_not"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_exttrade_double_spend -- --test-threads=1",
+      "id": "REGRESSION-016",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_ledger_exttrade_double_spend"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_job_opening_reserve_leak -- --test-threads=1",
+      "id": "REGRESSION-017",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_ledger_job_opening_reserve_leak"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_remove_leak -- --test-threads=1",
+      "id": "REGRESSION-018",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_ledger_remove_leak"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0093_recipe_multi_input_multi_output -- --test-threads=1",
+      "id": "REGRESSION-019",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::recipe_provided::scenario_0093_recipe_multi_input_multi_output"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0094_extraction_no_consumed_inputs -- --test-threads=1",
+      "id": "REGRESSION-020",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::recipe_provided::scenario_0094_extraction_no_consumed_inputs"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0095_full_output_storage_halts_production -- --test-threads=1",
+      "id": "REGRESSION-021",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::recipe_provided::scenario_0095_full_output_storage_halts_production"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0096_workforce_sourced_live_from_present_population -- --test-threads=1",
+      "id": "REGRESSION-022",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::recipe_provided::scenario_0096_workforce_sourced_live_from_present_population"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0097_production_never_checks_treasury -- --test-threads=1",
+      "id": "REGRESSION-023",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::recipe_provided::scenario_0097_production_never_checks_treasury"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::scenario_harness_smoke -- --test-threads=1",
+      "id": "REGRESSION-024",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::scenario_harness_smoke"
+    },
+    {
+      "command": "cargo test -p simulation tests::test_iso::quickcheck_map_ser -- --test-threads=1",
+      "id": "REGRESSION-025",
+      "scope": "current substrate regression",
+      "test": "tests::test_iso::quickcheck_map_ser"
+    },
+    {
+      "command": "cargo test -p simulation tests::test_iso::test_world_survives_serde -- --test-threads=1",
+      "id": "REGRESSION-026",
+      "scope": "current substrate regression",
+      "test": "tests::test_iso::test_world_survives_serde"
+    }
+  ],
+  "schema": "wave3-current-regression-inventory/v1"
+}

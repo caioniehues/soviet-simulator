@@ -75,6 +75,7 @@ is failure, never green. The current 26-test suite proves no target below.
 | `EVID-PATHFINDING-001` | `cargo test -p simulation evid_pathfinding_compatible_bpr_blocked_route -- --test-threads=1` — vehicle routes use compatible lanes and Traffic's damped BPR cost, exclude blocked lanes, and pedestrian routes omit congestion. | Read raw load, admit a blocked lane, or apply congestion cost to a pedestrian route. | Inspected route inputs, exclusions, and result view. |
 | `EVID-PATHFINDING-002` | `cargo test -p simulation spec_pathfinding_invalidation_recovery_persists -- --test-threads=1` — topology invalidation preserves a visible reroute/wait/stall request. | Delete the request after invalidation. | Inspected route reason and recovery session. |
 | `EVID-PATHFINDING-003` | `cargo test -p simulation spec_pathfinding_repeat_run_determinism -- --test-threads=1` — identical initial state and inputs yield identical route result. | Randomize an equal-cost tie break. | Inspected repeat-run route comparison; serde round-trip is not proof. |
+| `EVID-PATHFINDING-004` | `cargo test -p simulation evid_pathfinding_route_authorizes_movement_only -- --test-threads=1` — `SPEC-PATHFINDING-005`: creating, accepting, or traversing a route changes only route/movement state; cargo custody and dwelling-need satisfaction stay unchanged until their owning Logistics or Needs transition. | Transfer custody on route creation/arrival, or mark a need satisfied from a route result. | Inspected route, custody, and unmet-need timeline. |
 
 ## Substrate and decisions
 
