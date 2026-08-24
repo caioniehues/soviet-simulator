@@ -68,9 +68,13 @@ recovery reason, plus the queue it blocks.
 
 ## Acceptance evidence
 
-Evidence must show source debit only at pickup, destination credit only at delivery, one active
-authority, conservation over cancellation, and recoverable no-truck/no-route failures. A mutation
-that duplicates, loses, or delivers without pickup must fail.
+All listed guards are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
+|---|---|---|---|---|
+| `EVID-LOGISTICS-001` | `cargo test -p simulation evid_logistics_pickup_delivery_cancel_conservation -- --test-threads=1` | Source-to-custody pickup, custody-to-destination delivery, and cancellation conserve quantity under one haul authority. | Credit destination at pickup or omit custody return on cancellation. | Inspected haul/custody inspector capture. |
+| `EVID-LOGISTICS-002` | `cargo test -p simulation evid_logistics_no_truck_no_route_recovery -- --test-threads=1` | Missing truck or route yields a visible recoverable stalled job without loss. | Remove the stalled state or discard request/reservation after retry. | Inspected stalled-haul session. |
 
 ## Substrate and decisions
 

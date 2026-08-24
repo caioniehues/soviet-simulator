@@ -63,10 +63,14 @@ support a planning response, rather than being only a momentary animation.
 
 ## Acceptance evidence
 
-Evidence must demonstrate physical following/collision behavior, a durable pressure or queue
-record, a thresholded visible stalled state, and recovery without deleting the vehicle or linked
-job. A mutation that removes stall persistence or silently frees a blocked vehicle must fail its
-guard. Player-facing acceptance needs an inspected traffic/bottleneck readout.
+All guards below are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Future guard command and observable assertion | Negative mutation that must turn it red | Player-facing proof |
+|---|---|---|---|
+| `EVID-TRAFFIC-001` | `cargo test -p simulation spec_traffic_durable_pressure_queue -- --test-threads=1` — blocked movement creates a durable keyed pressure/queue record. | Clear pressure at the end of the movement update. | Inspected traffic/bottleneck view. |
+| `EVID-TRAFFIC-002` | `cargo test -p simulation spec_traffic_stall_preserves_obligation -- --test-threads=1` — thresholded stall retains vehicle and linked job obligation. | Despawn the blocked vehicle or free its job. | Inspected stalled vehicle/job view. |
+| `EVID-TRAFFIC-003` | `cargo test -p simulation spec_traffic_recovery_without_despawn -- --test-threads=1` — relieved capacity or alternate route recovers the same stalled state. | Replace recovery with a new vehicle or job. | Inspected stall-to-recovery session. |
 
 ## Substrate and decisions
 

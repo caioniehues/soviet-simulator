@@ -29,7 +29,8 @@ lifecycle are not 1.0 mechanisms. Archived CS1 and W&R trade material is compari
   consumption MUST NOT debit, credit, rank by, or otherwise clear through roubles.
 - `SPEC-TRADE-002` — A trade order has a physical item, quantity, direction, customs office,
   domestic haul, and clearance state. Import stock appears only after inbound physical clearance;
-  export stock leaves domestic custody only after outbound physical clearance.
+  an export source holder MAY debit stock to accountable in-transit domestic custody at pickup, but
+  total domestic custody leaves only after outbound physical clearance.
 - `SPEC-TRADE-003` — A fixed per-kind rouble amount is settled exactly once at physical clearance,
   paired with the corresponding custody transition. Order placement, market matching, reservation,
   and route assignment do not settle roubles.
@@ -65,10 +66,13 @@ are visibly separate.
 
 ## Acceptance evidence
 
-Tests must prove imports do not credit stock before clearance, exports do not debit stock before
-clearance, settlement occurs once, and a failed route preserves stock/order. A mutation that settles
-at match time or mixes domestic money must fail. Player-facing proof must show an order waiting at
-customs.
+All listed guards are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
+|---|---|---|---|---|
+| `EVID-TRADE-001` | `cargo test -p simulation evid_trade_clearance_single_settlement -- --test-threads=1` | Import stock appears after clearance; export remains in total domestic custody until clearance; each order settles once. | Credit import or settle at order match, or let export leave domestic custody at pickup. | Inspected customs inspector capture. |
+| `EVID-TRADE-002` | `cargo test -p simulation evid_trade_failure_preserves_order -- --test-threads=1` | Missing route or customs endpoint preserves trade order, goods, and rouble balance. | Debit export stock without accountable in-transit custody or discard pending order. | Inspected pending-customs session. |
 
 ## Substrate and decisions
 

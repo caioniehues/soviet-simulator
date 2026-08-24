@@ -58,9 +58,13 @@ several of these target fields; that gap is identified below rather than hidden.
 
 ## Acceptance evidence
 
-Tests must prove exclusive reservation, finite availability, and recovery without stock loss.
-Freight-rail evidence must prove a locomotive/wagon transfer obeys pickup and delivery custody.
-Player-facing proof must show a waiting job caused by a finite fleet.
+All listed guards are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
+|---|---|---|---|---|
+| `EVID-VEHICLES-001` | `cargo test -p simulation evid_vehicles_exclusive_capacity_parking_recovery -- --test-threads=1` | Reservation is exclusive, load cannot exceed compatible finite capacity, and completion recovers physical parking. | Assign one vehicle twice, accept over-capacity load, or skip parking recovery. | Inspected fleet queue capture. |
+| `EVID-VEHICLES-002` | `cargo test -p simulation evid_vehicles_rail_pickup_delivery_custody -- --test-threads=1` | Locomotive/wagon freight changes custody only at pickup and delivery. | Credit destination before wagon delivery. | Inspected rail-haul session. |
 
 ## Substrate and decisions
 

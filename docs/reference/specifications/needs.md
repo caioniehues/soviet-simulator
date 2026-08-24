@@ -73,11 +73,14 @@ authoritative per-owner state.
 
 ## Acceptance evidence
 
-Evidence must prove that Food cannot satisfy Meat, match-time cannot satisfy either need, an
-unfulfilled request survives across an update, and going without remains visible without ending a
-plan. A physical-delivery scenario must demonstrate stock transfer before consumption; a mutation
-that removes the transfer or persistence guard must fail its test. Player-facing acceptance needs
-an inspected view of a dwelling waiting and then recovering.
+All guards below are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Future guard command and observable assertion | Negative mutation that must turn it red | Player-facing proof |
+|---|---|---|---|
+| `EVID-NEEDS-001` | `cargo test -p simulation spec_needs_food_meat_distinct -- --test-threads=1` — consuming Food leaves Meat unmet. | Make Food write the Meat satisfaction state. | Inspected dwelling Food/Meat view. |
+| `EVID-NEEDS-002` | `cargo test -p simulation spec_needs_consumption_not_match -- --test-threads=1` — match/reservation/route start do not satisfy; consumption after receipt does. | Mark the need satisfied when allocation matches. | Inspected receipt then consumption session. |
+| `EVID-NEEDS-003` | `cargo test -p simulation spec_needs_unmet_persists -- --test-threads=1` — unavailable provision persists with age and visible going without. | Delete the unmet request on failed allocation. | Inspected dwelling wait, going-without, and recovery. |
 
 ## Substrate and decisions
 

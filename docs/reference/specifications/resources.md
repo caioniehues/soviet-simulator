@@ -69,9 +69,13 @@ dishonest-enterprise loop legible.
 
 ## Acceptance evidence
 
-Evidence must exercise a compatible transfer and reject an incompatible one; prove that a partial
-allocation preserves the remainder; and prove Water cannot be made cargo and Medicine cannot be
-produced domestically. A conservation mutation must fail when an item is duplicated or deleted.
+All listed guards are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
+|---|---|---|---|---|
+| `EVID-RESOURCES-001` | `cargo test -p simulation evid_resources_conservation_partial_cancel -- --test-threads=1` | Partial allocation and cancellation preserve total quantity and the remaining request. | Delete the cancellation release or credit the destination twice. | Inspected shortage/custody inspector capture. |
+| `EVID-RESOURCES-002` | `cargo test -p simulation evid_resources_water_medicine_restrictions -- --test-threads=1` | Water is rejected as cargo; a domestic Medicine recipe is rejected. | Permit Water in a haul or register Medicine as a domestic output. | Inspected rejection and catalogue capture. |
 
 ## Substrate and decisions
 

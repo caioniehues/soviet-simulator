@@ -63,10 +63,14 @@ traceable to those individual records.
 
 ## Acceptance evidence
 
-Evidence must show a route over typed compatible lanes, a rejected incompatible request, and a
-topology change that invalidates then visibly recovers or stalls a request. A mutation that leaves
-an invalid route executable or deletes a failed request must fail its guard. Player-facing proof
-must show a route's stated state and reason.
+All guards below are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Future guard command and observable assertion | Negative mutation that must turn it red | Player-facing proof |
+|---|---|---|---|
+| `EVID-PATHFINDING-001` | `cargo test -p simulation spec_pathfinding_static_compatible_route -- --test-threads=1` — route uses compatible lanes and only declared static inputs. | Add an incompatible lane hop or a congestion cost input. | Inspected route input/result view. |
+| `EVID-PATHFINDING-002` | `cargo test -p simulation spec_pathfinding_invalidation_recovery_persists -- --test-threads=1` — topology invalidation preserves a visible reroute/wait/stall request. | Delete the request after invalidation. | Inspected route reason and recovery session. |
+| `EVID-PATHFINDING-003` | `cargo test -p simulation spec_pathfinding_repeat_run_determinism -- --test-threads=1` — identical initial state and inputs yield identical route result. | Randomize an equal-cost tie break. | Inspected repeat-run route comparison; serde round-trip is not proof. |
 
 ## Substrate and decisions
 

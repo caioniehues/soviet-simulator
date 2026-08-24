@@ -62,10 +62,13 @@ enterprise's reported need distinguishable from its actual consumption.
 
 ## Acceptance evidence
 
-Tests must prove that one missing physical gate blocks output, that delivery precedes consumption,
-and that an inflated request can be observed separately from consumption. Conservation mutations
-must fail for output created without inputs or inputs consumed twice. Player-facing proof must show
-the binding constraint and a persistent shortage.
+All listed guards are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Command | Observable assertion | Required red mutation | Player-facing proof |
+|---|---|---|---|---|
+| `EVID-PRODUCTION-001` | `cargo test -p simulation evid_production_delivered_input_conservation -- --test-threads=1` | Undelivered input blocks output; each completed run conserves declared inputs and outputs. | Consume reserved-but-undelivered input or create output without debiting input. | Inspected binding-constraint and shortage capture. |
+| `EVID-PRODUCTION-002` | `cargo test -p simulation evid_production_request_vs_consumption -- --test-threads=1` | Reported request remains distinguishable from received and consumed quantity. | Set consumed equal to requested without a delivery/run. | Inspected dishonest-enterprise quantity capture. |
 
 ## Substrate and decisions
 

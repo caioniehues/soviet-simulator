@@ -67,11 +67,14 @@ traffic's authoritative records.
 
 ## Acceptance evidence
 
-Evidence must demonstrate an authoritative Planner road command changing typed-lane topology, a
-physical vehicle route over compatible lanes, exclusive parking reservation, and a visible refusal
-or recovery path when topology changes. A mutation that bypasses topology invalidation or permits
-duplicate parking must fail its guard. Player-facing proof must show the relevant road inspection
-state.
+All guards below are **UNIMPLEMENTED** and block ratification. A command that executes zero tests
+is failure, never green. The current 26-test suite proves no target below.
+
+| Evidence | Future guard command and observable assertion | Negative mutation that must turn it red | Player-facing proof |
+|---|---|---|---|
+| `EVID-ROADS-001` | `cargo test -p simulation spec_roads_typed_topology_command -- --test-threads=1` — a Planner command creates compatible typed topology. | Make the command create an untyped connection. | Inspected road/lane topology view. |
+| `EVID-ROADS-002` | `cargo test -p simulation spec_roads_topology_invalidates_routes -- --test-threads=1` — altered topology invalidates affected routes. | Retain the old route revision after alteration. | Inspected disruption/refusal and route reference. |
+| `EVID-ROADS-003` | `cargo test -p simulation spec_roads_parking_exclusive_no_auto_lots -- --test-threads=1` — parking is exclusive and road placement creates no automatic lots. | Permit a second reservation for one spot or create a roadside lot. | Inspected parking and placement verdict view. |
 
 ## Substrate and decisions
 
