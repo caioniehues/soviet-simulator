@@ -1,0 +1,3395 @@
+ ▐▛███▜▌   Claude Code v2.1.233
+▝▜█████▛▘  Opus 5 · Claude Max
+  ▘▘ ▝▝    ~/soviet-simulator
+
+
+❯ /clear                                                                        
+
+❯ /model                                                                        
+  ⎿  Set model to Fable 5 and saved as your default for new sessions with medium
+     effort
+
+❯ hi                                                                            
+  ⎿  You've reached your Fable 5 limit. Run /usage-credits to continue or switch
+     models with /model.
+     /upgrade or /usage-credits to finish what you’re working on.
+
+✻ Churned for 1s
+
+❯ /model                                                                        
+  ⎿  Set model to Opus 5 (1M context) and saved as your default for new sessions
+     with high effort
+
+❯ /ask-matt so how are things?                                                  
+
+  Thought for 8s (ctrl+o to expand)
+
+● Bash(git log --oneline -3 && echo "---" && ls docs/ 2>/dev/null && echo "---"
+      && git status --short | head -20)
+  ⎿  98357d8 R0 The State Document: the charter's opening rung, complete (#
+     110)
+     d361348 R0.1 the grounding pass: SSAO + contact shadows + TAA (Msaa::O
+     … +9 lines (ctrl+o to expand)
+
+  Thought for 5s, searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Bash(gh issue list --state open --limit 20 2>/dev/null | head -25)
+  ⎿  79 OPEN    G1.4 The First Plan + playtest acceptance               2026-08-
+     75 OPEN    G1 — The Weight of the Plan (parent)            2026-08-17T12:09
+     74 OPEN    B9.5 bench_services + acceptance                2026-08-17T11:59
+     … +6 lines (ctrl+o to expand)
+
+
+
+
+● Bash(sed -n '123,166p' docs/charter-1.0.md)
+  ⎿  ## 7. The ladder
+
+     Sixteen rungs, braid-compliant by construction (no two B's adjacent; o
+     … +65 lines (ctrl+o to expand)
+
+  Thought for 11s (ctrl+o to expand)
+
+● Next: /grill-with-docs on R1 "The Planner's Hands" — R0 landed on main at
+  98357d8, so R1 is the open rung.
+
+  Where things stand:
+
+  1. R0 ✅ done (#110) — grounding pass, palette-enforcing material factory,
+  state-document UI, critical warnings in signal-fail colour. That was the
+  mandatory opening rung and it closed the Tier‑1 legibility defects from the
+  "looks like a child made it" playtest.
+  2. R1 is next — placement snapping + ghost preview with cost/refusal,
+  one-level undo, tooltips, inspect-depth panel, selection outlines, camera
+  easing. Charter is explicit that this lands before R4 multiplies the cost of a
+  bad placement.
+  3. 15 rungs left, ~65–90 agent sessions by the charter's own estimate.
+
+  Which skill for R1:
+
+  - Not /wayfinder — R1 isn't foggy. The charter already names all six
+  deliverables; wayfinder is for the effort you can't hold in one session, and
+  burning it here costs a lot for decisions already made.
+  - /grill-with-docs to sharpen the six items into settled behaviour (what does
+  "one-level undo" undo — the last placement, or the last anything?), then
+  /to-tickets, then /implement per ticket with /clear between.
+
+  ★ Insight ─────────────────────────────────────
+  The braid rule in §7 (no two B's adjacent, opens G/P) is doing real work here:
+  it forces a game-feel or polish rung between every two simulation-depth
+  rungs. That's a structural defence against the failure mode the playtest
+  caught — building a deep sim that nobody can read. R1 being a G rung right
+  after R0's P work is the braid, not a coincidence.
+  ─────────────────────────────────────────────────
+
+  Separately: issues #69–#75 and #79 are still open but pre-date the charter —
+  B9 is now R6, G1.4 is R0-era. They'll need reconciling against the rung list
+  before /to-tickets gets confusing. Want me to close or relabel them first?
+
+✻ Crunched for 37s
+
+❯ yes, close out the stale tickets first                                        
+
+  Thought for 5s (ctrl+o to expand)
+
+● Reading each one before touching anything — closing an issue that still holds
+  live detail would lose it.
+
+● Bash(for i in 69 70 71 72 73 74 75 79; do echo "=== #$i ==="; gh issue view $i
+      --json number,title,state,labels,body -q '"\(.title)\nlabels:
+      \([.labels[].name] | joi…)
+  ⎿  === #69 ===
+     B9 — Care of the State: Services (parent)
+     labels:
+     … +49 lines (ctrl+o to expand)
+
+● Bash(sed -n '60,125p' docs/charter-1.0.md)
+  ⎿  > alone, play for two hours without outside help, and at no point see
+     anything
+     > that looks unfinished.**
+     … +90 lines (ctrl+o to expand)
+
+  Thought for 21s (ctrl+o to expand)
+
+● Bash(gh issue list --state closed --limit 15 --search "G1" 2>&1 | head -15;
+      echo "=== 94 ==="; gh issue view 94 --json title,body -q
+      '"\(.title)\n\(.body)"' 2>&1 | h…)
+  ⎿  86 CLOSED  Structured G1 playtest  wayfinder:task  2026-08-17T13:57:27Z
+     77 CLOSED  G1.2 Toolbar UI rebuild         2026-08-17T12:32:03Z
+     78 CLOSED  G1.3 Plan ledger + HUD redesign         2026-08-17T12:35:15Z
+     … +19 lines (ctrl+o to expand)
+
+
+
+  Thought for 10s, searched for 1 pattern (ctrl+o to expand)
+
+● Bash(echo "=== #86 ==="; gh issue view 86 --json title,body,comments -q
+      '"\(.title)\n\(.body)\n--- COMMENTS ---\n\(.comments[].body)"' 2>&1 | head
+      -50)
+  ⎿  === #86 ===
+     Structured G1 playtest
+     Part of #81
+     … +59 lines (ctrl+o to expand)
+
+● Bash(echo "=== #94 resolution ==="; gh issue view 94 --json comments -q
+      '.comments[].body' 2>&1 | head -60)
+  ⎿  === #94 resolution ===
+     ## Resolution
+     … +26 lines (ctrl+o to expand)
+
+  Thought for 24s (ctrl+o to expand)
+
+● Bash(gh label list --limit 30 2>&1 | head -30)  ⎿  bug        Something isn't working #d73a4a
+     accessibility      Barrier affecting people with disabilities      #f143ab
+     documentation      Improvements or additions to documentation      #0075ca
+     … +12 lines (ctrl+o to expand)
+
+
+
+  Thought for 12s (ctrl+o to expand)
+
+● Finding before I touch anything: the B9 tickets are not stale. #94's
+  resolution says the four loops ship in 1.0 "as specced in the paused build 
+  issues" — the charter adopted #69–#74 as R6's build spec rather than
+  superseding them. Closing them would delete R6's spec. Reconciling them
+  instead.
+
+● Bash(cd /home/caio/soviet-simulator
+      gh issue edit 69 --title "R6 (B9) — Care of the State: Services (parent)"
+      2>&1…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/69
+     https://github.com/caioniehues/soviet-simulator/issues/70
+     https://github.com/caioniehues/soviet-simulator/issues/71
+     … +4 lines (ctrl+o to expand)
+
+  Thought for 4s, made 5 scratchpad edits +98 (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      S=/tmp/claude-1000/-home-caio-soviet-simulator/41da26ba-ca1a-4fe8-b2b6-681
+      793d51476/scratchpad…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/69#issuecomment
+     -5319212856
+     https://github.com/caioniehues/soviet-simulator/issues/70#issuecomment
+     … +11 lines (ctrl+o to expand)
+
+  Thought for 8s, read 1 file (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      gh issue comment 73 --body "Retitled to **R6.4** — charter rung R6 \"Care
+      of the State\". Body unchanged: the #94 cut-line resolu…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/73#issuecomment
+     -5319217461
+     https://github.com/caioniehues/soviet-simulator/issues/74#issuecomment
+     -5319217664
+
+  Thought for 5s (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 3 lines, removed 1 line
+      350  ## Status — G1 "The Weight of the Plan" (#75) — code complete,
+            playtest pending
+      351  
+      352  The game grew its pressure loop: the player is **the planner**
+           . Direction
+      353 -set by grilling session (2026-08-17); B9 paused for it.       
+      353 +set by grilling session (2026-08-17). B9 was paused for it; th
+          +at pause is                                                   
+      354 +lifted — B9 is now charter rung **R6** (#69), sequenced behind
+          + R1–R5 rather                                                 
+      355 +than blocked.                                                 
+      356  
+      357  - **The Plan** (#76) — `sim/plan.rs`: quota periods on the clo
+           ck (a 60-day
+      358    Five-Year Plan), a daily measure pass over live stockpiles a
+           nd housed
+
+● Update(README.md)
+  ⎿  Added 5 lines, removed 1 line
+      378  → town rises → trucks bought with roubles → coal and housing q
+           uotas climb
+      379  → the ledger at 100%). All seven bench gates re-pass (legacy b
+           ench/capture
+      380  bins run an infinite treasury — their scenarios predate the ro
+           uble).
+      381 -**Acceptance still open:** an unscripted 30-minute played sess
+          -ion (#79).                                                    
+      381 +**Acceptance still open:** an unscripted 30-minute played sess
+          +ion (#79) —                                                   
+      382 +the one pre-charter ticket still carrying real work. #86 subst
+          +ituted an                                                     
+      383 +agent frame-review, which fed the UX ledger but explicitly did
+          + not close                                                    
+      384 +the bar. Since R0 has changed the game underneath it, #79 now 
+          +needs a call:                                                 
+      385 +retire it into the R15 campaign playthrough, or re-aim it at R
+          +0/R1.                                                         
+      386  
+      387  ## Status — R0 "The State Document" complete (#110)
+      388  
+
+● Bash(cd /home/caio/soviet-simulator
+      gh issue comment 75 --body "## Status against the charter (2026-08-17)…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/75#issuecomment
+     -5319221596
+     19910a7 docs: reconcile the pre-charter tickets with the 1.0 ladder
+
+  Thought for 5s (ctrl+o to expand)
+
+● I didn't close the B9 tickets — they aren't stale, and I was wrong to call 
+  them that. The cut-line resolution on #94 says the four service loops ship in
+  1.0 "as specced in the paused build issues." The charter adopted #69–#74 as
+  R6's build spec rather than replacing it; those six tickets are the only
+  written scope R6 has. Closing them would have deleted it.
+
+  What I did instead:
+
+  1. Retitled #69–#74 to R6.x (B9.x) so they surface under the ladder's
+  numbering while staying findable by the old name.
+  2. Commented the three amendments onto the subticket each one changes — death
+  ships (#70), two education tiers School + Technical Institute (#71), medicine
+  as a 16th import-only resource (#72). #73 and #74 needed no change; I noted
+  that on each so the next reader doesn't re-derive it.
+  3. Lifted the pause. #75's body says "B9 is PAUSED until G1 ships" — false
+  now; the charter re-sequenced it. Corrected on the ticket and in README.md.
+  4. Committed the README fixes as 19910a7.
+
+  One thing genuinely open, and it needs you rather than me: #79, G1's 
+  acceptance bar — an unscripted 30-minute human played session. #86 tried to
+  substitute an agent frame-review and its own resolution says plainly that it
+  doesn't count. The complication is that R0 has since changed the game
+  underneath it, so a session run today tests R0+G1, not G1. Either retire the
+  bar into R15 (whose "full three-plan campaign playthrough" strictly contains
+  it) and close #75/#79, or re-aim it as R0/R1's felt-quality check. I've
+  written both options onto #79 and left it open.
+
+  ★ Insight ─────────────────────────────────────
+  The trap here was that the tickets looked superseded — old prefix, filed
+  before the charter, parent marked PAUSED. The distinguishing question isn't
+  "was this written before the plan of record" but "does the plan of record cite
+  it or restate it". #94 cites, which makes #69–#74 primary sources the charter
+  deliberately gists rather than replaces; the charter says as much in its own
+  header ("this document gists, the tickets hold the detail"). A charter that
+  summarises by design will always leave its sources looking redundant from the
+  outside.
+  ─────────────────────────────────────────────────
+
+  Next: make the #79 call (one line on the ticket), or go straight to
+  /grill-with-docs on R1 — it isn't blocked either way.
+
+✻ Baked for 3m 14s
+
+❯ /grill-with-docs                                                              
+
+● I'll load both skill primitives before starting the interview.
+
+● Skill(grilling)
+  ⎿  Successfully loaded skill
+
+● Skill(domain-modeling)
+  ⎿  Successfully loaded skill
+
+  Thought for 10s (ctrl+o to expand)
+
+● Subject is R1 "The Planner's Hands". Gathering facts before I ask you anything
+  — the charter gists, so the detail lives in #103 and the code.
+
+  Listed 1 directory (ctrl+o to expand)
+
+● Bash(for i in 103 89; do echo "=== #$i ==="; gh issue view $i --json
+      title,body,comments -q '"\(.title)\n\(.body)\n--- RESOLUTION
+      ---\n\(.comments[].body)"' 2>&1 | h…)
+  ⎿  === #103 ===
+     UX debt ledger
+     Part of #81
+     … +83 lines (ctrl+o to expand)
+
+  Thought for 12s (ctrl+o to expand)
+
+● Three parallel explorations of the code while I work out the frontier.
+
+● 3 background agents launched (↓ to manage)
+   ├ Map placement and tool systems
+   ├ Map UI, selection, camera
+   └ Map save, command, and test infra
+
+  Thought for 1m 5s (ctrl+o to expand)
+
+● No CONTEXT.md exists yet (six ADRs do). I'll start one as terms settle. Three
+  code explorations are running; the questions downstream of them come in round
+  2.
+
+  Round 1 — the four decisions that don't wait on code.
+
+  ❓ Q1 — R1's cut line: The charter gives R1 six items: placement snapping,
+  ghost preview with cost + refusal reason, one-level undo, tooltips everywhere,
+  inspect-depth panel, selection outlines, camera easing + zoom-to-cursor. The
+  UX ledger (#103) parks toolbar icons in Tier 3, riding the shell rung R11. But
+  R1 already builds "tooltips on every toolbar button", and the ledger's own
+  wording for the icon item is "toolbar icons rather than bracket hotkey hints, 
+  with the hint as a tooltip" — that item is half-inside R1 already. Do we pull
+  toolbar icons into R1, or keep the split and touch the toolbar twice?
+
+  ➡️ Pull it into R1. You cannot write the tooltip layer for a button without
+  deciding what the button shows when you're not hovering it. Splitting means
+  opening the toolbar file at R1, then again at R11, and living with [1/2]
+  bracket hints as the visible state through six rungs of screenshots and
+  acceptance captures. It's the cheapest item on the ledger and it's on screen
+  in every frame of every capture from here to 1.0.
+
+  ❓ Q2 — The snapping model (the heart of the rung): W&R's most-criticised
+  feature is clunky placement, so this is the item where we either beat it or
+  don't. Four candidate layers, and I want to know which we commit to:
+
+  - (a) A global world grid — everything snaps to an N-metre lattice, buildings
+  and roads alike. Tile-game legibility.
+  - (b) Road-relative snapping — when the cursor is near a road, the building
+  auto-orients perpendicular to the road tangent at a fixed setback, so
+  frontages line up along a street. Free placement away from roads.
+  - (c) Angle snapping — building rotation quantised to 15° steps, road segments
+  quantised relative to the node they leave, with a modifier key for free
+  angles.
+  - (d) Endpoint/node snapping for roads — a new segment within r of an existing
+  road node grabs that node, so the graph never gets near-miss junctions.
+
+  ➡️ (b) + (c) + (d), and explicitly not (a). Reason to reject the global grid
+  isn't taste, it's sequencing: R8 brings heightfield terrain, road draping and 
+  grade gates. A lattice that assumes a flat world is exactly the assumption R8
+  invalidates, and we'd be tearing out the snapping model two rungs after
+  shipping it. Road-relative snapping survives terrain intact, because a road
+  tangent is still a tangent when the road is draped over a hill. (b) is also
+  the CS2 move that produces the legible street-frontage look we're aiming at,
+  and (d) is the one that protects the road graph from junk junctions, which is
+  a data-integrity win, not a UX one.
+
+  ❓ Q3 — Is undo diegetic? This is a doctrinal question, not a UI one. Charter
+  §1: "nothing teleports; every effect has a physical cause. Fiat exists only as
+  an explicitly marked bootstrap." An undo that removes a building and refunds
+  its cost is, strictly, a fiat rewind — the exact thing the one rule forbids.
+  Three ways out:
+
+  - (a) Non-diegetic editor affordance. Undo is a tool, outside the fiction,
+  works on the last placement regardless of state. Honest, conventional, and
+  quietly breaks the one rule.
+  - (b) Diegetic by construction. Undo is "the order is rescinded" — it only
+  works on a site where ground has not been broken: no materials delivered, no
+  work done. In that window nothing physical has happened, so removing it costs
+  nothing and teleports nothing. Once the first gravel arrives, undo refuses
+  with a reason, and you demolish instead (paying the real cost).
+  - (c) No undo; make demolition cheap and instant instead.
+
+  ➡️ (b). It costs the same to build as (a) — the difference is one guard
+  condition — and it turns a generic editor feature into something that
+  expresses the game's rule rather than violating it. It also produces a
+  teaching refusal: "cannot rescind — 12 t gravel already delivered" tells the
+  player that construction is physical, which is the lesson the whole sim is
+  built on. The risk is that the undo window feels arbitrarily short; that's
+  answerable by making the ghost preview good enough that misplacements get
+  caught before the click, which is the same rung's work.
+
+  ❓ Q4 — What does "R1 done" mean? Charter §7 says every rung gets a bench gate
+  where it adds cost, plus an acceptance capture judged side-by-side against
+  the previous recording. R1 adds no sim cost, so there's no bench gate — and
+  interaction feel is the one thing a recording cannot show. Meanwhile #79 (G1's
+  unscripted 30-minute human session) is still open and now aimed at a version
+  of the game that no longer exists.
+
+  ➡️ Re-aim #79 at R1 and make it R1's acceptance bar. The rung's whole content
+  is "does this feel like hands" — that is precisely what only a human session
+  answers, and we already have an open ticket for exactly that ritual. R1's own
+  capture becomes a scripted 15–20 s sequence (approach a road → ghost snaps to
+  frontage showing cost → move onto an illegal site → ghost turns
+  refusal-coloured with the reason → place → rescind → place correctly), which
+  proves the mechanics; the human session judges the feel. This also resolves
+  the #79 question I left open earlier rather than letting it rot.
+
+✻ Cogitated for 1m 59s
+
+❯ yes do as you suggest                                                         
+
+  Thought for 11s (ctrl+o to expand)
+● All four settled. Recording them before the tree grows — the ADR-worthy ones
+  are Q2 and Q3 (both hard to reverse, both real trade-offs a future reader
+  would question).
+
+  Thought for 10s, read 2 files (ctrl+o to expand)
+
+● Write(docs/adr/0007-no-global-placement-grid.md)
+  ⎿  Wrote 13 lines to docs/adr/0007-no-global-placement-grid.md
+       1 # Placement snaps to roads and angles, never to a global world g
+       2 
+         ove — a global N-metre
+         cted deliberately, so
+          draping and grade gates;
+       6 a lattice that assumes a flat world is exactly the assumption R8
+       7 be tearing out the snapping model two rungs after shipping it. T
+       8 build all survive terrain unchanged: **frontage snap** (a buildi
+       9 the road tangent at a fixed setback, which is what produces legi
+      10 **an
+     … +14 lines (ctrl+o to expand)
+
+● Write(docs/adr/0008-rescind-not-undo.md)
+  ⎿  Wrote 14 lines to docs/adr/0008-rescind-not-undo.md
+      1 # Undo is "rescind the order", available only before ground is br
+      2 
+         has a physical cause,
+      4 with fiat allowed only as an explicitly marked bootstrap. A conve
+      5 remove the last placement, refund its cost, whatever state it had
+      6 rewind and breaks that rule. So R1 ships **rescind** instead: it 
+      7 site only while no materials have been delivered and no work has 
+        been done, the window in
+        refore costs and teleports
+         player demolishes at r
+     … +17 lines (ctrl+o to expand)
+
+● Write(CONTEXT.md)
+  ⎿  Wrote 71 lines to CONTEXT.md
+      1 # Soviet Simulator
+      3 A socialist planned-economy city, infrastructure, logistics and s
+        ociety simulator. The
+      4 player is **the Planner**: quotas arrive from above, means are sc
+      5 in the world teleports. This file is the glossary — what the proj
+        ect's words mean, and
+        n detail; the
+      7 [1.0 charter](docs/charter-1.0.md) holds scope and [`docs/adr/`](
+        docs/adr/) holds decisions.
+      9 ## The Plan
+     … +83 lines (ctrl+o to expand)
+
+● Agent "Map UI, selection, camera" finished · 2m 8s
+
+  Thought for 52s (ctrl+o to expand)
+
+● Correction to R1's scope before the questions: one of its six items already 
+  shipped. The UX ledger's item 9 ("replace the flat red ellipse with an outline
+  + hover pre-highlight") was written before R0 — and R0.5 did exactly that.
+  bevy_mod_outline with jump-flood is live, selection is a 4px off-white
+  outline, hover is a 2px signal-ok outline, and selection deliberately beats
+  hover on the same building. That item is done; it shouldn't be in R1's ticket.
+
+  Two explorations still running (placement/snapping, and the mutation path
+  behind rescind). Their questions come in round 3. Here's what the UI findings
+  unlock.
+
+  ❓ Q5 — What takes the freed slot? Selection outlines are done, so R1 has five
+  items, not six. The ledger's Tier 3 has two more candidates sitting
+  unassigned to any rung except "rides with the shell" (R11, ten rungs away):
+  edge-pan and sane pitch limits at zoom extremes. Separately, bevy_egui and
+  bevy-inspector-egui are both in Cargo.toml and used nowhere in src/ — dead
+  weight on every compile.
+
+  ➡️ Don't backfill the slot; bank the saving. R1 is a five-item rung now and
+  that's a real win against a 65–90 session estimate. Do drop the two unused
+  egui dependencies as housekeeping inside the rung — they cost compile time on
+  every iteration of exactly the UI work R1 consists of, so removing them pays
+  for itself during the rung itself. If you want the debug inspector later,
+  adding the dep back is one line.
+
+  ❓ Q6 — How deep is "inspect depth"? The ledger frames item 8 as "clicking a 
+  building should answer 'why is this not working' in one panel" — but the panel
+  already exists and is substantial (hud.rs:1220-1398, 22 rows: kind, yard
+  totals, construction phase with its Bottleneck, per-resource band state with
+  DEMANDING/supplying/in-band, depot truck states, staffing
+  present/assigned/needed, power). The genuine gaps are narrower than the ledger
+  implies: Watered and Heated are never queried for the selected building, and
+  DeficitBoard/StarvingDeficit — which knows exactly which building the
+  dispatcher can't feed — is only shown globally in the dispatch panel, never
+  cross-referenced against your selection. So:
+
+  - (a) Fill the gaps. Add water/heat rows and the deficit cross-reference.
+  Cheap, honest, leaves the player to read nine rows and synthesise the answer.
+  - (b) Gaps plus a computed verdict line. One Line::critical at the top of the
+  panel that names the single binding constraint — "NOT PRODUCING: no water" —
+  derived from the same Liebig gate the sim already evaluates.
+
+  ➡️ (b). The sim already computes this and then throws it away: run_factories
+  gates on powered.0 && watered_ok && f > 0.0 and run_power_plants takes
+  min(staff-factor, fuel). The scarcest factor is a value the code knows every
+  tick — the panel just never asks for it. Surfacing it isn't new logic, it's
+  plumbing an existing decision to the screen, and it's the difference between a
+  panel that contains the answer and one that gives it.
+
+  ★ Insight ─────────────────────────────────────
+  This is the shape most "add an inspect panel" tasks actually have. The
+  expensive-sounding part (deciding what's wrong) is already done inside the
+  simulation, because production gating and diagnosis are the same computation
+  viewed from two directions. The work is finding the seam where the gate is
+  evaluated and returning which factor bound rather than a bare bool — a
+  one-line return-type change that makes the UI feature nearly free.
+  ─────────────────────────────────────────────────
+
+  ❓ Q7 — What is a tooltip attached to? Nothing exists today; hover detection
+  does (UiHover for toolbar chrome, Hovered for world buildings), but it drives
+  only outlines and cursor-parking. The ledger says "every toolbar button, every
+  HUD number, every resource". Two shapes:
+
+  - (a) A Tooltip(String) component you attach when spawning any node, rendered
+  by one system. Simple, local, and the text lives at each of the ~40 spawn
+  sites.
+  - (b) A registry keyed by domain concept — ResourceKind, BuildingKind,
+  ToolMode each get one canonical explanation, and nodes carry a lightweight key
+  instead of prose. Tooltip text becomes a single authored table.
+
+  ➡️ (b), joining ui.rs as a fourth primitive alongside Line, Readout and Meter.
+  The same resource appears in the toolbar, the inspect panel, the band rows
+  and the ledger; with (a) you write "Gravel" four times and they drift apart by
+  R4, when S15 takes the resource count from 3 to 16. A keyed table also means
+  adding a resource forces a compile error at its missing explanation rather
+  than silently shipping a blank hover — which matters precisely because R4 is a
+  resource-count explosion.
+
+  ❓ Q8 — How far does the camera pass go? Current rig is direct and unsmoothed:
+  WASD pan and middle-drag both scale with zoom distance, Q/E yaw, exponential
+  wheel zoom clamped 15–500 m, pitch fixed at −45° with no player control at 
+  all, and no easing on any axis. Charter R1 asks for "easing + zoom-to-cursor".
+  The ledger additionally wants edge-pan and "sane pitch limits at zoom
+  extremes" — but there are no pitch limits to sanitise, because there's no
+  pitch control to limit.
+
+  ➡️ Easing and zoom-to-cursor only; leave pitch fixed and skip edge-pan.
+  Zoom-to-cursor is the big one — it's the single interaction that makes an RTS
+  camera feel authored rather than approximate, and today zoom dollies toward
+  rig.focus regardless of where you're looking. A fixed −45° pitch is a
+  defensible art decision, not an omission: it guarantees every building is seen
+  from the angle the models and the R0.1 shadow rig were tuned for, and it's
+  one fewer way for a player to end up staring at the horizon wondering why the
+  game looks wrong. Adding a pitch axis means re-checking the cascade config and
+  the 260–950 m fog band at every new angle — that's R14 work, not R1. Edge-pan
+  I'd cut outright: it's the control people most often disable, and middle-drag
+  already covers it.
+
+✻ Crunched for 1m 44s
+
+● Agent "Map placement and tool systems" finished · 2m 54s
+
+  Thought for 30s (ctrl+o to expand)
+
+● Placement exploration landed, and it changes three things — including one that
+  breaks a charter assumption.
+
+  The charter says the ghost preview shows "cost". There is no cost. Building
+  placement has no funds gate at all (apply_building_edits,
+  src/sim/buildings.rs:180-235) — the only gate is zoning siting.
+  AllocationFeedback exists but fires only for vehicle purchases and household
+  upkeep. Buildings are free.
+
+  Two defects found on the way. There is no overlap check anywhere — two
+  buildings can be placed inside each other. And juice.rs:211-213 documents the
+  treasury refusal as joining the cursor shake, but catch_refusals reads only
+  road_feedback and zone_feedback; AllocationFeedback was never wired in. Both
+  are R1's business and I'll fold them in unless you object.
+
+  One item of Q2 is already built. Node snap exists sim-side — snapped_node with
+  SNAP_RADIUS = 6.0 (src/sim/roads.rs:252-286). But the road preview is a
+  rubber-band line to the raw cursor, so the snap happens invisibly at commit
+  time and the player never sees it.
+
+  ★ Insight ─────────────────────────────────────
+  That last one is the felt-debt doctrine in miniature, at the scale of a single
+  feature. The snap is genuinely implemented, correct, and worth nothing —
+  because it lives in the commit path rather than the preview path, so no player
+  can perceive it. R1 is largely not about adding capability; it's about moving
+  decisions the sim already makes into the frame before the click.
+  ─────────────────────────────────────────────────
+
+  ❓ Q9 — What does the ghost show where "cost" was meant to go? Roubles are the
+  foreign currency and the charter is explicit that the domestic economy is
+  allocated, not traded — so charging roubles to place a domestic building would
+  itself violate the identity. But the road tool already models the honest
+  alternative: pay_gravel drains PAVED_GRAVEL_PER_METRE from building yards
+  within GRAVEL_SUPPLY_RADIUS = 80 m, nearest first, all-or-nothing, and refuses
+  if the material isn't there.
+
+  - (a) Add a rouble price to buildings so there's a number to show.
+  - (b) The ghost shows the material bill — the construction site's demand in
+  tonnes, plus whether yards in range can actually supply it.
+
+  ➡️ (b), and it's not a compromise. The site's bill is the cost, it's already
+  computed, and it's physical — which makes the preview teach the one rule
+  instead of working around it. It also gives the ghost something genuinely
+  useful to say that a price tag couldn't: "18 t cement — nearest supply 140 m,
+  out of range" is a siting decision, where "600 ₽" is just a number. And it
+  unifies the building and road tools under one cost model rather than leaving
+  roads on materials and buildings on cash.
+
+  ❓ Q10 — What's the overlap rule? Nothing stops two buildings occupying the
+  same ground today. R1 has to add the check; the question is how strict:
+
+  - (a) Footprint AABB only — reject if rectangles intersect.
+  - (b) Footprint plus a setback margin — reject within n metres of another
+  building, so towns can't be packed into a solid mass.
+  - (c) (b) plus road-corridor exclusion — also reject placement overlapping a
+  road ribbon.
+
+  ➡️ (c). (a) alone permits wall-to-wall packing that will look wrong the moment
+  R7 puts visible citizens on the streets and R9 adds ground dressing between
+  buildings. The road case isn't optional: a building placed across a road
+  ribbon is a rendering artefact today and a pathing contradiction the moment
+  R8's draping and grade gates land. The setback value should be a named
+  constant next to the existing SNAP_RADIUS and GRAVEL_SUPPLY_RADIUS, not a
+  literal.
+
+  ❓ Q11 — Where does placement validation live? The ghost must show the refusal
+  before the click, which means the same rules run in two places: the preview
+  (every frame, presentation side) and apply_building_edits (at the sim's
+  ApplyCommands barrier). Two ways:
+
+  - (a) Duplicate the checks in preview_footprint. Fast to write, and the
+  preview and the commit will disagree within two rungs — a preview that says
+  yes to something the sim refuses is worse than no preview.
+  - (b) Extract one pure verdict function — siting::evaluate(kind, pos, world) 
+  -> Verdict returning either Allowed or a refusal carrying its reason — called
+  by the ghost to colour and label itself, and called by apply_building_edits as
+  the actual gate.
+
+  ➡️ (b), and treat it as the rung's one real piece of architecture. It's the
+  seam that makes every later rung's refusal free: R8's slope and grade gates,
+  R10's basin edges, R4's new building kinds all add a variant to one function
+  and appear in the ghost automatically. Duplicating now means adding each
+  future refusal twice forever, and silently shipping the version where they've
+  drifted apart.
+
+  ❓ Q12 — Vocabulary conflict I need you to settle. The road tool already has a
+  one-level undo: X cuts the nearest segment, LastCut records it, and R
+  (RoadEdit::RebuildLast) puts it back, re-paying the gravel. So "one-level
+  undo" partly exists — but it restores a demolition, whereas the rescind we
+  settled in Q3 withdraws a placement before ground is broken. Those are
+  opposite operations sharing one intuition.
+
+  - (a) Keep them separate — R stays "rebuild what I cut", rescind is "withdraw
+  what I ordered". Two keys, two words, honest about being two things.
+  - (b) Unify under one key that undoes the last edit of either kind,
+  dispatching on what that edit was.
+
+  ➡️ (a), separate. Unifying reads tidier but the two have genuinely different
+  rules: rebuild re-pays material and works on something that physically
+  existed, rescind refunds nothing and only works on something that never broke
+  ground. One key doing both means the player can't predict which rules apply
+  before pressing it — and ADR 0008's whole argument is that the refusal is a
+  teaching moment, which requires the player to know what they asked for. I'd
+  keep both, and make CONTEXT.md name the second one Rebuild so the glossary
+  carries the distinction.
+
+  Third exploration (the mutation path behind rescind, id allocation, and the
+  test harness) is still out; its questions are the last round.
+
+✻ Crunched for 59s
+
+❯ yes do as you suggest                                                         
+
+  Thought for 27s (ctrl+o to expand)
+
+● Taking that as yes to Q5 through Q12 — round 2 hadn't been answered yet.
+  Recording the three decisions that a future reader would otherwise try to
+  "fix".
+
+● Write(docs/adr/0009-one-verdict-function-for-placement.md)
+  ⎿  Wrote 13 lines to docs/adr/0009-one-verdict-function-for-placement.md
+      1 # Placement rules live in one verdict function, called by both th
+      2 
+         puts the same siting
+      4 rules on two paths: the preview, running every frame on the prese
+      5 `apply_building_edits`, running at the sim's `ApplyCommands` barr
+      6 checks is the obvious shortcut and is rejected — a preview that a
+      7 refuses is worse than no preview at all, and the two copies drift
+         the moment anyone adds a
+        takes a kind and a
+        ason; the ghos
+     … +14 lines (ctrl+o to expand)
+
+● Write(docs/adr/0010-buildings-cost-materials-never-roubles.md)
+  ⎿  Wrote 14 lines to
+     docs/adr/0010-buildings-cost-materials-never-roubles.md
+      1 # A building's placement cost is its material bill, never a roubl
+      2 
+        s cost, and building
+      4 placement turned out to have none — no funds gate exists, only zo
+      5 fix, giving each building kind a rouble price, is rejected: the r
+      6 *foreign* currency spent at the border, and the domestic economy 
+      7 traded, so charging cash to raise a domestic building would contr
+        adict the identity the
+        ad the construction site's
+        ply range can ac
+     … +16 lines (ctrl+o to expand)
+
+● Write(docs/adr/0011-camera-pitch-is-fixed.md)
+  ⎿  Wrote 12 lines to docs/adr/0011-camera-pitch-is-fixed.md
+       1 # The RTS camera has no pitch control, deliberately
+       3 The rig exposes pan, yaw and zoom; pitch is fixed at −45° and no
+       4 This reads as an omission and is not one, so it is recorded befo
+         re someone "completes" the
+         m the angle its procedural
+         e four-cascade shadow
+         emoves the failure mode
+       8 where a player tilts to the horizon and concludes the game looks
+       9 axis is not one input system: it means re-validating the cascade
+      10 closure at every
+     … +12 lines (ctrl+o to expand)
+
+● Update(docs/adr/0008-rescind-not-undo.md)
+  ⎿  Added 9 lines, removed 1 line
+      11  undo, and it buys a refusal that *teaches* — "cannot rescind: 1
+          2 t gravel delivered" states
+      12  the game's central rule at the moment the player is trying to b
+          reak it. The accepted risk
+      13  is that the window feels short; the mitigation is on the same r
+          ung, since a ghost preview
+      14 -carrying cost and refusal reason is what stops misplacements be
+         -fore the click.                                                
+      14 +carrying the material bill and the refusal reason is what stops
+         + misplacements before the                                      
+      15 +click.                                                         
+      16 +                                                               
+      17 +Rescind stays distinct from the road tool's existing **rebuild*
+         +* (`RoadEdit::RebuildLast`,                                    
+      18 +restoring the last cut segment and re-paying its gravel). The t
+         +wo share an intuition and                                      
+      19 +nothing else: rebuild re-pays material and acts on something th
+         +at physically existed,                                         
+      20 +rescind refunds nothing and acts only on something that never b
+         +roke ground. Collapsing them                                   
+      21 +onto one key would leave the player unable to predict which rul
+         +es apply before pressing it,                                   
+      22 +which defeats the point of a refusal that teaches.             
+
+  Thought for 4s (ctrl+o to expand)
+
+● Update(CONTEXT.md)
+  ⎿  Added 20 lines, removed 2 lines
+      30  ## Placement — the planner's hands
+      31  
+      32  **Ghost**:
+      33 -The translucent preview of a thing about to be placed, shown un
+         -der the cursor before the                                      
+      34 -click commits. It carries its own footprint, its cost, and its 
+         -refusal reason if it has one.                                  
+      33 +The preview of a thing about to be placed, shown under the curs
+         +or before the click commits.                                   
+      34 +It carries its footprint, its material bill, and its refusal re
+         +ason if it has one.                                            
+      35  _Avoid_: preview, blueprint, phantom
+      36  
+      37 +**Verdict**:                                                   
+      38 +The judgment on a proposed placement: approved, or refused with
+         + a reason. One verdict                                         
+      39 +answers both the ghost and the commit, so the two can never dis
+         +agree. See ADR 0009.                                           
+      40 +                                                               
+      41  **Refusal**:
+      42  The game declining a player action, always with a stated physic
+          al reason. A refusal is a
+      43  designed teaching moment, not an error condition.
+      44  _Avoid_: error, invalid, failure
+      45  
+      46 +**Material bill**:                                             
+      47 +What a site demands in matter to complete, and the only sense i
+         +n which a building has a                                       
+      48 +cost — buildings are never priced in roubles. See ADR 0010.    
+      49 +_Avoid_: price, build cost                                     
+      50 +                                                               
+      51 +**Setback**:                                                   
+      52 +The clear ground a building keeps from its neighbours and from 
+         +road corridors. Also the                                       
+      53 +fixed distance frontage snap holds a building back from the roa
+         +d it aligns to.                                                
+      54 +                                                               
+      55  **Rescind**:
+      56  Withdrawing a construction order before ground is broken on it.
+           Distinct from demolition,
+      57  which destroys something physical and costs accordingly. See AD
+          R 0008.
+      58  _Avoid_: undo, cancel, revert
+      59  
+      60 +**Rebuild**:                                                   
+      61 +Restoring the road segment most recently cut, re-paying its mat
+         +erial. The opposite                                            
+      62 +operation to rescind, and deliberately not merged with it.     
+      63 +_Avoid_: undo, redo, restore                                   
+      64 +                                                               
+      65  **Ground broken**:
+      66  The threshold a construction site crosses when the first materi
+          als are delivered to it or
+      67  the first work is done. Before it, a site is only an order; aft
+          er it, it is physical.
+
+  Thought for 10s (ctrl+o to expand)
+
+● Bash(git add -A && git commit -q -m "docs: CONTEXT.md glossary + five ADRs
+      from the R1 grilling…)
+  ⎿  ok 6 files changed, 163 insertions(+)
+     ok
+     e787fc8 docs: CONTEXT.md glossary + five ADRs from the R1 grilling
+
+  Thought for 20s (ctrl+o to expand)
+
+● One more fact to nail down before the last round — frontage snap implies
+  buildings have a rotation, and the placement report only ever mentioned
+  position.
+
+● Bash(cd /home/caio/soviet-simulator
+      echo "=== Building struct ==="; grep -n "pub struct Building" -A 12
+      src/sim/buildings.rs | head -20…)
+  ⎿  === Building struct ===
+     14:pub struct BuildingId(pub u64);
+     15-
+     … +27 lines (ctrl+o to expand)
+
+● Agent "Map save, command, and test infra" finished · 5m 38s
+
+  Thought for 33s (ctrl+o to expand)
+
+● Final exploration is in. One correction to make first — I wrote a claim into
+  ADR 0007 that turns out to be false.
+● Update(docs/adr/0007-no-global-placement-grid.md)
+  ⎿  Added 4 lines, removed 1 line
+      10  **angle snap** (rotation and new road segments quantise to fixe
+          d increments, with a
+      11  modifier for free angles), and **node snap** (a segment endpoin
+          t within radius grabs an
+      12  existing road node). Node snap is load-bearing beyond feel: it 
+          keeps near-miss junctions
+      13 -out of the petgraph topology of ADR 0005, so it is data integri
+         -ty as much as UX.                                              
+      13 +out of the road topology, so it is data integrity as much as UX
+         +. It already exists on the                                     
+      14 +commit path (`snapped_node`, `SNAP_RADIUS = 6.0`) and is invisi
+         +ble to the player, which is                                    
+      15 +the shape of most of this rung's work — moving decisions the si
+         +m already makes into the                                       
+      16 +frame before the click.                                        
+
+  Thought for 6s (ctrl+o to expand)
+
+● Round 4 — the last frontier. Three findings reshape what R1 costs, and one
+  document turns out to describe code that doesn't exist.
+
+  Frontage snap needs a field the game doesn't have. Building { id, kind, pos }
+  (src/sim/buildings.rs:92-96) carries no rotation — nothing in the sim or the
+  save format stores an orientation for a building. Orienting a building to a
+  road tangent is therefore a schema change, not a placement tweak. SAVE_VERSION
+  = 5.
+
+  Undo has a landmine that isn't obvious. Two derived caches are keyed on id
+  counters staying monotonic: DockIndex on (road_ids.next_node, 
+  building_ids.next, node_count) (src/sim/dispatch.rs:87-90) and PathService on
+  (next_node, next_segment, count, mod_sum) (src/sim/pathfinding.rs:298-313).
+  Anything that rewinds a next_* counter can make a stale cache key match a live
+  topology it no longer describes — silently misrouting freight, with no error.
+  Separately, BuildingEdit::Demolish captures a raw runtime Entity, which goes
+  stale the moment anything else despawns.
+
+  ❓ Q13 — Building rotation and the save bump. Frontage snap requires it. R8
+  already plans save v6 for terrain.
+
+  - (a) Add rotation in R1, bumping to save v6 now; R8's terrain bump becomes
+  v7.
+  - (b) Ship frontage snap as position-only — buildings align along a road but
+  never turn to face it.
+
+  ➡️ (a). (b) isn't frontage snap, it's a translation with a nice name — the
+  entire visual payoff is buildings facing the street, and without rotation the
+  snap produces a row of identically-oriented boxes near a curve, which looks
+  more broken than no snapping. The version bump is cheap here and expensive
+  later: doing it at R1 means one field added while the save has 5 rungs of
+  content, versus adding it at R8 alongside a terrain heightfield. Save-version
+  numbers are free; the migration is what costs, and it's smallest now.
+
+  ❓ Q14 — What can be rescinded, and keyed on what? Six edit queues exist
+  (building, road, vehicle, wire, transit, zone), plus two mutations that
+  deliberately bypass the choke point — recruitment +/- and band tuning, which
+  the code itself calls "player intent, not sim state".
+
+  - (a) Buildings only, keyed on BuildingId.
+  - (b) Every domain — a general edit-history stack across all six queues.
+
+  ➡️ (a), keyed on BuildingId and never on Entity. Roads already have their own
+  cut-and-rebuild pair, wires mirror it, and zones/transit/vehicles are either
+  trivially reversible or physical purchases that shouldn't be. A general stack
+  would have to store Demolish { building: Entity } verbatim and inherit exactly
+  the stale-handle bug above. The counter hazard resolves itself under this
+  scope: rescind only ever removes a site that never broke ground, so no counter
+  moves and no id is reused — but I want that written into ADR 0008 as a
+  constraint, because the obvious "redo" feature someone adds later would
+  violate it.
+
+  ❓ Q15 — Can R1 be tested at all? 128 tests exist, and every one bypasses the
+  input layer — they push directly into the *EditQueue resources and assert on
+  sim state. The capture binaries do the same by explicit convention
+  (bevy.md:41: "drive capture-time action from the script, not live input"). So
+  nothing in the repo exercises drive_building_tool, the toolbar, or hotkeys,
+  and R1 is almost entirely that layer.
+
+  - (a) Build an input-driving test harness — press ButtonInput keys/buttons,
+  set GroundCursor, run the real game/* systems, assert on what reaches the
+  queue.
+  - (b) Test only the pure parts — the verdict function, snap math, tooltip
+  table — and leave the wiring to the acceptance capture.
+
+  ➡️ (a), but scoped tightly to the verdict-and-queue contract. GroundCursor and
+  ButtonInput are plain resources, so the harness is small — the reason to
+  build it is that R1 introduces the exact bug class nothing can currently
+  catch: the ghost saying yes where the commit says no. A test that sets a
+  cursor, reads the ghost's verdict, clicks, and asserts the queue agrees is the
+  regression test for ADR 0009's whole premise. I would not try to test tooltip
+  rendering or camera easing; those are what the human session in #79 is for.
+
+  ❓ Q16 — ADR 0005 describes code that does not exist. It states that typed
+  network topology "lives in petgraph" with a packed search mirror. In fact
+  petgraph and kiddo are in Cargo.toml and referenced nowhere in src/ — road
+  topology is plain ECS (RoadNode.segments: Vec<Entity>), and nearest-node
+  lookups are linear scans. The union-find power solver rebuilds from scratch
+  every tick.
+
+  - (a) Mark ADR 0005 proposed — it's a plan, label it as one.
+  - (b) Rewrite it to describe what's actually there, keeping petgraph as the
+  recorded upgrade path.
+
+  ➡️ (b), and drop the two unused crates alongside the egui pair from Q5. An ADR
+  that reads as settled fact but describes an intention is worse than no ADR —
+  I nearly shipped a wrong claim into 0007 by trusting it, which is the failure
+  mode in miniature. Rewriting keeps the genuine decision (the authority/mirror
+  split is the intended shape, and the linear scans are a deliberate not-yet)
+  while making the current state legible. ADR 0003 already models this tone
+  well: it says what exists and names the upgrade path as an open door.
+
+  That empties the frontier — no unanswered branch is left in the tree. Once you
+  confirm these four, I'll fold everything into CONTEXT.md, correct ADR 0005,
+  and hand off to /to-spec for R1.
+
+✻ Sautéed for 7m 38s
+
+❯ yes do as you suggest                                                         
+
+  Thought for 21s (ctrl+o to expand)
+
+● Frontier's empty. Executing the doc corrections and the dependency cleanup —
+  verifying the crates are genuinely unused before I touch Cargo.toml.
+
+● Bash(cd /home/caio/soviet-simulator
+      echo "=== usage check (src/ only) ==="…)
+  ⎿  === usage check (src/ only) ===
+     egui         0
+     inspector    0
+     … +31 lines (ctrl+o to expand)
+
+  Thought for 6s (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      for c in hanabi image_export kira_audio mod_outline procedural_tree
+      bevy_rand vector_shapes noiz pathfinding postcard serde; do p…)
+  ⎿  hanabi             0
+     image_export       0
+     kira_audio         0
+     … +8 lines (ctrl+o to expand)
+
+  Thought for 21s (ctrl+o to expand)
+
+● Update(Cargo.toml)
+  ⎿  Removed 2 lines
+       5  
+       6  [dependencies]
+       7  bevy = "0.19.1"
+       8 -bevy-inspector-egui = "0.37.0"                                 
+       9 -bevy_egui = "0.40"                                             
+       8  bevy_hanabi = "0.19.0"
+       9  bevy_image_export = "0.17.0"
+      10  bevy_kira_audio = "0.26.0"
+
+● Update(Cargo.toml)
+  ⎿  Removed 2 lines
+      12  bevy_procedural_tree = "0.4.0"
+      13  bevy_rand = "0.15.2"
+      14  bevy_vector_shapes = "0.13.1"
+      15 -kiddo = "6.0.2"                                                
+      15  noiz = "0.5.0"
+      16  pathfinding = "4.15.0"
+      18 -petgraph = "0.8.3"                                             
+      17  postcard = { version = "1.1", features = ["use-std"] }
+      18  serde = { version = "1.0", features = ["derive"] }
+      19  
+
+● Bash(cargo check --all-targets 2>&1 | tail -15)
+  ⎿      Blocking waiting for file lock on build directory
+         Finished `dev` profile [optimized + debuginfo] target(s) in 50.80s
+  ⎿  (timeout 10m)
+
+  Thought for 4s (ctrl+o to expand)
+
+● Build is clean. Now the ADR 0005 rewrite and the counter constraint on 0008.
+
+● Write(docs/adr/0005-petgraph-authority-grid-lookup.md)
+  ⎿  Added 20 lines, removed 8 lines
+       1 -# petgraph is the editable topology authority; spatial lookup i
+         -s a hand-rolled uniform grid                                   
+       1 +# Network topology is plain ECS today; the authority/mirror spl
+         +it is the recorded upgrade path                                
+       2  
+       3 -Typed network topology (road/rail/transit/utility graphs) lives
+         - in `petgraph`: flexible and right                             
+       4 -for the *editable authority* side, wrong for hot search — which
+         - is exactly the authority/mirror                               
+       5 -split the carried pathfinding doc prescribes, so the crate slot
+         -s into an existing seam. The                                   
+       6 -packed search mirror is built later as a derived, version-stamp
+         -ed structure. Spatial lookup uses                              
+       7 -hand-rolled uniform grids (static and moving membership separat
+         -ed, rebuildable from authoritative                             
+       8 -state); `kiddo` is in Cargo.toml but held in reserve until a be
+         -nchmark shows the grid losing —                                
+       9 -bounded local queries over mostly-static members favour a grid 
+         -over a k-d tree.                                               
+       3 +This ADR previously described a `petgraph` topology authority a
+         +nd a packed search mirror as                                   
+       4 +though they existed. They did not, and reading it as settled fa
+         +ct produced a wrong claim in                                   
+       5 +ADR 0007 before the code was checked — so it now records what i
+         +s actually there.                                              
+       6 +                                                               
+       7 +**Today.** Road, wire and transit topology lives in plain ECS: 
+         +a `RoadNode` owns                                              
+       8 +`segments: Vec<Entity>`, and nearest-node lookups (`snapped_nod
+         +e`, `endpoint_at`) are linear                                  
+       9 +scans with a distance filter. The union-find solver that pools 
+         +power, water and heat is                                       
+      10 +rebuilt from scratch every solve and holds no persistent state.
+         + Two derived caches do exist                                   
+      11 +and are version-stamped by monotonic id counters plus a modific
+         +ation sum: `DockIndex` and                                     
+      12 +the `PathService` snapshot. `petgraph` and `kiddo` have been dr
+         +opped from `Cargo.toml`                                        
+      13 +rather than sit unused — nothing about this decision depends on
+         + them being installed early.                                   
+      14 +                                                               
+      15 +**The upgrade path, unchanged.** The intended shape when scans 
+         +start costing is still the                                     
+      16 +authority/mirror split the carried pathfinding doc prescribes: 
+         +an editable topology                                           
+      17 +authority separate from a derived, version-stamped search struc
+         +ture — flexible where edits                                    
+      18 +happen, packed where search happens. Spatial lookup upgrades to
+         + hand-rolled uniform grids                                     
+      19 +(static and moving membership separated, rebuildable from autho
+         +ritative state) before it                                      
+      20 +reaches a k-d tree; bounded local queries over mostly-static me
+         +mbers favour a grid. None of                                   
+      21 +that is built, and the trigger is a benchmark showing the linea
+         +r scans losing, not a date.                                    
+
+● Update(docs/adr/0008-rescind-not-undo.md)
+  ⎿  Added 10 lines
+      14  carrying the material bill and the refusal reason is what stops
+           misplacements before the
+      15  click.
+      16  
+      17 +**Constraint on any future extension: rescind must never rewind
+         + an id counter.**                                              
+      18 +`DockIndex` is keyed on `(next_node, next_building, node_count)
+         +` and the `PathService`                                        
+      19 +snapshot on `(next_node, next_segment, count, mod_sum)`; both a
+         +ssume the counters only ever                                   
+      20 +grow. Rewind one and a stale cache key can match a topology it 
+         +no longer describes, which                                     
+      21 +misroutes freight silently, with no error anywhere. Rescind as 
+         +specified is safe because it                                   
+      22 +only ever removes a site that never broke ground, so nothing is
+         + re-added and no counter                                       
+      23 +moves — but the obvious "redo" someone adds later would break e
+         +xactly this. Rescind is also                                   
+      24 +keyed on `BuildingId`, never on a runtime `Entity`: `BuildingEd
+         +it::Demolish` already stores                                   
+      25 +a raw `Entity`, which goes stale as soon as anything else despa
+         +wns.                                                           
+      26 +                                                               
+      27  Rescind stays distinct from the road tool's existing **rebuild*
+          * (`RoadEdit::RebuildLast`,
+      28  restoring the last cut segment and re-paying its gravel). The t
+          wo share an intuition and
+      29  nothing else: rebuild re-pays material and acts on something th
+          at physically existed,
+
+  Thought for 9s (ctrl+o to expand)
+
+● Update(docs/adr/0007-no-global-placement-grid.md)
+  ⎿  Error editing file
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(docs/adr/0007-no-global-placement-grid.md)
+  ⎿  Added 7 lines
+      14  commit path (`snapped_node`, `SNAP_RADIUS = 6.0`) and is invisi
+          ble to the player, which is
+      15  the shape of most of this rung's work — moving decisions the si
+          m already makes into the
+      16  frame before the click.
+      17 +                                                               
+      18 +Frontage snap forces a schema change: `Building` carries only `
+         +id`, `kind` and `pos`, so                                      
+      19 +there is nowhere to store an orientation, and the save format b
+         +umps to v6 at R1 rather than                                   
+      20 +at R8 as originally sketched. Position-only alignment was consi
+         +dered and rejected — the                                       
+      21 +whole payoff is buildings facing the street, and without rotati
+         +on a snapped row on a curve                                    
+      22 +reads worse than no snapping at all. The bump is cheapest now: 
+         +one field while the save                                       
+      23 +holds five rungs of content, rather than the same field alongsi
+         +de R8's heightfield.                                           
+
+● Bash(git add -A && git commit -q -m "docs: close the R1 grilling — rotation,
+      rescind constraints, ADR 0005 corrected…)
+  ⎿  ok 5 files changed, 47 insertions(+), 701 deletions(-)
+     ok
+     2491761 docs: close the R1 grilling — rotation, rescind constraints, A
+     … +2 lines (ctrl+o to expand)
+
+  Thought for 9s (ctrl+o to expand)
+
+● R1 is fully specified and the frontier is empty — ready for /to-spec. Twelve
+  decisions settled across four rounds, recorded as CONTEXT.md (the project had
+  no glossary) plus five new ADRs, committed as e787fc8 and 2491761.
+
+  What R1 turned out to be. Five items, not six — selection outlines shipped in
+  R0.5 already, which the UX ledger predates. The rung is smaller than the
+  charter implies and its real content isn't new capability: node snapping,
+  Liebig gating and material costs are all already computed by the sim and
+  simply never reach the player before they click. R1 is mostly plumbing
+  existing decisions into the frame before the commit.
+
+  The decisions that will surprise a future reader, which is why each got an
+  ADR:
+
+  - No global placement grid (0007). A flat lattice is precisely what R8's
+  heightfield terrain invalidates. Frontage, angle and node snapping all survive
+  terrain untouched.
+  - Undo is "rescind" (0008), legal only before ground is broken. A conventional
+  undo refunds and rewinds, which is fiat — the one thing the charter's central
+  rule forbids. The guard costs one condition and converts a generic editor
+  feature into one that teaches the rule.
+  - One verdict function (0009) shared by the ghost and the commit path, so the
+  preview can never approve what the sim refuses.
+  - Buildings cost materials, never roubles (0010). The charter asked the ghost
+  to show "cost"; placement has no cost, and adding a rouble price would
+  contradict the identity, since roubles are foreign-only. The construction
+  site's material bill is the honest answer and unifies buildings with the road
+  tool's existing gravel model.
+  - Fixed camera pitch is deliberate (0011), not an omission, so nobody
+  "completes" the controller and quietly invalidates the R0.1 shadow cascades
+  and fog band.
+
+  Three defects found on the way, all folded into R1: nothing prevents two
+  buildings overlapping; catch_refusals never wired AllocationFeedback into the
+  cursor shake despite its doc comment claiming otherwise; and frontage snap
+  needs a rotation field Building doesn't have, bumping the save to v6 at R1
+  rather than R8.
+
+  I corrected ADR 0005, which described code that was never written. It
+  presented a petgraph topology authority and packed search mirror as fact; the
+  real topology is plain ECS with linear scans. I trusted it and put a wrong
+  claim into ADR 0007 before checking the source — caught and fixed, and the ADR
+  now records reality with the authority/mirror split kept as the upgrade path.
+  I dropped petgraph, kiddo, bevy_egui and bevy-inspector-egui, all referenced
+  nowhere in src/; cargo check --all-targets is clean.
+
+  ★ Insight ─────────────────────────────────────
+  The ADR 0005 episode is the sharpest thing this session produced. A document
+  that states an intention in the present tense is more dangerous than no
+  document, because it's trusted at exactly the moment nobody has time to verify
+  it — and it propagates, since I cited it as grounds for a different decision
+  within the hour. The tell was cheap to check (grep petgraph src/ returns
+  nothing) and I only ran it because a subagent was auditing the same area for
+  another reason.
+  ─────────────────────────────────────────────────
+
+  One thing I found but deliberately did not act on: seven more dependencies are
+  unreferenced in src/ — bevy_hanabi, bevy_image_export, bevy_kira_audio,
+  bevy_procedural_tree, bevy_rand, bevy_vector_shapes and noiz. Unlike the four
+  I removed, these map onto specific future rungs (audio at R3, terrain noise at
+  R8, ground dressing at R9), so they look staged rather than dead. Eleven of
+  sixteen dependencies compiling for nothing is still a real cost on every
+  iteration of the UI work R1 consists of, and they can be added back in one
+  line each when their rung arrives — but that's your call, not a cleanup I
+  should make unilaterally.
+
+  Next: run /to-spec to collapse these twelve decisions into R1's buildable
+  spec.
+
+✻ Baked for 2m 54s
+
+❯ /to-spec                                                                      
+
+  Thought for 41s (ctrl+o to expand)
+
+● I have everything from the grilling. Here are the seams before I publish —
+  this is the one thing worth vetoing.
+
+  The ideal is one seam, and R1 can nearly have it. The ghost needs a snapped
+  position, a rotation, a material bill and a verdict; the commit path needs the
+  same verdict and the same snapped transform. Those are one computation asked
+  twice, so I'm proposing a single pure function — propose(kind, cursor, world) 
+  -> Proposal — carrying all four. The ghost renders a Proposal; the apply path
+  calls the same function and commits only if its verdict allows. That makes ADR
+  0009's guarantee structural rather than tested: preview and commit cannot
+  disagree, because there is only one answer.
+
+  Three supporting seams, two of which already exist:
+
+  ┌──────────────────────┬──────────────┬───────────────────────────────────┐
+  │         Seam         │    Status    │              Covers               │
+  ├──────────────────────┼──────────────┼───────────────────────────────────┤
+  │                      │              │ snapping,                         │
+  │ propose              │ new, primary │ setback/overlap/road-corridor     │
+  │                      │              │ refusal, zoning, material bill    │
+  ├──────────────────────┼──────────────┼───────────────────────────────────┤
+  │ BuildingEditQueue +  │ existing     │ rescind semantics, ground-broken  │
+  │ a Rescind variant    │              │ guard                             │
+  ├──────────────────────┼──────────────┼───────────────────────────────────┤
+  │ Input harness        │              │ that a click queues the proposal  │
+  │ (GroundCursor +      │ new, thin    │ that was previewed                │
+  │ ButtonInput → queue) │              │                                   │
+  ├──────────────────────┼──────────────┼───────────────────────────────────┤
+  │ Tooltip registry     │ new,         │ exhaustiveness enforced by match, │
+  │ keyed on kind enums  │ compile-time │  not by test                      │
+  └──────────────────────┴──────────────┴───────────────────────────────────┘
+
+  The input harness shrinks a lot under this design — with one propose, the
+  ghost/commit disagreement bug class is gone by construction, so the harness
+  only needs to prove the click path uses the proposal rather than recomputing.
+  Made 1 scratchpad edit +117 (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      gh label create "ready-for-agent" --color "0e8a16" --description "Spec is
+      agent-ready: no further triage needed" 2>&1 | tail -2…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/117
+
+  Thought for 6s (ctrl+o to expand)
+
+● Bash(gh issue view 117 --json number,title,labels -q '"#\(.number) \(.title) —
+      labels: \([.labels[].name] | join(","))"')
+  ⎿  #117 R1 — The Planner's Hands — labels: ready-for-agent
+
+  Thought for 5s (ctrl+o to expand)
+
+● Update(docs/charter-1.0.md)
+  ⎿  Added 1 line, removed 1 line
+      130  | # | Rung | Type | Content |
+      131  |---|---|---|---|
+      132  | **R0** ✅ | **The State Document** | G+P | **Done** ([#110](
+           https://github.com/caioniehues/soviet-simulator/issues/110)). 
+           Grounding pass (SSAO + contact shadows + TAA + cascade tuning)
+           , sky/horizon gradient, **material factory enforcing the palet
+           te** (fixes the lawn-green violation), UI redraw to a drawn st
+           ate-document system, HUD hierarchy, **critical warnings in sig
+           nal-fail colour + toast**, refusal feedback, first juice. *Man
+           datory opening rung.* |
+      133 -| **R1** | The Planner's Hands | G | Placement snapping + ghos
+          -t preview showing cost and refusal reason, one-level undo, too
+          -ltips everywhere, inspect-depth panel ("why is this not workin
+          -g"), selection outlines, camera easing + zoom-to-cursor. *Befo
+          -re S15 multiplies the cost of bad placement.* |               
+      133 +| **R1** | The Planner's Hands | G | **Specced** ([#117](https
+          +://github.com/caioniehues/soviet-simulator/issues/117), ADRs 0
+          +007–0011). Placement snapping + ghost preview showing the **ma
+          +terial bill** and refusal reason, **rescind** (not a general u
+          +ndo), tooltips everywhere + toolbar icons, inspect-depth panel
+          + ("why is this not working"), camera easing + zoom-to-cursor; 
+          +building gains a rotation, **save v6**. *Before S15 multiplies
+          + the cost of bad placement.* Selection outlines struck — shipp
+          +ed in R0.5. |                                                 
+      134  | **R2** | Real Matter | B | The S8 construction layer: Wood, 
+           Boards, Cement, Concrete, Bricks + 5 buildings; construction s
+           ites consume real materials. |
+      135  | **R3** | The Sound of Work | P | Audio layers 1–2 (UI feedba
+           ck, then ambience) + geometry weathering (base bands, window r
+           epetition, rust roof edges). |
+      136  | **R4** | Steel and Bread | B | The rest of S15: Iron, Steel,
+            Prefab panels, Crops, Food, Livestock, Meat + 7 buildings; **
+           field-cycle farming**; Goods' real recipe; Food/Meat as separa
+           te needs. |
+
+● Bash(cd /home/caio/soviet-simulator
+      sed -i 's|^| |;' /dev/null 2>/dev/null…)
+  ⎿  133:| **R1** | The Planner's Hands | G | **Specced** ([#117](https://g
+     ithub.com/caioniehues/soviet-simulator/issues/117), ADRs 0007–0011). P
+     lacement snapping + ghost preview showing the **material bill** and re
+     … +9 lines (ctrl+o to expand)
+
+● Update(docs/charter-1.0.md)
+  ⎿  Added 1 line, removed 1 line
+      137  | **R5** | The Second Plan | G | Authored Plan II teaching the
+            S15 economy and the winter deadline; objective strip + hint l
+           ines in the state's voice. |
+      138  | **R6** | Care of the State | B | B9: demographics with agein
+           g and death, education at two tiers, healthcare with imported 
+           medicine and ambulance dispatch, waste with landfill + inciner
+           ator. `bench_services` at 250k. |
+      139  | **R7** | Faces in the Crowd | P | Bounded visible citizens w
+           ith walk/queue/work states, day/night cycle, powered-state win
+           dow glow, ambient life. |
+      140 -| **R8** | The Land | B | Terrain T1: heightfield mesh + ray-m
+          -arched cursor, `Terrain` sampler, road draping + grade gates, 
+          -cut/fill earthworks, slope refusals, **procedural seed maps**,
+          - **ore-deposit siting**, minimal bridges, save v6. |          
+      140 +| **R8** | The Land | B | Terrain T1: heightfield mesh + ray-m
+          +arched cursor, `Terrain` sampler, road draping + grade gates, 
+          +cut/fill earthworks, slope refusals, **procedural seed maps**,
+          + **ore-deposit siting**, minimal bridges, save v7 (R1 took v6)
+          +. Slope refusals arrive as new variants on R1's placement verd
+          +ict. |                                                        
+      141  | **R9** | The Living Land | P | Ground dressing (scatter, wor
+           n yards, road shoulders), snow cover on the sinusoid, fields c
+           ycling green → gold → bare. |
+      142  | **R10** | The Waters and the Air | B | Terrain T2 (basins, s
+           tage–volume curves, D8 spill edges, seasonal inflow) + T3 (**t
+           he dam**, turbine/spillway, hydro into the untouched pool solv
+           er) + the pollution field and its three couplings. |
+      143  | **R11** | The Shell | G | App-state retrofit (keystone, alon
+           e), main menu, new game with seed presets, load/save screen, p
+           eriod-end autosaves, pause/date/speed, settings, notifications
+            + event log, **machine-kind save fix + save-soak hash gate**.
+            |
+
+● Bash(git add -A && git commit -q -m "docs: R1 specced as #117; charter ladder
+      updated…)
+  ⎿  ok 1 file changed, 2 insertions(+), 2 deletions(-)
+     ok
+     5c6cf5b docs: R1 specced as #117; charter ladder updated
+
+● R1's spec is published as #117, labelled ready-for-agent. 34 user stories, the
+  implementation decisions traced to ADRs 0007–0011, testing decisions anchored
+  to the repo's existing headless-app pattern, and an explicit out-of-scope
+  list.
+
+  The spec's central design choice is the one seam. Rather than a snapping
+  module, a validation module and a preview module, there's one pure function
+  returning a proposal that carries the snapped position, the snapped rotation,
+  the material bill and the verdict. The ghost renders a proposal; the commit
+  path calls the same function and commits only on approval.
+
+  ★ Insight ─────────────────────────────────────
+  This is worth noticing as a design move, because it converts a testing problem
+  into a structural one. ADR 0009's requirement was "the preview must never
+  approve what the sim refuses" — which sounds like something you write a test
+  for, and which a test can only ever sample. Routing both callers through one
+  function means the disagreement has nowhere to live: there is a single answer,
+  asked twice. The remaining test isn't "do they agree" but the much narrower
+  "does the click path use the proposal rather than recomputing one", which is a
+  single test rather than a growing matrix as refusal rules accumulate through
+  R4, R8 and R10.
+  ─────────────────────────────────────────────────
+
+  I also corrected two charter rows while I was there. R1's row now links the
+  spec and records the scope changes — material bill instead of cost, rescind
+  instead of undo, toolbar icons pulled in, selection outlines struck. R8's row
+  moves from save v6 to v7, since R1 takes v6 for building rotation, and notes
+  that its slope refusals arrive as new variants on R1's verdict rather than as
+  a separate gate.
+
+  Two things I decided rather than asked, both reversible: I created the
+  ready-for-agent label (the repo had no triage vocabulary — only the
+  wayfinder:* set), and I published the spec as a standalone issue rather than a
+  child of the closed wayfinder map #81, since the map is finished and the
+  charter is the plan of record now.
+
+  Next: /to-tickets on #117 to split it into tracer-bullet tickets with blocking
+  edges. The natural first ticket is the proposal function with its verdict
+  variants, because the ghost, the refusals and the overlap fix all block on it.
+
+✻ Cogitated for 2m 48s
+
+❯ /improve-codebase-architecture btw what other codebase observations and       
+enhancements you suggest? like the bevy plugins, etc                            
+
+  Thought for 11s (ctrl+o to expand)
+
+● Skill(codebase-design)
+  ⎿  Successfully loaded skill
+
+  Thought for 9s, read 1 file (ctrl+o to expand)
+
+● Direction taken: plugins and structural friction. Three explorations, each on
+  a different part of the tree.
+
+● 3 background agents launched (↓ to manage)
+   ├ Map plugin and schedule architecture
+   ├ Assess game layer module shapes
+   └ Assess sim layer module shapes
+
+  Thought for 25s (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator; ls architecture/ docs/vision/ 2>&1 | head
+      -20; echo "=== bevy.md ==="; wc -l bevy.md; head -60 bevy.md)
+  ⎿  architecture/:
+     ecs.md
+     simulation-clock.md
+     … +65 lines (ctrl+o to expand)
+
+  Thought for 8s (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator; cat architecture/ecs.md; echo "=== bins
+      ==="; ls src/bin/ | wc -l; ls src/bin/)
+  ⎿  # ECS layout — Bevy mapping
+
+     **Status:** ratified (ticket #5, 2026-08-16). Grounds: the Unity-track
+     … +137 lines (ctrl+o to expand)
+
+  Thought for 29s, read 1 file (ctrl+o to expand)
+
+● Three explorations are running. Two findings already in hand from the
+  project's own docs, both worth flagging before the report:
+
+  bevy.md documents a workaround where depth is missing. It instructs: "Any 
+  binary that adds GamePlugin must register every sim plugin lib.rs does — 
+  HUD/tool systems hard-require sim resources (Res<T> panics on a missing 
+  resource at runtime, not compile time), so a capture/bench binary silently 
+  rots the moment a milestone adds a plugin." There are 18 bin targets (8 bench,
+  10 capture), each 6–14 KB, each assembling the app itself. A rule a human
+  must remember, enforced by a runtime panic, is the signature of a shallow seam
+  — app assembly has no module, so every binary re-implements it.
+
+  architecture/ecs.md carries the same fiction I just corrected in ADR 0005. It
+  states "petgraph is the authoritative typed topology store" and describes ids
+  as "allocated from a serialized IdAllocator resource". Neither exists —
+  topology is plain ECS, and ids come from six separate per-family counter
+  resources. That's now two ratified documents describing the same imaginary
+  architecture, which is how I nearly shipped a wrong claim into ADR 0007
+  yesterday.
+
+  I'll fold both into the report with the exploration results and open it when
+  the agents land.
+
+✻ Churned for 1m 38s
+
+● Agent "Assess game layer module shapes" finished · 4m 35s
+
+  Thought for 11s (ctrl+o to expand)
+
+● Game-layer exploration landed. The sharpest finding, and it corrects something
+  I relayed earlier in this session:
+
+  hud.rs holds 17 distinct responsibilities behind 2 public items — key legend,
+  plan meters, a near-duplicate fullscreen ledger, population, dispatch,
+  inspect, selection, demolition, recruitment, band tuning, three separate
+  vehicle-purchase systems, time controls, notice emission, three world-space
+  gizmo overlays, and the tool readout. A small public surface usually signals
+  encapsulation; here it hides breadth rather than depth, and nothing in the
+  interface tells you which of the 17 exist.
+
+  And ADR 0003 has two real violations, not the sanctioned exceptions I 
+  described during the grilling. I repeated the code's own defense — that
+  recruitment controls and band tuning are "player intent, not sim state, the
+  same standing as SimSpeed". That equivalence doesn't hold: SimSpeed only gates
+  how many ticks the clock runs and never appears inside a sim decision,
+  whereas RecruitmentPlan.target_households is read directly by the recruitment
+  system and StoragePolicies bands are read by the dispatcher. Both are live
+  decision inputs mutated in place by presentation code, which is exactly what
+  the ADR forbids. I should have checked rather than quoting the comment.
+
+  Two explorations still out; the report follows when they land.
+
+✻ Sautéed for 12s
+
+● Agent "Map plugin and schedule architecture" finished · 5m 8s
+
+  Thought for 17s (ctrl+o to expand)
+
+● Plugin map landed — the duplication is worse than bevy.md admits. All 18 bin
+  targets retype the plugin list by hand, and each is a frozen snapshot of
+  lib.rs from the day it was written: capture.rs runs 9 sim plugins,
+  capture_g1.rs runs 18. Treasury is registered in four separate plugins and
+  AllocationFeedback in three, each with a comment explaining the duplication
+  exists so partial plugin sets don't panic.
+
+  Waiting on the sim-layer exploration, then I'll build the report.
+✻ Cogitated for 17s
+
+● Agent "Assess sim layer module shapes" finished · 4m 59s
+
+  Thought for 31s (ctrl+o to expand)
+
+● All three explorations in. Verifying the one claim that would be a live bug
+  rather than friction before I write it up.
+
+● Bash(cd /home/caio/soviet-simulator
+      echo "=== run_heat_plants signature ==="; sed -n '100,125p'
+      src/sim/heat.rs…)
+  ⎿  === run_heat_plants signature ===
+
+     fn update_climate(frame: Res<FrameIndex>, mut climate: ResMut<Climate>
+     … +30 lines (ctrl+o to expand)
+
+  Thought for 15s (ctrl+o to expand)
+
+● Confirmed — that's a live bug, not just friction. Writing the report.
+
+  Made 1 scratchpad edit +454 (ctrl+o to expand)
+
+● Bash(xdg-open /tmp/claude-1000/-home-caio-soviet-simulator/41da26ba-ca1a-4fe8-
+      b2b6-681793d51476/scratchpad/architecture-review-20260817.html 2>&1 | head
+      -3; echo "op…)
+  ⎿  opened
+
+● Report is open. Path: /tmp/claude-1000/-home-caio-soviet-simulator/41da26ba-ca
+  1a-4fe8-b2b6-681793d51476/scratchpad/architecture-review-20260817.html
+
+  Seven candidates. The three that matter most:
+
+  1. App assembly has no module — and it's my top recommendation. All 18 bin
+  targets retype the plugin list by hand, each frozen at the moment it was
+  written: capture.rs runs 9 sim plugins, capture_g1.rs runs 18,
+  bench_traffic.rs runs 4. bevy.md documents this as a discipline you must
+  remember, enforced by a runtime Res<T> panic. The second symptom is the same
+  cause — Treasury is registered in four separate plugins and AllocationFeedback
+  in three, each with a comment explaining that partial plugin sets would
+  otherwise panic. Three real adapters already exist (windowed play, offscreen
+  capture, headless bench), so the seam is genuine rather than hypothetical.
+
+  2. The production gate — and a confirmed bug. Four production sites each
+  hand-write their own Liebig chain and return a bare scalar, discarding which
+  factor bound. Separately, the Without<ConstructionSite> inertness filter is
+  applied by hand and applied inconsistently: mine, quarry, power plant, factory
+  and labour assignment have it; run_heat_plants and solve_water do not. A heat
+  plant still under construction burns coal and heats homes at full rate. So 
+  does a water pump. I verified this directly rather than taking the
+  exploration's word for it.
+
+  3. Save columns, and the timing is now. One 350-line snapshot() and one
+  350-line restore(), 11 row structs, 14 hand-paired discriminant functions,
+  symmetry enforced only by hash tests. There is no migration path at all — a
+  version mismatch is rejected outright, so R1's v6 bump kills every existing
+  save. If this is ever worth deepening, the rung that touches the format is the
+  cheapest moment.
+
+  ★ Insight ─────────────────────────────────────
+  Candidates 1 and 2 share a signature worth learning to spot: a rule written in
+  prose that the compiler cannot check. bevy.md says "register every sim
+  plugin"; the production systems say "remember Without<ConstructionSite>". Both
+  are documentation standing in for an interface, and both have already failed
+  — the capture binaries drifted, and two production systems forgot the filter.
+  When you find a doc telling humans to remember something mechanical, the
+  deepening opportunity is usually right there.
+  ─────────────────────────────────────────────────
+
+  Two I marked down honestly rather than up: hud.rs (17 responsibilities, 0
+  tests) is worth exploring rather than strong, because R1 rewrites its inspect
+  panel and tooltip layer anyway and the deepening is far cheaper riding that
+  rung. The six copy-pasted edit queues are speculative — the deletion test only
+  half-passes, since each apply body is genuinely different work.
+
+  Which would you like to explore?
+
+✻ Sautéed for 9m 5s
+
+❯ /effort xhigh                                                                 
+  ⎿  Set effort level to xhigh (saved as your default for new sessions): Deeper
+     reasoning than high, just below maximum (Fable 5, Opus 4.7+, Sonnet 5)
+
+❯ explore all of them, starting from the mpst important one                     
+
+  Thought for 59s (ctrl+o to expand)
+
+● Skill(grilling)
+  ⎿  Successfully loaded skill
+
+● Bash(B=$(ls -d ~/.cargo/registry/src/*/bevy-0.19* 2>/dev/null | head -1); echo
+      "crate: $B"
+      grep -rn "pub trait PluginGroup" -A 12
+      ~/.cargo/registry/src/*/bevy_app-0.…)
+  ⎿  crate: /home/caio/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f
+     /bevy-0.19.1
+     /home/caio/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_a
+     … +32 lines (ctrl+o to expand)
+
+  Thought for 44s (ctrl+o to expand)
+
+● Verified PluginGroup against the installed Bevy 0.19.1 rather than from
+  memory, per bevy.md's standing warning — build() -> PluginGroupBuilder with
+  add, add_group, add_before::<T>, add_after::<T>, enable, disable, set. That's
+  the whole toolkit candidate 1 needs, and it changes what I'd recommend.
+
+  Round 1 — four decisions, none depending on another.
+
+  ❓ Q1 — How do the seven land relative to R1? R1 (#117) is specced and
+  unstarted. Three candidates are cheaper riding it because it already opens
+  those files: the production gate (R1 needs the verdict line), the save columns
+  (R1 bumps to v6), and the hud.rs panels (R1 rewrites the inspect panel and
+  adds tooltips). Three are protective and independent: app assembly, the ADR
+  0003 violations, the applier ordering. One fails the deletion test.
+
+  - (a) One groundwork pass now, all seven, before R1's features.
+  - (b) Split by where each is cheapest — assembly, ADR 0003 and ordering as a
+  standalone pass now; production gate, save columns and panels fold into R1's
+  tickets; edit queues dropped.
+  - (c) All of it inside R1 as extra tickets.
+
+  ➡️ (b). The split isn't administrative — it's about not opening the same file
+  twice. Deepening hud.rs separately means restructuring the inspect panel now
+  and rewriting it again three weeks later under R1; folding it in means one
+  edit. Conversely, app assembly must come first and alone, because every other
+  item on this list touches the plugin set, and today that means 19 hand-copied
+  places failing at runtime rather than compile time. And I'd record the
+  edit-queue rejection as an ADR — "six duplicated queues" is precisely what the
+  next architecture review will re-suggest, and the reason it fails (the frame
+  duplicates, the bodies genuinely differ) is not self-evident from the code.
+
+  ❓ Q2 — What shape is the app-assembly module? Three ways to give the plugin
+  set one home:
+
+  - (a) Free functions — stack::play(&mut app), stack::capture(&mut app),
+  stack::headless(&mut app).
+  - (b) Bevy PluginGroups — SimPlugins and GamePlugins, composed with add_group,
+  deviated from with .disable::<T>().
+  - (c) One plugin that adds all the others as children.
+
+  ➡️ (b), and the reason is an inversion rather than a style preference. Under
+  (a) or (c) a bench still declares what it includes — bench_traffic says "Sim,
+  Road, Pathfinding, Traffic" — and that list is correct only until the next
+  domain lands, which is exactly how all 18 binaries drifted in the first place.
+  Under (b) a bench declares what it excludes:
+  SimPlugins.build().disable::<HeatSimPlugin>(). Inclusions rot as the system
+  grows; exclusions don't. That's the depth — one name carries the whole
+  18-plugin graph, and a deviation costs one line that states its own intent.
+
+  Two bonuses that fall out: add_group lets GamePlugins nest SimPlugins rather
+  than the two-root arrangement lib.rs and game/mod.rs have now, and the
+  15-element tuple ceiling disappears — both files currently work around it with
+  a second add_plugins call and a comment explaining why.
+
+  ❓ Q3 — The construction bug changes gameplay. Fix it now? Confirmed:
+  run_heat_plants and solve_water lack the Without<ConstructionSite> filter that
+  mine, quarry, power plant, factory and labour assignment all carry. A heat
+  plant that is still a construction site burns coal and heats homes at full
+  rate today. Fixing it means heat and water stop flowing until construction
+  completes — which shifts the pacing of the authored First Plan, balanced for a
+  20–30 minute first period, and may move the bench gates and capture_g1.
+
+  - (a) Fix now, standalone, and re-run the seven gates plus the capture to see
+  what moved.
+  - (b) Fix inside the production-gate deepening, so the filter becomes
+  structural in the same change.
+
+  ➡️ (a), now. R5 authors Plan II against this physics. Balancing a second plan
+  on top of incorrect behaviour means either re-balancing both later or freezing
+  the bug permanently — and this bug points directly against the game's central
+  rule, since a building that has not been built is currently heating homes.
+  Fix it while exactly one authored plan exists. The deepening still makes it
+  structural later; this just stops the clock on the damage.
+
+  ❓ Q4 — Are the two ADR 0003 violations violations, or is the ADR incomplete?
+  drive_recruitment_controls writes RecruitmentPlan and drive_band_tuning writes
+  StoragePolicies, both in place, both defending themselves as "player intent,
+  not sim state, the same standing as SimSpeed".
+
+  - (a) Route both through the edit queue and treat the comments as wrong.
+  - (b) Amend ADR 0003 to name a legitimate third category the presentation may
+  write.
+  - (c) Both — route them through the queue, and record the test that decides
+  which category anything falls into.
+
+  ➡️ (c). On substance the comments are wrong, and there's a decidable test
+  rather than a judgement call: does the sim read it as a decision input, and 
+  does it persist in the save? SimSpeed fails both — it only gates how many
+  ticks the clock runs, and it isn't saved. RecruitmentPlan passes both (the
+  recruitment system reads it; restore writes it back) and StoragePolicies
+  passes both (the dispatcher reads it; it's a saved component). So they're sim
+  state under any definition that isn't just vibes, and they belong in the
+  queue. Writing the test into the ADR is what stops the next contributor from
+  re-deriving the same wrong equivalence — which has already happened twice in
+  this codebase, and which I repeated myself earlier today by quoting the
+  comment instead of checking.
+
+✻ Crunched for 2m 8s
+
+❯ yes do as you suggest                                                         
+
+  Thought for 36s (ctrl+o to expand)
+
+● Round 2 — the frontier moved. Four more.
+
+  ❓ Q5 — Do the duplicate resource registrations survive? Treasury is
+  init_resource'd in four plugins, AllocationFeedback in three, StatePlan and
+  ZoningFeedback in two — each with a comment explaining that partial plugin
+  sets would otherwise panic. Once SimPlugins makes "everything" the default,
+  only benches run subsets.
+
+  - (a) Keep them — idempotent, harmless.
+  - (b) Delete them. One owner per resource; a bench that disables an owner
+  inserts what it needs.
+  - (c) A non-disableable SimCorePlugins holding the cheap resource owners, plus
+  disableable domain plugins.
+
+  ➡️ (b), and the project already ratified the rule. architecture/ecs.md
+  constraint 3: "One authoritative owner per fact." Four plugins claiming
+  Treasury is that constraint broken to work around a missing assembly module,
+  and the workaround outlived its cause the moment SimPlugins exists. The
+  pattern for the exception is already proven in the tree — bench_chain inserts
+  its own Treasury { roubles: INFINITY } because its scenario predates the
+  rouble. (c) adds a concept to solve a problem (b) solves by deletion.
+
+  ❓ Q6 — Do all 18 binaries migrate, or do some die? Ten capture_* binaries
+  exist; seven of them (capture_m2 … capture_m8) record milestones whose videos
+  are already sitting in screenshots/result/. The charter's acceptance
+  discipline compares each rung's recording against the previous recording — it
+  compares mp4s, not re-runs of old scripts. So those seven have no ongoing job,
+  and they're ~80 KB of the drift surface.
+
+  - (a) Migrate all 18 to the group.
+  - (b) Migrate the 8 benches, capture.rs, capture_g1 and capture_r0; delete the
+  seven historical capture binaries.
+  - (c) Migrate all, stop maintaining the historical ones.
+
+  ➡️ (b). The benches are live gates that must keep passing, so they all stay.
+  The historical captures are reproduction scripts for videos that have already
+  been produced and committed — keeping them means every future plugin change
+  must keep seven dead scripts compiling, which is the drift tax without the
+  drift benefit. They're in git if anyone wants them back. This drops the
+  surface from 18 hand-assembled apps to 11, and after Q2 those 11 stop being
+  hand-assembled at all. (c) is the worst option: code that compiles but isn't
+  maintained is exactly what produced capture.rs running 9 plugins against
+  lib.rs's 18.
+
+  ❓ Q7 — What is the applier order? Six appliers share ApplyCommands with one
+  declared edge (zoning before buildings). The natural dependencies are all
+  one-directional: a building may frontage-snap to a road placed the same tick
+  (R1 makes this live), a wire snaps to a building, a vehicle is bought at a
+  depot, a household spawns into a dwelling, a transit line needs its stops.
+
+  - (a) Chain all six in one declared order at the stage configuration: zones →
+  roads → buildings → wires → households → vehicles → transit.
+  - (b) Declare edges only where a dependency exists today, leave the rest free.
+  - (c) Document the ambiguity, change nothing.
+
+  ➡️ (a). The usual argument against a total order is that it forecloses
+  parallelism — worthless here, since these six systems drain queues holding at
+  most a frame of player input. What a total order buys is that same-tick
+  behaviour becomes one fact readable in one place, rather than an emergent
+  property of registration order that changes when someone reorders lib.rs. (b)
+  sounds more principled but leaves the next contributor unable to tell "no edge
+  because independent" from "no edge because nobody thought about it" — which
+  is the state we're in now.
+
+  ❓ Q8 — Where do policy edits go? Q4 settled that band tuning and recruitment
+  must stop writing sim state in place. StoragePolicies is per-building;
+  RecruitmentPlan is global.
+
+  - (a) One PolicyEditQueue carrying both.
+  - (b) Bands onto BuildingEditQueue, recruitment onto its own.
+  - (c) A PolicyEdit variant added to each existing domain queue.
+
+  ➡️ (a). ADR 0003 is gaining a named third category, and a category that exists
+  only in a document is one nobody applies — giving it its own queue makes it
+  visible at every call site. It's also where the next policy lands: allocation
+  priorities, band presets, whatever R6's services need. (b) buries a policy
+  change inside the queue whose applier is about placing and demolishing, which
+  is a different operation with different rules — and R1 is about to make that
+  applier the one that runs the placement verdict.
+
+✻ Sautéed for 53s
+
+❯ yes do as you suggest                                                         
+
+  Thought for 37s (ctrl+o to expand)
+
+● Round 3 — the three that ride R1, plus the one we're rejecting.
+
+  ❓ Q9 — What shape is the production gate? It must name the binding factor and
+  make construction-inertness structural rather than remembered.
+
+  - (a) A pure function each production system calls: gate(kind, inputs) -> 
+  Gated { rate, bound_by }.
+  - (b) A gate system that writes a Gated component onto every producer once per
+  tick, which the production systems then read and the inspect panel reads for
+  free.
+  - (c) Keep the four chains, just have each return its factor.
+
+  ➡️ (b). Under (a) the inspect panel has to recompute the verdict to display
+  it, and every new production system still has to remember to call the gate and
+  to filter construction sites — the same class of forgetting that produced the
+  heat-plant bug. Under (b) the filter lives in one query, so a producer that
+  forgets is a producer with no Gated component and therefore no output, which
+  fails loudly instead of silently working. One clarification on the seam: the
+  gate computes availability — staffing curve, power, water, and whether fuel is
+  present — and names the scarcest; it never consumes. The producer still burns
+  its own coal. That keeps the gate pure enough to test on its own and leaves
+  consumption where it belongs.
+
+  ❓ Q10 — How far does the save work go inside R1? R1 needs exactly one new
+  field.
+
+  - (a) Full registry refactor — all 11 domains own their columns.
+  - (b) Minimal: add rotation, bump to v6, and build the migration seam that
+  doesn't exist today.
+  - (c) Migration seam plus one domain extracted, to prove the pattern.
+
+  ➡️ (b), and the design vocabulary is what decides it. One adapter means a 
+  hypothetical seam; two means a real one. Extracting a single domain under (c)
+  gives us a registry with one entry — a seam nothing varies across, which is
+  the definition of speculative structure. (a) is a 1400-line refactor that
+  would swamp a rung whose subject is placement. What genuinely can't wait is
+  the migration seam: there is no migration path at all today, R1 bumps to v6
+  and R8 bumps again to v7, so the ability to load an older save is needed twice
+  regardless of whether the columns ever get distributed. Build the thing with
+  two known future users; skip the thing with one hypothetical one.
+
+  ❓ Q11 — What happens to hud.rs under R1? Seventeen responsibilities, zero
+  tests, and R1 opens two of them.
+
+  - (a) The full data-table panel module now.
+  - (b) Extract only what R1 touches — the readout-lookup primitive into ui.rs,
+  the inspect panel into its own module, plus collapsing the three
+  near-identical purchase systems into one parameterised system.
+  - (c) Split hud.rs into files by responsibility, shape unchanged.
+
+  ➡️ (b). (c) is the trap: moving seventeen responsibilities into five files
+  changes no interface and concentrates no complexity — it fails the deletion
+  test outright, and it would make the diff enormous while making the design
+  identical. (a) restructures fifteen responsibilities nobody is touching this
+  rung. (b) takes the two genuine deletions available: the readout-lookup chain
+  written out five separate times becomes the missing primitive in the ui.rs
+  vocabulary alongside Line, Readout and Meter, and three purchase systems that
+  differ only in a building kind and a key become one. The remaining fifteen
+  stay put with a note, and the panel table waits until a rung actually needs
+  it.
+
+  ❓ Q12 — The edit-queue rejection — pure ADR, or is part of it worth doing?
+  The generic queue fails the deletion test, but roads.rs and wires.rs each
+  hand-roll their own snap-to-existing-node-or-create and their own
+  remove-nearest search.
+
+  - (a) ADR rejecting the generic queue, and extract the shared node-snap and 
+  remove-nearest now.
+  - (b) ADR only, defer everything.
+  - (c) Neither — leave it.
+
+  ➡️ (a), by the same rule that killed Q10's registry, applied in the opposite 
+  direction. The queue frame has six copies but six genuinely different bodies,
+  so generalising it buys a type parameter and no locality. The node-snapping
+  does the identical thing twice — roads snapping a segment endpoint to a node,
+  wires snapping a span endpoint to a pole — which is two adapters of one
+  operation, and two adapters is a real seam. It's also directly relevant: R1
+  makes node snap visible in the preview, and doing that twice against two
+  hand-rolled implementations is how they drift apart. So the ADR records why
+  the big generalisation is wrong, and we take the small one that isn't.
+
+✻ Cogitated for 51s
+
+❯ yes do as you suggest                                                         
+
+  Thought for 41s (ctrl+o to expand)
+
+● Frontier's empty — twelve decisions across three rounds. Recording them now.
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(docs/adr/0003-single-world-presentation.md)
+  ⎿  Added 16 lines
+       6  load-bearing rule is directional — presentation reads sim state
+           and never writes it — enforced by
+       7  set ordering. The mirror layer stays documented as the upgrade 
+          path and becomes mandatory only if
+       8  the sim moves to its own world/thread (ADR 0001's open door).
+       9 +                                                               
+      10 +**The test for what presentation may write, added after the rul
+         +e was misapplied twice.**                                      
+      11 +"Player intent, not sim state" is not decidable and produced tw
+         +o violations that each                                         
+      12 +defended themselves in a comment: `drive_recruitment_controls` 
+         +writing `RecruitmentPlan`                                      
+      13 +and `drive_band_tuning` writing `StoragePolicies`, both claimin
+         +g the standing of                                              
+      14 +`SimSpeed`. The decidable test is two questions — **does a sim 
+         +system read it as a                                            
+      15 +decision input, and does it persist in the save?** `SimSpeed` f
+         +ails both: it only gates                                       
+      16 +how many ticks the clock runs, and it is not saved. `Recruitmen
+         +tPlan` passes both, and so                                     
+      17 +does `StoragePolicies`. Anything passing both is sim state and 
+         +goes through a queue,                                          
+      18 +whatever the player's relationship to it feels like.           
+      19 +                                                               
+      20 +That gives three categories, not two. **Sim state** is queued a
+         +nd applied at the barrier.                                     
+      21 +**Player controls** (`SimSpeed`, camera, tool mode) are written
+         + freely and never saved.                                       
+      22 +**Policy** — player-authored values a sim system reads and the 
+         +save persists — is queued                                      
+      23 +like sim state, through its own `PolicyEditQueue`, so the categ
+         +ory is visible at the call                                     
+      24 +site rather than only in this document.                        
+
+● Write(docs/adr/0012-plugin-groups-for-app-assembly.md)
+  ⎿  Wrote 28 lines to docs/adr/0012-plugin-groups-for-app-assembly.md
+       1 # App assembly is two `PluginGroup`s; binaries declare exclusion
+       2 
+         one was a frozen snapshot of
+       4 `lib.rs` from the day it was written — `capture.rs` ran 9 sim pl
+       5 `bench_traffic` ran 4. `bevy.md` documented the gap as a human d
+       6 adds `GamePlugin` must register **every** sim plugin `lib.rs` do
+       7 `Res<T>` panic rather than the compiler. App assembly had no mod
+         ule, so nineteen call sites
+       9 
+         mposed with `add_group`. The
+     … +42 lines (ctrl+o to expand)
+● Write(docs/adr/0013-apply-commands-has-a-declared-total-order.md)
+  ⎿  Wrote 19 lines to
+     docs/adr/0013-apply-commands-has-a-declared-total-order.md
+       1 # The edit appliers run in one declared total order
+       3 Six appliers shared `SimStage::ApplyCommands` with exactly one o
+       4 (zoning before buildings), so whether a wire placed this tick co
+         uld snap to a building
+         rather than a decision.
+         l.
+       8 The order is now declared once where the stage set is configured
+         , following the direction
+         es → households → vehicles
+         ame tick, a wire snaps to a
+     … +21 lines (ctrl+o to expand)
+
+● Write(docs/adr/0014-production-gate-is-a-component.md)
+  ⎿  Wrote 26 lines to docs/adr/0014-production-gate-is-a-component.md
+       1 # The production gate is a component computed once, not four han
+       2 
+          returned a bare scalar:
+       4 mine and quarry from staffing alone, the power plant from the mi
+       5 the factory from power AND water AND staff, the heat plant from 
+       6 computed which factor was scarcest and then discarded it, so no 
+       7 output was zero — and R1's inspect panel needs exactly that.
+       8 
+         ied by hand at each site
+         nd labour assignment
+     … +35 lines (ctrl+o to expand)
+
+● Write(docs/adr/0015-save-migration-seam-not-a-column-registry.md)
+  ⎿  Wrote 22 lines to
+     docs/adr/0015-save-migration-seam-not-a-column-registry.md
+       1 # The save gets a migration seam, not a per-domain column regist
+       2 
+          eleven row structs and
+       4 fourteen hand-paired `to_u8`/`from_u8` functions, with symmetry 
+       5 enforced only by hash-equality round-trip tests. Distributing th
+       6 owns its own is the obvious deepening and is deliberately **not*
+       7 re-proposed as an oversight.
+       8 
+         seam, two means a real one.
+         g a single domain would
+     … +25 lines (ctrl+o to expand)
+
+● Write(docs/adr/0016-no-generic-edit-queue-but-shared-node-snapping.md)
+  ⎿  Wrote 21 lines to
+     docs/adr/0016-no-generic-edit-queue-but-shared-node-snapping.md
+       1 # No generic edit queue; node snapping is shared
+       3 Six domains carry the identical shape — `XEditQueue(Vec<XEdit>)`
+         , `XIds { next: u64 }`, and
+          as textbook duplication and
+         neric queue. It is rejected,
+       6 recorded here so the proposal stops recurring.
+       8 The deletion test only half-passes. A generic queue and counter 
+         would concentrate the drain
+         ains — while each `apply`
+         iting verdict, placing a
+     … +25 lines (ctrl+o to expand)
+
+  Thought for 6s (ctrl+o to expand)
+
+● Update(CONTEXT.md)
+  ⎿  Added 14 lines
+      74  A new road segment's endpoint grabbing an existing road node wi
+          thin a radius, so the road
+      75  topology never acquires near-miss junctions. See ADR 0007.
+      76  
+      77 +## Production and policy                                       
+      78 +                                                               
+      79 +**Binding constraint**:                                        
+      80 +The scarcest of the factors a building needs to produce — staff
+         +, power, water, fuel — and                                     
+      81 +therefore the one thing fixing it would require. Named by the g
+         +ate, not inferred by the                                       
+      82 +reader. See ADR 0014.                                          
+      83 +_Avoid_: bottleneck, blocker                                   
+      84 +                                                               
+      85 +**Policy**:                                                    
+      86 +A value the player authors, a sim system reads as a decision in
+         +put, and the save persists —                                   
+      87 +storage bands and the recruitment target today. Distinct from a
+         + **player control** like                                       
+      88 +simulation speed, which no sim decision reads and no save carri
+         +es. See ADR 0003.                                              
+      89 +_Avoid_: setting, preference, config                           
+      90 +                                                               
+      91  ## The world
+      92  
+      93  **Site**:
+
+● Bash(cd /home/caio/soviet-simulator; grep -n "petgraph\|IdAllocator\|kiddo"
+      architecture/ecs.md)
+  ⎿  24:serialized `IdAllocator` resource. **IDs are never reused; runtime
+     `Entity` refs are never
+     92:- **`petgraph` is the authoritative typed topology store** — road/l
+     … +3 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(architecture/ecs.md)
+  ⎿  Added 4 lines, removed 2 lines
+      20  
+      21  ## Stable identity
+      22  
+      23 -Per-family `u64` monotonic counters (`CitizenId`, `BuildingId`,
+         - `VehicleId`, …) allocated from a                              
+      24 -serialized `IdAllocator` resource. **IDs are never reused; runt
+         -ime `Entity` refs are never                                    
+      23 +Per-family `u64` monotonic counters (`CitizenId`, `BuildingId`,
+         + `VehicleId`, …). *As built these                              
+      24 +are one small counter resource per family (`BuildingIds`, `Road
+         +Ids`, `VehicleIds`, …), each                                   
+      25 +serialized so a load restores the allocator rather than inferri
+         +ng it from max-seen — not the single                           
+      26 +`IdAllocator` resource this section originally named.* **IDs ar
+         +e never reused; runtime `Entity` refs are never                
+      27  serialized.** Loading resolves stable IDs to fresh entities in 
+          a dedicated remap pass. This closes
+      28  CS1's slot-reuse hazard and gives the band buckets their churn-
+          stable key (ADR 0004). Everything
+      29  else about save/load — format, column serde, versioning — is de
+          ferred to its own ticket.
+
+● Update(architecture/ecs.md)
+  ⎿  Added 12 lines, removed 8 lines
+       91  
+       92  ## Spatial indices and simulation graphs
+       93  
+       94 -- **`petgraph` is the authoritative typed topology store** — r
+          -oad/lane, rail, pedestrian, transit,                          
+       95 -  electricity, water, sewage, heating. Right for the *editable
+          - authority* side; wrong for hot                               
+       96 -  search. The packed search mirror from the carried pathfindin
+          -g doc is built later as a derived                             
+       97 -  structure (ADR 0005).                                       
+       98 -- **Spatial lookup is a hand-rolled uniform grid** — rebuildab
+          -le, topology/version-stamped, one                             
+       99 -  for mostly-static members (buildings, workplaces, services; 
+          -updates on construction/demolition)                           
+      100 -  and one for moving members (pawns; updates from authoritativ
+          -e positions). `kiddo` stays in                                
+      101 -  reserve until a benchmark shows the grid losing.            
+       94 +- **Intended: a typed topology authority separate from a packe
+          +d search mirror** — road/lane, rail,                          
+       95 +  pedestrian, transit, electricity, water, sewage, heating. Ri
+          +ght for the *editable authority*                              
+       96 +  side; wrong for hot search. **As built, none of this exists*
+          +*: topology is plain ECS                                      
+       97 +  (`RoadNode.segments: Vec<Entity>`) and nearest-node lookups 
+          +are linear scans. `petgraph` was                              
+       98 +  named here as the store and was never used; the crate has be
+          +en dropped. See ADR 0005, which                               
+       99 +  carried the same claim and was corrected — reading either do
+          +cument as fact once produced a wrong                          
+      100 +  claim in a later ADR.                                       
+      101 +- **Intended: hand-rolled uniform grids for spatial lookup** —
+          + rebuildable, topology/version-stamped,                       
+      102 +  one for mostly-static members (buildings, workplaces, servic
+          +es) and one for moving members                                
+      103 +  (pawns). **As built, also absent**: lookups are linear scans
+          + with a distance filter. `kiddo` was                          
+      104 +  held in reserve and has likewise been dropped; the trigger f
+          +or building either structure is a                             
+      105 +  benchmark showing the scans losing, not a date.             
+      106  - Every cache carries a version stamp and can be rebuilt from 
+           authoritative data. World scans are
+      107    forbidden in gameplay systems unless a benchmark records the
+            bounded population and cadence that
+      108    make one safe.
+
+  Thought for 6s, made 1 scratchpad edit +70 (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      gh issue create --title "R0.7 Groundwork — app assembly, policy edits,
+      applier order, the inertness bug" --label "ready-for-agent…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/118
+
+  Thought for 4s, made 1 scratchpad edit +60 (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      gh issue comment 117 --body-file /tmp/claude-1000/-home-caio-soviet-simula
+      tor/41da26ba-ca1a-4fe8-b2b6-681793d51476/scratchpad/c11…)
+  ⎿  https://github.com/caioniehues/soviet-simulator/issues/117#issuecommen
+     t-5319580672
+     https://github.com/caioniehues/soviet-simulator/issues/118#issuecommen
+     t-5319580843
+
+● Bash(cd /home/caio/soviet-simulator
+      git add -A && git commit -q -m "docs: architecture review outcomes — five
+      ADRs, ADR 0003 amended, ecs.md corrected…)
+  ⎿  b4f6509 docs: architecture review outcomes — five ADRs, ADR 0003 amend
+     ed, ecs.md corrected
+
+  Thought for 17s (ctrl+o to expand)
+
+● All seven explored, twelve decisions settled, everything filed. Committed as
+  b4f6509.
+
+  What's on the tracker. #118 "R0.7 Groundwork" holds the four items that must
+  land first and alone — app assembly, policy edits, applier order, the
+  inertness bug — and blocks R1. #117 is amended with the three that ride it.
+  Five new ADRs (0012–0016), ADR 0003 amended, CONTEXT.md gained binding 
+  constraint and policy, and architecture/ecs.md had the same petgraph fiction
+  ADR 0005 did.
+
+  The best answer came from grilling, not from the report. I'd proposed a "stack
+  module" with three functions. Checking the installed Bevy turned up
+  PluginGroup with disable::<T>(), which is better for a reason worth stating on
+  its own: a binary that lists what it includes is correct only until the next
+  plugin lands — which is precisely how all eighteen drifted — while a binary
+  that states what it excludes stays correct as the system grows. bench_traffic
+  stops saying "I want Sim, Road, Pathfinding, Traffic" and starts saying
+  "everything except Heat". That inversion is the whole fix; the module is just
+  where it lives.
+
+  ★ Insight ─────────────────────────────────────
+  Inclusion lists rot and exclusion lists don't, because they fail in opposite
+  directions as a system grows. An inclusion list silently omits what's new — no
+  error, just absence, and here absence meant a runtime Res<T> panic in a
+  capture binary nobody ran until video day. An exclusion list can only ever be
+  too permissive, which surfaces immediately as unexpected behaviour rather than
+  as a hole. Whenever you're about to write "remember to add it in both
+  places", check whether the second place could name its deviation instead of
+  its content.
+  ─────────────────────────────────────────────────
+
+  Three of the seven got smaller under grilling, all for the same reason. The
+  report rated the save.rs column registry Strong; grilling cut it to just the
+  migration seam, because extracting one domain for R1's single field gives a
+  registry with one entry — a seam nothing varies across. hud.rs went from a
+  full panel table to two extractions. The generic edit queue was rejected
+  outright, but its narrow half kept: the queue frame has six copies of six
+  different operations, while roads and wires hand-roll the same node-snapping
+  twice. One adapter is a hypothetical seam; two is a real one — that single
+  rule decided all three.
+
+  The bug is filed with its true cost. Fixing the missing
+  Without<ConstructionSite> filter stops heat plants and water pumps producing
+  mid-construction, which shifts production timing — so #118 requires re-running
+  all seven bench gates, re-recording capture_g1, and rebalancing the authored
+  First Plan if its 20–30 minute first period moves. That rebalancing is inside
+  the ticket rather than waiting to surprise someone.
+
+  Next, if you want to keep going: /implement 118, starting with the inertness
+  regression test red — it's the smallest piece and the one that proves the
+  verification story before the refactors land on top.
+
+✻ Crunched for 3m 53s
+
+❯ /improve-codebase-architecture now explore all possible enhancements and find 
+bugs and code smells. /simplify                                                 
+
+  Thought for 28s (ctrl+o to expand)
+
+● Broad sweep this time — bugs and smells across the whole tree, not just
+  structure. Six hunts in parallel, each with a different lens.
+
+  One note on /simplify: it reviews changed code, and this session's diff is
+  documentation only. So I'm folding reuse-and-simplification findings into the
+  sweep rather than running it against an empty code diff.
+
+● Bash(cd /home/caio/soviet-simulator; for f in 0001 0002 0004 0006; do echo
+      "=== $f ==="; cat docs/adr/$f-*.md; echo; done)
+  ⎿  === 0001 ===
+     # Sim loop is a custom SimTick schedule, not FixedUpdate, not a sim th
+     read
+     … +46 lines (ctrl+o to expand)
+
+● 6 background agents launched (↓ to manage)
+   ├ Hunt dangling entity references
+   ├ Hunt numeric and determinism bugs
+   ├ Hunt panics and unwraps
+   ├ Hunt economy and inventory bugs
+   ├ Hunt performance smells
+   └ Hunt code smells and dead code
+
+  Thought for 1m 11s (ctrl+o to expand)
+
+● Bash(timeout 580 cargo test --lib 2>&1 | tail -20)
+  ⎿  test sim::wires::tests::removing_the_span_despawns_orphan_poles_but_no
+     t_buildings ... ok
+     test sim::wires::tests::starved_grid_serves_homes_before_factories ...
+     … +18 lines (ctrl+o to expand)
+  ⎿  (timeout 10m)
+
+  Thought for 5s (ctrl+o to expand)
+
+● Baseline established: 128 tests, all passing, in 0.58 s. That's a fast suite —
+  worth knowing before I report anything as broken.
+
+  Six hunts still running: dangling entity references, numerics and determinism,
+  crash surface, conservation of matter and money, performance at scale, and
+  code smells with clippy.
+✻ Baked for 6m 25s
+
+● Agent "Hunt performance smells" finished · 10m 10s
+
+  Thought for 11s (ctrl+o to expand)
+
+● One finding is big enough to flag before the rest land.
+
+  The band system — the codebase's central performance mechanism — does not 
+  exist. grep -rn "BandSweep\|BandRegistry" src/ returns zero hits. ADR 0002
+  calls the phase buckets "mandatory, not an optimisation" and prices the
+  alternative precisely: a naive modulo scan pays full query iteration over 250k
+  entities to process 61. Every system that wants a slower cadence has instead
+  hand-rolled a whole-system modulo gate that, when it fires, does exactly that
+  full-population burst.
+
+  That's the third ratified document describing architecture that was never 
+  built — after ADR 0005's petgraph topology store and architecture/ecs.md's
+  IdAllocator, both of which I corrected earlier today. This is now a pattern
+  rather than three accidents.
+
+  Two more from the same hunt worth stating early: the bench gates compute p95
+  and max but the pass/fail check is mean > GATE_MS only, so a periodic
+  full-population spike smooths away; and no bench loads any game::* plugin,
+  leaving the entire HUD unmeasured — where update_population_readout runs two
+  full citizen scans plus an O(zones × buildings) call every render frame.
+
+  Five hunts still out.
+
+✻ Baked for 12s
+
+● Agent "Hunt economy and inventory bugs" finished · 11m 53s
+
+  Thought for 17s (ctrl+o to expand)
+
+● Second hunt in. The sharpest find is a plain player-reachable bug, and two
+  others break a ratified rule.
+
+  Gravel is paid for roads that never get built. In place_segment, the
+  duplicate-edge check only fires when both endpoints snap to pre-existing
+  nodes. Drag a short paved segment in open ground — shorter than the 6 m
+  SNAP_RADIUS — and gravel is drained from nearby yards first, then node
+  creation collapses both endpoints onto the same new node, a == b returns
+  early, and no segment is spawned. RoadBuildFeedback was cleared two lines
+  earlier, so the player gets no refusal either. Silent loss of real material
+  for nothing built.
+
+  Two cargo-destruction paths violate architecture/ecs.md lifecycle rule 5 —
+  "never destroy physical stock, cargo or a citizen as cleanup for a failed 
+  match, full queue or blocked route." If the destination is demolished
+  mid-haul, the load is written off with take(.., f32::INFINITY) (the comment
+  admits it). If the source is demolished mid-load, partial cargo is silently
+  destroyed when the truck despawns at the depot — no comment, no check, no log.
+
+  And a finished construction phase sweeps leftover material into the void,
+  which is the common case rather than an edge: trucks deliver in 10 t loads at
+  0.5/tick while a phase consumes 0.2/tick, so overshoot is normal, and
+  yard.take(resource, f32::INFINITY) erases whatever's left.
+
+  Four hunts still out.
+
+✻ Baked for 17s
+
+● Agent "Hunt dangling entity references" finished · 12m 34s
+
+  Thought for 13s (ctrl+o to expand)
+
+● Third hunt in, and the four confirmed bugs are all the same missing thing:
+  nothing in the codebase reacts to a Building being despawned.
+  BuildingEdit::Demolish is a bare despawn(), and every consequence is left to
+  whichever system happens to notice.
+
+  - A truck already carrying cargo to a demolished destination is stranded 
+  forever. ToDropoff swallows Progress::NoPath while the sibling ToPickup arm
+  requeues on it — the order stays assigned forever and the truck never returns
+  to the fleet.
+  - Demolishing a depot strands every vehicle it owns. The pawn cleans up, but
+  the persistent VehicleAsset survives with a dead home_depot, so every dispatch
+  path filters it out permanently. Its parked body reappears and sits where the
+  depot used to be, and the HUD keeps counting it as idle. There's no scrap or
+  sell edit to reclaim it.
+  - Demolishing a wired building orphans its spans permanently — the cut tool
+  can never find them again because endpoint_pos returns None, so they're
+  invisible unremovable garbage for the rest of the session.
+  - Demolishing a workplace mid-commute leaves citizen.location at AtWork while
+  citizen.work becomes None, and after reassignment the citizen is counted 
+  present at a workplace they never walked to, contributing to production
+  immediately.
+
+  A stale comment in save.rs corroborates it: "the sim never removes buildings 
+  yet, so this is only defensive." It does remove buildings, and has since B6.
+
+  Two hunts left: crash surface and code smells.
+
+✻ Sautéed for 15s
+
+❯ you may also use your tools to search for best practices and tips on the web  
+
+  Thought for 10s (ctrl+o to expand)
+
+● Good call — the fix for the demolition cluster is exactly the kind of thing
+  where Bevy's own idioms matter. Checking the installed version's docs rather
+  than my recollection.
+
+● Bash(timeout 120 npx ctx7@latest library "Bevy" "entity despawn cleanup,
+      component lifecycle hooks, observers, relationships" 2>&1 | head -40)
+  ⎿  npm notice run npx
+     npm notice run 'ctx7' library Bevy entity despawn cleanup, component l
+     ifecycle hooks, observers, relationships
+     … +34 lines (ctrl+o to expand)
+
+  Thought for 17s (ctrl+o to expand)
+
+● Bash(timeout 180 npx ctx7@latest docs /websites/rs_bevy "entity relationships
+      RelationshipTarget linked_spawn for referential integrity and automatic
+      cleanup when an…)
+  ⎿  npm notice run npx
+     npm notice run 'ctx7' docs /websites/rs_bevy entity relationships Rela
+     tionshipTarget linked_spawn for referential integrity and automatic cl
+     … +73 lines (ctrl+o to expand)
+  ⎿  (timeout 3m 20s)
+
+● Bash(cd /home/caio/soviet-simulator
+      echo "=== relationship usage ==="; grep -rn
+      "#\[relationship\|RelationshipTarget\|Relationship\b\|linked_spawn" src/ |
+      head…)
+  ⎿  === relationship usage ===
+     src/sim/save.rs:730:        // linked_spawn may already have taken a v
+     ehicle pawn with its asset
+     … +17 lines (ctrl+o to expand)
+
+  Thought for 22s (ctrl+o to expand)
+
+● The project already uses Bevy relationships — PawnOf/ActivePawn with
+  linked_spawn in vehicles.rs, exactly as architecture/ecs.md describes. But
+  it's the only one: every other cross-entity link is a raw Entity field, and
+  RemovedComponents/removal observers have zero occurrences anywhere. Checking
+  the exact semantics before I recommend extending it.
+
+● Bash(timeout 180 npx ctx7@latest docs /websites/rs_bevy "what happens to
+      related entities when a relationship target is despawned without
+      linked_spawn, orphaned rela…)
+  ⎿  npm notice run npx
+     npm notice run 'ctx7' docs /websites/rs_bevy what happens to related e
+     ntities when a relationship target is despawned without linked_spawn,
+     … +77 lines (ctrl+o to expand)
+  ⎿  (timeout 3m 20s)
+
+● Web Search("Bevy ECS relationships linked_spawn despawn orphaned entity
+            cleanup best practice 0.16")
+  ⎿  Did 1 search in 7s
+
+  Thought for 14s (ctrl+o to expand)
+
+● Fetch(https://github.com/bevyengine/bevy/issues/18905)
+  ⎿  Received 278.1KB (200 OK)
+
+● Agent "Hunt numeric and determinism bugs" finished · 17m 21s
+
+  Thought for 40s (ctrl+o to expand)
+
+● Fourth hunt in, and it chains with the performance findings into one
+  compounding failure.
+
+  The clock annihilates backlog rather than deferring it. When a render frame
+  needs more than 3 catch-up passes, drive_sim sets accumulated_secs = 0.0
+  outright. The repo's own test proves the magnitude: advancing 10 seconds of
+  real time in one Update produces exactly 3 ticks — roughly 597 potential ticks
+  discarded silently, with no counter, warning, or log. The compounding part is
+  that on hardware where frames consistently cost more than ~50 ms — precisely
+  the 250k-citizen scale the project targets, and precisely what the missing
+  band system makes likely — the simulation is permanently capped at 3 ticks per
+  frame. Real time and game time diverge without limit, and the
+  Normal/Double/Quad speed selector gives no hint.
+
+  Two useful corrections to my own assumptions, both of which the hunt verified
+  in source rather than assumed:
+
+  - Bevy's HashMap is not randomized. bevy_platform-0.19.1 uses a hardcoded-seed
+  FixedHasher. I'd flagged iteration order as a determinism hazard; for Bevy's
+  maps it isn't.
+  - No HashMap iteration in src/sim feeds a simulation decision at all. Every
+  order-sensitive choice runs through an explicit sort_by on stable ids or a
+  min_by/max_by over a Vec. The codebase was deliberately engineered against
+  this bug class. The one confirmed exception is UI-only: the dispatch panel
+  builds a fresh std::collections::HashMap every frame, so the depot list can
+  visibly reorder frame to frame.
+
+  Also cleared: the Bevy issue about custom relationships plus parent/child
+  panicking on despawn (#18905) was fixed in 0.16.1 by PR #19341, and this
+  project is on 0.19.1 — so extending relationships to buildings, which already
+  carry Children for their mesh parts, is safe.
+
+  Last hunt still out: code smells and clippy.
+
+✻ Cooked for 1m 59s
+
+● Agent "Hunt code smells and dead code" finished · 20m 41s
+
+  Thought for 11s (ctrl+o to expand)
+● Fifth hunt in. Verifying the headline player-facing bug myself before it goes
+  in a report.
+
+● Bash(cd /home/caio/soviet-simulator; sed -n '323,360p' src/sim/roads.rs; echo
+      "=== SNAP_RADIUS ==="; sed -n '14,16p' src/sim/roads.rs)
+  ⎿  fn place_segment(world: &mut World, from: Vec3, to: Vec3, class: RoadC
+     lass) {
+         // Read-only pre-checks: both would-snap endpoints resolving to th
+     … +38 lines (ctrl+o to expand)
+
+  Thought for 11s (ctrl+o to expand)
+
+● Verified, and the code's own comment states the invariant it fails to keep:
+  "Read-only pre-checks: both would-snap endpoints resolving to the same node… 
+  reject the placement before any node is created or gravel is paid." That guard
+  sits inside if let (Some(na), Some(nb)), so it only runs when both endpoints
+  snap to pre-existing nodes.
+
+  In open ground both are None, so the check is skipped entirely: gravel is
+  drained, RoadBuildFeedback is cleared to None, then snap_or_create_node
+  creates node A for from, and the second call re-queries a world that now
+  contains A and snaps to onto it. a == b returns early, no segment is spawned.
+  The road tool requires a drag longer than 1 m and SNAP_RADIUS is 6 m — so any 
+  paved stub between 1 and 6 metres in open ground silently costs gravel and 
+  builds nothing, with the refusal feedback explicitly cleared one line before.
+
+  Waiting on the crash-surface hunt, then the report.
+
+✻ Churned for 23s
+
+● Agent "Hunt panics and unwraps" finished · 25m 19s
+
+  Thought for 9s (ctrl+o to expand)
+
+● That claim outranks everything else in the sweep and I'm not reporting it
+  secondhand. Verifying now.
+
+● Bash(cd /home/caio/soviet-simulator; timeout 120 cargo run 2>&1 | tail -25;
+      echo "EXIT: ${PIPESTATUS[0]}")
+  ⎿  error: `cargo run` could not determine which binary to run. Use the `-
+     -bin` option to specify a binary, or the `default-run` manifest key.
+     available binaries: bench_chain, bench_citizens, bench_dispatch, bench
+     … +4 lines (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator; timeout 120 cargo run --bin
+      soviet_simulator 2>&1 | tail -20; echo "EXIT: ${PIPESTATUS[0]}")
+  ⎿      Finished `dev` profile [optimized + debuginfo] target(s) in 0.32s
+          Running `target/debug/soviet_simulator`
+     2026-08-17T20:27:50.298776Z  INFO bevy_diagnostic::system_information_
+     … +18 lines (ctrl+o to expand)
+
+  Thought for 7s (ctrl+o to expand)
+
+● Confirmed on the real binary. The game does not start — it panics before a
+  window appears, every launch:
+
+  thread 'main' panicked at src/lib.rs:16:10:
+  Error adding plugin ...TransitSimPlugin: : plugin was already added in
+  application
+
+  Fixing this before anything else.
+
+  Thought for 28s, read 1 file (ctrl+o to expand)
+
+● Confirmed the mechanism: CommuteSimPlugin on line 22 auto-adds
+  TransitSimPlugin, then line 27 adds it again. Fixing it with a regression
+  test, since nothing in the entire test suite or the 18 binaries ever builds
+  the real plugin list — which is exactly why this shipped.
+
+● Write(src/lib.rs)
+  ⎿  Added 42 lines, removed 14 lines
+       3  
+       4  use bevy::prelude::*;
+       5  
+       6 -pub fn run() {                                                 
+       7 -    App::new()                                                 
+       8 -        .add_plugins(DefaultPlugins.set(WindowPlugin {         
+       9 -            primary_window: Some(Window {                      
+      10 -                title: "Soviet Simulator".into(),              
+      11 -                ..default()                                    
+      12 -            }),                                                
+      13 -            ..default()                                        
+      14 -        }))                                                    
+      15 -        .add_plugins((sim::SimPlugin,))                        
+       6 +/// Every sim plugin the game runs, in one place so `run()` and
+         + the wiring test                                               
+       7 +/// register the identical set. Several plugins auto-add their 
+         +own dependencies                                               
+       8 +/// via `is_plugin_added`, so a plugin listed here that an earl
+         +ier one already                                                
+       9 +/// pulled in is a panic, not a no-op — see the test below.    
+      10 +///                                                            
+      11 +/// ADR 0012 replaces this with a `SimPlugins` group; until the
+         +n this function is                                             
+      12 +/// the single owner of the list.                              
+      13 +pub fn add_sim_plugins(app: &mut App) {                        
+      14 +    app.add_plugins((sim::SimPlugin,))                         
+      15          .add_plugins((
+      16              sim::roads::RoadSimPlugin,
+      17              sim::buildings::BuildingSimPlugin,
+      18              sim::storage::StorageSimPlugin,
+      19              sim::households::HouseholdSimPlugin,
+      20              sim::labour::LabourSimPlugin,
+      21 +            // CommuteSimPlugin auto-adds Pathfinding + Transit
+         +.                                                              
+      22              sim::commute::CommuteSimPlugin,
+      23              sim::needs::NeedsSimPlugin,
+      24              sim::vehicles::VehicleSimPlugin,
+      25              // DispatchSimPlugin auto-adds Pathfinding + Traffi
+          c.
+      26              sim::dispatch::DispatchSimPlugin,
+      27 -            sim::transit::TransitSimPlugin,                    
+      27          ))
+      28          .add_plugins((
+      29              sim::construction::ConstructionSimPlugin,
+     ...
+      34              sim::customs::CustomsSimPlugin,
+      35              sim::wires::WireSimPlugin,
+      36              sim::save::SaveSimPlugin,
+      38 -        ))                                                     
+      39 -        .add_plugins(game::GamePlugin)                         
+      40 -        .run();                                                
+      37 +        ));                                                    
+      38  }
+      39 +                                                               
+      40 +pub fn run() {                                                 
+      41 +    let mut app = App::new();                                  
+      42 +    app.add_plugins(DefaultPlugins.set(WindowPlugin {          
+      43 +        primary_window: Some(Window {                          
+      44 +            title: "Soviet Simulator".into(),                  
+      45 +            ..default()                                        
+      46 +        }),                                                    
+      47 +        ..default()                                            
+      48 +    }));                                                       
+      49 +    add_sim_plugins(&mut app);                                 
+      50 +    app.add_plugins(game::GamePlugin).run();                   
+      51 +}                                                              
+      52 +                                                               
+      53 +#[cfg(test)]                                                   
+      54 +mod tests {                                                    
+      55 +    use super::*;                                              
+      56 +                                                               
+      57 +    /// Regression: `TransitSimPlugin` was listed explicitly *a
+         +fter*                                                          
+      58 +    /// `CommuteSimPlugin`, which auto-adds it — so the real bi
+         +nary panicked on                                               
+      59 +    /// startup with "plugin was already added in application" 
+         +and never reached                                              
+      60 +    /// a window. Nothing caught it because no test and none of
+         + the 18 bin                                                    
+      61 +    /// targets ever built the shipped plugin set; every one ha
+         +nd-assembles a                                                 
+      62 +    /// subset. This test is the thing that was missing.       
+      63 +    #[test]                                                    
+      64 +    fn the_shipped_sim_plugin_set_registers_without_duplicates(
+         +) {                                                            
+      65 +        let mut app = App::new();                              
+      66 +        app.insert_resource(Time::<()>::default());            
+      67 +        add_sim_plugins(&mut app);                             
+      68 +    }                                                          
+      69 +}                                                              
+
+● Bash(cd /home/caio/soviet-simulator; timeout 300 cargo test --lib 2>&1 | tail
+      -5)
+  ⎿  test sim::construction::tests::machines_work_the_phases_and_the_buildi
+     ng_activates ... ok
+     test sim::vehicles::tests::blocked_truck_reroutes_around_a_jammed_corr
+     … +4 lines (ctrl+o to expand)
+  ⎿  (timeout 6m)
+
+  Thought for 9s (ctrl+o to expand)
+
+● Tests pass, 129 now. Verifying the actual binary launches — the project's own
+  rule is to judge from the running game.
+
+● Bash(cd /home/caio/soviet-simulator; timeout 20 cargo run --bin
+      soviet_simulator 2>&1 | grep -iv "^\s*$" | tail -15; echo "--- exit: $?
+      (124 = still running when kil…)
+  ⎿     Compiling soviet_simulator v0.1.0 (/home/caio/soviet-simulator)
+         Finished `dev` profile [optimized + debuginfo] target(s) in 14.11s
+          Running `target/debug/soviet_simulator`
+     … +24 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+  Thought for 6s (ctrl+o to expand)
+
+● The game launches again — Creating new window Soviet Simulator, ran the full
+  20 s with no panic. Committing this before anything else.
+
+● Bash(cd /home/caio/soviet-simulator
+      git add -A && git commit -q -m "fix: the game could not start at all…)
+  ⎿  41635f2 fix: the game could not start at all
+
+  Thought for 19s (ctrl+o to expand)
+
+● All six hunts are in. Writing the report — organised by severity rather than
+  by hunt, since the findings cross-cut.
+
+  Made 1 scratchpad edit +278 (ctrl+o to expand)
+
+● Bash(xdg-open /tmp/claude-1000/-home-caio-soviet-simulator/41da26ba-ca1a-4fe8-
+      b2b6-681793d51476/scratchpad/architecture-review-20260817-bugs.html 2>&1 |
+      head -2; ech…)
+  ⎿  opened
+
+  Thought for 10s (ctrl+o to expand)
+
+● The game did not start. Not slowly, not badly — cargo run --bin 
+  soviet_simulator panicked before a window appeared, on every launch. I
+  reproduced it on the real binary, fixed it, verified the game now boots and
+  stays up, and committed it as 41635f2.
+
+  thread 'main' panicked at src/lib.rs:16:10:
+  Error adding plugin ...TransitSimPlugin: plugin was already added
+
+  CommuteSimPlugin auto-adds TransitSimPlugin; lib.rs also listed it explicitly
+  nine lines later. The guard passed at position 6 because the explicit entry
+  hadn't been reached yet, and the tuple panicked when it got there. The same 
+  bug class was fixed once before — d8c3753 removed an explicit TrafficSimPlugin
+  for exactly this reason, and its comment is still in the file; 2a55de9 then
+  gave Commute the same auto-add and left the explicit entry behind.
+
+  ★ Insight ─────────────────────────────────────
+  Nothing caught it because nothing builds the shipped plugin set. No test calls
+  lib.rs, and all 18 bin targets hand-assemble their own subsets — so the one
+  configuration that actually ships was the only one never exercised. This is
+  the drift ADR 0012 already describes, but with a consequence nobody had
+  priced: the redundancy wasn't just maintenance cost, it meant the real entry
+  point had zero coverage. The plugin list now lives in add_sim_plugins(), which
+  both run() and a new regression test call. 129 tests green.
+  ─────────────────────────────────────────────────
+
+  Report is open: /tmp/claude-1000/-home-caio-soviet-simulator/41da26ba-ca1a-4fe
+  8-b2b6-681793d51476/scratchpad/architecture-review-20260817-bugs.html
+
+  The rest of what six parallel hunts found, in severity order:
+
+  1. Demolition has no cleanup story — four confirmed bugs, one cause. Nothing
+  reacts to a Building despawning; RemovedComponents has zero occurrences. A
+  truck hauling to a demolished destination is stranded forever (ToDropoff
+  swallows NoPath where the sibling ToPickup requeues). Demolishing a depot
+  turns its whole fleet into unusable ghosts that still show in the HUD and
+  still sit visibly where the depot was. Wired buildings orphan their spans
+  permanently. And a demolished workplace leaves citizens counted as present at
+  jobs they never walked to.
+  2. Gravel is paid for roads that are never built. Any paved stub between 1 and
+  6 metres in open ground drains material and spawns nothing — with the refusal
+  feedback explicitly cleared one line before, so the player isn't told. The
+  function's own comment claims this can't happen.
+  3. A crash reachable from ordinary play — demolish both stops of a two-stop
+  transit line in one tick and run_buses computes % 0. Meanwhile the R14 crash
+  posture is 0% built: no panic hook, no autosave, non-atomic save writes, and a
+  corrupted save crashes on load rather than degrading.
+  4. The band system doesn't exist — BandSweep/BandRegistry return zero hits,
+  though ADR 0002 calls them "mandatory, not an optimisation". And the clock 
+  annihilates backlog rather than deferring it, so at the 250k scale the project
+  targets, the sim silently runs slower than the speed selector claims.
+
+  Four findings share one shape: a ratified document describing architecture 
+  that was never built. ADR 0005's petgraph store and ecs.md's IdAllocator (both
+  corrected earlier today), plus the band system and clock.rs's Housekeeping
+  band (both new). Each reads as settled fact in the present tense.
+
+  Worth stating what came back clean, since I went looking specifically: no
+  float-comparison bug, no reachable division by zero, and no HashMap iteration
+  in src/sim whose order affects a simulation decision — every order-sensitive
+  choice runs through an explicit sort on stable ids. Bevy's HashMap also isn't
+  randomised at all; it uses a fixed-seed hasher, correcting an assumption I'd
+  started from.
+
+  The fix for finding 1 is a mechanism already in this codebase:
+  PawnOf/ActivePawn is a proper Bevy relationship with linked_spawn, exactly as
+  architecture/ecs.md prescribes — used in precisely one place while every other
+  link is a raw Entity. I checked that the old Bevy panic with custom
+  relationships alongside ChildOf was fixed in 0.16.1, and this project is on
+  0.19.1, so buildings (which already carry Children for mesh parts) are safe.
+
+  Which of these would you like to explore?
+
+  Sources: Bevy relationship docs · 0.15→0.16 migration guide ·
+  bevyengine/bevy#18905 · bevyengine/bevy#20252 · Tainted Coders — Bevy 
+  Relationships
+
+✻ Worked for 31m 24s
+
+❯ cool but what about some high level codebase architecture patterns, design    
+  patterns, et?                                                                 
+
+  Thought for 36s (ctrl+o to expand)
+
+● Different lens — patterns rather than defects. The question that matters most
+  for this codebase is whether its shapes survive the roadmap: R4 alone takes it
+  from 3 resources to 16 and adds 12 recipe buildings.
+● 2 background agents launched (↓ to manage)
+   ├ Cost of adding a building kind
+   └ Inventory architectural patterns
+
+  Thought for 23s (ctrl+o to expand)
+
+● Web Search("Factorio prototype data-driven recipe system architecture how
+            buildings and recipes are defined as data not code")
+  ⎿  Did 1 search in 8s
+
+● Web Search("ECS design pattern avoid giant enum match per entity kind
+            composition marker components data-driven simulation game")
+  ⎿  Did 1 search in 7s
+
+  Thought for 11s (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator
+      echo "=== W&R data-file research in the brief ==="; grep -n -i
+      "\.ini\|config\|building_type\|renderconfig\|data file\|workshop\|…)
+  ⎿  === W&R data-file research in the brief ===
+     57:All 23 specs in `spec/` are "draft model (grounded in research), Ph
+     ase 1" —
+     … +14 lines (ctrl+o to expand)
+
+  Thought for 9s (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator; sed -n '205,230p'
+      docs/wayfinder-brief.md)
+  ⎿    ids, graph authority, determinism/warmup.
+     - `research/bevy-ecosystem.md` — crate survey (0.19-compatible list).
+     - `findings.md` — repo-survey notes incl. simutrans routing constants.
+     … +33 lines (ctrl+o to expand)
+
+  Thought for 10s (ctrl+o to expand)
+
+● The project's own wayfinder brief already documents the answer to this from
+  the reference game — let me look at the actual data rather than the summary.
+
+● Bash(D=~/.local/share/Steam/steamapps/common/SovietRepublic/media_soviet/build
+      ings_types
+      if [ -d "$D" ]; then echo "count: $(ls "$D" | wc -l)"; echo "--- a factory
+      e…)
+  ⎿  count: 1472
+     --- a factory example ---
+     file: asphalt_plant.ini
+     … +20 lines (ctrl+o to expand)
+
+  Thought for 10s (ctrl+o to expand)
+
+● That's the whole argument in one file. Workers & Resources — the game this
+  project explicitly models its physical causality on — ships 1472 building 
+  definitions as plain text, and a complete factory is this:
+
+  $TYPE_FACTORY
+  $WORKERS_NEEDED 5
+  $PRODUCTION asphalt 29
+  $CONSUMPTION gravel 25
+  $CONSUMPTION bitumen 4
+  $CONSUMPTION eletric 3
+  $CONNECTION_ROAD / $CONNECTION_PIPE_INPUT / $CONNECTION_CONVEYOR_INPUT
+
+  A new building type there is one text file. The project's own wayfinder brief
+  already catalogued this as a mined primary source — $TYPE_* taxonomy,
+  $PRODUCTION/$CONSUMPTION chains, $CONNECTION_* network grammar.
+
+  Waiting on the two pattern hunts to tell me what a new building kind costs
+  here before I put a number on the gap.
+
+✻ Brewed for 2m 5s
+
+● Agent "Cost of adding a building kind" finished · 5m 44s
+
+  Thought for 11s (ctrl+o to expand)
+
+● The number is in: adding one building kind touches ~17 sites across 10 files —
+  9 compiler-forced, and 8 that fail silently if you forget them (the toolbar
+  entry, the labour arm, the save decode arm, the water/power demand lists). R2
+  and R4 add 12 buildings, so roughly 200 edits of the same copy-paste shape,
+  with 8 silent-failure slots each.
+
+  Against Workers & Resources: one text file.
+
+  And the codebase already knows how to do this — in three places. toolbar.rs
+  uses a CATEGORIES table with generic systems, so adding a building to the UI
+  is a one-line array append with zero plumbing. ResourceKind::ALL drives save
+  discriminants by array position, which is strictly better than BuildingKind's
+  hand-maintained kind_to_u8/kind_from_u8 pair. And ConstructionSite::for_kind()
+  derives a building's entire material bill from its footprint alone, so a new
+  kind gets a sane construction cost for free. That's why adding a resource
+  costs about a fifth of adding a building.
+
+  One more finding worth flagging on its own: the Factory produces Goods from 
+  nothing. It takes no material input at all — three external booleans gate a
+  rate constant. Matter is created, which is the one rule the whole design rests
+  on.
+
+  Last hunt still running.
+
+✻ Sautéed for 12s
+
+❯ make the buildings data-driven like W&R                                       
+  /planning-with-files:planning-with-files                                      
+
+  Thought for 6s (ctrl+o to expand)
+
+● Skill(planning-with-files:planning-with-files)
+  ⎿  Successfully loaded skill · 6 tools allowed
+
+  Thought for 6s (ctrl+o to expand)
+
+● Bash(cd /home/caio/soviet-simulator; ls -la task_plan.md findings.md
+      progress.md .planning 2>&1 | head; echo "---"; for f in task_plan.md
+      findings.md progress.md; do…)
+  ⎿  ls: cannot access '.planning': No such file or directory
+     -rw-r--r-- 1 caio caio 3436 ago 17 04:26 findings.md
+     -rw-r--r-- 1 caio caio 9125 ago 17 13:59 progress.md
+     … +5 lines (ctrl+o to expand)
+
+  Thought for 8s (ctrl+o to expand)
+
+● Planning files already exist with real history — reading before I touch them.
+
+  Thought for 50s, read 2 files (ctrl+o to expand)
+
+● Agent "Inventory architectural patterns" finished · 8m 48s
+
+● Both pattern hunts are in. One finding I have to own before planning: three of
+  the five ADRs I wrote this morning describe code that doesn't exist yet —
+  0012, 0013 and 0014 are written in the present tense ("It is now SimPlugins
+  and GamePlugins…") but nothing is built. That is precisely the failure mode I
+  spent the morning diagnosing, and I created three fresh instances of it.
+  Fixing that as step zero.
+
+● Bash(cd /home/caio/soviet-simulator
+      S="/home/caio/.claude/plugins/cache/planning-with-files/planning-with-file
+      s/3.10.1/skills/planning-with-files/scripts/init-sessio…)
+  ⎿  /home/caio/.claude/plugins/cache/planning-with-files/planning-with-fil
+     es/3.10.1/skills/planning-with-files/scripts/init-session.sh  10.9K
+     PLAN_ID=2026-08-17-data-driven-buildings
+     … +11 lines (ctrl+o to expand)
+
+  Thought for 21s (ctrl+o to expand)
+
+● Fixing every ADR that states an unbuilt decision in the present tense —
+  including ADR 0002, whose band system the sweep proved doesn't exist.
+
+● Bash(cd /home/caio/soviet-simulator/docs/adr
+      add_status() { sed -i "1a\\…)  ⎿    0002-band-registry-data-not-schedules.md
+       0007-no-global-placement-grid.md
+       0008-rescind-not-undo.md
+     … +16 lines (ctrl+o to expand)
+
+  Thought for 20s (ctrl+o to expand)
+
+● Plan directory created — the root task_plan.md holding G1 history stays
+  untouched. Writing the plan.
+
+● Write(.planning/2026-08-17-data-driven-buildings/task_plan.md)
+  ⎿  Added 66 lines, removed 29 lines
+       1 -# Task Plan: [Brief Description]                               
+       1 +# Task Plan: Data-Driven Buildings                             
+       2  
+       3  ## Goal
+       4 -[One sentence describing the end state]                        
+       4 +Make a building kind **one row of data**, the way Workers & Res
+         +ources does it                                                 
+       5 +(1472 `buildings_types/*.ini` files, each a complete building).
+         + Today one new                                                 
+       6 +kind costs ~17 edits across 10 files — 9 compiler-forced, **8 t
+         +hat fail                                                       
+       7 +silently**. R2 and R4 add 12 buildings, so that is ~200 repetit
+         +ions of the same                                               
+       8 +copy-paste with 8 silent-failure slots each.                   
+       9  
+       6 -## Next Step                                                   
+       7 -[The single next action. Update whenever phase status changes.]
+      10 +Target: a `BUILDINGS: &[BuildingSpec]` table plus a `Recipe` ty
+         +pe, mirroring                                                  
+      11 +W&R's `$PRODUCTION`/`$CONSUMPTION`/`$WORKERS_NEEDED` grammar.  
+      12  
+      13 +**Behaviour-preserving.** The table must reproduce today's numb
+         +ers exactly.                                                   
+      14 +The 129 existing tests, the save round-trip hash and the seven 
+         +bench gates are                                                
+      15 +the proof. Exactly one intentional behaviour change (Phase 4, t
+         +he inertness bug)                                              
+      16 +— called out, not smuggled.                                    
+      17 +                                                               
+      18  ## Current Phase
+      19  Phase 1
+      20  
+      21  ## Phases
+      22  
+      14 -### Phase 1: Requirements & Discovery                          
+      15 -- [ ] Understand user intent                                   
+      16 -- [ ] Identify constraints                                     
+      17 -- [ ] Document in findings.md                                  
+      18 -- **Status:** in_progress                                      
+      23 +### Phase 1: The spec shape + the table — Status: pending      
+      24 +Define `BuildingSpec` and `Recipe`. Write `BUILDINGS: &[Buildin
+         +gSpec]` with                                                   
+      25 +today's exact values for all 13 kinds. Add `BuildingKind::ALL`/
+         +`COUNT` mirroring                                              
+      26 +`ResourceKind`'s. Table compiles and is asserted complete, but 
+         +nothing reads it                                               
+      27 +yet. No behaviour change possible.                             
+      28  
+      20 -### Phase 2: Planning & Structure                              
+      21 -- [ ] Define approach                                          
+      22 -- [ ] Create project structure                                 
+      23 -- **Status:** pending                                          
+      29 +### Phase 2: The four pure lookups — Status: pending           
+      30 +`footprint()`, `inventory_capacity()`, `workers_needed()`, `def
+         +ault_policies()`                                               
+      31 +become one-liners reading the spec. Delete four hand-maintained
+         + match arms.                                                   
+      32 +Call sites unchanged, so blast radius is zero. Tests must stay 
+         +green.                                                         
+      33  
+      25 -### Phase 3: Implementation                                    
+      26 -- [ ] Execute the plan                                         
+      27 -- [ ] Write to files before executing                          
+      28 -- **Status:** pending                                          
+      34 +### Phase 3: Save discriminant by position — Status: pending   
+      35 +Replace hand-paired `kind_to_u8`/`kind_from_u8` with `ALL`-posi
+         +tion lookup, the                                               
+      36 +shape `ResourceKind` already uses and which `save.rs` already p
+         +roves. Kills the                                               
+      37 +"forgot the decode arm" silent failure. Save round-trip hash te
+         +st is the gate;                                                
+      38 +add a test pinning discriminant stability so reordering the enu
+         +m can't corrupt                                                
+      39 +old saves.                                                     
+      40  
+      30 -### Phase 4: Testing & Verification                            
+      31 -- [ ] Verify requirements met                                  
+      32 -- [ ] Document test results                                    
+      33 -- **Status:** pending                                          
+      41 +### Phase 4: Recipes replace four hand-written systems — Status
+         +: pending                                                      
+      42 +One generic production pass driven by `spec.recipe` replaces `e
+         +xtract_resources`,                                             
+      43 +`run_power_plants`, `run_factories`, `run_heat_plants`. Lands A
+         +DR 0014's `Gated                                               
+      44 +{ rate, bound_by }` component — the binding constraint becomes 
+         +a value, which is                                              
+      45 +what R1's inspect panel needs. **The one intentional behaviour 
+         +change:** the                                                  
+      46 +`Without<ConstructionSite>` inertness filter becomes structural
+         +, fixing the                                                   
+      47 +confirmed bug where a heat plant and a water pump produce at fu
+         +ll rate while                                                  
+      48 +still under construction. Bench gates + `capture_g1` re-run; Fi
+         +rst Plan pacing                                                
+      49 +re-checked.                                                    
+      50  
+      35 -### Phase 5: Delivery                                          
+      36 -- [ ] Review outputs                                           
+      37 -- [ ] Deliver to user                                          
+      38 -- **Status:** pending                                          
+      51 +### Phase 5: Presentation from the table — Status: pending     
+      52 +`kind_material()`, `roof_material()`, `kind_height()`, `shipped
+         +_resource()`, the                                              
+      53 +toolbar BUILD category and the Digit-3 key cycle all read the t
+         +able. `parts()`                                                
+      54 +(the ~220-line procedural mesh) deliberately stays code — see D
+         +ecisions.                                                      
+      55  
+      40 -## Decisions Made                                              
+      56 +### Phase 6: Utility demands from the table — Status: pending  
+      57 +`solve_power`'s demand match, `attach_watered`/`solve_water`, a
+         +nd                                                             
+      58 +`attach_heat_components` read `spec.recipe`/`spec.demands` inst
+         +ead of per-kind                                                
+      59 +matches.                                                       
+      60 +                                                               
+      61 +### Phase 7: Prove it — Status: pending                        
+      62 +Re-count the touch points for a new kind and record the number.
+         + Add a test that                                               
+      63 +the table is the single source (every kind has a spec; `ALL.len
+         +() == BUILDINGS.len()`).                                       
+      64 +Run the game, re-run all seven gates, record a capture. Update 
+         +README + the                                                   
+      65 +charter's R2/R4 rows with the new cost.                        
+      66 +                                                               
+      67 +## Key Decisions                                               
+      68  | Decision | Rationale |
+      42 -|----------|-----------|                                       
+      69 +|---|---|                                                      
+      70 +| One `&'static [BuildingSpec]` table, not a config file | The 
+         +codebase already proves this shape works: `toolbar.rs`'s `CATEG
+         +ORIES`. Rust consts give compile-time completeness checking tha
+         +t a runtime `.ini` parser would give up. W&R needs text files b
+         +ecause it ships mod support; we don't, yet. |                  
+      71 +| `Recipe { inputs, outputs }` mirroring `$PRODUCTION`/`$CONSUM
+         +PTION` | The reference game's grammar, and exactly what R4's 12
+         + recipe buildings need. |                                      
+      72 +| Mesh `parts()` stays hand-written code | It is art authoring,
+         + not simulation data — W&R also keeps models out of the `.ini`.
+         + Forcing a shape grammar now would be speculative. |           
+      73 +| Factory keeps `inputs: &[]` this pass | Goods currently mater
+         +ialise from nothing. That is a real doctrine violation, but fix
+         +ing it needs Steel and Boards, which arrive in R4. The table ch
+         +anges representation, not balance; R4 fills the row in. |      
+      74 +| Behaviour-preserving, one called-out exception | A refactor t
+         +hat silently changes production numbers is indistinguishable fr
+         +om a bug. The gates are the contract. |                        
+      75 +| Subsumes ADR 0014 | The generic production pass *is* the prod
+         +uction gate. Doing them separately would write the same code tw
+         +ice. |                                                         
+      76  
+      77  ## Errors Encountered
+      45 -| Error | Resolution |                                         
+      46 -|-------|------------|                                         
+      78 +| Error | Attempt | Resolution |                               
+      79 +|---|---|---|                                                  
+      80 +                                                               
+      81 +## Next Step                                                   
+      82 +Phase 1: read `buildings.rs`, `labour.rs`, `storage.rs` and ext
+         +ract today's exact                                             
+      83 +per-kind values into the `BuildingSpec` table.                 
+
+● Write(.planning/2026-08-17-data-driven-buildings/findings.md)
+  ⎿  Added 97 lines, removed 13 lines
+        1 -# Findings & Decisions                                        
+        1 +# Findings — Data-Driven Buildings                            
+        2  
+        3 -## Requirements                                               
+        4 --                                                             
+        3 +## The reference implementation (W&R, primary source, verified
+          + 2026-08-17)                                                  
+        4  
+        6 -## Research Findings                                          
+        7 --                                                             
+        5 +`~/.local/share/Steam/steamapps/common/SovietRepublic/media_so
+          +viet/buildings_types/`                                        
+        6 +holds **1472 `.ini` files**, one per building type. A complete
+          + factory:                                                     
+        7  
+        9 -## Technical Decisions                                        
+       10 -| Decision | Rationale |                                      
+       11 -|----------|-----------|                                      
+        8 +```ini                                                        
+        9 +$TYPE_FACTORY                                                 
+       10 +$WORKERS_NEEDED 5                                             
+       11 +$PRODUCTION asphalt 29                                        
+       12 +$CONSUMPTION gravel 25                                        
+       13 +$CONSUMPTION bitumen 4                                        
+       14 +$CONSUMPTION eletric 3                                        
+       15 +$STORAGE_IMPORT RESOURCE_TRANSPORT_GRAVEL 30                  
+       16 +$STORAGE_EXPORT RESOURCE_TRANSPORT_GRAVEL 1                   
+       17 +$CONNECTION_ROAD / $CONNECTION_PEDESTRIAN / $CONNECTION_PIPE_I
+          +NPUT / $CONNECTION_CONVEYOR_INPUT                             
+       18 +```                                                           
+       19  
+       13 -## Issues Encountered                                         
+       14 -| Issue | Resolution |                                        
+       15 -|-------|------------|                                        
+       20 +Note the grammar: a type tag, a worker count, N production lin
+          +es, N consumption                                             
+       21 +lines (electricity is just another consumed resource), storage
+          + capacities per                                               
+       22 +transport class, and connection points. Nothing about the *beh
+          +aviour* is in the                                             
+       23 +file — the engine has one factory system that reads these numb
+          +ers.                                                          
+       24  
+       17 -## Resources                                                  
+       18 --                                                             
+       25 +## The gap, measured (agent audit, 2026-08-17)                
+       26 +                                                              
+       27 +Adding one building kind today touches **~17 sites across 10 n
+          +on-test files**:                                              
+       28 +                                                              
+       29 +- **Compiler-forced (9):** `footprint()`, `inventory_capacity(
+          +)`, `workers_needed()`,                                       
+       30 +  `default_policies()`, `kind_to_u8()`, `kind_material()`, `ki
+          +nd_height()`,                                                 
+       31 +  `parts()` (the mesh), `shipped_resource()`.                 
+       32 +- **Silent failure if skipped (8):** the component-attach arm 
+          +in                                                            
+       33 +  `apply_building_edits`, a brand-new production system functi
+          +on + its plugin                                               
+       34 +  registration, `solve_power`'s demand match, `attach_watered`
+          + + `solve_water`                                              
+       35 +  (2 spots), `kind_from_u8` (a save containing the kind fails 
+          +to load), the                                                 
+       36 +  toolbar entry, the Digit-3 key cycle.                       
+       37 +                                                              
+       38 +There is **no** `BuildingSpec` struct or `BUILDINGS` const any
+          +where in `src/`.                                              
+       39 +                                                              
+       40 +Adding a **resource** costs about a fifth of that, precisely b
+          +ecause                                                        
+       41 +`ResourceKind::ALL`/`COUNT` already exists and `save.rs`, `sto
+          +rage.rs`,                                                     
+       42 +`dispatch.rs` and `hud.rs` all read from it instead of matchin
+          +g by hand.                                                    
+       43 +                                                              
+       44 +## The codebase already proves the target shape, three times  
+       45 +                                                              
+       46 +1. **`toolbar.rs`'s `CATEGORIES`** — `struct Category { label,
+          + tools: &'static [(&str, ToolAction)] }`                      
+       47 +   plus five generic systems that iterate it. Zero per-buildin
+          +g branching in the                                            
+       48 +   UI layer. Named by an earlier audit as the best-factored mo
+          +dule in the tree.                                             
+       49 +2. **`ResourceKind::ALL`/`COUNT`** — drives the save discrimin
+          +ant by array                                                  
+       50 +   position (`ALL.iter().position(...)`), the warehouse defaul
+          +t band, and the                                               
+       51 +   dispatcher round-robin. Strictly better than `BuildingKind`
+          +'s hand-maintained                                            
+       52 +   `to_u8`/`from_u8` pair.                                    
+       53 +3. **`ConstructionSite::for_kind()`** — derives the *entire* m
+          +aterial bill and                                              
+       54 +   work quota from `kind.footprint()` alone. The one place in 
+          +the buildings model                                           
+       55 +   that is not a per-kind match, and proof the codebase alread
+          +y knows how to make                                           
+       56 +   a property fall out of one shared formula.                 
+       57 +                                                              
+       58 +## What the production systems actually look like today       
+       59 +                                                              
+       60 +Three structurally identical functions, copy-pasted across two
+          + plugins:                                                     
+       61 +                                                              
+       62 +- `run_power_plants` — coal → MW. The only true input→output c
+          +onversion.                                                    
+       63 +- `run_heat_plants` — coal → heat. Same shape, different file,
+          + own constants,                                               
+       64 +  own output component, own plugin chain.                     
+       65 +- `run_factories` — **produces Goods from nothing.** No materi
+          +al input at all;                                              
+       66 +  three external booleans (power, water, staffing) gate a rate
+          + constant. Matter                                             
+       67 +  is created, which violates the project's central rule.      
+       68 +- `extract_resources` — mine/quarry, staffing only.           
+       69 +                                                              
+       70 +A 2-input recipe today needs new consts, a new hand-written sy
+          +stem copying the                                              
+       71 +PowerPlant shape with two sequential `take()` calls each check
+          +ed against its own                                            
+       72 +`demand * 0.999` threshold, possibly a new output component, a
+          +nd a new plugin                                               
+       73 +registration. None of it expressible as data.                 
+       74 +                                                              
+       75 +## Constraints inherited from ADRs                            
+       76 +                                                              
+       77 +- **ADR 0014** — the production gate should be a `Gated { rate
+          +, bound_by }`                                                 
+       78 +  component computed once, not four inline chains. This work s
+          +ubsumes it.                                                   
+       79 +- **ADR 0002** — the band cadence mechanism (`BandRegistry`/`B
+          +andSweep`) is                                                 
+       80 +  decided but **not built**; every system hand-rolls a modulo 
+          +gate. Do not                                                  
+       81 +  assume it exists when placing the new production pass.      
+       82 +- **ADR 0004** — ids never reused, save-remap by stable id. Th
+          +e save discriminant                                           
+       83 +  change in Phase 3 must not disturb this.                    
+       84 +- **ADR 0015** — no per-domain save column registry for now; t
+          +he migration seam                                             
+       85 +  rides R1. Phase 3 stays inside `save.rs` as-is.             
+       86 +                                                              
+       87 +## Confirmed bug this work fixes structurally                 
+       88 +                                                              
+       89 +`run_heat_plants` and `solve_water` lack the `Without<Construc
+          +tionSite>` filter                                             
+       90 +that mine, quarry, power plant, factory and labour assignment 
+          +all carry. **A heat                                           
+       91 +plant that is still a construction site burns coal and heats h
+          +omes at full rate.**                                          
+       92 +So does a water pump. Verified by grep: the filter appears at 
+          +`buildings.rs:244`,                                           
+       93 +`:275`, `:310`, `labour.rs:156` and `construction.rs:245` — an
+          +d nowhere in                                                  
+       94 +`heat.rs` or `water.rs`.                                      
+       95 +                                                              
+       96 +## Baseline to preserve                                       
+       97 +                                                              
+       98 +- 129 tests, green, 0.46 s (`cargo test --lib`).              
+       99 +- Seven bench gates, all passing on `mean > GATE_MS`.         
+      100 +- `save.rs` round-trip tests assert full-world `state_hash()` 
+          +equality — the                                                
+      101 +  strongest single guard against a refactor changing anything 
+          +observable.                                                   
+      102 +- The game launches and reaches a window (fixed today in `4163
+          +5f2`).                                                        
+
+  Thought for 10s (ctrl+o to expand)
+
+● Write(.planning/2026-08-17-data-driven-buildings/progress.md)
+  ⎿  Added 21 lines, removed 13 lines
+       1 -# Progress Log                                                 
+       1 +# Progress — Data-Driven Buildings                             
+       2  
+       3 -## Session: 2026-08-17                                         
+       3 +## Session 1 — 2026-08-17                                      
+       4  
+       5 -### Current Status                                             
+       6 -- **Phase:** 1 - Requirements & Discovery                      
+       7 -- **Started:** 2026-08-17                                      
+       5 +### Context                                                    
+       6 +Task arrived out of an architecture sweep that measured the cos
+         +t of a new                                                     
+       7 +building kind (~17 sites, 8 silently failing) against Workers &
+         + Resources'                                                    
+       8 +1472 one-file-per-building `.ini` table.                       
+       9  
+       9 -### Actions Taken                                              
+      10 --                                                              
+      10 +### Step 0 (done, before Phase 1)                              
+      11 +Marked eleven ADRs with an explicit `**Status:**` line. Three w
+         +ritten this                                                    
+      12 +morning (0012, 0013, 0014) described unbuilt decisions in the p
+         +resent tense —                                                 
+      13 +the exact drift the sweep had just diagnosed in ADR 0005 and   
+      14 +`architecture/ecs.md`. ADR 0002 got the same treatment: its `Ba
+         +ndRegistry`                                                    
+      15 +mechanism is called "mandatory" and does not exist in `src/`.  
+      16  
+      12 -### Test Results                                               
+      13 -| Test | Expected | Actual | Status |                          
+      14 -|------|----------|--------|--------|                          
+      17 +### Baseline captured                                          
+      18 +- `cargo test --lib` → 129 passed, 0 failed, 0.46 s            
+      19 +- `cargo run --bin soviet_simulator` → reaches a window (fixed 
+         +in `41635f2`)                                                  
+      20  
+      16 -### Errors                                                     
+      17 -| Error | Resolution |                                         
+      18 -|-------|------------|                                         
+      21 +### Log                                                        
+      22 +| Time | Event |                                               
+      23 +|---|---|                                                      
+      24 +| — | Plan created at `.planning/2026-08-17-data-driven-buildin
+         +gs/` |                                                         
+      25 +| — | ADR status lines applied (11 files) |                    
+      26 +| — | Phase 1 started: extracting today's exact per-kind values
+         + |                                                             
+
+  Thought for 4s, read 1 file (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ nice but dont forget to also take into accound and address the topic we       
+  discussed along the whole conversation, specifically about like factorio      
+  prototype system. create team mates focused and specialized for what we are   
+  currently working on. you will be the orchestrator, coordinator agent and you 
+  will orchestrate multiple worker/researcher/reviewer/younameit agents. ask    
+  me questions before you start                                                 
+
+  Thought for 48s (ctrl+o to expand)
+
+● Good — that's the right thing to settle before writing any code, and the
+  Factorio angle changes the answer materially. Four decisions I can't make for
+  you.
+
+● User answered Claude's questions:
+  ⎿  · Should a recipe belong to a building (W&R) or be its own prototype that 
+     buildings can craft (Factorio)? → (notes only)
+     · Where should the building data physically live? → (notes only)
+     · How far should BuildingKind itself change? → (notes only)
+     · How should I run the agent team? → (notes only)
+
+  Thought for 36s (ctrl+o to expand)
+
+● Fair questions — let me answer them straight, then make the calls, since
+  "which is better" is you asking me to decide.
+
+  W&R vs Factorio buildings, concretely. In W&R a building is its product: you
+  need asphalt, you place an asphalt plant, and that plant makes asphalt
+  forever. In Factorio an assembler is a generic box — you place it, then click
+  it and choose what it makes, and you can change your mind later. The recipe is
+  a separate thing you slot in.
+
+  For this game W&R is right, and not just by taste: the charter already
+  committed R4 to "12 new recipe buildings" for 13 resources, which is one
+  building per product. A Soviet planner places a cement works, not a generic
+  box they configure. But I'll keep Recipe as its own type with a category field
+  rather than melting it into the building — that costs nothing today and means
+  the Factorio split is a move, not a rewrite, if it's ever wanted.
+
+  On the database — no, and I want to be plain about why. This is 13 rows now,
+  ~26 after R4, read by the simulation every tick, never written at runtime, and
+  only ever queried one way ("give me the spec for this kind"). A database or
+  ORM replaces a single array index with a dependency, a query layer, async
+  loading and a whole new runtime failure mode, and buys nothing. I think what
+  you're actually reaching for is editing numbers without recompiling — which is
+  the hot-reload benefit, and it's a real want when balancing twelve buildings.
+  So: const table now, with serde derives on the spec types, which makes adding
+  a RON-file override later a loader rather than a reshape. If balancing turns
+  painful during R4, that loader is a small follow-up.
+
+  Keep the enum — this one isn't close. It takes a new building from ~17 edits
+  to 2, both compiler-checked, which is the whole win. The newtype version loses
+  exhaustive matching across the entire tree, and exhaustive matching is
+  precisely what makes 9 of those 17 touch points compile errors instead of 
+  silent gaps. Dropping it would convert nine loud failures into nine quiet ones
+  — the exact bug class this refactor exists to kill. It's also reversible:
+  once the table exists, going opaque later is mechanical.
+
+  Team: hybrid, as you said. Sequential phases with a review gate between them,
+  but parallel workers inside a phase where the work is genuinely independent —
+  the sim track and presentation track don't touch the same files.
+
+  Creating the roster now.
+
+● Bash(cd /home/caio/soviet-simulator; ls -d .claude .claude/agents 2>&1; ls
+      .claude/agents/ 2>/dev/null | head)
+  ⎿  drwxr-xr-x 1 caio caio 30 Aug 17 14:14 .claude
+     ls: cannot access '.claude/agents': No such file or directory
+
+● Write(.claude/agents/prototype-researcher.md)
+  ⎿  Wrote 43 lines to .claude/agents/prototype-researcher.md
+      1 ---
+      3 description: Researches how other simulation games and Bevy itsel
+        f model data-driven entity catalogues — Factorio prototypes, Work
+        hen a catalogue design question needs an answer grounded in a pri
+        mary source rather than an opinion. Returns cited findings, never
+      4 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+      5 model: sonnet
+      7 
+      8 You research how real systems model **entity catalogues as data**
+      9 evidence, not preference.
+     … +55 lines (ctrl+o to expand)
+
+● Write(.claude/agents/catalogue-implementer.md)
+  ⎿  Wrote 47 lines to .claude/agents/catalogue-implementer.md
+       1 ---
+       3 description: Implements the sim-side of the building catalogue —
+          the BuildingSpec/Recipe tables, the per-kind lookups, save disc
+         rc/sim/. Behaviour-preserving by contract.
+       4 tools: Read, Edit, Write, Grep, Glob, Bash
+       6 ---
+       7 
+         talogue in
+       9 `/home/caio/soviet-simulator`. You work in `src/sim/` only — ano
+      10 `src/game/`. Do not edit files outside your track.
+     … +61 lines (ctrl+o to expand)
+
+● Write(.claude/agents/presentation-implementer.md)
+  ⎿  Wrote 42 lines to .claude/agents/presentation-implementer.md
+       1 ---
+       3 description: Implements the presentation-side of the building ca
+         talogue — materials, roof and height lookups, the toolbar BUILD 
+         viour-preserving by contract.
+       4 tools: Read, Edit, Write, Grep, Glob, Bash
+       6 ---
+       7 
+         catalogue in
+       9 `/home/caio/soviet-simulator`. You work in `src/game/` only — an
+      10 `src/sim/`. Do not edit files outside your track.
+     … +54 lines (ctrl+o to expand)
+
+● Write(.claude/agents/refactor-reviewer.md)
+  ⎿  Wrote 41 lines to .claude/agents/refactor-reviewer.md
+       1 ---
+       3 description: Adversarial reviewer for the building-catalogue ref
+         actor. Tries to prove a phase changed observable behaviour. Use 
+         sion. Never writes production code.
+       5 model: sonnet
+       6 ---
+       8 You are the gate between phases of a behaviour-preserving refact
+         or. Your job is to
+         n't. Assume the
+         e.
+     … +53 lines (ctrl+o to expand)
+
+❯ nice remember to search and load all your agent team tools and instruct the   
+  teammates to do the same                                                      
+
+  Thought for 27s (ctrl+o to expand)
+
+● Good call — for a refactor that chases ~17 references across the tree, LSP
+  find-references beats grep. Loading the team's toolset.
+
+  Thought for 5s (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?

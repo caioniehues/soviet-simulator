@@ -13,7 +13,7 @@ layer. See [`NOTICE.md`](NOTICE.md) for provenance and licensing.
 
 The Bevy track (M1 through B8, ~23k LOC) is preserved on the
 `bevy-track-archive` branch and tag `bevy-track-final`. Its status document is
-[`docs/archive/bevy-track-README.md`](docs/archive/bevy-track-README.md).
+[`docs/archive/bevy-track/README.md`](docs/archive/bevy-track/README.md).
 
 ## Licence
 
@@ -25,14 +25,12 @@ The Bevy track (M1 through B8, ~23k LOC) is preserved on the
 Not a market sim with a red coat of paint. The design target is Kornai's
 shortage economy as it actually existed:
 
-- **Two circuits of money.** Households hold cash (*nal*) and buy consumer goods
-  at state-fixed retail prices. Enterprises settle in non-cash accounting
-  roubles (*beznal*) that cannot buy consumer goods. The circuits do not mix,
-  which is precisely why plan fulfilment and shopping queues are separate
-  problems for the player.
-- **Clearing by queue, not by price.** Prices are administered and do not float.
-  Excess demand becomes queue length, waiting time and empty shelves. The player
-  reads shortage off the queue, never off a price chart.
+- **No domestic money.** Requests clear through planned allocation, queues,
+  substitution, and going without. The rouble exists only at physical border
+  clearance.
+- **Clearing by queue, not by price.** Domestic requests are allocated, not priced
+  or traded. Excess demand becomes queue length, waiting time and empty shelves.
+  Only border imports and exports use fixed per-kind prices.
 - **Enterprises are not honest.** Soft budget constraints, input hoarding
   against uncertain supply, and plan bargaining. Factories inflate their input
   requests and argue their quota down; a large part of the game is seeing
@@ -61,5 +59,7 @@ The `--release` flag is not optional — a debug build is unplayably slow.
 | `prototypes/` | Lua-driven data definitions for buildings, goods, recipes |
 | `geom/`, `common/` | Shared maths and utilities |
 | `headless/`, `networking/` | Headless runner and multiplayer |
-| `docs/` | Charter, ADRs, art direction, archived Bevy-track docs |
-| `spec/`, `architecture/` | Design collateral |
+| `docs/` | Canonical charter, glossary, specifications, architecture, process, and archive |
+| `spec/` | Legacy specification inputs being rewritten; not current authority |
+
+Start with [`docs/README.md`](docs/README.md) for the documentation authority map.

@@ -20,7 +20,7 @@ source must be offered to them under the same terms. This is permanent and was
 accepted knowingly when the fork was taken.
 
 Third-party assets under `assets/` inherit whatever terms upstream applied to
-them; see upstream's credits in `docs/archive/egregoria-README.md`.
+them; see upstream's credits in `docs/archive/upstream-egregoria/egregoria-README.md`.
 
 ## Attribution
 

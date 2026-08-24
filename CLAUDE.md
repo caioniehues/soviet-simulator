@@ -1,8 +1,8 @@
 # Soviet city-builder — a hard fork of Egregoria
 
-Rust, ECS. The fork happened 2026-08-22 and **the earlier Bevy track was discarded** — there is no
-`bevy.md` and bevy is not a dependency. If a doc, brief or memory tells you otherwise, it is stale;
-trust the code. The repo is GPL-3.0 by inheritance, permanently.
+Rust, ECS. The fork happened 2026-08-22 and **the earlier Bevy track was discarded**. Bevy is not a
+dependency; its documents live only under `docs/archive/bevy-track/`. Trust current code for
+substrate behavior. The repo is GPL-3.0 by inheritance, permanently.
 
 The core loop is the **dishonest enterprise**: an enterprise requests more input than its recipe
 consumes, hoards the surplus, and the player — acting as THE PLANNER — catches it from observable
@@ -16,12 +16,13 @@ Clearing is by queue, substitution and going without — **never by price**. Mon
 
 - **How work gets done: `docs/dev-cycle.md`.** Eight phases, the 15-agent roster and what each is
   for. Every phase names the failure it exists to prevent. Read it before running a wave.
-- Plan of record: `docs/charter-1.0.md`. It **binds on scope**; `spec/` wins on mechanism inside an
-  in-scope rung. Its Post-1.0 and Never lists are absolute.
+- Plan of record: `docs/plan/charter-1.0.md`. It **binds on scope**. Ratified files under
+  `docs/reference/specifications/` bind mechanism inside that scope; legacy `spec/` files are
+  rewrite inputs only. The charter's Post-1.0 and Never lists are absolute.
 - Art direction: `docs/art-direction.md`. Palette, the look, and the asset provenance table.
 - Live plan: `docs/superpowers/iterations/` — `roadmap.md`, `RESUME.md` (read this first),
   `requirements/EPIC-*.md`.
-- Substrate reality vs the specs: `docs/egregoria-substrate-audit.md`.
+- Current substrate map: `docs/reference/architecture/substrate.md`; follow its fact-sheet citations.
 - Keep durable project status in `README.md`: what is built, what is left, and an asset table.
 - Generate visual assets with `/asset-gen`. Confirm the spend with the user before the first paid generation.
 
