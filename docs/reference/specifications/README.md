@@ -63,8 +63,7 @@ binding or proves current fork behavior.
 | Needs and movement | [Needs](needs.md), [Roads](roads.md), [Pathfinding](pathfinding.md), [Traffic](traffic.md) |
 | Built world | [Construction](construction.md), [Buildings](buildings.md), [Zoning](zoning.md) |
 | Settlement | [Households](households.md), [Citizens](citizens.md), [Education](education.md), [Healthcare](healthcare.md), [Crime](crime.md) |
+| Utilities | [Electricity](electricity.md), [Water](water.md), [Sewage](sewage.md), [Heating](heating.md), [Waste](waste.md) |
 
-Every listed specification is currently `draft`, not ratified. The remaining five subsystem
-documents—electricity, water, sewage, heating, and waste—remain legacy rewrite inputs under root
-`spec/`. They are not current mechanism authority and will enter this register only after their
-controlled rewrite and gate.
+Every listed specification is currently `draft`, not ratified. Their legacy counterparts under
+root `spec/` remain rewrite inputs only and are not current mechanism authority.
