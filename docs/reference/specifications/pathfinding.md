@@ -20,23 +20,27 @@ outside the route solver.
 
 This specification covers route request, compatibility, invalidation, failure, and recovery.
 It does not define domestic allocation, road pricing, passenger-rail depth, rail signals and
-electrification, fuel lifecycle, or a congestion-aware routing algorithm; those are either owned
-elsewhere or excluded Post-1.0 by the [charter](../../plan/charter-1.0.md#explicit-cuts).
+electrification, or fuel lifecycle. It consumes the in-scope congestion signal owned by Traffic;
+the other mechanisms are owned elsewhere or excluded Post-1.0 by the
+[charter](../../plan/charter-1.0.md#explicit-cuts).
 
 ## Invariants
 
 - `SPEC-PATHFINDING-001` A route is derived from a stated origin, destination, compatible lane
   access, and a recorded topology revision of the authoritative road graph.
-- `SPEC-PATHFINDING-002` The 1.0 route cost uses only compatible typed lanes, recorded topology,
-  and declared lane length and speed inputs. It has no congestion, queue, capacity, closure,
-  freight-restriction, or road-price cost term unless a later active specification changes this
-  contract.
+- `SPEC-PATHFINDING-002` Vehicle route cost starts from compatible typed lanes, recorded topology,
+  and declared lane length and speed, then multiplies free-flow time by Traffic's damped BPR cost
+  for each lane. Pedestrian routes omit congestion cost. Road price is never a cost.
 - `SPEC-PATHFINDING-003` A topology-invalid route is explicitly invalidated and its trip enters a
   visible reroute, waiting, or stalled state. It MUST NOT be silently discarded.
 - `SPEC-PATHFINDING-004` Route failure records a reason and remains recoverable. It never creates
   a substitute route by teleporting an actor, stock, or need fulfillment.
 - `SPEC-PATHFINDING-005` A route authorizes movement only; it neither transfers custody nor
   satisfies a dwelling need.
+- `SPEC-PATHFINDING-006` A lane Traffic marks blocked is excluded from new routes. Topology
+  invalidation or Traffic's stall threshold may trigger rerouting; ambient congestion changes
+  alone MUST NOT continuously replan an en-route vehicle. Equal-cost choices use a deterministic
+  tie-breaker.
 
 ## Model and state
 
@@ -68,17 +72,21 @@ is failure, never green. The current 26-test suite proves no target below.
 
 | Evidence | Future guard command and observable assertion | Negative mutation that must turn it red | Player-facing proof |
 |---|---|---|---|
-| `EVID-PATHFINDING-001` | `cargo test -p simulation spec_pathfinding_static_compatible_route -- --test-threads=1` — route uses compatible lanes and only declared static inputs. | Add an incompatible lane hop or a congestion cost input. | Inspected route input/result view. |
+| `EVID-PATHFINDING-001` | `cargo test -p simulation evid_pathfinding_compatible_bpr_blocked_route -- --test-threads=1` — vehicle routes use compatible lanes and Traffic's damped BPR cost, exclude blocked lanes, and pedestrian routes omit congestion. | Read raw load, admit a blocked lane, or apply congestion cost to a pedestrian route. | Inspected route inputs, exclusions, and result view. |
 | `EVID-PATHFINDING-002` | `cargo test -p simulation spec_pathfinding_invalidation_recovery_persists -- --test-threads=1` — topology invalidation preserves a visible reroute/wait/stall request. | Delete the request after invalidation. | Inspected route reason and recovery session. |
 | `EVID-PATHFINDING-003` | `cargo test -p simulation spec_pathfinding_repeat_run_determinism -- --test-threads=1` — identical initial state and inputs yield identical route result. | Randomize an equal-cost tie break. | Inspected repeat-run route comparison; serde round-trip is not proof. |
 
 ## Substrate and decisions
 
-`MAP-SUB-001` provides the typed lane graph and physical movement. `MAP-SUB-003` records the live
-vehicle A* cost as lane length/speed plus deterministic noise, with periodic retry for missing
-topology and no congestion, capacity, queue, closure, freight restriction, or vehicle-class cost.
-It is therefore static and retry-only, not congestion-aware. `MAP-SUB-004` confirms traffic has
-no durable congestion input for the solver. See the [substrate fact-sheet](../../research/fact-sheets/wave1-substrate.md#roads-routing-and-traffic).
+`MAP-SUB-001` provides the typed lane graph and physical movement
+(`simulation/src/map/objects/lane.rs:11-104`; `simulation/src/map/objects/road.rs:70-226`).
+`MAP-SUB-003` records the live vehicle A* cost as lane length/speed plus deterministic noise, with
+periodic retry for missing topology (`simulation/src/map/pathfinding.rs:189-268`;
+`simulation/src/map_dynamic/itinerary.rs:171-198`) and no congestion, capacity, queue, closure,
+freight restriction, or vehicle-class cost. It is therefore static and retry-only, not
+congestion-aware. `MAP-SUB-004` confirms traffic has no durable congestion input for the solver
+(`simulation/src/transportation/road.rs:15-78,185-250`). See the
+[substrate fact-sheet](../../research/fact-sheets/wave1-substrate.md#roads-routing-and-traffic).
 External CS1 and Workers & Resources material in archived legacy research is comparison evidence
 only, never mechanism authority.
 

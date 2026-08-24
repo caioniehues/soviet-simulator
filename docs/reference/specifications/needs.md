@@ -91,11 +91,14 @@ is failure, never green. The current 26-test suite proves no target below.
 
 ## Substrate and decisions
 
-`ECO-SUB-001` records that unmatched demand can currently disappear. `ECO-SUB-003` records
-price-free domestic matching without durable priority or partial fill, and `ECO-SUB-006` records
-conflicting fulfillment timestamps. The current human path buys only bread and can update
-`last_ate` on arrival without consuming inventory, which violates this target; see the Needs row
-and `ECO-SUB-001` through `ECO-SUB-006` in the [economy fact-sheet](../../research/fact-sheets/wave1-economy.md).
+`ECO-SUB-001` records that unmatched demand can currently disappear
+(`simulation/src/economy/market.rs:396-405`). `ECO-SUB-003` records price-free domestic matching
+without durable priority or partial fill (`simulation/src/economy/market.rs:274-314`), and
+`ECO-SUB-006` records conflicting fulfillment timestamps (`simulation/src/economy/mod.rs:95-104`;
+`simulation/src/economy/market.rs:382-393`). The current human path buys only bread and can update
+`last_ate` on arrival without consuming inventory (`simulation/src/souls/desire/buyfood.rs:70-90`),
+which violates this target; see the Needs row and `ECO-SUB-001` through `ECO-SUB-006` in the
+[economy fact-sheet](../../research/fact-sheets/wave1-economy.md).
 External CS1 and Workers & Resources material in archived legacy research is comparison evidence
 only, never mechanism authority.
 

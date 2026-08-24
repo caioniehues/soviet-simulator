@@ -57,7 +57,8 @@ entry requires an identity, unit, permitted storage/handling classes, and whethe
 import-only; a stock record requires quantity and accountable holder. The requesting subsystem owns
 durable demand. Logistics is the sole authority for domestic fulfillment transitions and custody,
 while Trade is the sole authority for customs clearance and settlement; Production or Needs owns
-atomic consumption and its stock debit. Resource records reference haul, trade-order, and
+consumption state and atomically coordinates a Resources-owned on-hand balance mutation. Only
+Resources mutates on-hand balance/debit records. Resource records reference haul, trade-order, and
 consumption IDs rather than duplicate their state. These are target records, not a claim that the
 current substrate stores them.
 
@@ -88,9 +89,12 @@ is failure, never green. The current 26-test suite proves no target below.
 ## Substrate and decisions
 
 Current substrate differs materially: Lua has 21 item identities but no unit, mass, volume,
-storage class, transport class, or capacity metadata ([economy fact-sheet, Resources](../../research/fact-sheets/wave1-economy.md#domain-rulings)).
-Current Market inventory is an integer capital counter, and its unmatched demand can disappear
-([`ECO-SUB-001`](../../research/fact-sheets/wave1-economy.md#eco-sub-001--unmatched-demand-is-not-a-durable-queue)).
+storage class, transport class, or capacity metadata (`base_mod/items.lua:1-108`,
+`prototypes/src/prototypes/item.rs:6-25`; [economy fact-sheet,
+Resources](../../research/fact-sheets/wave1-economy.md#domain-rulings)). Current Market inventory is
+an integer capital counter (`simulation/src/economy/market.rs:35-49`), and its unmatched demand can
+disappear (`simulation/src/economy/market.rs:399-405`;
+[`ECO-SUB-001`](../../research/fact-sheets/wave1-economy.md#eco-sub-001--unmatched-demand-is-not-a-durable-queue)).
 This specification does not promote either behavior.
 
 ## Deferred behavior

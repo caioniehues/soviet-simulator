@@ -73,12 +73,12 @@ is failure, never green. The current 26-test suite proves no target below.
 ## Substrate and decisions
 
 Current dispatch reserves nearest available SmallTruck or FreightTrain identities
-([`LOG-SUB-001`](../../research/fact-sheets/wave1-logistics.md#log-sub-001--two-dispatch-classes-use-real-networks));
+(`simulation/src/map_dynamic/dispatch.rs:27-39,82-140`; [`LOG-SUB-001`](../../research/fact-sheets/wave1-logistics.md#log-sub-001--two-dispatch-classes-use-real-networks));
 companies spawn a finite number of parked truck identities and retain their IDs
-([`LOG-SUB-004`](../../research/fact-sheets/wave1-logistics.md#log-sub-004--companies-spawn-a-finite-number-of-parked-trucks)).
-The global dispatcher ignores that ownership ([`LOG-SUB-006`](../../research/fact-sheets/wave1-logistics.md#log-sub-006--company-ownership-does-not-constrain-global-dispatch)). `Vehicle` has no authoritative
+(`simulation/src/souls/goods_company.rs:127-148`; [`LOG-SUB-004`](../../research/fact-sheets/wave1-logistics.md#log-sub-004--companies-spawn-a-finite-number-of-parked-trucks)).
+The global dispatcher ignores that ownership (`simulation/src/map_dynamic/dispatch.rs:95-104`; [`LOG-SUB-006`](../../research/fact-sheets/wave1-logistics.md#log-sub-006--company-ownership-does-not-constrain-global-dispatch)). `Vehicle` has no authoritative
 cargo, capacity, owner, depot, fuel, wear, driver, or recovery field
-([`LOG-SUB-005`](../../research/fact-sheets/wave1-logistics.md#log-sub-005--cargo-is-not-embodied-by-the-vehicle)), so this
+(`simulation/src/transportation/vehicle.rs:34-45`; [`LOG-SUB-005`](../../research/fact-sheets/wave1-logistics.md#log-sub-005--cargo-is-not-embodied-by-the-vehicle)), so this
 document makes none of those a provided claim.
 
 ## Deferred behavior

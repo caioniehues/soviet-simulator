@@ -83,10 +83,12 @@ is failure, never green. The current 26-test suite proves no target below.
 ## Substrate and decisions
 
 `MAP-SUB-001` provides typed driving, parking, walking, rail, and other lanes plus authoritative
-road commands. `MAP-SUB-005` provides exclusive reservable parking. `MAP-SUB-002` records that
-current non-arbitrary road construction removes and creates lots automatically, conflicting with
-this target. `MAP-SUB-004` records no durable capacity ledger or Planner traffic readout. See the
-[substrate fact-sheet](../../research/fact-sheets/wave1-substrate.md#roads-routing-and-traffic).
+road commands (`simulation/src/map/objects/lane.rs:11-104`; `simulation/src/map/objects/road.rs:70-226`).
+`MAP-SUB-005` provides exclusive reservable parking (`simulation/src/map/objects/road.rs:197-212`;
+`simulation/src/map_dynamic/parking.rs:24-90`). `MAP-SUB-002` records that current non-arbitrary
+road construction removes and creates lots automatically (`simulation/src/map/map.rs:682-720`),
+conflicting with this target. `MAP-SUB-004` records no durable capacity ledger or Planner traffic
+readout (`simulation/src/transportation/road.rs:15-78,185-250`). See the [substrate fact-sheet](../../research/fact-sheets/wave1-substrate.md#roads-routing-and-traffic).
 External CS1 and Workers & Resources material in archived legacy research is comparison evidence
 only, never mechanism authority.
 
