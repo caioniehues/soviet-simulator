@@ -55,14 +55,16 @@ binding or proves current fork behavior.
 - Mark a replaced specification `superseded` and link its active successor; archive historical
   inputs without granting them current authority.
 
-## Wave 1 register
+## Controlled rewrite register
 
 | Cluster | Draft specifications |
 |---|---|
 | Physical economy | [Resources](resources.md), [Production](production.md), [Logistics](logistics.md), [Vehicles](vehicles.md), [Trade](trade.md) |
 | Needs and movement | [Needs](needs.md), [Roads](roads.md), [Pathfinding](pathfinding.md), [Traffic](traffic.md) |
+| Built world | [Construction](construction.md), [Buildings](buildings.md), [Zoning](zoning.md) |
+| Settlement | [Households](households.md), [Citizens](citizens.md), [Education](education.md), [Healthcare](healthcare.md), [Crime](crime.md) |
 
-The remaining thirteen subsystem documents—buildings, citizens, construction, crime, education,
-electricity, healthcare, heating, households, sewage, waste, water, and zoning—remain legacy rewrite
-inputs under root `spec/`. They are not current mechanism authority and will enter this register only
-after their controlled rewrite and gate.
+Every listed specification is currently `draft`, not ratified. The remaining five subsystem
+documents—electricity, water, sewage, heating, and waste—remain legacy rewrite inputs under root
+`spec/`. They are not current mechanism authority and will enter this register only after their
+controlled rewrite and gate.

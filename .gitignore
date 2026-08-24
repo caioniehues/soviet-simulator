@@ -32,3 +32,5 @@ world
 *.exe
 *.tar.gz
 __pycache__
+# br doctor per-run artifacts
+.doctor/
