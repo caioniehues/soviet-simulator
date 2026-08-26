@@ -1,17 +1,19 @@
 # Resume — controlled documentation rewrite, Wave 3 cutover
 
 **Kind:** plan handoff
-**Authority:** operational handoff only; `br` remains task-state authority
-**Status:** active — final cutover in progress
+**Authority:** operational handoff only; `bd` (beads, replaced `br` 2026-08-26) remains task-state authority
+**Status:** cutover complete — commit `b6381a5`; parent closure recorded in `bd`
 **Owner:** project lead
-**Last verified:** 2026-08-24
+**Last verified:** 2026-08-26
 
 ## Verified state
 
-Read this after the charter and development cycle, then confirm live state with `br` before taking
-work. The parent rewrite issue `sov-docs-controlled-rewrite-m3u` is `in_progress`. Its Wave 3
-mapping, requirements, and evidence/roadmap children (`.12`, `.13`, `.14`) are closed at commit
-`942c25e`; canonical discovery cutover (`.15`) is the remaining in-progress child.
+Read this after the charter and development cycle, then confirm live state with `bd` before taking
+work. The Wave 3 cutover landed at commit `b6381a5` (documentation tree migrated, nine agent
+definitions repointed). One latent gap was found and fixed 2026-08-26: `target-scenarios.json` —
+a required input of the evidence `--check` and `build_roadmap` — was silently ignored by the
+inherited `target*` gitignore glob and never committed; the glob is now dir-only (`target/`) and
+the file is versioned. Task history lives on `sov-docs-controlled-rewrite-m3u` and its children.
 
 Wave 1 and Wave 2 are closed documentation waves. Their specifications remain draft and unratified:
 the re-derived target guards are deliberately `UNIMPLEMENTED`, so no documentation status claims
@@ -45,14 +47,16 @@ python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/itera
 ```
 
 The most recent recorded exact serial suite is `cargo test -p simulation -- --test-threads=1`:
-26 passed, 0 failed, 0 filtered; doc-tests 0 (Wave 3 evidence/reviewer gate record on `br` child
-`.14`). This is a substrate-regression check, not proof of the 107 target rows.
+26 passed, 0 failed, 0 filtered; doc-tests 0 (Wave 3 evidence/reviewer gate record on `bd` child
+`.14`; re-confirmed at clean HEAD `f89bc3b` on 2026-08-26 — see the parent close reason for the
+real output). This is a substrate-regression check, not proof of the 107 target rows.
+
+Note: while `sov-dispatch-wedge-ab4` work is uncommitted in the working tree, the evidence
+`--check` diverges there by design (the wedge adds simulation tests); regeneration of
+`current-regression-inventory.json` and the roadmap is owed at that issue's Phase 6 wrap.
 
 ## Next work
 
-1. Finish issue `.15`: remove old discovery paths, retain the legacy corpus only beneath archive,
-   and verify direct local links and active-document metadata.
-2. Run Wave 3 final gates in the ordered development cycle: evidence, wiring, conditional ledger,
-   reviewer/domain sign-off, doc-reality, and scribe.
-3. Re-run the exact serial simulation suite and update `br` with the real gate outputs before
-   closing the rewrite parent.
+Wave 3 and the rewrite parent are closed. Live work is tracked in `bd` (`bd ready`); as of
+2026-08-26 the front of the queue is `sov-dispatch-wedge-ab4` (P1, round 4 in flight) and
+`sov-hoard-panel-mko` (Phase 0 fact-sheet in flight).

@@ -1,0 +1,1714 @@
+{
+  "authority": "rewritten requirement-to-SPEC bindings; draft target evidence",
+  "promoted_current_regressions": [
+    {
+      "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0082_dispatch_gates_stock_not_match -- --test-threads=1",
+      "description": "Current dispatch implementation delays stock transfer until its current delivery gate.",
+      "id": "SENTINEL-SUBSTRATE-DISPATCH-GATE",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::hoarding::scenario_0082_dispatch_gates_stock_not_match"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0151_inflated_request_hoards_honest_does_not -- --test-threads=1",
+      "description": "Current market implementation exhibits its named inflated-request behavior.",
+      "id": "SENTINEL-SUBSTRATE-HOARDING",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::hoarding::scenario_0151_inflated_request_hoards_honest_does_not"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0083_zero_trucks_blocks_delivery -- --test-threads=1",
+      "description": "Current dispatch implementation retains a blocked delivery when no SmallTruck is available.",
+      "id": "SENTINEL-SUBSTRATE-NO-TRUCK",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::hoarding::scenario_0083_zero_trucks_blocks_delivery"
+    }
+  ],
+  "schema": "wave3-target-evidence/v1",
+  "target_scenarios": [
+    {
+      "evidence_id": "EVID-BUILDINGS-001",
+      "id": "TARGET-EVID-BUILDINGS-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-BUILDINGS-001",
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/buildings.md",
+      "specification_ids": [
+        "SPEC-BUILDINGS-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_buildings_completion_result_activates_once -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-BUILDINGS-002",
+      "id": "TARGET-EVID-BUILDINGS-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-BUILDINGS-001",
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/buildings.md",
+      "specification_ids": [
+        "SPEC-BUILDINGS-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_buildings_no_capability_before_completion -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-BUILDINGS-003",
+      "id": "TARGET-EVID-BUILDINGS-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-BUILDINGS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/buildings.md",
+      "specification_ids": [
+        "SPEC-BUILDINGS-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_buildings_blocked_capability_is_observable -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-BUILDINGS-004",
+      "id": "TARGET-EVID-BUILDINGS-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-BUILDINGS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/buildings.md",
+      "specification_ids": [
+        "SPEC-BUILDINGS-001",
+        "SPEC-BUILDINGS-004",
+        "SPEC-BUILDINGS-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_buildings_singular_capability_authority_and_inspector -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CITIZENS-001",
+      "id": "TARGET-EVID-CITIZENS-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CITIZENS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/citizens.md",
+      "specification_ids": [
+        "SPEC-CITIZENS-001",
+        "SPEC-CITIZENS-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_citizens_identity_shortage_persists -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CITIZENS-002",
+      "id": "TARGET-EVID-CITIZENS-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CITIZENS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/citizens.md",
+      "specification_ids": [
+        "SPEC-CITIZENS-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_citizens_attendance_requires_arrival -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CITIZENS-003",
+      "id": "TARGET-EVID-CITIZENS-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CITIZENS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/citizens.md",
+      "specification_ids": [
+        "SPEC-CITIZENS-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_citizens_nonprice_labour_queue -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CITIZENS-004",
+      "id": "TARGET-EVID-CITIZENS-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CITIZENS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/citizens.md",
+      "specification_ids": [
+        "SPEC-CITIZENS-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_citizens_food_meat_needs_boundary -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CITIZENS-005",
+      "id": "TARGET-EVID-CITIZENS-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CITIZENS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/citizens.md",
+      "specification_ids": [
+        "SPEC-CITIZENS-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_citizens_death_identity_result -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CITIZENS-006",
+      "id": "TARGET-EVID-CITIZENS-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CITIZENS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/citizens.md",
+      "specification_ids": [
+        "SPEC-CITIZENS-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_citizens_activity_intent_references_single_authority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-001",
+      "id": "TARGET-EVID-CONSTRUCTION-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_ghost_verdict_commit_revalidation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-002",
+      "id": "TARGET-EVID-CONSTRUCTION-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-003",
+        "SPEC-CONSTRUCTION-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_delivery_receipt_embed_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-003",
+      "id": "TARGET-EVID-CONSTRUCTION-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_ground_broken_rescind -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-004",
+      "id": "TARGET-EVID-CONSTRUCTION-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_work_gates_do_not_complete_on_timer -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-005",
+      "id": "TARGET-EVID-CONSTRUCTION-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_completion_precedes_activation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-006",
+      "id": "TARGET-EVID-CONSTRUCTION-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_failure_preserves_site_reason_and_plan -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-CONSTRUCTION-007",
+      "id": "TARGET-EVID-CONSTRUCTION-007",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-CONSTRUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/construction.md",
+      "specification_ids": [
+        "SPEC-CONSTRUCTION-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_construction_site_authority_nonoperating_transition -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-EDUCATION-001",
+      "id": "TARGET-EVID-EDUCATION-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-EDUCATION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/education.md",
+      "specification_ids": [
+        "SPEC-EDUCATION-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_education_two_tiers_only -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-EDUCATION-002",
+      "id": "TARGET-EVID-EDUCATION-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-EDUCATION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/education.md",
+      "specification_ids": [
+        "SPEC-EDUCATION-002",
+        "SPEC-EDUCATION-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_education_attendance_capacity -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-EDUCATION-003",
+      "id": "TARGET-EVID-EDUCATION-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-EDUCATION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/education.md",
+      "specification_ids": [
+        "SPEC-EDUCATION-004",
+        "SPEC-EDUCATION-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_education_shortage_nonprice_queue -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-EDUCATION-004",
+      "id": "TARGET-EVID-EDUCATION-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-EDUCATION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/education.md",
+      "specification_ids": [
+        "SPEC-EDUCATION-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_education_references_not_copies -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ELECTRICITY-001",
+      "id": "TARGET-EVID-ELECTRICITY-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ELECTRICITY-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/electricity.md",
+      "specification_ids": [
+        "SPEC-ELECTRICITY-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_electricity_wire_topology_not_roads -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ELECTRICITY-002",
+      "id": "TARGET-EVID-ELECTRICITY-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ELECTRICITY-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/electricity.md",
+      "specification_ids": [
+        "SPEC-ELECTRICITY-002",
+        "SPEC-ELECTRICITY-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_electricity_rate_storage_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ELECTRICITY-003",
+      "id": "TARGET-EVID-ELECTRICITY-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ELECTRICITY-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/electricity.md",
+      "specification_ids": [
+        "SPEC-ELECTRICITY-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_electricity_priority_brownout_continuous -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ELECTRICITY-004",
+      "id": "TARGET-EVID-ELECTRICITY-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ELECTRICITY-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/electricity.md",
+      "specification_ids": [
+        "SPEC-ELECTRICITY-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_electricity_reasoned_shortage_no_activation_or_money -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ELECTRICITY-005",
+      "id": "TARGET-EVID-ELECTRICITY-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ELECTRICITY-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/electricity.md",
+      "specification_ids": [
+        "SPEC-ELECTRICITY-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_electricity_authority_references_not_copies -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ELECTRICITY-006",
+      "id": "TARGET-EVID-ELECTRICITY-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ELECTRICITY-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/electricity.md",
+      "specification_ids": [
+        "SPEC-ELECTRICITY-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_electricity_generation_requires_production_result -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEALTHCARE-001",
+      "id": "TARGET-EVID-HEALTHCARE-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEALTHCARE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/healthcare.md",
+      "specification_ids": [
+        "SPEC-HEALTHCARE-001",
+        "SPEC-HEALTHCARE-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_healthcare_finite_queue_persists -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEALTHCARE-002",
+      "id": "TARGET-EVID-HEALTHCARE-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEALTHCARE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/healthcare.md",
+      "specification_ids": [
+        "SPEC-HEALTHCARE-003",
+        "SPEC-HEALTHCARE-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_healthcare_medicine_physical_chain -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEALTHCARE-003",
+      "id": "TARGET-EVID-HEALTHCARE-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEALTHCARE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/healthcare.md",
+      "specification_ids": [
+        "SPEC-HEALTHCARE-004",
+        "SPEC-HEALTHCARE-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_healthcare_nonprice_arrival_required -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEALTHCARE-004",
+      "id": "TARGET-EVID-HEALTHCARE-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEALTHCARE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/healthcare.md",
+      "specification_ids": [
+        "SPEC-HEALTHCARE-001",
+        "SPEC-HEALTHCARE-003",
+        "SPEC-HEALTHCARE-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_healthcare_references_not_copies -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEATING-001",
+      "id": "TARGET-EVID-HEATING-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEATING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/heating.md",
+      "specification_ids": [
+        "SPEC-HEATING-001",
+        "SPEC-HEATING-002",
+        "SPEC-HEATING-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_heating_finite_flow_storage_loss -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEATING-002",
+      "id": "TARGET-EVID-HEATING-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEATING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/heating.md",
+      "specification_ids": [
+        "SPEC-HEATING-001",
+        "SPEC-HEATING-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_heating_shortage_no_electric_fallback -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEATING-003",
+      "id": "TARGET-EVID-HEATING-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEATING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/heating.md",
+      "specification_ids": [
+        "SPEC-HEATING-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_heating_weather_prerequisite -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEATING-004",
+      "id": "TARGET-EVID-HEATING-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEATING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/heating.md",
+      "specification_ids": [
+        "SPEC-HEATING-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_heating_nonprice_priority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEATING-005",
+      "id": "TARGET-EVID-HEATING-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEATING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/heating.md",
+      "specification_ids": [
+        "SPEC-HEATING-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_heating_authority_references_not_copies -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HEATING-006",
+      "id": "TARGET-EVID-HEATING-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HEATING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/heating.md",
+      "specification_ids": [
+        "SPEC-HEATING-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_heating_generation_requires_production_result -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HOUSEHOLDS-001",
+      "id": "TARGET-EVID-HOUSEHOLDS-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HOUSEHOLDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/households.md",
+      "specification_ids": [
+        "SPEC-HOUSEHOLDS-001",
+        "SPEC-HOUSEHOLDS-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_households_identity_queue -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HOUSEHOLDS-002",
+      "id": "TARGET-EVID-HOUSEHOLDS-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HOUSEHOLDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/households.md",
+      "specification_ids": [
+        "SPEC-HOUSEHOLDS-004",
+        "SPEC-HOUSEHOLDS-005",
+        "SPEC-HOUSEHOLDS-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_households_pantry_needs_boundary -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HOUSEHOLDS-003",
+      "id": "TARGET-EVID-HOUSEHOLDS-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HOUSEHOLDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/households.md",
+      "specification_ids": [
+        "SPEC-HOUSEHOLDS-003",
+        "SPEC-HOUSEHOLDS-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_households_nonprice_capacity -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-HOUSEHOLDS-004",
+      "id": "TARGET-EVID-HOUSEHOLDS-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-HOUSEHOLDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/households.md",
+      "specification_ids": [
+        "SPEC-HOUSEHOLDS-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_households_death_membership_once -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-001",
+      "id": "TARGET-EVID-LOGISTICS-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-002",
+        "SPEC-LOGISTICS-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_pickup_delivery_cancel_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-002",
+      "id": "TARGET-EVID-LOGISTICS-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_no_truck_no_route_recovery -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-003",
+      "id": "TARGET-EVID-LOGISTICS-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001",
+        "REQ-VEHICLES-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-003",
+        "SPEC-LOGISTICS-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_same_vehicle_arrival_gates_transfer -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-004",
+      "id": "TARGET-EVID-LOGISTICS-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-006",
+        "SPEC-LOGISTICS-009"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_pre_pickup_cancel_releases_reservations_without_teleport -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-005",
+      "id": "TARGET-EVID-LOGISTICS-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-010"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_target_deficit_distance_priority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-006",
+      "id": "TARGET-EVID-LOGISTICS-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-011"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_rate_limited_dock_transfer -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-007",
+      "id": "TARGET-EVID-LOGISTICS-007",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_single_fulfillment_authority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-008",
+      "id": "TARGET-EVID-LOGISTICS-008",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_non_price_domestic_dispatch -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-LOGISTICS-009",
+      "id": "TARGET-EVID-LOGISTICS-009",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001",
+        "REQ-VEHICLES-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/logistics.md",
+      "specification_ids": [
+        "SPEC-LOGISTICS-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_logistics_roads_owned_parking_recovery -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-NEEDS-001",
+      "id": "TARGET-EVID-NEEDS-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-NEEDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/needs.md",
+      "specification_ids": [
+        "SPEC-NEEDS-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_needs_food_meat_distinct -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-NEEDS-002",
+      "id": "TARGET-EVID-NEEDS-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-NEEDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/needs.md",
+      "specification_ids": [
+        "SPEC-NEEDS-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_needs_consumption_not_match -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-NEEDS-003",
+      "id": "TARGET-EVID-NEEDS-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-NEEDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/needs.md",
+      "specification_ids": [
+        "SPEC-NEEDS-003",
+        "SPEC-NEEDS-004",
+        "SPEC-NEEDS-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_needs_unmet_persists -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-NEEDS-004",
+      "id": "TARGET-EVID-NEEDS-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-NEEDS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/needs.md",
+      "specification_ids": [
+        "SPEC-NEEDS-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_needs_consumption_event_idempotent -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PATHFINDING-001",
+      "id": "TARGET-EVID-PATHFINDING-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PATHFINDING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/pathfinding.md",
+      "specification_ids": [
+        "SPEC-PATHFINDING-001",
+        "SPEC-PATHFINDING-002",
+        "SPEC-PATHFINDING-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_pathfinding_compatible_bpr_blocked_route -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PATHFINDING-002",
+      "id": "TARGET-EVID-PATHFINDING-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PATHFINDING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/pathfinding.md",
+      "specification_ids": [
+        "SPEC-PATHFINDING-003",
+        "SPEC-PATHFINDING-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_pathfinding_invalidation_recovery_persists -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PATHFINDING-003",
+      "id": "TARGET-EVID-PATHFINDING-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PATHFINDING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/pathfinding.md",
+      "specification_ids": [
+        "SPEC-PATHFINDING-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_pathfinding_repeat_run_determinism -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PATHFINDING-004",
+      "id": "TARGET-EVID-PATHFINDING-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PATHFINDING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/pathfinding.md",
+      "specification_ids": [
+        "SPEC-PATHFINDING-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_pathfinding_route_authorizes_movement_only -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PRODUCTION-001",
+      "id": "TARGET-EVID-PRODUCTION-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/production.md",
+      "specification_ids": [
+        "SPEC-PRODUCTION-001",
+        "SPEC-PRODUCTION-002",
+        "SPEC-PRODUCTION-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_production_delivered_input_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PRODUCTION-002",
+      "id": "TARGET-EVID-PRODUCTION-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/production.md",
+      "specification_ids": [
+        "SPEC-PRODUCTION-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_production_request_vs_consumption -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PRODUCTION-003",
+      "id": "TARGET-EVID-PRODUCTION-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/production.md",
+      "specification_ids": [
+        "SPEC-PRODUCTION-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_production_run_id_atomicity -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PRODUCTION-004",
+      "id": "TARGET-EVID-PRODUCTION-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/production.md",
+      "specification_ids": [
+        "SPEC-PRODUCTION-005",
+        "SPEC-PRODUCTION-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_production_soft_budget_shortfall -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PRODUCTION-005",
+      "id": "TARGET-EVID-PRODUCTION-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/production.md",
+      "specification_ids": [
+        "SPEC-PRODUCTION-003",
+        "SPEC-PRODUCTION-009"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_production_dishonest_enterprise_inference -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-PRODUCTION-006",
+      "id": "TARGET-EVID-PRODUCTION-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/production.md",
+      "specification_ids": [
+        "SPEC-PRODUCTION-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_production_non_price_domestic_run -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-RESOURCES-001",
+      "id": "TARGET-EVID-RESOURCES-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-RESOURCES-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/resources.md",
+      "specification_ids": [
+        "SPEC-RESOURCES-002",
+        "SPEC-RESOURCES-005",
+        "SPEC-RESOURCES-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_resources_conservation_partial_cancel -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-RESOURCES-002",
+      "id": "TARGET-EVID-RESOURCES-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-RESOURCES-001",
+        "REQ-TRADE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/resources.md",
+      "specification_ids": [
+        "SPEC-RESOURCES-001",
+        "SPEC-RESOURCES-003",
+        "SPEC-RESOURCES-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_resources_water_medicine_restrictions -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-RESOURCES-003",
+      "id": "TARGET-EVID-RESOURCES-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-RESOURCES-001",
+        "REQ-TRADE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/resources.md",
+      "specification_ids": [
+        "SPEC-RESOURCES-003",
+        "SPEC-RESOURCES-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_resources_water_metered_border_only -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ROADS-001",
+      "id": "TARGET-EVID-ROADS-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ROADS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/roads.md",
+      "specification_ids": [
+        "SPEC-ROADS-001",
+        "SPEC-ROADS-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_roads_typed_topology_command -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ROADS-002",
+      "id": "TARGET-EVID-ROADS-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ROADS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/roads.md",
+      "specification_ids": [
+        "SPEC-ROADS-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_roads_topology_invalidates_routes -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ROADS-003",
+      "id": "TARGET-EVID-ROADS-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ROADS-001",
+        "REQ-ZONING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/roads.md",
+      "specification_ids": [
+        "SPEC-ROADS-005",
+        "SPEC-ROADS-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_roads_parking_exclusive_no_auto_lots -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ROADS-004",
+      "id": "TARGET-EVID-ROADS-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ROADS-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/roads.md",
+      "specification_ids": [
+        "SPEC-ROADS-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_roads_static_capacity_traffic_authority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-SEWAGE-001",
+      "id": "TARGET-EVID-SEWAGE-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-SEWAGE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/sewage.md",
+      "specification_ids": [
+        "SPEC-SEWAGE-001",
+        "SPEC-SEWAGE-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_sewage_separate_graph_rate_buffers -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-SEWAGE-002",
+      "id": "TARGET-EVID-SEWAGE-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-SEWAGE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/sewage.md",
+      "specification_ids": [
+        "SPEC-SEWAGE-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_sewage_backpressure_persists -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-SEWAGE-003",
+      "id": "TARGET-EVID-SEWAGE-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-SEWAGE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/sewage.md",
+      "specification_ids": [
+        "SPEC-SEWAGE-004",
+        "SPEC-SEWAGE-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_sewage_treatment_discharge_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-SEWAGE-004",
+      "id": "TARGET-EVID-SEWAGE-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-SEWAGE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/sewage.md",
+      "specification_ids": [
+        "SPEC-SEWAGE-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_sewage_nonprice_priority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-SEWAGE-005",
+      "id": "TARGET-EVID-SEWAGE-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-SEWAGE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/sewage.md",
+      "specification_ids": [
+        "SPEC-SEWAGE-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_sewage_authority_references_not_copies -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-001",
+      "id": "TARGET-EVID-TRADE-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001",
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-002",
+        "SPEC-TRADE-003",
+        "SPEC-TRADE-006",
+        "SPEC-TRADE-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_clearance_single_settlement -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-002",
+      "id": "TARGET-EVID-TRADE-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_failure_preserves_order -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-003",
+      "id": "TARGET-EVID-TRADE-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_idempotent_clearance_ledger -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-004",
+      "id": "TARGET-EVID-TRADE-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001",
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-007",
+        "SPEC-TRADE-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_water_metered_border_clearance -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-005",
+      "id": "TARGET-EVID-TRADE-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001",
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-004",
+        "SPEC-TRADE-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_water_clearance_requires_completed_connected_transfer -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-006",
+      "id": "TARGET-EVID-TRADE-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_domestic_operations_never_clear_roubles -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRADE-007",
+      "id": "TARGET-EVID-TRADE-007",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRADE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/trade.md",
+      "specification_ids": [
+        "SPEC-TRADE-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_trade_medicine_cargo_and_water_transport_tags -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-001",
+      "id": "TARGET-EVID-TRAFFIC-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PATHFINDING-001",
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-002",
+        "SPEC-TRAFFIC-007",
+        "SPEC-TRAFFIC-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_traffic_ema_bpr_gawron_pressure -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-002",
+      "id": "TARGET-EVID-TRAFFIC-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-001",
+        "SPEC-TRAFFIC-002",
+        "SPEC-TRAFFIC-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_traffic_stall_preserves_obligation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-003",
+      "id": "TARGET-EVID-TRAFFIC-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-001",
+        "SPEC-TRAFFIC-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation spec_traffic_recovery_without_despawn -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-004",
+      "id": "TARGET-EVID-TRAFFIC-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-PATHFINDING-001",
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-007",
+        "SPEC-TRAFFIC-008"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_traffic_zero_capacity_blocks_lane -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-005",
+      "id": "TARGET-EVID-TRAFFIC-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_traffic_planner_pressure_cause_distinction -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-006",
+      "id": "TARGET-EVID-TRAFFIC-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_traffic_reports_freight_without_clearing -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-TRAFFIC-007",
+      "id": "TARGET-EVID-TRAFFIC-007",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-TRAFFIC-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/traffic.md",
+      "specification_ids": [
+        "SPEC-TRAFFIC-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_traffic_observes_roads_parking_without_mutation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-VEHICLES-001",
+      "id": "TARGET-EVID-VEHICLES-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001",
+        "REQ-VEHICLES-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/vehicles.md",
+      "specification_ids": [
+        "SPEC-VEHICLES-001",
+        "SPEC-VEHICLES-002",
+        "SPEC-VEHICLES-003",
+        "SPEC-VEHICLES-005",
+        "SPEC-VEHICLES-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_vehicles_exclusive_capacity_parking_recovery -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-VEHICLES-002",
+      "id": "TARGET-EVID-VEHICLES-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-VEHICLES-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/vehicles.md",
+      "specification_ids": [
+        "SPEC-VEHICLES-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_vehicles_rail_pickup_delivery_custody -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WASTE-001",
+      "id": "TARGET-EVID-WASTE-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WASTE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/waste.md",
+      "specification_ids": [
+        "SPEC-WASTE-002",
+        "SPEC-WASTE-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_waste_exactly_one_compatible_logistics_haul -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WASTE-002",
+      "id": "TARGET-EVID-WASTE-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WASTE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/waste.md",
+      "specification_ids": [
+        "SPEC-WASTE-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_waste_retention_overflow_and_cancel_recovery -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WASTE-003",
+      "id": "TARGET-EVID-WASTE-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WASTE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/waste.md",
+      "specification_ids": [
+        "SPEC-WASTE-004",
+        "SPEC-WASTE-007"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_waste_disposition_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WASTE-004",
+      "id": "TARGET-EVID-WASTE-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WASTE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/waste.md",
+      "specification_ids": [
+        "SPEC-WASTE-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_waste_nonprice_authority_references_not_copies -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WASTE-005",
+      "id": "TARGET-EVID-WASTE-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WASTE-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/waste.md",
+      "specification_ids": [
+        "SPEC-WASTE-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_waste_container_generation_disposition_single_authority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WATER-001",
+      "id": "TARGET-EVID-WATER-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/water.md",
+      "specification_ids": [
+        "SPEC-WATER-001",
+        "SPEC-WATER-002",
+        "SPEC-WATER-003",
+        "SPEC-WATER-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_water_connected_finite_rate_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WATER-002",
+      "id": "TARGET-EVID-WATER-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/water.md",
+      "specification_ids": [
+        "SPEC-WATER-002",
+        "SPEC-WATER-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_water_disconnected_zero_capacity_no_progress -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WATER-003",
+      "id": "TARGET-EVID-WATER-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/water.md",
+      "specification_ids": [
+        "SPEC-WATER-001",
+        "SPEC-WATER-004",
+        "SPEC-WATER-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_water_border_completion_before_trade_clearance -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WATER-004",
+      "id": "TARGET-EVID-WATER-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/water.md",
+      "specification_ids": [
+        "SPEC-WATER-003"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_water_quality_process_conservation -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WATER-005",
+      "id": "TARGET-EVID-WATER-005",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/water.md",
+      "specification_ids": [
+        "SPEC-WATER-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_water_unsuitable_quality_full_buffer_blocks -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-WATER-006",
+      "id": "TARGET-EVID-WATER-006",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-WATER-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/water.md",
+      "specification_ids": [
+        "SPEC-WATER-001"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_water_quality_storage_authority -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ZONING-001",
+      "id": "TARGET-EVID-ZONING-001",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ZONING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/zoning.md",
+      "specification_ids": [
+        "SPEC-ZONING-001",
+        "SPEC-ZONING-003",
+        "SPEC-ZONING-005"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_zoning_intent_never_spawns_or_demolishes -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ZONING-002",
+      "id": "TARGET-EVID-ZONING-002",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ZONING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/zoning.md",
+      "specification_ids": [
+        "SPEC-ZONING-002"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_zoning_verdict_records_intent_mismatch -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ZONING-003",
+      "id": "TARGET-EVID-ZONING-003",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ZONING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/zoning.md",
+      "specification_ids": [
+        "SPEC-ZONING-003",
+        "SPEC-ZONING-004"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_zoning_no_domestic_price_or_auto_clearance -- --test-threads=1"
+    },
+    {
+      "evidence_id": "EVID-ZONING-004",
+      "id": "TARGET-EVID-ZONING-004",
+      "reason": "The specification is draft and no matching current test function exists.",
+      "requirement_ids": [
+        "REQ-ZONING-001"
+      ],
+      "scope": "planned target proof",
+      "source": "docs/reference/specifications/zoning.md",
+      "specification_ids": [
+        "SPEC-ZONING-001",
+        "SPEC-ZONING-006"
+      ],
+      "status": "UNIMPLEMENTED",
+      "target_command": "cargo test -p simulation evid_zoning_intent_authority_and_inspector -- --test-threads=1"
+    }
+  ]
+}

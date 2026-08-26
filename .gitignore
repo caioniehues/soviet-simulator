@@ -23,8 +23,8 @@ progress.md
 .idea
 logs
 /target
-target*
-*/target*
+# dir-only: the old `target*` glob also swallowed docs/.../target-scenarios.json
+target/
 **/*.rs.bk
 *.ini
 world/*
