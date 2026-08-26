@@ -2,7 +2,7 @@
 #![allow(clippy::type_complexity)]
 #![warn(clippy::iter_over_hash_type)]
 
-use crate::init::{GSYSTEMS, INIT_FUNCS, SAVELOAD_FUNCS};
+use crate::init::{gsystems, init_funcs, saveload_funcs};
 use crate::map::{BuildingKind, Map};
 use crate::map_dynamic::{Itinerary, ItineraryLeader};
 use crate::souls::add_souls_to_empty_buildings;
@@ -20,7 +20,6 @@ use std::any::Any;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
-use std::ptr::addr_of;
 use std::time::{Duration, Instant};
 use utils::rand_provider::RandProvider;
 use utils::scheduler::SeqSchedule;
@@ -138,11 +137,9 @@ impl Default for SimulationOptions {
 impl Simulation {
     pub fn schedule() -> SeqSchedule {
         let mut schedule = SeqSchedule::default();
-        unsafe {
-            for s in &*addr_of!(GSYSTEMS) {
-                let s = (s.s)();
-                schedule.add_system(s);
-            }
+        for s in gsystems() {
+            let s = (s.s)();
+            schedule.add_system(s);
         }
         schedule
     }
@@ -162,10 +159,8 @@ impl Simulation {
 
         info!("Seed is {}", RNG_SEED);
 
-        unsafe {
-            for s in &*addr_of!(INIT_FUNCS) {
-                (s.f)(&mut sim);
-            }
+        for s in init_funcs() {
+            (s.f)(&mut sim);
         }
 
         (
@@ -189,10 +184,8 @@ impl Simulation {
         info!("Seed is {}", opts.seed);
         info!("{:?}", opts);
 
-        unsafe {
-            for s in &*addr_of!(INIT_FUNCS) {
-                (s.f)(&mut sim);
-            }
+        for s in init_funcs() {
+            (s.f)(&mut sim);
         }
 
         Init(Box::new(opts)).apply(&mut sim);
@@ -223,18 +216,16 @@ impl Simulation {
             return false;
         }
 
-        unsafe {
-            for l in &*addr_of!(SAVELOAD_FUNCS) {
-                let a = (l.save)(self);
-                let b = (l.save)(other);
+        for l in saveload_funcs() {
+            let a = (l.save)(self);
+            let b = (l.save)(other);
 
-                if a != b {
-                    std::fs::write(format!("{}_a.json", l.name), &*String::from_utf8_lossy(&a))
-                        .unwrap();
-                    std::fs::write(format!("{}_b.json", l.name), &*String::from_utf8_lossy(&b))
-                        .unwrap();
-                    return false;
-                }
+            if a != b {
+                std::fs::write(format!("{}_a.json", l.name), &*String::from_utf8_lossy(&a))
+                    .unwrap();
+                std::fs::write(format!("{}_b.json", l.name), &*String::from_utf8_lossy(&b))
+                    .unwrap();
+                return false;
             }
         }
 
@@ -279,11 +270,9 @@ impl Simulation {
         let ser = common::saveload::Bincode::encode(&self.world).unwrap();
         hashes.insert("world".to_string(), common::hash_u64(&*ser));
 
-        unsafe {
-            for l in &*addr_of!(SAVELOAD_FUNCS) {
-                let v = (l.save)(self);
-                hashes.insert(l.name.to_string(), common::hash_u64(&*v));
-            }
+        for l in saveload_funcs() {
+            let v = (l.save)(self);
+            hashes.insert(l.name.to_string(), common::hash_u64(&*v));
         }
 
         hashes
@@ -365,11 +354,9 @@ impl Serialize for Simulation {
         let t = Instant::now();
         let mut m: FastMap<String, Vec<u8>> = FastMap::default();
 
-        unsafe {
-            for l in &*addr_of!(SAVELOAD_FUNCS) {
-                let v: Vec<u8> = (l.save)(self);
-                m.insert(l.name.to_string(), v);
-            }
+        for l in saveload_funcs() {
+            let v: Vec<u8> = (l.save)(self);
+            m.insert(l.name.to_string(), v);
         }
 
         log::info!("took {}s to serialize resources", t.elapsed().as_secs_f32());
@@ -432,19 +419,15 @@ impl<'de> Deserialize<'de> for Simulation {
             resources: Resources::default(),
         };
 
-        unsafe {
-            for s in &*addr_of!(INIT_FUNCS) {
-                (s.f)(&mut sim);
-            }
+        for s in init_funcs() {
+            (s.f)(&mut sim);
         }
 
         sim.world = simdeser.world;
 
-        unsafe {
-            for l in &*addr_of!(SAVELOAD_FUNCS) {
-                if let Some(data) = simdeser.res.remove(l.name) {
-                    (l.load)(&mut sim, data);
-                }
+        for l in saveload_funcs() {
+            if let Some(data) = simdeser.res.remove(l.name) {
+                (l.load)(&mut sim, data);
             }
         }
 

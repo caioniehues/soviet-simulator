@@ -21,9 +21,8 @@ pub(crate) struct TestCtx {
     sched: SeqSchedule,
 }
 
-// `crate::init::init()` pushes into unsynchronized global statics (INIT_FUNCS,
-// GSYSTEMS, ...); calling it concurrently from parallel test threads races and
-// can segfault. It only needs to run once per process.
+// `crate::init::init()` does expensive one-time work (parsing prototypes, building
+// the system registry). It only needs to run once per process.
 static INIT: Once = Once::new();
 
 impl TestCtx {

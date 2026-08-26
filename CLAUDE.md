@@ -32,9 +32,10 @@ Clearing is by queue, substitution and going without — **never by price**. Mon
 - Keep durable project status in `README.md`: what is built, what is left, and an asset table.
 - Generate visual assets with `/asset-gen`. Confirm the spend with the user before the first paid generation.
 
-Run the sim's tests as `cargo test -p simulation -- --test-threads=1`. Parallel runs segfault
-intermittently on a pre-existing unsynchronized `static mut` race in `init.rs` — see
-`sov-test-race-initfuncs-qt6`. A green parallel run proves little.
+Run the sim's tests as `cargo test -p simulation` — parallel runs are trustworthy since the
+`static mut` race in `init.rs`/`prototypes` was removed (`sov-test-race-initfuncs-qt6`, fixed
+2026-08-26). The same defect shape still exists in `native_app/src/init.rs:85-86` (UI crate,
+not linked into the test binary).
 
 ## Task tracking — `br` is the shared surface, and the only one
 

@@ -102,21 +102,30 @@ impl ConcretePrototype for NoParent {
     fn insert_parents(&self, _prototypes: &mut Prototypes) {}
 }
 
-static mut PROTOTYPES: Option<&'static Prototypes> = None;
+static PROTOTYPES: std::sync::OnceLock<&'static Prototypes> = std::sync::OnceLock::new();
+
+// `test_prototypes` loads a fresh, ad-hoc prototype set per-test rather than the
+// real base_mod data; keep those isolated per-thread instead of racing them onto
+// the single process-wide `PROTOTYPES` slot.
+thread_local! {
+    pub(crate) static TEST_PROTOTYPES: std::cell::Cell<Option<&'static Prototypes>> = const { std::cell::Cell::new(None) };
+}
 
 #[inline]
 pub fn prototypes() -> &'static Prototypes {
     #[cfg(debug_assertions)]
     {
-        assert!(unsafe { PROTOTYPES.is_some() });
+        assert!(try_prototypes().is_some());
     }
 
     // Safety: Please just don't use prototypes before they were loaded... We can allow this footgun
-    unsafe { PROTOTYPES.unwrap_unchecked() }
+    unsafe { try_prototypes().unwrap_unchecked() }
 }
 
 pub fn try_prototypes() -> Option<&'static Prototypes> {
-    unsafe { PROTOTYPES }
+    TEST_PROTOTYPES
+        .with(|p| p.get())
+        .or_else(|| PROTOTYPES.get().copied())
 }
 
 #[inline]

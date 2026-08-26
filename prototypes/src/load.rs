@@ -1,5 +1,5 @@
 use crate::validation::ValidationError;
-use crate::{validation, Prototypes, PROTOTYPES};
+use crate::{validation, Prototypes, PROTOTYPES, TEST_PROTOTYPES};
 use common::error::MultiError;
 use mlua::{Lua, Table};
 use std::io;
@@ -8,7 +8,8 @@ use thiserror::Error;
 pub fn test_prototypes(lua: &str) {
     let l = Lua::new();
 
-    unsafe { load_prototypes_str(l, lua).unwrap() };
+    let p = unsafe { parse_prototypes_str(l, lua).unwrap() };
+    TEST_PROTOTYPES.with(|slot| slot.set(Some(p)));
 }
 
 /// Loads the prototypes from the data.lua file
@@ -24,13 +25,20 @@ pub unsafe fn load_prototypes(base: &str) -> Result<(), PrototypeLoadError> {
         .get::<_, Table>("package")?
         .set("path", base.clone() + "base_mod/?.lua")?;
 
-    load_prototypes_str(
+    let p = parse_prototypes_str(
         l,
         &common::saveload::load_string(base + "base_mod/data.lua")?,
-    )
+    )?;
+
+    let _ = PROTOTYPES.set(p);
+
+    Ok(())
 }
 
-unsafe fn load_prototypes_str(l: Lua, main: &str) -> Result<(), PrototypeLoadError> {
+unsafe fn parse_prototypes_str(
+    l: Lua,
+    main: &str,
+) -> Result<&'static Prototypes, PrototypeLoadError> {
     l.load(include_str!("prototype_init.lua")).exec()?;
 
     l.load(main).exec()?;
@@ -58,11 +66,7 @@ unsafe fn load_prototypes_str(l: Lua, main: &str) -> Result<(), PrototypeLoadErr
     p.compute_orderings();
     p.print_stats();
 
-    unsafe {
-        PROTOTYPES = Some(Box::leak(p));
-    }
-
-    Ok(())
+    Ok(Box::leak(p))
 }
 
 #[derive(Error, Debug)]
