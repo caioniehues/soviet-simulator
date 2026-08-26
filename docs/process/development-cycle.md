@@ -47,7 +47,6 @@ went wrong; each prompt carries that evidence, so the trap is inherited rather t
 | 4 | `ledger-invariant-checker` | opus | Is quantity conserved? Economy diffs only |
 | 4 | `reviewer` *(global)* | opus | General adversarial gate |
 | 6 | `doc-reality-auditor` | sonnet | Docs, agents and tickets vs the code |
-| 6 | `scribe` *(global)* | sonnet | Mines raw transcripts into durable learnings |
 | 7 | `release-engineer` | sonnet | Reproducible builds, pinning, licence |
 | 7 | `perf-engineer` | sonnet | The five bench gates at 250k |
 
@@ -215,7 +214,7 @@ commands, regenerate [`the roadmap`](../generated/iterations/roadmap.md) with
 and confirm every promoted scenario runs a non-zero test filter. A generated roadmap reports
 status; it never closes work in place of `br`.
 
-Finish with a `scribe` pass over the raw transcripts, not over the lead's digest.
+(The scribe transcript-mining pass was retired 2026-08-26; durable learnings are recorded directly as they land.)
 
 ---
 

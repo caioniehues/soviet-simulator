@@ -30,7 +30,7 @@
 - Keep Phase 1 planning and Phase 5 finding disposition in the lead thread.
 - In Phase 2, use `sim-implementer`, `ui-implementer`, and `data-implementer` only on disjoint ownership; serialize shared files and write contracts before parallel consumers.
 - Run Phase 3 `evidence-auditor`, then Phase 4 in order: `wiring-auditor`, conditional `ledger-invariant-checker`, `reviewer`, relevant domain sign-off.
-- Finish substantive waves with `doc-reality-auditor` and `scribe`; use release and performance roles only at their documented gates.
+- Finish substantive waves with `doc-reality-auditor`; use release and performance roles only at their documented gates.
 
 Use two or three subagents for normal waves and up to five for genuinely independent read-only work. Run at most two writing agents concurrently, with disjoint ownership. Every subagent receives a bounded brief, owned files, acceptance criteria, a `br` issue when applicable, and the exact verification command.
 
