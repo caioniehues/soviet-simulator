@@ -60,6 +60,28 @@ memory system (`bd remember` is not used here).
 | **Micro** — progress, findings, blockers | `bd comments add` | **the worker doing the work** |
 | Live session view | Claude tasks | main session only, mirrors the macro layer |
 
+### Adopted conventions (2026-08-26, from `docs/reference/bd-capability-survey.md`)
+
+- **`BEADS_ACTOR=<agent-name>`** in every worker's environment (or `--actor` per command): it
+  stamps comments, events, and — via the installed `prepare-commit-msg` hook — an
+  `Executed-By:` trailer on commits. Leads set it in briefs; workers use their roster name.
+- **Wave setup goes through `bd batch`**: N creates + deps as one transaction (stdin grammar:
+  `create <type> <priority> <title>`, `dep add <from> <to>`, `close <id> [reason]`).
+- **Session close adds a drift sweep**: `bd stale --days 14` and `bd orphans` (issues cited in
+  commit messages but never closed — the failure our commit-sha convention creates).
+- **Postponed ≠ blocked**: use `bd defer <id> --until <date> --reason "…"` instead of an
+  open issue worded "not now". `bd undefer` reverses.
+- **`validation.on-create = warn` is active** (config.yaml): creating without `--acceptance`
+  warns, never blocks. Keep acceptance criteria first-class.
+- **Gate-chain formula**: `.beads/formulas/gate-chain.formula.toml` encodes the Phase-4 chain
+  (wiring → domain → reviewer). Pour per story: `bd mol pour gate-chain --var story=<id>
+  --var scope=<range>`. Molecules structure work only — no execution hooks; epics do not
+  auto-close, sweep with `bd epic close-eligible`.
+- **Version is pinned at 1.2.2** — a recovery re-release of 1.1.2. Never run `bd upgrade`
+  casually (1.2.1 schema-skew trap); `bd doctor` does not work in embedded mode; upstream doc
+  pages on work leases / events journal / sync federation / HTTP API describe an unreleased
+  version. Telemetry is disabled (`metrics.disabled=true`, user-level config).
+
 ### If you are a worker
 
 Your brief names your `bd` issue id. Then:

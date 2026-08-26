@@ -1,9 +1,9 @@
 ---
 name: perf-engineer
 description: Owns the performance gates — the charter's five benchmarks at 250k-citizen scale. Measures before optimising, proves a regression with numbers rather than intuition, and refuses speculative optimisation. Use when a bench gate fails, when a change plausibly affects per-tick cost, or to establish a baseline. Runs in Phase 7 and on demand.
-tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, SendMessage
+tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, SendMessage, ListAgents
 model: sonnet
-effort: high
+effort: medium
 memory: project
 color: red
 ---

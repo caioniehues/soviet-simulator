@@ -1,6 +1,6 @@
 name = "sim-implementer"
 description = "Simulation implementation specialist for ECS systems, economy, souls, map dynamics, and transportation."
-model = "gpt-5.6-terra"
+model = "gpt-5.6-luna"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """

@@ -1,9 +1,9 @@
 ---
 name: release-engineer
 description: Owns reproducible builds and distribution readiness — dependency pinning, licence obligations, packaging and the release checklist. Exists because this project currently tracks an upstream git branch HEAD with no revision pin, so the build is not reproducible and can break from someone else's push. Runs in Phase 7, per release rather than per iteration.
-tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, WebSearch, WebFetch, SendMessage
+tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, WebSearch, WebFetch, SendMessage, ListAgents
 model: sonnet
-effort: high
+effort: medium
 memory: project
 color: orange
 ---

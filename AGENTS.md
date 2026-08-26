@@ -12,7 +12,7 @@
 2. Read `docs/reference/glossary.md` before naming domain concepts or changing the simulation model.
 3. Read `docs/process/development-cycle.md` before planning or running a multi-agent wave.
 4. Read `docs/plan/iterations/RESUME.md` before resuming an iteration.
-5. Treat `docs/plan/charter-1.0.md` as scope authority, `docs/reference/specifications/` as mechanism authority after each specification is ratified, `br` as task-state authority, and current code as substrate authority. Archived legacy specifications are rewrite provenance, not current authority.
+5. Treat `docs/plan/charter-1.0.md` as scope authority, `docs/reference/specifications/` as mechanism authority after each specification is ratified, `bd` as task-state authority, and current code as substrate authority. Archived legacy specifications are rewrite provenance, not current authority.
 
 `docs/archive/bevy-track/ROADMAP.md` preserves the discarded Bevy-era history. It is not the plan of record.
 

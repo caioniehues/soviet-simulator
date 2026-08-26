@@ -10,3 +10,7 @@
 - [The LSP guard starves workers](gotcha-lsp-guard-starves-workers.md) — hook deadlocks agents with no LSP tool and shares one read budget per cwd; tested fix not yet installed
 - [Plain markdown, not Artifacts](feedback-plain-markdown-docs.md) — process docs are read by agents; repo `.md` + a CLAUDE.md pointer or it doesn't exist
 - [The dev cycle](../../../docs/dev-cycle.md) — 8 phases, each naming the failure it prevents; agents are authored to fit its slots
+- [No polling herdr teammates](feedback-herdr-no-polling.md) — brief workers to message the lead on finish/block; never background-wait on panes
+- [Herdr for codex only](feedback-herdr-codex-only.md) — Claude teammates run as Agent-tool subagents; herdr panes ignore model pins and cost too much
+- [Herdr/orchestration friction log](gotcha-herdr-friction.md) — lost prompts on restart, pull-don't-expect reports, waits settle on momentary idle
+- [Codex-luna team](codex-luna-team.md) — 15-role .codex/agents mirror on luna/medium, codex exec transport, HEAD-scope-check every cross-vendor finding
