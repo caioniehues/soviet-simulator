@@ -32,11 +32,11 @@
 - Run Phase 3 `evidence-auditor`, then Phase 4 in order: `wiring-auditor`, conditional `ledger-invariant-checker`, `reviewer`, relevant domain sign-off.
 - Finish substantive waves with `doc-reality-auditor`; use release and performance roles only at their documented gates.
 
-Use two or three subagents for normal waves and up to five for genuinely independent read-only work. Run at most two writing agents concurrently, with disjoint ownership. Every subagent receives a bounded brief, owned files, acceptance criteria, a `br` issue when applicable, and the exact verification command.
+Use two or three subagents for normal waves and up to five for genuinely independent read-only work. Run at most two writing agents concurrently, with disjoint ownership. Every subagent receives a bounded brief, owned files, acceptance criteria, a `bd` issue when applicable, and the exact verification command.
 
 ## Verification and delivery
 
-- Run simulation tests as `cargo test -p simulation -- --test-threads=1`; parallel runs intermittently segfault on the known `init.rs` race.
+- Run simulation tests as `cargo test -p simulation`; parallel runs are trustworthy since the `static mut` race fix (`sov-test-race-initfuncs-qt6`, 2026-08-26).
 - Name what each check proves and confirm test filters execute at least one test.
 - Preserve unrelated changes and never stage with `git add -A` or `git add .`.
 - Stage only the four documented `.beads` files when task-ledger state changes.

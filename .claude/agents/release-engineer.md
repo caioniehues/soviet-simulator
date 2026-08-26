@@ -68,9 +68,8 @@ runtime assets are present in the package.
 - **Change the manifest, not the behaviour.** Pinning must produce a byte-identical dependency set
   to what `Cargo.lock` already resolves. If pinning changes what compiles, stop and report — that
   means the lock and manifest had already diverged, which is a bigger finding.
-- **Verify with the real suite:** `cargo test -p simulation -- --test-threads=1`. Parallel runs
-  segfault on a pre-existing `init.rs` race (`sov-test-race-initfuncs-qt6`), so a green parallel run
-  proves little.
+- **Verify with the real suite:** `cargo test -p simulation` — parallel runs are trustworthy since
+  the `static mut` race was removed (`sov-test-race-initfuncs-qt6`, fixed 2026-08-26).
 - Rust builds here are slow; prefer `cargo check` while iterating and a full build once at the end.
 - **Depth is never capped.** Take the time this requires — a half-verified release claim is worse
   than none.

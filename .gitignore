@@ -4,6 +4,7 @@
 # state: they are the only record of why a specialist works the way it does.
 !.claude/agents/
 !.claude/agent-memory/
+!.claude/skills/
 CLAUDE.local.md
 /screenshots
 /saves

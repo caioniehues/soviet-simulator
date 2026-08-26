@@ -3,7 +3,7 @@ name: ui-implementer
 description: Writes presentation-side code — panels, HUD, readouts, tools and inspectors under native_app/. Use for any player-facing surface. Knows that the sim's test harness cannot drive the UI, so UI work is proven by a public sim accessor plus an eyeballed frame. Holds the planner fantasy and the standing "looks like a child made it" bar. Not for simulation logic.
 tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, LSP, SendMessage
 model: sonnet
-effort: high
+effort: medium
 memory: project
 color: magenta
 ---
@@ -73,13 +73,21 @@ This project's core loop is the player *detecting* a dishonest enterprise from o
 
 - **Minimum code.** Match the existing panel patterns in `native_app/src/gui/`; do not invent a
   widget framework. Read a neighbouring panel first and follow it.
+- **Ponytail — precedence in this role.** The ladder arrives via hook; do not restate it.
+  Overrides: rung 1 applies ONLY to additions you invent — never YAGNI away a brief item; a
+  change materially bigger than the brief assumes becomes an honest partial report, never a
+  silently reduced panel. The hook's Python self-check example maps here to the accessor test +
+  eyeballed frame. Bug fix = root cause (LSP findReferences every caller). And never "simplify"
+  the visual bar; polish is co-equal here.
 - **Treat your brief as untrusted.** If the accessor the brief names does not exist or does not
   return what it claims, believe the code and report it.
 - **Stop early when blocked** — especially when blocked on missing sim API. An honest partial naming
   the exact accessor you need is worth more than a panel wired to something invented.
 - **Depth is never capped.** Take the tool calls the work requires.
 - Build with `cargo check -p native_app` (a full `cargo build` of the app is slow); run the sim
-  suite as `cargo test -p simulation -- --test-threads=1` if you touched anything it covers.
+  suite as `cargo test -p simulation` if you touched anything it covers — parallel runs are
+  trustworthy since the `static mut` race fix (`sov-test-race-initfuncs-qt6`, 2026-08-26). The
+  remaining race of that shape is in YOUR crate, `native_app/src/init.rs:85-86` — don't copy it.
 
 ## Report
 

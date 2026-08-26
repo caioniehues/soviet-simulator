@@ -46,9 +46,25 @@ exists — or state plainly that it is infrastructure awaiting a caller and name
 merges. No abstraction layers, no trait hierarchies, no config structs for values that never vary.
 The minimum code that works.
 
+**Ponytail — precedence in this role.** The ladder arrives via hook; do not restate it. Overrides:
+rung 1 ("does this need to exist at all?") applies ONLY to additions you invent — never YAGNI away
+a brief item; if one looks speculative, build it and say so in your report. The hook's "ship the
+lazy version and question it" is for open-ended requests — your input is a brief: a change
+materially bigger than the brief assumes becomes an honest partial report, never a silently
+reduced diff. The hook's `demo()`/`test_*.py` example is Python — here the runnable check is the
+brief's verification command, and a new guard is seen red before green. Bug fix = root cause:
+LSP findReferences every caller; one guard in the shared function beats a guard per caller. Never
+simplify away determinism/serialization guarantees or anything the brief asks for.
+
 ## Traps verified in this codebase
 
 These have each cost an agent 100k+ tokens. Do not rediscover them.
+
+Each trap below is a worked instance of a general rule; apply the rule to every comparable case,
+not only to the symbol named. In particular: before reasoning about ANY branch — a `match` arm, an
+`if` on a prototype field, a `CompanyKind` check — count how many real entries actually reach it,
+and read `base_mod/*.lua` to do the counting. And before assuming ANY clear/reset/remove method
+zeroes a struct, read its current body; several here clear a subset.
 
 **Trucks are not shaped like trains.** `TrainEnt` has no parking; you can set `train.it` directly.
 `VehicleEnt` carries `VehicleState { Parked | Driving | Panicking | RoadToPark }`, and

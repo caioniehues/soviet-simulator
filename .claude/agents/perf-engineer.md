@@ -73,8 +73,8 @@ never be weakened to make a number look better.
   its body.
 - Check whether the cost is real at target scale. Something quadratic at n=20 buildings is
   irrelevant; at 250k citizens it decides the game.
-- Always `cargo test -p simulation -- --test-threads=1` — parallel runs segfault on a pre-existing
-  `init.rs` race (`sov-test-race-initfuncs-qt6`).
+- `cargo test -p simulation` runs parallel and is trustworthy since the `static mut` race was
+  removed (`sov-test-race-initfuncs-qt6`, fixed 2026-08-26).
 - Build with `--release` for any timing that matters, and **say so** — debug numbers are meaningless
   here and `cargo test` is a debug build.
 - **Depth is never capped.** Take the runs and the time the measurement requires; an

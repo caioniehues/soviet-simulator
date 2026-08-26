@@ -4,13 +4,13 @@
 **Authority:** operational
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-24
+**Last verified:** 2026-08-26
 
 How one iteration of this project gets built, who does each part, and what each phase exists to
 prevent. **Every phase here was added because something specific went wrong** — the failure is
 named in each section, so nobody deletes a phase without knowing what it was buying.
 
-Authoritative for process. `br` is authoritative for task state. The
+Authoritative for process. `bd` is authoritative for task state. The
 [`1.0 charter`](../plan/charter-1.0.md) is authoritative for scope.
 
 ---
@@ -64,11 +64,11 @@ cat docs/plan/iterations/RESUME.md          # where the last session stopped
 Then Phase 0: dispatch `substrate-cartographer` on every seam the iteration touches, and the domain
 advisor for its cluster. **No brief gets written until the fact-sheet exists.**
 
-Tracking is two-layer, and `br` is the only surface every agent can reach — see `CLAUDE.md`:
+Tracking is two-layer, and `bd` is the only surface every agent can reach — see `CLAUDE.md`:
 
 | | Where | Who writes |
 |---|---|---|
-| Macro — goal, why, traps | a `br` issue | lead creates, anyone updates |
+| Macro — goal, why, traps | a `bd` issue | lead creates, anyone updates |
 | Micro — progress, findings | `bd comments add --author` | the worker itself |
 | Dashboard | Claude tasks | **main session only** — subagents cannot see it |
 
@@ -120,7 +120,7 @@ each agent "its own file" and forgets the shared declaration file is wrong. This
 clobber; only dispatch timing prevented it. Either serialise on the shared file or have the lead
 pre-declare every module.
 
-`br` issues carry the macro goal and the traps. Claude tasks mirror them as the user's dashboard.
+`bd` issues carry the macro goal and the traps. Claude tasks mirror them as the user's dashboard.
 See `CLAUDE.md` for the two-layer protocol.
 
 ---
@@ -166,7 +166,7 @@ mutation-tested, and one asserted arithmetic rather than the behaviour its story
 | 1 | `wiring-auditor` | sonnet | Is every new API actually called from production code? |
 | 2 | `ledger-invariant-checker` | opus | Is quantity conserved across this economic seam? Run only when the diff touches the economy |
 | 3 | `reviewer` | opus | General adversarial gate — re-derives from source, never from a worker's summary |
-| 4 | domain advisor | opus | Hard sign-off, their cluster only |
+| 4 | domain advisor | opus | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
 
 **Why the order — and it is not about tokens.** A reachability defect makes every later review
 moot: there is no point auditing the logic, conservation or design of code that nothing calls. Run
@@ -204,15 +204,15 @@ code, and reports what is stale.
   had been discarded months earlier.
 - Four agent definitions targeted `src/sim/` and `src/game/`, paths deleted five days before the
   agents were written.
-- A `br` ticket sat open in the ready queue after its work had shipped.
+- A `bd` ticket sat open in the ready queue after its work had shipped.
 - A legacy `RESUME.md` reported generated counts that did not match its corpus. Rebuild handoffs
-  from `br`, commits, executed commands, and current generated artifacts instead of copying them.
+  from `bd`, commits, executed commands, and current generated artifacts instead of copying them.
 
 Then update the re-derived requirements and evidence inputs, run their documented `--check`
 commands, regenerate [`the roadmap`](../generated/iterations/roadmap.md) with
 `python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/plan/iterations/evidence/target-scenarios.json --output docs/generated/iterations/roadmap.md`,
 and confirm every promoted scenario runs a non-zero test filter. A generated roadmap reports
-status; it never closes work in place of `br`.
+status; it never closes work in place of `bd`.
 
 (The scribe transcript-mining pass was retired 2026-08-26; durable learnings are recorded directly as they land.)
 
@@ -243,8 +243,9 @@ Select the advisor by the re-derived requirement cluster, not inherited iteratio
 | `soviet-authenticity` | presentation and player-facing visual proof |
 
 **They never write code.** They answer whether a mechanic is consistent with the model. They
-advise on request during Phase 0, and hold a hard sign-off gate in Phase 4 for iterations in their
-own cluster only.
+advise on request during Phase 0, and hold a Phase 4 sign-off for their own cluster **only when
+the diff diverged from what they approved in Phase 0** — a faithful implementation of an already-
+approved design does not need the same opus mind to approve it twice.
 
 `kornai-economist` is special: the dishonest enterprise is the core loop of the whole game, so it
 is consulted wherever a contract touches allocation, shortages, or enterprise reporting.
@@ -293,61 +294,30 @@ cartographer memory remain load-bearing, not polish.
 - Name the verification command, and require real output rather than a claim.
 - Tell it what NOT to touch, and who owns the files it must not write.
 
-## The skill spines, and which owns what
+## The skill layer, and which owns what
 
-Three skill toolkits are installed. They operate at different layers and do not compete; the
-mistake to avoid is running two of them as rival ticket flows.
+Two skill packs are active. The three toolkits earlier revisions named here — `superpowers`,
+`mattpocock-skills`, `iterative-development` — were absorbed into or superseded by the `compass`
+plugin on 2026-08-24 and are disabled; only their *artifacts* survive.
 
-| Toolkit | Layer | Use it for |
+| Layer | Owner | Use it for |
 |---|---|---|
-| `iterative-development` | Outer loop | Requirements, roadmap, running an iteration, auditing progress. **Load-bearing here** — it produced the 149-story corpus |
-| `superpowers` | Process primitives | TDD red-green, systematic-debugging, verification-before-completion, code review |
-| `mattpocock-skills` | Interrogation, front of the line | `grilling` / `grill-with-docs` / `domain-modeling` / `writing-for-agents` |
-| **this document** | The iteration | Who does each part, and what gates it |
+| Verbs + role playbooks | `compass` plugin | `/compass` routes one hop at a time; `/grill`, `/spec`, `/implement`, `/review`, `/debug`, `/lead`, `/tickets` are its verbs; the role playbooks preload into the generic agents |
+| How much to build | `ponytail` | The ladder: YAGNI, stdlib first, shortest working diff — governs every implementer |
+| The iteration | **this document** | Who does each part, and what gates it. Sovereign inside this repo: where a generic verb and this document conflict, this document wins, then fix whichever artifact drifted |
+| Outer loop | `docs/plan/iterations/` + `build_roadmap.py` | Requirements, evidence, the generated roadmap. The corpus and the Phase 6 regeneration command outlived the retired `iterative-development` skill and remain canonical |
 
-**Why the interrogation layer was added.** This project's signature failure is documents asserting
+**Why the interrogation habit stays.** This project's signature failure is documents asserting
 things the code does not do — `CLAUDE.md` pointing at a `bevy.md` that never existed, four agents
-targeting paths deleted days earlier, `RESUME.md` miscounting the corpus by ten stories, requirement
-cards citing reference-game constants copied from prose and never checked, a code comment its own
-sibling file disproves. Pre-fork, a project agent recorded that this codebase "has already shipped
-three ratified documents describing architecture that was never built."
+targeting paths deleted days earlier, `RESUME.md` miscounting the corpus by ten stories. Planning
+flows structurally cannot catch that: they *generate* those documents and assume requirements
+describe reality; on a hard fork they frequently do not. So `/grill` a claim **before** it becomes
+ratified, and let Phase 0 and Phase 6 catch what slips through.
 
-`iterative-development` structurally cannot catch that: it is the thing that *generates* those
-documents, and it assumes the requirements describe reality. On a hard fork they frequently do not.
-So grill a claim **before** it becomes ratified, and let Phase 0 and Phase 6 catch what slips
-through.
-
-**Do not** adopt mattpocock's `to-tickets` / `to-spec` / `triage` / `wayfinder` flows. They are good,
-but they duplicate `br` and the roadmap, and two competing ticket systems is worse than either. Its
-TypeScript-specific skills (shoehorn, dependency-cruiser, Husky) do not apply to a Rust project.
-
-The earlier mattpocock `/wayfinder` brief is retained in the archive as historical provenance; it
-is never a plan of record.
-
-## How this relates to the `iterative-development` skill
-
-Two loops, different scopes. They do not compete.
-
-| | `iterative-development` skill | This document |
-|---|---|---|
-| Scope | The **outer** loop across the whole project | The **inner** loop of one iteration |
-| Answers | *What* to build and in what order | *Who* does each part and *how* it is proven |
-| Artifacts | `docs/plan/iterations/requirements/`, `docs/plan/iterations/evidence/`, and `docs/generated/iterations/roadmap.md` | the agent roster, the gates, the phase order |
-
-The skill's `running-an-iteration` gives the canonical steps — sentinel baseline, citation check,
-scope review, decompose into code *and evidence* tasks, dispatch, post-iteration runs, resolve
-`TODO(ITER-NNNN)` markers, wrap up. **Keep following those.** This document refines them with two
-things the generic skill cannot know:
-
-1. **Phase 0 does not exist in the skill.** It was added here because three failures in one session
-   all traced to briefs asserting substrate that did not exist. The skill assumes the requirements
-   describe reality; on a hard fork they frequently do not.
-2. **The skill says "dispatch an implementer"; this says which one, and which gates follow.**
-
-Where the two genuinely conflict, **this document wins**, because it is project-specific and
-evidence-backed. Then fix whichever artifact drifted — do not route around it.
-
-`br` remains authoritative for task state over any plan file, including this one.
+**Ticket flows defer to `bd`.** Compass verbs that track work (`/spec`, `/tickets`, `/triage`,
+`/wayfinder`) operate *through* the `bd` workspace in this repo, never beside it — two competing
+ticket systems is worse than either. `bd` remains authoritative for task state over any plan file,
+including this one.
 
 ## Standing rules that cut across every phase
 
@@ -358,6 +328,7 @@ evidence-backed. Then fix whichever artifact drifted — do not route around it.
 - **An honest partial beats a broken whole.** Two agents stopped mid-task and reported an accurate
   map instead of half-landing a rewrite. Both were right to, and both saved the next agent more
   than they cost.
-- **`cargo test -p simulation -- --test-threads=1`.** Parallel runs segfault intermittently on a
-  pre-existing unsynchronised `static mut` race in `init.rs` (`sov-test-race-initfuncs-qt6`). A
-  green parallel run proves little.
+- **`cargo test -p simulation` runs parallel and is trustworthy** since the `static mut` race in
+  `init.rs`/`prototypes` was removed (`sov-test-race-initfuncs-qt6`, fixed 2026-08-26). The same
+  defect shape still exists in `native_app/src/init.rs:85-86` — UI crate, not linked into the test
+  binary; do not copy that pattern into new code.

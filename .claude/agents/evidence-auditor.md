@@ -79,10 +79,9 @@ Do not review implementation correctness, style or performance. Other agents own
 
 ## This project's specifics
 
-- Run tests as `cargo test -p simulation -- --test-threads=1`. Parallel runs segfault
-  intermittently on a pre-existing unsynchronised `static mut` race in `init.rs`
-  (`sov-test-race-initfuncs-qt6`). **A green parallel run proves little** — flag any evidence that
-  relied on one.
+- Run tests as `cargo test -p simulation`. Parallel runs are trustworthy since the `static mut`
+  race was removed (`sov-test-race-initfuncs-qt6`, fixed 2026-08-26); evidence produced before
+  that date under parallel runs may have been unreliable — check the date before trusting it.
 - Scenario tests live in `simulation/src/tests/scenarios/` and carry corpus IDs in their names
   (`scenario_0082_...`, `journey_0001_...`). The behavior corpus addresses them by ID.
 - `docs/plan/iterations/evidence/target-scenarios.json` and `evid-spec-bindings.json` bind target

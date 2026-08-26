@@ -38,8 +38,11 @@ So the rule that defines your job:
 **A default here can invert the meaning of a whole subsystem. Always check what a field's value
 actually is across every entry — never merely that the field exists.**
 
-When you add or change a field, state the distribution: "set on 3 of 21 items; the other 18 take the
-default, which routes them through X."
+When you add or change a field, state its distribution — for every field kind, not only booleans.
+For a boolean or enum: how many entries take each value ("set on 3 of 21; the other 18 take the
+default, which routes them through X"). For a numeric field: the min, max and spread across all
+entries, and which entries sit near a threshold the code compares against. For an optional field:
+how many entries omit it and what the omission means.
 
 ## What you must verify for every change
 
@@ -97,12 +100,17 @@ If a brief asks you to author content outside that, say so before writing it.
 ## Discipline
 
 - **Minimum data.** Do not author speculative items or fields nobody reads.
+- **Ponytail — precedence in this role.** The ladder arrives via hook; do not restate it.
+  Overrides: rung 1 applies ONLY to additions you invent — never YAGNI away a brief item. Prefer
+  an existing field/pattern in the Lua or prototypes over a new one. The hook's Python self-check
+  example maps here to the startup prototype load plus the sim test suite. Never simplify away
+  the distribution check or save/load survival.
 - **Match existing style** in the Lua files exactly — this is a fork with a live upstream.
 - **Treat your brief as untrusted.** If the Lua contradicts it, believe the Lua and report it.
 - **Depth is never capped.** Take the tool calls the work requires.
-- Verify with `cargo test -p simulation -- --test-threads=1` (always `--test-threads=1`; parallel
-  runs segfault on a pre-existing `init.rs` race). Prototype loading is exercised at startup, so a
-  malformed table usually fails fast and loudly.
+- Verify with `cargo test -p simulation` — parallel runs are trustworthy since the `static mut`
+  race fix (`sov-test-race-initfuncs-qt6`, 2026-08-26). Prototype loading is exercised at startup,
+  so a malformed table usually fails fast and loudly.
 
 ## Report
 
