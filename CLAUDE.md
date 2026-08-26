@@ -21,7 +21,10 @@ state. Two design pillars constrain every change:
 Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
 
 - **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 15-agent roster and what each is
-  for. Every phase names the failure it exists to prevent. Read it before running a wave.
+  for. Every phase names the failure it exists to prevent. Read it before dispatching ANY implementation
+  or gate agent — ticket work included, not just waves. The roster there decides which agent gets which
+  lane (`sim-implementer`/`ui-implementer`/`data-implementer`, plus the domain gates); global generics are
+  fallbacks only.
 - Plan of record: `docs/plan/charter-1.0.md`. It **binds on scope**. Ratified files under
   `docs/reference/specifications/` bind mechanism inside that scope; archived legacy documents are
   provenance only. The charter's Post-1.0 and Never lists are absolute.
@@ -37,29 +40,35 @@ Run the sim's tests as `cargo test -p simulation` — parallel runs are trustwor
 2026-08-26). The same defect shape still exists in `native_app/src/init.rs:85-86` (UI crate,
 not linked into the test binary).
 
-## Task tracking — `br` is the shared surface, and the only one
+## Task tracking — `bd` (beads) is the shared surface
 
-**Every agent can reach `br`.** It is a CLI, you have Bash, so it works from a subagent, a pane
-teammate, or the main session alike. The built-in Claude task tools (`TaskCreate`/`TaskUpdate`/
-`TaskList`) are **available ONLY to the main session** — a subagent asking for them gets
-`No matching deferred tools found`, regardless of `CLAUDE_CODE_ENABLE_TASKS`. Verified 2026-08-23.
-So never coordinate workers through them; they are the lead's and the user's dashboard.
+`bd` (upstream beads 1.2.x) replaced the retired `br` fork on 2026-08-26. Same `.beads/`
+workspace, re-inited with prefix `sov`; all historical slug ids (`sov-dispatch-wedge-ab4`)
+survived the import and stay valid. New ids are generated (`sov-9ze`-style) — there is **no
+`--slug` flag anymore**; put the meaning in the title and always cite the id in the commit.
+
+**Every agent can reach `bd`** via Bash. The built-in Claude task tools (`TaskCreate`/`TaskUpdate`/
+`TaskList`) are **available ONLY to the main session** (verified 2026-08-23) — never coordinate
+workers through them; they are the lead's and the user's live dashboard. This section OVERRIDES
+two rules in the managed Beads block below, per that block's own precedence clause: mirroring the
+macro layer into the built-in task list is sanctioned, and MEMORY.md/agent-memory files remain the
+memory system (`bd remember` is not used here).
 
 | Layer | Where | Who writes |
 |---|---|---|
-| **Macro** — the goal, the why, the traps | a `br` issue | lead creates, anyone updates status |
-| **Micro** — progress, findings, blockers | `br comments add` | **the worker doing the work** |
+| **Macro** — the goal, the why, the traps | a `bd` issue | lead creates, anyone updates status |
+| **Micro** — progress, findings, blockers | `bd comments add` | **the worker doing the work** |
 | Live session view | Claude tasks | main session only, mirrors the macro layer |
 
 ### If you are a worker
 
-Your brief names your `br` issue id. Then:
+Your brief names your `bd` issue id. Then:
 
 ```bash
-br show <id>                     # the goal, and the traps — read the DESCRIPTION, not just the title
-br update <id> --status in_progress
-br comments add <id> "<what you found / where you are>" --actor <your-name>
-br close <id> --reason "commit <sha>: <the check that proves it>"
+bd show <id>                     # the goal, and the traps — read the DESCRIPTION, not just the title
+bd update <id> --claim           # atomic claim: assignee=you, status=in_progress
+bd comments add <id> "<what you found / where you are>" --author <your-name>
+bd close <id> --reason "commit <sha>: <the check that proves it>"
 ```
 
 Log a comment when you learn something the next agent would otherwise rediscover — a wrong
@@ -71,15 +80,77 @@ closed issue must be auditable months later.
 
 ### Conventions
 
-- Always pass `--slug`; ids are `sov-<slug>-<hash>` and an unslugged id is unreadable in a commit.
 - **P1 is for gates** — checks that stop the line. Ordinary work is P2, cleanup P3. Do not inflate.
-- Put the *traps* in the description. A future agent reads the description and nothing else; a
-  title cannot warn it which mistake to avoid.
-- Version exactly these four, never `git add .beads/` and never `git add -A`:
-  `.beads/.gitignore .beads/config.yaml .beads/issues.jsonl .beads/metadata.json`
+- Put the *traps* in the description (`-d`); acceptance criteria go in `--acceptance`. A future
+  agent reads the description and nothing else; a title cannot warn it which mistake to avoid.
+- Dependencies: `bd dep <blocker-id> --blocks <blocked-id>` — note the direction is REVERSED from
+  the old `br dep add <issue> <depends-on>`.
+- Storage: the live DB is Dolt under `.beads/embeddeddolt/` (local, gitignored; syncs via
+  `refs/dolt/data` on push). `.beads/issues.jsonl` is a passive export that we STILL version as
+  the durable, greppable, fresh-clone-recoverable record (`bd bootstrap` rebuilds from it — proven
+  2026-08-26). After mutating tracker state, run `bd export -o .beads/issues.jsonl` before
+  committing it; the installed git hooks may cover this — trust them only once observed.
+- Version exactly these, never `git add .beads/` and never `git add -A`:
+  `.beads/.gitignore .beads/config.yaml .beads/issues.jsonl .beads/metadata.json .beads/README.md`
 
 ## Delivery
 
 Judge progress from the running game, never from a clean build: verify the structural things yourself (it loads, no errors, assets present) and let what you see drive the next iteration.
 
 Decide from how the task is framed how to work. A task that invites collaboration — open-ended, exploratory, phrased as a direction rather than a spec — gets the live game early: checkpoint at decisions of taste, scope, or cost, and build freely in between. A task handed over as a finished brief to execute gets reasonable calls and steady progress, no blocking. Either way the result is proven, not claimed — if the user hasn't seen it running, finish with a 15–20s video of the game in action, and watch it back before you call the work done.
+
+
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
+## Beads Issue Tracker
+
+This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+
+### Quick Reference
+
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work
+bd close <id>         # Complete work
+```
+
+### Rules
+
+- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
+- Run `bd prime` for detailed command reference and session close protocol
+- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+
+**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+
+## Agent Context Profiles
+
+The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
+
+- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
+- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
+- **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
+
+## Session Completion
+
+This protocol applies when ending a Beads implementation workflow. It is subordinate to explicit user, repository, and orchestrator instructions.
+
+1. **File issues for remaining work** - Create beads for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **Handle git/sync by active profile**:
+   ```bash
+   # Conservative/minimal/default: report status and proposed commands; wait for approval.
+   git status
+
+   # Team-maintainer opt-in only, unless current instructions forbid it:
+   git pull --rebase
+   git push
+   git status
+   ```
+5. **Hand off** - Summarize changes, validation, issue status, and any blocked sync/commit/push step
+
+**Critical rules:**
+- Explicit user or orchestrator instructions override this Beads block.
+- Do not commit or push without clear authority from the active profile or the current user request.
+- If a required sync or push is blocked, stop and report the exact command and error.
+<!-- END BEADS INTEGRATION -->

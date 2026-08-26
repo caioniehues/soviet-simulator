@@ -58,7 +58,7 @@ to fix quality — add the gate.
 ## Starting an iteration
 
 ```bash
-br ready                                    # what is unblocked, ranked
+bd ready                                    # what is unblocked, ranked
 cat docs/plan/iterations/RESUME.md          # where the last session stopped
 ```
 
@@ -70,7 +70,7 @@ Tracking is two-layer, and `br` is the only surface every agent can reach — se
 | | Where | Who writes |
 |---|---|---|
 | Macro — goal, why, traps | a `br` issue | lead creates, anyone updates |
-| Micro — progress, findings | `br comments add --actor` | the worker itself |
+| Micro — progress, findings | `bd comments add --author` | the worker itself |
 | Dashboard | Claude tasks | **main session only** — subagents cannot see it |
 
 ---
@@ -136,7 +136,7 @@ Parallel implementers on disjoint files:
 | `ui-implementer` | `native_app/src/**` — panels, readouts, tools |
 | `data-implementer` | `base_mod/*.lua`, `prototypes/src/**` |
 
-Each logs progress with `br comments add <id> "…" --actor <name>` as it goes, especially when it
+Each logs progress with `bd comments add <id> "…" --author <name>` as it goes, especially when it
 discovers its brief was wrong. Evidence tasks are interleaved with code tasks, never trailed.
 
 Implementers are **sonnet**. The quality lever is the review gate, not implementer tier — this is

@@ -23,7 +23,7 @@ Every one of these was live in this repository at the same time, and each was fo
   that loaded the project's own instruction file was sent to a nonexistent doc for the wrong engine.
 - **Four agent definitions targeted `src/sim/` and `src/game/`** — paths deleted five days *before*
   those agent files were written. All four were also on the wrong model tier for their role.
-- **A `br` ticket sat open in the ready queue** after its work had shipped, so the next session
+- **A `bd` ticket sat open in the ready queue** after its work had shipped, so the next session
   would have re-done it.
 - **`RESUME.md` claimed "35 epics, 139 stories."** The real counts were 36 and 149.
 - **A code comment at `market.rs:358` asserted a human buyer owns no building to route to.**
@@ -43,11 +43,11 @@ with the project's delegation policy (sonnet implements, opus reviews and does o
 verification)? Do they describe work that is still happening? An agent scoped to a refactor that
 finished is dead weight and will be dispatched by mistake.
 
-**3. `br` tickets against reality.** For each open ticket, does its work appear done in the code or
+**3. `bd` tickets against reality.** For each open ticket, does its work appear done in the code or
 git history? For each closed one, does its `--reason` cite evidence that actually holds? Run
-`br ready`, `br blocked`, `br list --status open`. **Do not close tickets yourself** — report them.
+`bd ready`, `bd blocked`, `bd query "status = open"`. **Do not close tickets yourself** — report them.
 During a documentation-path cutover, also scan every active issue's description and acceptance
-criteria for deleted or demoted discovery paths. `br` is task-state authority, so a stale path
+criteria for deleted or demoted discovery paths. `bd` is task-state authority, so a stale path
 there is a release-blocking contradiction even when Markdown links are clean; report the exact
 issue field and canonical replacement.
 

@@ -12,4 +12,4 @@ does not duplicate vocabulary.
 
 Scope belongs to [`docs/plan/charter-1.0.md`](docs/plan/charter-1.0.md), current substrate behavior
 belongs to the code and its cited [architecture map](docs/reference/architecture/substrate.md), and
-task state belongs to `br`.
+task state belongs to `bd` (beads).

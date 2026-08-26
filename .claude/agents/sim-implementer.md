@@ -23,10 +23,11 @@ If your change needs one of those, say so in your report rather than reaching ac
 
 ## Non-negotiables
 
-**Run tests as `cargo test -p simulation -- --test-threads=1`.** Parallel runs segfault
-intermittently on a pre-existing unsynchronised `static mut` race in `init.rs`
-(`sov-test-race-initfuncs-qt6`). It is not yours; do not chase it. A green parallel run proves
-little.
+**Run tests as `cargo test -p simulation`** — parallel runs are trustworthy since the `static mut`
+race was removed (`sov-test-race-initfuncs-qt6`, fixed 2026-08-26, commit `7accade`). Registration
+now lives in a `OnceLock<Registry>`; prototypes use a `OnceLock` plus a thread-local test override,
+so per-test `test_prototypes()` sets stay isolated. The same defect shape still exists in
+`native_app/src/init.rs:85-86` — that one is ui-implementer's, not yours.
 
 **Never weaken the determinism check.** `TestCtx::tick()` bincode-round-trips the whole `Simulation`
 and hash-compares every key. **Any new field must serialize**, or that check fails loudly — which is
