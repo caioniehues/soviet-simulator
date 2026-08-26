@@ -4,7 +4,7 @@ use crate::Simulation;
 use std::sync::Mutex;
 
 pub trait SimDrop: Entity {
-    fn sim_drop(self, id: Self::ID, res: &mut Resources);
+    fn sim_drop(self, id: Self::ID, world: &mut crate::World, res: &mut Resources);
 }
 
 type ExecType = Box<dyn for<'a> FnOnce(&'a mut Simulation) + Send>;
@@ -64,7 +64,7 @@ impl<E: SimDrop> ParCommandBuffer<E> {
                 continue;
             };
 
-            E::sim_drop(v, entity, &mut sim.resources);
+            E::sim_drop(v, entity, &mut sim.world, &mut sim.resources);
         }
 
         let mut exec_ent = std::mem::take(

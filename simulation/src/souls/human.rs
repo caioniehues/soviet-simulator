@@ -139,6 +139,7 @@ pub fn update_decision_system(world: &mut World, resources: &mut Resources) {
     let rc = &*resources.read();
     let rd = &*resources.read();
     let re = &*resources.read();
+    let rf = &*resources.read();
 
     world.humans.iter_mut().for_each(|(ent, h)| {
         update_decision(
@@ -147,6 +148,7 @@ pub fn update_decision_system(world: &mut World, resources: &mut Resources) {
             rc,
             rd,
             re,
+            rf,
             ent,
             &h.trans,
             &h.location,
@@ -167,6 +169,7 @@ pub fn update_decision(
     time: &GameTime,
     binfos: &BuildingInfos,
     map: &Map,
+    market: &Market,
     me: HumanID,
     trans: &Transform,
     loc: &Location,
@@ -225,7 +228,7 @@ pub fn update_decision(
         NextDesire::Home(home) => decision.kind = home.apply(),
         NextDesire::Work(work) => decision.kind = work.apply(loc, router),
         NextDesire::Food(food) => {
-            decision.kind = food.apply(cbuf, binfos, time, me, trans, loc, bought)
+            decision.kind = food.apply(cbuf, binfos, market, time, me, trans, loc, bought)
         }
         NextDesire::None => {}
     }

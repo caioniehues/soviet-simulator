@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use geom::{Vec2, Vec3};
 use prototypes::{
     prototypes_iter, GoodsCompanyID, GoodsCompanyPrototype, ItemPrototype, Money, Tick,
+    TICKS_PER_HOUR,
 };
 
 use crate::economy::{ItemID, WORKER_CONSUMPTION_PER_MINUTE};
@@ -74,6 +75,9 @@ impl SingleMarket {
     pub fn requested(&self, soul: SoulID) -> Option<u32> {
         self.requested.get(&soul).copied()
     }
+    pub fn reserved(&self, soul: SoulID) -> u32 {
+        self.reserved.get(&soul).copied().unwrap_or(0)
+    }
 
     pub fn capital_map(&self) -> &BTreeMap<SoulID, i32> {
         &self.capital
@@ -89,6 +93,11 @@ pub struct Market {
     /// Goods that have been matched to a buyer but haven't finished their
     /// travel-to-source/loading/travel-to-destination/unloading cycle yet.
     dispatches: Vec<Dispatch>,
+    /// Store→consumer purchases matched but not yet collected (see
+    /// `RetailClaim`). Keyed by buyer since a human only ever has one
+    /// outstanding retail purchase at a time (`buyfood` never issues a
+    /// second buy order before the first resolves).
+    retail_claims: BTreeMap<SoulID, RetailClaim>,
     // reuse the trade vec to avoid allocations
     #[serde(skip)]
     all_trades: Vec<Trade>,
@@ -121,6 +130,33 @@ pub fn find_trade_place(target: TradeTarget, binfos: &BuildingInfos) -> Option<B
 /// to drive there.
 const DISPATCH_DWELL_TICKS: u32 = 3;
 
+/// How many consecutive tick-retries a `Loading` dispatch gets to find a
+/// route back to the seller (see `DispatchState::Returning`) before giving
+/// up and treating the goods as lost. A severed road can make the route
+/// search fail forever; without a bound this reintroduces the exact wedge
+/// shape this ticket exists to close.
+const MAX_RETURN_ROUTE_RETRIES: u32 = 20;
+
+/// How long a human's retail claim (a matched-but-uncollected store purchase,
+/// e.g. bread) waits before it's released. Retail has no dispatch/truck to
+/// time out on the road, so this is the only backstop: without it, a human
+/// that dies or gets stuck mid-journey would freeze the seller's reservation
+/// forever, same failure shape as the dispatch wedges this ticket fixes.
+const RETAIL_CLAIM_TTL_TICKS: u32 = TICKS_PER_HOUR as u32;
+
+/// A store→consumer purchase matched but not yet collected. Unlike a
+/// `Dispatch`, this never moves a truck: the buyer's own walk to the seller's
+/// building *is* the physical movement (see `souls::desire::buyfood`). The
+/// seller's stock stays reserved (see `SingleMarket::reserved`) until the
+/// buyer physically arrives and eats, despawns, or the claim times out.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct RetailClaim {
+    pub seller: SoulID,
+    pub kind: ItemID,
+    pub qty: u32,
+    ticks_left: u32,
+}
+
 /// The stage of a goods dispatch. A trade match doesn't move stock immediately:
 /// the quantity is only debited from the seller when the truck arrives and
 /// enters `Loading`, and only credited to the buyer when it arrives and enters
@@ -132,6 +168,12 @@ pub enum DispatchState {
     Loading,
     ToDestination,
     Unloading,
+    /// The buyer's building vanished (demolished) after the truck was
+    /// already loaded: the goods are physically on the truck (already
+    /// debited from the seller, never credited to the buyer), so they get
+    /// physically driven back and re-credited on arrival rather than
+    /// teleport-refunded. See sov-dispatch-wedge-ab4.
+    Returning,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -145,6 +187,12 @@ pub struct Dispatch {
     /// The truck carrying this dispatch. `None` while waiting for the
     /// `Dispatcher` to find one available.
     truck: Option<crate::world::VehicleID>,
+    /// Failed `Itinerary::route` attempts while trying to route the truck
+    /// back to the seller after the buyer's building was demolished (see
+    /// `DispatchState::Returning`). A severed road can make this fail
+    /// forever, so it's bounded (see `MAX_RETURN_ROUTE_RETRIES`) rather than
+    /// retried indefinitely — that would just reintroduce the wedge shape.
+    return_route_retries: u32,
 }
 
 impl Default for Market {
@@ -155,6 +203,7 @@ impl Default for Market {
                 .map(|v| (v.id, SingleMarket::new(prices[&v.id], v.optout_exttrade)))
                 .collect(),
             dispatches: Default::default(),
+            retail_claims: Default::default(),
             all_trades: Default::default(),
             potential: Default::default(),
         }
@@ -194,7 +243,34 @@ impl Market {
     }
 
     /// An agent was removed from the world, we need to clean after him
-    pub fn remove(&mut self, soul: SoulID) {
+    /// `map`/`binfos`/`world`/`dispatcher`/`tick` are only needed to hand a
+    /// dead buyer's in-flight goods to the physical return-to-seller path
+    /// (see below) -- without them a demolished buyer would either strand
+    /// the seller's reservation forever or destroy the shipment outright.
+    pub fn remove(
+        &mut self,
+        soul: SoulID,
+        map: &Map,
+        binfos: &BuildingInfos,
+        world: &mut World,
+        dispatcher: &mut Dispatcher,
+        tick: Tick,
+    ) {
+        // A live retail claim reserves stock on the SELLER's row, not the
+        // buyer's, so it must be released before that row is touched below.
+        if let Some(claim) = self.retail_claims.remove(&soul) {
+            if let Some(m) = self.markets.get_mut(&claim.kind) {
+                if let Some(r) = m.reserved.get_mut(&claim.seller) {
+                    *r = r.saturating_sub(claim.qty);
+                }
+            }
+        }
+        // If the soul being removed is itself a seller holding outstanding
+        // claims from (still-alive) buyers, those claims now point at a
+        // capital/reserved row that's about to be wiped; drop them too so
+        // eat-time/TTL settlement doesn't resurrect a phantom seller row.
+        self.retail_claims.retain(|_, c| c.seller != soul);
+
         for market in self.markets.values_mut() {
             market.sell_orders.remove(&soul);
             market.buy_orders.remove(&soul);
@@ -202,16 +278,127 @@ impl Market {
             market.reserved.remove(&soul);
             market.requested.remove(&soul);
         }
+
         // Any dispatch naming this soul as buyer or seller is now a dangling
-        // reference: a still-driving one would otherwise resurrect a phantom
-        // capital row for a soul that no longer exists (or credit a buyer
-        // for goods nobody delivers).
-        // ponytail: a cancelled dispatch's truck (if any) is never freed
-        // back to the Dispatcher here, so it drives off and never returns to
-        // the pool. Out of scope for the ledger fix (see sov-dispatch-wedge-ab4);
-        // upgrade by threading the Dispatcher through if trucks start leaking.
-        self.dispatches
-            .retain(|d| d.buyer != soul && d.seller != soul);
+        // reference. A dead SELLER is handled by the blanket `reserved`/
+        // `capital` removal above (the seller's own row is gone, so there's
+        // nothing left to credit or reserve); such dispatches are simply
+        // dropped, same as before.
+        //
+        // A dead BUYER with a surviving seller is different: the seller's
+        // row is still live, so silently dropping the dispatch either
+        // strands `reserved[seller]` forever (`ToSource`, nothing debited
+        // yet) or destroys goods already debited from the seller with no
+        // sink (`Loading`/`ToDestination`/`Returning`) -- see
+        // sov-dispatch-wedge-ab4. Route each such dispatch through the same
+        // fate a live buyer-demolition takes in `advance_dispatches`.
+        let mut i = 0;
+        while i < self.dispatches.len() {
+            let d = &self.dispatches[i];
+            if d.buyer != soul || d.seller == soul {
+                i += 1;
+                continue;
+            }
+            let (seller, kind, qty, state, truck) = (d.seller, d.kind, d.qty, d.state, d.truck);
+            match state {
+                DispatchState::ToSource => {
+                    // Nothing was ever debited: freeing the reservation is
+                    // the whole fix, the goods never physically left.
+                    if let Some(r) = self.m(kind).reserved.get_mut(&seller) {
+                        *r = r.saturating_sub(qty);
+                    }
+                    if let Some(v) = truck {
+                        dispatcher.free(DispatchID::SmallTruck(v));
+                    }
+                    self.dispatches.swap_remove(i);
+                    continue;
+                }
+                DispatchState::Loading
+                | DispatchState::ToDestination
+                | DispatchState::Returning => {
+                    // Seller already debited (or is mid-return): drive the
+                    // goods physically back instead of teleport-refunding or
+                    // destroying them.
+                    if let Some(seller_pos) = door_pos(seller, map, binfos) {
+                        let start = truck
+                            .and_then(|v| world.vehicles.get(v))
+                            .map(|ve| ve.trans.pos);
+                        let route = start.and_then(|start| {
+                            Itinerary::route(tick, start, seller_pos, map, PathKind::Vehicle)
+                        });
+                        if let Some(route) = route {
+                            if let Some(v) = truck {
+                                if let Some(ve) = world.vehicles.get_mut(v) {
+                                    ve.it = route;
+                                }
+                            }
+                            self.dispatches[i].state = DispatchState::Returning;
+                        } else {
+                            // No route back to the seller: an honest
+                            // physical loss (the goods are already debited
+                            // from the seller and never credited to anyone),
+                            // same shape as the sibling loss paths above.
+                            log::warn!(
+                                "dispatch {:?} {:?} ({:?} -> dead buyer): no route back to \
+                                 seller, treating as lost",
+                                qty,
+                                kind,
+                                seller
+                            );
+                            if let Some(v) = truck {
+                                dispatcher.free(DispatchID::SmallTruck(v));
+                            }
+                            self.dispatches.swap_remove(i);
+                            continue;
+                        }
+                    } else {
+                        // Seller is also gone: nothing left to return the
+                        // goods to.
+                        log::warn!(
+                            "dispatch {:?} {:?} lost: buyer and seller are both gone",
+                            qty,
+                            kind
+                        );
+                        if let Some(v) = truck {
+                            dispatcher.free(DispatchID::SmallTruck(v));
+                        }
+                        self.dispatches.swap_remove(i);
+                        continue;
+                    }
+                }
+                DispatchState::Unloading => {
+                    // The buyer was about to be credited; it no longer
+                    // exists to receive the goods, so nothing is credited.
+                    // The seller was already debited when the truck loaded
+                    // and does not get the goods back (mirrors Unloading's
+                    // own honest-loss shape: once loaded, goods that never
+                    // reach a buyer are gone, not refunded).
+                    log::warn!(
+                        "dispatch {:?} {:?} lost: buyer removed while unloading",
+                        qty,
+                        kind
+                    );
+                    if let Some(v) = truck {
+                        dispatcher.free(DispatchID::SmallTruck(v));
+                    }
+                    self.dispatches.swap_remove(i);
+                    continue;
+                }
+            }
+            i += 1;
+        }
+        // A dead SELLER's rows were wiped above, so there is nothing left to
+        // credit or reserve and the dispatch is simply dropped -- but the
+        // truck it holds must go back to the pool first. `Dispatcher::query`
+        // skips anything still in `reserved_by` and only `free` clears it, so
+        // dropping the dispatch without freeing removes that truck from the
+        // city permanently (sov-dispatch-wedge-ab4 round 4).
+        for d in self.dispatches.iter().filter(|d| d.seller == soul) {
+            if let Some(v) = d.truck {
+                dispatcher.free(DispatchID::SmallTruck(v));
+            }
+        }
+        self.dispatches.retain(|d| d.seller != soul);
     }
 
     /// Called when an agent tells the world it wants to buy something
@@ -237,6 +424,16 @@ impl Market {
         self.markets.get(&kind).unwrap().capital(soul).unwrap_or(0)
     }
 
+    /// Stock matched to a buyer but not yet collected (dispatch in flight, or
+    /// an uncollected retail claim): physically still at the seller, but not
+    /// resellable and not available to produce more of.
+    pub fn reserved(&self, soul: SoulID, kind: ItemID) -> u32 {
+        self.markets
+            .get(&kind)
+            .map(|m| m.reserved(soul))
+            .unwrap_or(0)
+    }
+
     /// Set the quantity a soul wants to request per cycle for an item. May exceed
     /// (or fall under) what its recipe actually consumes.
     pub fn set_requested(&mut self, soul: SoulID, kind: ItemID, qty: u32) {
@@ -250,6 +447,30 @@ impl Market {
 
     pub fn dispatches(&self) -> &[Dispatch] {
         &self.dispatches
+    }
+
+    /// The buyer's outstanding retail claim (a matched-but-uncollected store
+    /// purchase), if any.
+    pub fn retail_claim(&self, buyer: SoulID) -> Option<&RetailClaim> {
+        self.retail_claims.get(&buyer)
+    }
+
+    /// Settles a retail claim at consumption time: the seller is debited and
+    /// its reservation released, the buyer is credited NOTHING (the good is
+    /// destroyed by being eaten, not transferred into the buyer's capital —
+    /// see `souls::desire::buyfood`'s `BoughtAt` arm). No money moves; the
+    /// domestic match already settled `money_delta: Money::ZERO`. Returns
+    /// whether a claim was found and settled.
+    pub fn settle_retail(&mut self, buyer: SoulID) -> bool {
+        let Some(claim) = self.retail_claims.remove(&buyer) else {
+            return false;
+        };
+        let m = self.m(claim.kind);
+        *m.capital.entry(claim.seller).or_default() -= claim.qty as i32;
+        if let Some(r) = m.reserved.get_mut(&claim.seller) {
+            *r = r.saturating_sub(claim.qty);
+        }
+        true
     }
 
     /// Registers a soul to the market, not obligatory
@@ -381,6 +602,38 @@ impl Market {
             // physically deliver it.
             if kind != ItemID::new("job-opening") {
                 for &trade in &self.all_trades[dispatch_start..] {
+                    if let SoulID::Human(_) = trade.buyer.0 {
+                        // Retail leg (store -> consumer): the human's own walk
+                        // to the seller's building is the physical movement,
+                        // so no truck/Dispatch is created; settlement happens
+                        // at eat-time (`Market::settle_retail`). A buyer can
+                        // already hold a live claim here (see gate defect 1),
+                        // so release its reservation before overwriting it.
+                        if let Some(old) = self.retail_claims.insert(
+                            trade.buyer.0,
+                            RetailClaim {
+                                seller: trade.seller.0,
+                                kind,
+                                qty: trade.qty as u32,
+                                ticks_left: RETAIL_CLAIM_TTL_TICKS,
+                            },
+                        ) {
+                            log::warn!(
+                                "buyer {:?} matched a new retail claim while one was still \
+                                 outstanding; releasing the orphaned reservation",
+                                trade.buyer.0
+                            );
+                            // `RetailClaim`s are only ever created for the
+                            // market's own `kind` (this loop iterates one
+                            // kind at a time), so the old claim's reservation
+                            // always lives in this same `reserved` map.
+                            debug_assert_eq!(old.kind, kind);
+                            if let Some(r) = reserved.get_mut(&old.seller) {
+                                *r = r.saturating_sub(old.qty);
+                            }
+                        }
+                        continue;
+                    }
                     self.dispatches.push(Dispatch {
                         buyer: trade.buyer.0,
                         seller: trade.seller.0,
@@ -389,14 +642,24 @@ impl Market {
                         state: DispatchState::ToSource,
                         ticks_left: 0,
                         truck: None,
+                        return_route_retries: 0,
                     });
                 }
             }
 
             // External trading
             if !*optout_exttrade {
-                // All buyers can fullfil since they can buy externally
-                let btaken = std::mem::take(buy_orders);
+                // Humans never clear through the external market: retail
+                // clears by queue and going-without only (never by money —
+                // an ext-trade buy attaches a money_delta and credits
+                // capital directly, both forbidden on the human path, see
+                // `RetailClaim`). Their unmatched buy orders must survive
+                // this pass untouched so they're still there for next
+                // tick's domestic match, not silently dropped.
+                let btaken: BTreeMap<_, _> = buy_orders
+                    .extract_if(.., |s, _| !matches!(s, SoulID::Human(_)))
+                    .collect();
+                // All remaining (non-human) buyers can fulfil since they can buy externally
                 self.all_trades.reserve(btaken.len());
                 for (buyer, order) in btaken {
                     let qty_buy = order.qty as i32;
@@ -478,7 +741,7 @@ impl Market {
     ) {
         let mut i = 0;
         while i < self.dispatches.len() {
-            let (seller, buyer, kind, qty, state, ticks_left, truck) = {
+            let (seller, buyer, kind, qty, state, ticks_left, truck, return_route_retries) = {
                 let d = &self.dispatches[i];
                 (
                     d.seller,
@@ -488,6 +751,7 @@ impl Market {
                     d.state,
                     d.ticks_left,
                     d.truck,
+                    d.return_route_retries,
                 )
             };
 
@@ -526,20 +790,33 @@ impl Market {
                         // ToSource and retry next tick. Nothing is debited.
                     }
                     Some(v) => {
-                        let arrived = world
-                            .vehicles
-                            .get(v)
-                            .map(|ve| ve.it.has_ended(0.0))
-                            .unwrap_or(false);
-                        if arrived {
-                            let m = self.m(kind);
-                            *m.capital.entry(seller).or_default() -= qty as i32;
-                            if let Some(r) = m.reserved.get_mut(&seller) {
+                        if world.vehicles.get(v).is_none() {
+                            // Wedge (b): the reserved vehicle entity is gone
+                            // (e.g. despawned) before it ever arrived.
+                            // Nothing was ever debited from the seller, so
+                            // freeing the reservation is the whole fix — the
+                            // goods never physically left.
+                            dispatcher.free(DispatchID::SmallTruck(v));
+                            if let Some(r) = self.m(kind).reserved.get_mut(&seller) {
                                 *r = r.saturating_sub(qty);
                             }
-                            let d = &mut self.dispatches[i];
-                            d.state = DispatchState::Loading;
-                            d.ticks_left = DISPATCH_DWELL_TICKS;
+                            remove = true;
+                        } else {
+                            let arrived = world
+                                .vehicles
+                                .get(v)
+                                .map(|ve| ve.it.has_ended(0.0))
+                                .unwrap_or(false);
+                            if arrived {
+                                let m = self.m(kind);
+                                *m.capital.entry(seller).or_default() -= qty as i32;
+                                if let Some(r) = m.reserved.get_mut(&seller) {
+                                    *r = r.saturating_sub(qty);
+                                }
+                                let d = &mut self.dispatches[i];
+                                d.state = DispatchState::Loading;
+                                d.ticks_left = DISPATCH_DWELL_TICKS;
+                            }
                         }
                     }
                 },
@@ -548,7 +825,19 @@ impl Market {
                         // Invariant: truck is always Some by the time a
                         // dispatch reaches Loading (set on arrival in ToSource).
                         if let Some(v) = truck {
-                            if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
+                            if world.vehicles.get(v).is_none() {
+                                // Truck vanished mid-loading: the goods were
+                                // on it and are gone with it. Seller was
+                                // already debited (ToSource arrival), buyer
+                                // never credited — a real physical loss, not
+                                // a teleport, so nothing is re-credited.
+                                log::warn!(
+                                    "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished while loading",
+                                    qty, kind, seller, buyer
+                                );
+                                dispatcher.free(DispatchID::SmallTruck(v));
+                                remove = true;
+                            } else if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
                                 let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
                                 let route = start.and_then(|start| {
                                     Itinerary::route(tick, start, buyer_pos, map, PathKind::Vehicle)
@@ -561,6 +850,59 @@ impl Market {
                                 }
                                 // No route found: stay in Loading (ticks_left at 0)
                                 // and retry next tick.
+                            } else {
+                                // Wedge (a): buyer's building was demolished.
+                                // The goods are already debited from the
+                                // seller and physically on the truck; drive
+                                // them back instead of teleport-refunding.
+                                if let Some(seller_pos) = door_pos(seller, map, binfos) {
+                                    let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
+                                    let route = start.and_then(|start| {
+                                        Itinerary::route(
+                                            tick,
+                                            start,
+                                            seller_pos,
+                                            map,
+                                            PathKind::Vehicle,
+                                        )
+                                    });
+                                    if let Some(route) = route {
+                                        if let Some(ve) = world.vehicles.get_mut(v) {
+                                            ve.it = route;
+                                        }
+                                        self.dispatches[i].state = DispatchState::Returning;
+                                    } else if return_route_retries + 1 >= MAX_RETURN_ROUTE_RETRIES {
+                                        // No route back after repeated tries
+                                        // (e.g. the road home was severed):
+                                        // treat as an honest physical loss
+                                        // rather than retry forever.
+                                        log::warn!(
+                                            "dispatch dropped {:?} {:?}: no route back to \
+                                             seller after {} attempts",
+                                            qty,
+                                            kind,
+                                            MAX_RETURN_ROUTE_RETRIES
+                                        );
+                                        dispatcher.free(DispatchID::SmallTruck(v));
+                                        remove = true;
+                                    } else {
+                                        self.dispatches[i].return_route_retries =
+                                            return_route_retries + 1;
+                                    }
+                                } else {
+                                    // Seller is also gone: free the truck and
+                                    // drop the goods (already debited from a
+                                    // seller that no longer exists — nothing
+                                    // left to return them to).
+                                    log::warn!(
+                                        "dispatch dropped {:?} {:?}: both buyer and seller \
+                                         buildings are gone",
+                                        qty,
+                                        kind
+                                    );
+                                    dispatcher.free(DispatchID::SmallTruck(v));
+                                    remove = true;
+                                }
                             }
                         }
                     } else {
@@ -568,16 +910,67 @@ impl Market {
                     }
                 }
                 DispatchState::ToDestination => {
-                    let arrived = truck
-                        .and_then(|v| world.vehicles.get(v))
-                        .map(|ve| ve.it.has_ended(0.0))
-                        .unwrap_or(false);
-                    if arrived {
-                        let m = self.m(kind);
-                        *m.capital.entry(buyer).or_default() += qty as i32;
-                        let d = &mut self.dispatches[i];
-                        d.state = DispatchState::Unloading;
-                        d.ticks_left = DISPATCH_DWELL_TICKS;
+                    if truck.is_some_and(|v| world.vehicles.get(v).is_none()) {
+                        // Truck vanished mid-transit: same physical loss as
+                        // the Loading case above.
+                        log::warn!(
+                            "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished in transit",
+                            qty,
+                            kind,
+                            seller,
+                            buyer
+                        );
+                        if let Some(v) = truck {
+                            dispatcher.free(DispatchID::SmallTruck(v));
+                        }
+                        remove = true;
+                    } else {
+                        let arrived = truck
+                            .and_then(|v| world.vehicles.get(v))
+                            .map(|ve| ve.it.has_ended(0.0))
+                            .unwrap_or(false);
+                        if arrived {
+                            let m = self.m(kind);
+                            *m.capital.entry(buyer).or_default() += qty as i32;
+                            let d = &mut self.dispatches[i];
+                            d.state = DispatchState::Unloading;
+                            d.ticks_left = DISPATCH_DWELL_TICKS;
+                        }
+                    }
+                }
+                DispatchState::Returning => {
+                    if truck.is_some_and(|v| world.vehicles.get(v).is_none()) {
+                        // Truck vanished mid-return: same physical loss as
+                        // the other in-flight states. The goods were already
+                        // debited from the seller and never re-credited.
+                        log::warn!(
+                            "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished while returning",
+                            qty,
+                            kind,
+                            seller,
+                            buyer
+                        );
+                        if let Some(v) = truck {
+                            dispatcher.free(DispatchID::SmallTruck(v));
+                        }
+                        remove = true;
+                    } else {
+                        let arrived = truck
+                            .and_then(|v| world.vehicles.get(v))
+                            .map(|ve| ve.it.has_ended(0.0))
+                            .unwrap_or(false);
+                        if arrived {
+                            // Physically back at the seller: re-credit the goods
+                            // that were debited on the way out.
+                            *self.m(kind).capital.entry(seller).or_default() += qty as i32;
+                            if let Some(v) = truck {
+                                dispatcher.free(DispatchID::SmallTruck(v));
+                                if let Some(ve) = world.vehicles.get_mut(v) {
+                                    ve.it = Itinerary::NONE;
+                                }
+                            }
+                            remove = true;
+                        }
                     }
                 }
                 DispatchState::Unloading => {
@@ -607,6 +1000,27 @@ impl Market {
                 i += 1;
             }
         }
+
+        // Retail claims (see `RetailClaim`) have no dispatch/truck to time
+        // out on the road, so they get their own countdown here: a human
+        // that never makes it to the seller (stuck, despawned mid-journey
+        // some other way, or otherwise wedged) would otherwise freeze the
+        // seller's reservation forever, same failure shape as the dispatch
+        // wedges this function already guards against. Expiry releases the
+        // reservation but must NOT touch `last_ate` — the buyer goes without
+        // and re-queues, hunger keeps rising (never game over).
+        self.retail_claims.retain(|_, claim| {
+            if claim.ticks_left == 0 {
+                if let Some(m) = self.markets.get_mut(&claim.kind) {
+                    if let Some(r) = m.reserved.get_mut(&claim.seller) {
+                        *r = r.saturating_sub(claim.qty);
+                    }
+                }
+                return false;
+            }
+            claim.ticks_left -= 1;
+            true
+        });
     }
 }
 

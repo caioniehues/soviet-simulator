@@ -37,6 +37,14 @@ impl BuyFood {
         }
     }
 
+    /// Test-only: force straight into `BoughtAt(b)` without driving the real
+    /// `Empty -> WaitingForTrade -> BoughtAt` transitions, so a test can
+    /// exercise the eat-time-vs-expired-claim branch in isolation.
+    #[cfg(test)]
+    pub(crate) fn set_state_bought_at_for_test(&mut self, b: BuildingID) {
+        self.state = BuyFoodState::BoughtAt(b);
+    }
+
     pub fn score(&self, time: &GameTime, loc: &Location, bought: &Bought) -> f32 {
         if matches!(self.state, BuyFoodState::WaitingForTrade)
             && bought
@@ -59,6 +67,7 @@ impl BuyFood {
         &mut self,
         cbuf: &ParCommandBuffer<HumanEnt>,
         binfos: &BuildingInfos,
+        market: &Market,
         time: &GameTime,
         id: HumanID,
         trans: &Transform,
@@ -81,13 +90,57 @@ impl BuyFood {
                         self.state = BuyFoodState::BoughtAt(b);
                     }
                 }
+                // A live buy order means never matched yet: keep waiting
+                // (parked at score 0.0 above). Once the order is gone (a
+                // match consumes it, see `Market::make_trades`) and there's
+                // no retail claim either, the claim that stood in for it
+                // has since expired or been released -- going without is the
+                // intended outcome, not a bug, so re-queue instead of
+                // waiting on a reservation that no longer exists. Checking
+                // the order rather than "was a claim ever observed" matters
+                // because `apply` isn't polled every tick: a claim can be
+                // created and expire entirely between two calls. `last_ate`
+                // must NOT advance here: hunger keeps rising (never game
+                // over).
+                if matches!(self.state, BuyFoodState::WaitingForTrade)
+                    && market
+                        .inner()
+                        .get(&ItemID::new("bread"))
+                        .and_then(|sm| sm.buy_order(SoulID::Human(id)))
+                        .is_none()
+                    && market.retail_claim(SoulID::Human(id)).is_none()
+                {
+                    self.state = BuyFoodState::Empty;
+                }
                 Yield
             }
             BuyFoodState::BoughtAt(b) => {
                 if loc == &Location::Building(b) {
+                    // The claim can have expired (TTL) or been released
+                    // (despawn raced this) during the walk over: check
+                    // BEFORE deciding whether this is a real meal.
+                    // `update_decision_system` runs before `market_update`
+                    // each tick (see init.rs registration order), so this
+                    // reads the Market as of the end of the previous tick —
+                    // consistent with what `advance_dispatches`' TTL sweep
+                    // will do to it later this same tick; no race within a
+                    // tick since everything here is single-threaded.
+                    if market.retail_claim(SoulID::Human(id)).is_some() {
+                        // Settle at eat-time: seller debited, reservation
+                        // freed, buyer credited nothing (the loaf is
+                        // destroyed by being eaten, not added to the buyer's
+                        // capital).
+                        cbuf.exec_on(id, move |market: &mut Market| {
+                            market.settle_retail(SoulID::Human(id));
+                        });
+                        self.last_ate = time.instant();
+                        log::debug!("{:?} ate at {:?}", id, b);
+                    } else {
+                        // Claim gone: nothing to eat. Went without —
+                        // `last_ate` must NOT advance (never game over).
+                        log::debug!("{:?} arrived at {:?} too late, claim expired", id, b);
+                    }
                     self.state = BuyFoodState::Empty;
-                    self.last_ate = time.instant();
-                    log::debug!("{:?} ate at {:?}", id, b);
                     Yield
                 } else {
                     GoTo(Destination::Building(b))

@@ -71,6 +71,22 @@ pub(super) fn setup_seller_buyer(ctx: &mut TestCtx, buyer_x: f32) -> (SoulID, So
     (seller, buyer, seller_pos, buyer_pos)
 }
 
+/// Calls `Market::remove` with the map/binfos/world/dispatcher/tick it needs
+/// to hand a dead buyer's in-flight goods to the physical return-to-seller
+/// path (see sov-dispatch-wedge-ab4), pulled off `ctx.g`.
+pub(super) fn remove_soul(ctx: &mut TestCtx, soul: SoulID) {
+    let (world, res) = ctx.g.world_res();
+    let tick = res.tick();
+    res.write::<Market>().remove(
+        soul,
+        &res.read::<crate::map::Map>(),
+        &res.read::<crate::map_dynamic::BuildingInfos>(),
+        world,
+        &mut res.write::<crate::map_dynamic::Dispatcher>(),
+        tick,
+    );
+}
+
 /// Ticks until every in-flight dispatch has drained, or `max_ticks` is spent.
 /// Returns whether it drained.
 pub(super) fn drain_dispatches(ctx: &mut TestCtx, max_ticks: u32) -> bool {

@@ -36,9 +36,15 @@ pub fn recipe_should_produce(recipe: &Recipe, soul: SoulID, market: &Market) -> 
             .iter()
             .all(move |item| market.capital(soul, item.id) >= item.amount)
             &&
-            // Has enough storage
+            // Has enough storage: matched-but-uncollected stock (`reserved`)
+            // is already spoken for even though it's still physically at the
+            // seller, so it must NOT count against the storage cap, or a
+            // seller with a backlog of uncollected sales (e.g. a bakery whose
+            // bread nobody has walked in to collect yet) reads as full and
+            // halts production it still has room for.
             recipe.production.iter().all(move |item| {
-                market.capital(soul, item.id) < item.amount * (recipe.storage_multiplier + 1)
+                (market.capital(soul, item.id) - market.reserved(soul, item.id) as i32)
+                    < item.amount * (recipe.storage_multiplier + 1)
             })
         // has something to do
     && (!recipe.consumption.is_empty() || !recipe.production.is_empty())

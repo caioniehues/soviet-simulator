@@ -1,7 +1,8 @@
 use crate::economy::{Bought, Market, Sold, Workers};
+use crate::map::Map;
 use crate::map_dynamic::{
-    DispatchID, Dispatcher, Itinerary, ItineraryFollower, ItineraryLeader, ParkingManagement,
-    Router,
+    BuildingInfos, DispatchID, Dispatcher, Itinerary, ItineraryFollower, ItineraryLeader,
+    ParkingManagement, Router,
 };
 use crate::souls::desire::{BuyFood, Home, Work};
 use crate::souls::freight_station::FreightStation;
@@ -65,7 +66,7 @@ pub struct VehicleEnt {
 }
 
 impl SimDrop for VehicleEnt {
-    fn sim_drop(mut self, id: VehicleID, res: &mut Resources) {
+    fn sim_drop(mut self, id: VehicleID, _world: &mut World, res: &mut Resources) {
         if let Some(collider) = self.collider {
             res.write::<TransportGrid>().remove_maintain(collider.0);
         }
@@ -104,12 +105,20 @@ pub struct HumanEnt {
 }
 
 impl SimDrop for HumanEnt {
-    fn sim_drop(mut self, id: HumanID, res: &mut Resources) {
+    fn sim_drop(mut self, id: HumanID, world: &mut World, res: &mut Resources) {
         if let Some(collider) = self.collider {
             res.write::<TransportGrid>().remove_maintain(collider.0);
         }
 
-        res.write::<Market>().remove(SoulID::Human(id));
+        let tick = res.tick();
+        res.write::<Market>().remove(
+            SoulID::Human(id),
+            &res.read::<Map>(),
+            &res.read::<BuildingInfos>(),
+            world,
+            &mut res.write::<Dispatcher>(),
+            tick,
+        );
 
         self.router
             .clear_steps(&mut res.write::<ParkingManagement>())
@@ -128,7 +137,7 @@ pub struct TrainEnt {
 }
 
 impl SimDrop for TrainEnt {
-    fn sim_drop(self, id: TrainID, res: &mut Resources) {
+    fn sim_drop(self, id: TrainID, _world: &mut World, res: &mut Resources) {
         res.write::<Dispatcher>()
             .unregister(DispatchID::FreightTrain(id));
     }
@@ -143,7 +152,7 @@ pub struct WagonEnt {
 }
 
 impl SimDrop for WagonEnt {
-    fn sim_drop(self, _: WagonID, _: &mut Resources) {}
+    fn sim_drop(self, _: WagonID, _world: &mut World, _: &mut Resources) {}
 }
 
 #[derive(Inspect, Serialize, Deserialize)]
@@ -153,8 +162,16 @@ pub struct FreightStationEnt {
 }
 
 impl SimDrop for FreightStationEnt {
-    fn sim_drop(self, id: FreightStationID, res: &mut Resources) {
-        res.write::<Market>().remove(SoulID::FreightStation(id));
+    fn sim_drop(self, id: FreightStationID, world: &mut World, res: &mut Resources) {
+        let tick = res.tick();
+        res.write::<Market>().remove(
+            SoulID::FreightStation(id),
+            &res.read::<Map>(),
+            &res.read::<BuildingInfos>(),
+            world,
+            &mut res.write::<Dispatcher>(),
+            tick,
+        );
 
         let mut d = res.write::<Dispatcher>();
         for (id, _) in self.f.trains {
@@ -174,8 +191,16 @@ pub struct CompanyEnt {
 }
 
 impl SimDrop for CompanyEnt {
-    fn sim_drop(self, id: CompanyID, res: &mut Resources) {
-        res.write::<Market>().remove(SoulID::GoodsCompany(id));
+    fn sim_drop(self, id: CompanyID, world: &mut World, res: &mut Resources) {
+        let tick = res.tick();
+        res.write::<Market>().remove(
+            SoulID::GoodsCompany(id),
+            &res.read::<Map>(),
+            &res.read::<BuildingInfos>(),
+            world,
+            &mut res.write::<Dispatcher>(),
+            tick,
+        );
     }
 }
 
