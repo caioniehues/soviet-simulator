@@ -1,5 +1,11 @@
 # Framework design — what to take from four agent frameworks, and what to build instead
 
+**Kind:** explanation
+**Authority:** explanatory
+**Status:** accepted research
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 Study run 2026-08-24 against fresh upstream clones. Tracked as `sov-framework-design-study-823`.
 Two parts: **Part 1** is the comparison and the reasoning, for a human reader. **Part 2** is the
 operational spec, for agents to execute. Read Part 1 to judge the calls; Part 2 to run the process.
@@ -236,8 +242,9 @@ sub-agents with disjoint prompts (Standards, incl. a 12-item Fowler smell baseli
 `:38`; and Spec, asking for missing/partial, scope creep, and *"requirements that look implemented
 but where the implementation looks wrong"*), then reports them **side by side** — `code-review/SKILL.md:76,78`:
 *"Do not merge or rerank findings… Don't pick a single winner across axes."*
-The reasoning behind the rule is **not in the skill body** — it is in the prose companion at
-`docs/engineering/code-review.md:72`: *"There is no convergence guarantee… do not run it in a loop
+The reasoning behind the rule is **not in the skill body** — it is in the studied
+`mattpocock/skills@5b15a47f:docs/engineering/code-review.md:72` prose companion:
+*"There is no convergence guarantee… do not run it in a loop
 until it comes back clean, because it will not."* Flagging that explicitly because §1.1's own method
 says the body wins and no claim may cite the prose layer: **the mechanism is in the body, the
 justification is not.** An earlier draft of this document attributed that quote to the SKILL.md and
@@ -343,7 +350,7 @@ most is possessed by none of them in usable form**:
 - The best *review shape* (`mattpocock`'s disjoint two-axis with no merge) is a report, not a gate,
   and sits inside a toolbox whose ticket flow this project already rejected.
 
-And `docs/dev-cycle.md` — invented here — is better than all four on the axis they share: it names
+And `docs/process/development-cycle.md` — invented here — is better than all four on the axis they share: it names
 the failure each phase prevents, orders its gates cheap-to-expensive with an argued reason, and
 tiers its agents on measured evidence. Its Phase 0 (GROUND) has no equivalent in any of the four,
 and it is the direct answer to the (b) spec-vs-CODE gap that all four share.
@@ -392,7 +399,7 @@ on the disclosure — again, disposition.
 **#3 is inflated roughly threefold, and the inflation has already propagated.** `b3857f5`'s three
 findings are F1 (the flag), F2 (`Market::remove` leaks `reserved`/`requested`/`dispatches`) and F3
 (`set_requested` has zero production callers). Only F1 turns on `optout_exttrade`. The "three claims"
-phrasing is now copied verbatim into `docs/dev-cycle.md:98` and
+phrasing is now copied verbatim into `docs/process/development-cycle.md:104` and
 `.claude/agents/substrate-cartographer.md:28`.
 
 **And #5a's durable lesson is not "check paths."** `CLAUDE.md` — the one file every agent
@@ -479,7 +486,7 @@ are deliberately defused:
 
 | Existing piece | Verdict | Reason |
 |---|---|---|
-| `docs/dev-cycle.md` 8 phases | **KEEP** | Better than all four on failure-naming and gate ordering. It is the spine |
+| `docs/process/development-cycle.md` 8 phases | **KEEP** | Better than all four on failure-naming and gate ordering. It is the spine |
 | Phase 0 GROUND | **KEEP + FIX** | No framework equivalent; it is our answer to spec-vs-CODE. But its stated cost model is false — the cartographer memory it depends on is empty (finding #10). Fix the store, not the phase |
 | Phase 1 PLAN (lead only) | **KEEP** | Correct; the shared-file ownership warning is hard-won |
 | Phase 2 BUILD | **MODIFY** | The only phase that names no failure it prevents. Give it one: the shared `scenarios/mod.rs` declaration clobber it already describes elsewhere |
@@ -755,8 +762,9 @@ commit-stamped" discipline, which is better than anything upstream.
 Phase 4's gates already run distinct lenses. Two refinements:
 
 - **Reviewers report side by side and are never merged or reranked.** From `mattpocock`
-  `code-review/SKILL.md:76,78`. Its justification lives one layer out, in
-  `docs/engineering/code-review.md:72`: *"There is no convergence guarantee… do not run it in a loop
+  `code-review/SKILL.md:76,78`. Its justification lives one layer out, in the studied
+  `mattpocock/skills@5b15a47f:docs/engineering/code-review.md:72` file:
+  *"There is no convergence guarantee… do not run it in a loop
   until it comes back clean, because it will not."* The rule is adopted on the body's authority; the
   quote is context, not evidence.
 - **The truth axis is named explicitly in every reviewer brief.** Our 16 PAR reports have a
@@ -899,7 +907,7 @@ one pass, and it covers 265 claims for less than the 45-AC backfill above.
 
 | Element | From | Mechanism cited |
 |---|---|---|
-| 8 phases, failure-per-phase, gate ordering | **ours** | `docs/dev-cycle.md` |
+| 8 phases, failure-per-phase, gate ordering | **ours** | `docs/process/development-cycle.md` |
 | Phase 0 GROUND | **ours** | no equivalent in any of the four |
 | "every guard seen failing" | **ours** | `evidence-auditor` |
 | `br` two-layer tracking | **ours** | `CLAUDE.md`; subagent tool-isolation re-probed live |
@@ -1002,7 +1010,7 @@ independently useful.
 | Step | Work | Proves itself by |
 |---|---|---|
 | **0** | **Fix `RESUME.md:84` and `:117` today.** `:84` tells the next agent that `freight_station.rs` is the ONLY correct prior art, with no parking/collider warning. `:117` calls a bincode round-trip *"a real determinism check."* `CLAUDE.md` makes this the first file every agent reads | The live trap stops being armed; the false permission is withdrawn |
-| **0b** | Correct the "falsified three claims" inflation in `docs/dev-cycle.md:98` and `.claude/agents/substrate-cartographer.md:28` (only F1 turns on the flag), and the reversed-time claim in `.claude/agents/doc-reality-auditor.md:24-25` | Two agent definitions stop teaching a false lesson |
+| **0b** | Correct the "falsified three claims" inflation in `docs/process/development-cycle.md:104` and `.claude/agents/substrate-cartographer.md:28` (only F1 turns on the flag), and the reversed-time claim in `.claude/agents/doc-reality-auditor.md:24-25` | Two agent definitions stop teaching a false lesson |
 | **1** | **The golden-hash determinism test.** Fixed seed, N ticks, committed hash; second run from a decoded save compared at the same tick. Also fix `roadmap.md:28`, which repeats the claim | Mutate a tick-order-dependent system; watch it go red. This is the only guard here whose absence is unbounded |
 | **2** | **~30 lines in `build_roadmap.py`** — interpolate `:192`'s two literals and its stale `sov-scope-cut-1p6` reference, `assert` computed totals, emit `RESUME.md`'s state table and corpus counts as generated blocks | Hand-edit a generated block; regeneration overwrites it. #1/#7/#8/#9 become unwritable rather than unchecked |
 | **3** | **Sentinel guard test** in `scenarios/mod.rs`, after minting `SENTINEL-NNNN` keys and reconciling `behavior-corpus.md:7` with `scenarios/mod.rs:2` | Currently fails on all six. **That failure is the deliverable** |
@@ -1157,7 +1165,7 @@ prosecute.
   this as "forbidden", which overstates it by a degree.
 - iterative-development's red test suite and the `rc=0` mutation were run by `id-adversary` and not
   reproduced by the lead. They are the load-bearing evidence for §1.2's enforcement verdict.
-- The charter (`docs/charter-1.0.md`) was not read in this study. Scope claims here defer to it and
+- The charter (`docs/plan/charter-1.0.md`) was not read in this study. Scope claims here defer to it and
   do not re-derive it.
 - No mechanism in Part 2 has been implemented or tested. Every "proves itself by" in §2.7 is a
   prediction, not a result.

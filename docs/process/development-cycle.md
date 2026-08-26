@@ -1,11 +1,17 @@
 # The development cycle
 
+**Kind:** process
+**Authority:** operational
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 How one iteration of this project gets built, who does each part, and what each phase exists to
 prevent. **Every phase here was added because something specific went wrong** — the failure is
 named in each section, so nobody deletes a phase without knowing what it was buying.
 
-Authoritative for process. `br` is authoritative for task state. `docs/charter-1.0.md` is
-authoritative for scope.
+Authoritative for process. `br` is authoritative for task state. The
+[`1.0 charter`](../plan/charter-1.0.md) is authoritative for scope.
 
 ---
 
@@ -53,7 +59,7 @@ to fix quality — add the gate.
 
 ```bash
 br ready                                    # what is unblocked, ranked
-cat docs/superpowers/iterations/RESUME.md   # where the last session stopped
+cat docs/plan/iterations/RESUME.md          # where the last session stopped
 ```
 
 Then Phase 0: dispatch `substrate-cartographer` on every seam the iteration touches, and the domain
@@ -200,12 +206,14 @@ code, and reports what is stale.
 - Four agent definitions targeted `src/sim/` and `src/game/`, paths deleted five days before the
   agents were written.
 - A `br` ticket sat open in the ready queue after its work had shipped.
-- `RESUME.md` claimed 35 epics and 139 stories. The real counts were 36 and 149.
+- A legacy `RESUME.md` reported generated counts that did not match its corpus. Rebuild handoffs
+  from `br`, commits, executed commands, and current generated artifacts instead of copying them.
 
-Then: mark stories `done:ITER-NNNN`, update `behavior-scenarios.md` and `behavior-corpus.md`,
-regenerate `roadmap.md` with `build_roadmap.py` **from the repo root**, append and validate
-`iteration-log.md`, and `grep` for `TODO(ITER-NNNN)` — a hard gate, the iteration is not done
-while its own markers remain.
+Then update the re-derived requirements and evidence inputs, run their documented `--check`
+commands, regenerate [`the roadmap`](../generated/iterations/roadmap.md) with
+`python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/plan/iterations/evidence/target-scenarios.json --output docs/generated/iterations/roadmap.md`,
+and confirm every promoted scenario runs a non-zero test filter. A generated roadmap reports
+status; it never closes work in place of `br`.
 
 Finish with a `scribe` pass over the raw transcripts, not over the lead's digest.
 
@@ -225,22 +233,22 @@ Then the visual proof. Per `CLAUDE.md`, work is not done until the user has seen
 
 ## Domain advisors
 
-Five advisors, sized off the actual roadmap rather than intuition:
+Select the advisor by the re-derived requirement cluster, not inherited iteration numbering:
 
-| Advisor | Cluster | Scheduled stories |
-|---|---|---|
-| `utilities-modeller` | ITER-0008, 0009, 0010 | 26 |
-| `logistics-modeller` | ITER-0003, 0006 | 25 |
-| `settlement-modeller` | ITER-0007, 0011 | 24 |
-| `kornai-economist` | ITER-0012 + the core loop everywhere | 13 |
-| `soviet-authenticity` | presentation, all iterations | — |
+| Advisor | Cluster |
+|---|---|
+| `utilities-modeller` | power, water, sewage, heating, waste, weather |
+| `logistics-modeller` | dispatch, finite vehicles, routing, congestion |
+| `settlement-modeller` | citizens, households, needs, services |
+| `kornai-economist` | shortage economy and the dishonest enterprise |
+| `soviet-authenticity` | presentation and player-facing visual proof |
 
 **They never write code.** They answer whether a mechanic is consistent with the model. They
 advise on request during Phase 0, and hold a hard sign-off gate in Phase 4 for iterations in their
 own cluster only.
 
 `kornai-economist` is special: the dishonest enterprise is the core loop of the whole game, so it
-is consulted far outside ITER-0012.
+is consulted wherever a contract touches allocation, shortages, or enterprise reporting.
 
 ---
 
@@ -267,8 +275,9 @@ Which puts one full iteration at roughly:
 Ground ~80k · Build ~360k · Prove ~40k · Gate ~165k · Wrap ~30k   ≈ 675k
 ```
 
-Thirteen iterations remain after ITER-0000. That number is why cheap-filter ordering in Phase 4
-and persistent cartographer memory are load-bearing, not polish.
+The active requirement schedule and its target-evidence counts are generated, so do not copy
+iteration totals into this process document. Cheap-filter ordering in Phase 4 and persistent
+cartographer memory remain load-bearing, not polish.
 
 ---
 
@@ -313,9 +322,8 @@ through.
 but they duplicate `br` and the roadmap, and two competing ticket systems is worse than either. Its
 TypeScript-specific skills (shoehorn, dependency-cruiser, Husky) do not apply to a Rust project.
 
-`docs/wayfinder-brief.md` is an artifact of an earlier mattpocock `/wayfinder` session, written
-five days before the fork. It is marked historical and superseded — read it for the reasoning behind
-settled identity decisions, never as a plan of record.
+The earlier mattpocock `/wayfinder` brief is retained in the archive as historical provenance; it
+is never a plan of record.
 
 ## How this relates to the `iterative-development` skill
 
@@ -325,7 +333,7 @@ Two loops, different scopes. They do not compete.
 |---|---|---|
 | Scope | The **outer** loop across the whole project | The **inner** loop of one iteration |
 | Answers | *What* to build and in what order | *Who* does each part and *how* it is proven |
-| Artifacts | `requirements/`, `roadmap.md`, `behavior-corpus.md`, `iteration-log.md` | the agent roster, the gates, the phase order |
+| Artifacts | `docs/plan/iterations/requirements/`, `docs/plan/iterations/evidence/`, and `docs/generated/iterations/roadmap.md` | the agent roster, the gates, the phase order |
 
 The skill's `running-an-iteration` gives the canonical steps — sentinel baseline, citation check,
 scope review, decompose into code *and evidence* tasks, dispatch, post-iteration runs, resolve

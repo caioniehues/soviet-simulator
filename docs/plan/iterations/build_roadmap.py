@@ -60,6 +60,8 @@ def build(requirements_dir: Path, extract_path: Path, evidence_path: Path) -> st
         "**Kind:** generated roadmap",
         "**Authority:** reporting only; requirements and specifications remain authoritative",
         "**Status:** draft — no target implementation is claimed",
+        "**Owner:** project lead",
+        "**Last verified:** 2026-08-24",
         "**Generator:** `python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/plan/iterations/evidence/target-scenarios.json --output docs/generated/iterations/roadmap.md`",
         "",
         "This roadmap reports the current re-derived Wave 3 contract. It does not import legacy completion, scenario IDs, or status claims. Current substrate regressions are intentionally reported outside the target-evidence totals.",

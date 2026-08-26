@@ -7,7 +7,7 @@
 **Last verified:** 2026-08-24
 
 This move-first contract was superseded by
-[`controlled-documentation-rewrite-plan.md`](controlled-documentation-rewrite-plan.md) after the
+[`controlled-documentation-rewrite.md`](controlled-documentation-rewrite.md) after the
 user approved an archive-first controlled rewrite. It remains the file-level inventory; the newer
 plan controls sequencing and authority. Its historical/provenance paths were archived during Wave
 1 under the newer plan; active-authority cutover paths remain pending.

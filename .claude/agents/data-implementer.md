@@ -86,7 +86,7 @@ while you are in the area is high-value work.
 
 ## Scope
 
-`docs/charter-1.0.md` **binds on scope**. Its Post-1.0 and Never lists are absolute. Relevant to
+`docs/plan/charter-1.0.md` **binds on scope**. Its Post-1.0 and Never lists are absolute. Relevant to
 content authoring: **1.0 ships 16 resources**, one fixed **1950s–60s era**, a **flat catalogue** with
 **fixed per-kind border prices (no market)**, and a **single rouble**. Deferred: perishables and
 refrigerated transport, containers, vehicle manufacture, era-gated catalogues. Never: tourism,

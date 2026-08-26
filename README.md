@@ -1,11 +1,17 @@
 # Soviet Simulator
 
+**Kind:** repository entrypoint
+**Authority:** operational
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 A large-scale socialist planned-economy city, infrastructure, logistics and
 society simulator. The player fantasy is **THE PLANNER**: quotas from above,
 scarce means below. Nothing teleports — every effect has a physical cause.
 There is no game over; failure is leaner tranches, colder homes, longer queues.
 
-**Status: mid-migration.** As of 2026-08-22 the project was rebased off its
+As of 2026-08-22 the project was rebased off its
 own Bevy prototype onto a hard fork of [Egregoria](https://github.com/Uriopass/Egregoria),
 which brings a mature road/lane/intersection map model, traffic and pathfinding,
 procedural buildings, terrain, a wgpu renderer, save/load and a Lua prototype
@@ -59,7 +65,6 @@ The `--release` flag is not optional — a debug build is unplayably slow.
 | `prototypes/` | Lua-driven data definitions for buildings, goods, recipes |
 | `geom/`, `common/` | Shared maths and utilities |
 | `headless/`, `networking/` | Headless runner and multiplayer |
-| `docs/` | Canonical charter, glossary, specifications, architecture, process, and archive |
-| `spec/` | Legacy specification inputs being rewritten; not current authority |
+| `docs/` | Canonical charter, glossary, specifications, architecture, process, plans, generated status, and archive |
 
 Start with [`docs/README.md`](docs/README.md) for the documentation authority map.

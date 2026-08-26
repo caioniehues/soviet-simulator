@@ -1,5 +1,11 @@
 # Brief — study four agent-engineering frameworks, then design ours
 
+**Kind:** research brief
+**Authority:** explanatory
+**Status:** historical input
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 Paste this whole file as the opening prompt of a fresh session, run from
 `/home/caio/soviet-simulator`. Budget generously; this is a deep study, not a survey.
 
@@ -46,7 +52,7 @@ Bevy track that preceded it was discarded; the repo is GPL-3.0 by inheritance.
 Scale and shape, because these decide which framework properties matter:
 
 - **130 scheduled stories across 13 remaining iterations**, from a corpus of 149 stories / 370 ACs
-  in `docs/superpowers/iterations/requirements/`.
+  in the now-archived legacy iteration corpus.
 - Single developer plus agents. **No users, no telemetry, no browser, no App Store, no PR review
   flow.** Task tracking is `br` (beads), not GitHub issues.
 - `simulation/` ~15,400 lines · `native_app/` ~3,600 · `base_mod/*.lua` ~950.
@@ -54,8 +60,9 @@ Scale and shape, because these decide which framework properties matter:
   over** (failure degrades into queues and shortages, never terminates).
 - Determinism matters: the sim bincode-round-trips and hash-compares every tick.
 
-Read these before designing: `CLAUDE.md`, `docs/dev-cycle.md`, `docs/charter-1.0.md`, `CONTEXT.md`,
-`docs/superpowers/iterations/RESUME.md`, and `.claude/agents/` (fifteen agent definitions).
+Read these before designing: `CLAUDE.md`, `docs/process/development-cycle.md`,
+`docs/plan/charter-1.0.md`, `CONTEXT.md`, `docs/plan/iterations/RESUME.md`, and `.claude/agents/`
+(fifteen agent definitions).
 
 ---
 
@@ -126,7 +133,7 @@ pool does not have this problem. Decide how the custom framework handles it.
 
 ## Step 4 — what already exists here. Do not reinvent it.
 
-- **`docs/dev-cycle.md`** — an 8-phase cycle (GROUND → PLAN → BUILD → PROVE → GATE → DISPOSITION →
+- **`docs/process/development-cycle.md`** — an 8-phase cycle (GROUND → PLAN → BUILD → PROVE → GATE → DISPOSITION →
   WRAP → SHIP) where every phase names the failure it prevents. **Phase 0 (GROUND) has no equivalent
   in any of the four frameworks** and was invented here.
 - **Fifteen agents** in `.claude/agents/`, tiered deliberately: sonnet implements, opus reviews and

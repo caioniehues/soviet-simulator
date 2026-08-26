@@ -35,18 +35,18 @@ reporting surfaces, never authority upstream of requirements.
 
 | Surface | Current count/state | Direct evidence | Wave 3 disposition |
 |---|---|---|---|
-| Legacy requirements | 36 EPIC files, **149** STORY headings, **370** `[SUBSTRATE:]` tags | Generator reads STORY blocks and scenario tags (`docs/superpowers/iterations/build_roadmap.py:78-91`) | Re-derive every story against charter scope and stable SPEC claims. Retain an ID only if its meaning survives; map every old ID to retained, rewritten, split, deferred, or retired. |
-| Extract | 8 JSON inputs; validator checks structural fields and legacy tag syntax | `docs/superpowers/iterations/extract/validate.py:9-57` | Re-extract from rewritten requirements. Schema success is not semantic, command, or cross-file corpus-ID proof. |
-| Scenarios and corpus | **153** rows: 1 JOURNEY and 152 SCENARIO entries; every command is **TBD** | `docs/superpowers/iterations/behavior-scenarios.md:3-9`; `docs/superpowers/iterations/behavior-corpus.md:3-18` | Rebuild cards, corpus, and coverage with executable bindings. Do not move the old corpus as evidence. |
-| Sentinels | **6** promoted sentinels, all `TBD` | `docs/superpowers/iterations/behavior-corpus.md:11-18` | No sentinel is promotable until its command runs at least one test. |
-| Coverage ledger | 23 rows: 22 `covered`, 1 `non-normative`; all cite root `spec/` paths | `docs/superpowers/iterations/coverage-ledger.md:6-32` | Rebuild from rewritten requirement-to-SPEC-to-evidence links; labels are not proof of current coverage. |
-| Roadmap/generator | Parser recognizes deferred markers but emitted header is hard-coded to “plus 1 deferred” | `docs/superpowers/iterations/build_roadmap.py:82-99`, `docs/superpowers/iterations/build_roadmap.py:188-194`; false header at `docs/superpowers/iterations/roadmap.md:1-3` | Replace generator around explicit requirement metadata; validate totals and reproduce the new roadmap byte-for-byte. |
-| RESUME | Reports 151 scenarios/5 sentinels despite the 153-row/6-sentinel corpus; calls truck work in flight despite current SmallTruck registration and real dispatch | stale counts at `docs/superpowers/iterations/RESUME.md:12-20`; stale truck narrative at `docs/superpowers/iterations/RESUME.md:73-85`; current code at `simulation/src/map_dynamic/dispatch.rs:95-104`, `simulation/src/economy/market.rs:462-609` | Reconstruct from current `br`, verified commits, executed commands, and regenerated counts; copy no narrative status forward. |
+| Legacy requirements | 36 EPIC files, **149** STORY headings, **370** `[SUBSTRATE:]` tags | Archived generator reads old STORY blocks and scenario tags (`docs/archive/iterations/legacy/corpus/build_roadmap.py:78-91`) | Re-derive every story against charter scope and stable SPEC claims. Retain an ID only if its meaning survives; map every old ID to retained, rewritten, split, deferred, or retired. |
+| Extract | 8 JSON inputs; validator checks structural fields and legacy tag syntax | `docs/archive/iterations/legacy/corpus/extract/validate.py:9-57` | Re-extract from rewritten requirements. Schema success is not semantic, command, or cross-file corpus-ID proof. |
+| Scenarios and corpus | **153** rows: 1 JOURNEY and 152 SCENARIO entries; every command is **TBD** | `docs/archive/iterations/legacy/corpus/behavior-scenarios.md:3-9`; `docs/archive/iterations/legacy/corpus/behavior-corpus.md:3-18` | Rebuild cards, corpus, and coverage with executable bindings. Do not move the old corpus as evidence. |
+| Sentinels | **6** promoted sentinels, all `TBD` | `docs/archive/iterations/legacy/corpus/behavior-corpus.md:11-18` | No sentinel is promotable until its command runs at least one test. |
+| Coverage ledger | 23 rows: 22 `covered`, 1 `non-normative`; all cite root `spec/` paths | `docs/archive/iterations/legacy/corpus/coverage-ledger.md:6-32` | Rebuild from rewritten requirement-to-SPEC-to-evidence links; labels are not proof of current coverage. |
+| Roadmap/generator | Parser recognizes deferred markers but emitted header is hard-coded to “plus 1 deferred” | `docs/archive/iterations/legacy/corpus/build_roadmap.py:82-99`, `docs/archive/iterations/legacy/corpus/build_roadmap.py:188-194`; false archived header at `docs/archive/iterations/legacy/corpus/roadmap.md:1-3` | Replace generator around explicit requirement metadata; validate totals and reproduce the new roadmap byte-for-byte. |
+| RESUME | Reports 151 scenarios/5 sentinels despite the 153-row/6-sentinel corpus; calls truck work in flight despite current SmallTruck registration and real dispatch | stale counts at `docs/archive/iterations/legacy/corpus/RESUME.md:12-20`; stale truck narrative at `docs/archive/iterations/legacy/corpus/RESUME.md:73-85`; current code at `simulation/src/map_dynamic/dispatch.rs:95-104`, `simulation/src/economy/market.rs:462-609` | Reconstruct from current `br`, verified commits, executed commands, and regenerated counts; copy no narrative status forward. |
 
 The exact 149/370/153/6/TBD inventory was counted from the current files on 2026-08-24. The
 legacy RESUME's 130-scheduled/19-deferred statement conflicts with the generator output's
-hard-coded one-deferred header (`docs/superpowers/iterations/RESUME.md:14-20`,
-`docs/superpowers/iterations/roadmap.md:1-3`). This is a generator defect, not a license to treat
+hard-coded one-deferred header (`docs/archive/iterations/legacy/corpus/RESUME.md:14-20`,
+`docs/archive/iterations/legacy/corpus/roadmap.md:1-3`). This is a generator defect, not a license to treat
 RESUME as scope authority.
 
 ## Runnable-test identity and corpus collisions
@@ -59,9 +59,9 @@ collide with tests that prove different behaviour:
 
 | Legacy corpus ID/meaning | Current test identity/meaning | Consequence |
 |---|---|---|
-| 0082 mine extraction; 0083 output storage | `scenario_0082_dispatch_gates_stock_not_match`; `scenario_0083_zero_trucks_blocks_delivery` | Same ID, different contract (`docs/superpowers/iterations/behavior-corpus.md:98-99`, `simulation/src/tests/scenarios/hoarding.rs:96-145`). |
-| 0093–0097 combustion/storage/transport/water/bottleneck | Recipe tests cover different multi-input, extraction, storage, workforce, and treasury guards | Same IDs cannot be imported as proof (`docs/superpowers/iterations/behavior-corpus.md:108-112`, `simulation/src/tests/scenarios/recipe_provided.rs:43-230`). |
-| 0151 four dispatch states | `scenario_0151_inflated_request_hoards_honest_does_not` | Same ID, different contract (`docs/superpowers/iterations/behavior-corpus.md:164`, `simulation/src/tests/scenarios/hoarding.rs:189-190`). |
+| 0082 mine extraction; 0083 output storage | `scenario_0082_dispatch_gates_stock_not_match`; `scenario_0083_zero_trucks_blocks_delivery` | Same ID, different contract (`docs/archive/iterations/legacy/corpus/behavior-corpus.md:98-99`, `simulation/src/tests/scenarios/hoarding.rs:96-145`). |
+| 0093–0097 combustion/storage/transport/water/bottleneck | Recipe tests cover different multi-input, extraction, storage, workforce, and treasury guards | Same IDs cannot be imported as proof (`docs/archive/iterations/legacy/corpus/behavior-corpus.md:108-112`, `simulation/src/tests/scenarios/recipe_provided.rs:43-230`). |
+| 0151 four dispatch states | `scenario_0151_inflated_request_hoards_honest_does_not` | Same ID, different contract (`docs/archive/iterations/legacy/corpus/behavior-corpus.md:164`, `simulation/src/tests/scenarios/hoarding.rs:189-190`). |
 
 Existing tests may later be retained as named legacy guards only after binding to rewritten
 requirements, SPEC anchors, and mutation-proven evidence. `TestCtx`'s encode/decode-and-hash check
@@ -69,11 +69,11 @@ is serialization round-trip stability, not repeat-run determinism (`simulation/s
 
 ## Discovery and migration obligations
 
-Active discovery still routes to legacy paths: AGENTS points to the old development cycle and
-RESUME (`AGENTS.md:7-9`); CLAUDE points to the old cycle, art direction, and iterations directory
-(`CLAUDE.md:17-23`); and the process document repeats the old charter and RESUME paths
-(`docs/dev-cycle.md:7`, `docs/dev-cycle.md:56`). These are cutover findings, not alternate
-authorities.
+The Phase 0 stale-discovery finding is resolved by canonical discovery: AGENTS points to the
+current process and RESUME (`AGENTS.md:11-15`); CLAUDE points to the current process
+(`CLAUDE.md:21-26`); and the process document points to the charter and current RESUME
+(`docs/process/development-cycle.md:13-14`, `docs/process/development-cycle.md:58-63`). The
+archived legacy corpus remains provenance, not an alternate authority.
 
 Wave 3 must proceed in this order:
 
@@ -83,7 +83,7 @@ Wave 3 must proceed in this order:
 4. Cut root discovery, process, art-direction, agent definitions, and approved research/plan paths together.
 5. Prove no active old-path reference remains, every live requirement resolves to charter and SPEC, every promoted scenario runs a nonzero test, and generated output reproduces byte-for-byte.
 
-These obligations and final-gate order are binding operational work (`docs/research/controlled-documentation-rewrite-plan.md:133-169`). The migration manifest is superseded but records intended destinations and the required roadmap regeneration (`docs/research/documentation-migration-manifest.md:7-15`, `docs/research/documentation-migration-manifest.md:41-52`). Operational directories `.claude/**`, `.codex/**`, and `.beads/**` remain in place (`docs/research/controlled-documentation-rewrite-plan.md:146-152`).
+These obligations and final-gate order are binding operational work (`docs/plan/controlled-documentation-rewrite.md:133-169`). The migration manifest is superseded but records intended destinations and the required roadmap regeneration (`docs/plan/documentation-migration.md:7-15`, `docs/plan/documentation-migration.md:41-52`). Operational directories `.claude/**`, `.codex/**`, and `.beads/**` remain in place (`docs/plan/controlled-documentation-rewrite.md:146-152`).
 
 ## Evidence boundary
 

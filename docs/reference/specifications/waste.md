@@ -44,7 +44,7 @@ All guards are **UNIMPLEMENTED** and block ratification. A zero-test command is 
 
 ## Substrate and decisions
 
-No waste building kind or registered system exists (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). Existing freight/vehicles cannot prove waste collection. The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records no waste save/UI/test surface. Domestic fulfillment/custody belongs to Logistics (`docs/reference/specifications/logistics.md:29-62`) and on-hand balance mutation belongs to Resources (`docs/reference/specifications/resources.md:45-55`). Legacy `spec/waste.md` is provenance only.
+No waste building kind or registered system exists (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). Existing freight/vehicles cannot prove waste collection. The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records no waste save/UI/test surface. Domestic fulfillment/custody belongs to Logistics (`docs/reference/specifications/logistics.md:29-62`) and on-hand balance mutation belongs to Resources (`docs/reference/specifications/resources.md:45-55`). The [archived legacy Waste specification](../../archive/legacy-specifications/waste.md) is provenance only.
 
 ## Deferred behavior
 

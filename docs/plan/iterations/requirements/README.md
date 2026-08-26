@@ -7,8 +7,9 @@
 **Last verified:** 2026-08-24
 
 The five requirement documents and the migration ledger are deterministic generated artifacts.
-The legacy corpus supplies only STORY identity/title coverage; the requirement catalogue in the
-generator derives its live contracts from the charter and stable specification anchors.
+The archived legacy corpus at `docs/archive/iterations/legacy/corpus/requirements/` supplies only
+STORY identity/title coverage; the requirement catalogue in the generator derives its live
+contracts from the charter and stable specification anchors.
 
 Canonical generation command:
 

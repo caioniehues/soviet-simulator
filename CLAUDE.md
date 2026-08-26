@@ -1,5 +1,11 @@
 # Soviet city-builder — a hard fork of Egregoria
 
+**Kind:** process entrypoint
+**Authority:** operational
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 Rust, ECS. The fork happened 2026-08-22 and **the earlier Bevy track was discarded**. Bevy is not a
 dependency; its documents live only under `docs/archive/bevy-track/`. Trust current code for
 substrate behavior. The repo is GPL-3.0 by inheritance, permanently.
@@ -14,14 +20,14 @@ state. Two design pillars constrain every change:
 
 Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
 
-- **How work gets done: `docs/dev-cycle.md`.** Eight phases, the 15-agent roster and what each is
+- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 15-agent roster and what each is
   for. Every phase names the failure it exists to prevent. Read it before running a wave.
 - Plan of record: `docs/plan/charter-1.0.md`. It **binds on scope**. Ratified files under
-  `docs/reference/specifications/` bind mechanism inside that scope; legacy `spec/` files are
-  rewrite inputs only. The charter's Post-1.0 and Never lists are absolute.
-- Art direction: `docs/art-direction.md`. Palette, the look, and the asset provenance table.
-- Live plan: `docs/superpowers/iterations/` — `roadmap.md`, `RESUME.md` (read this first),
-  `requirements/EPIC-*.md`.
+  `docs/reference/specifications/` bind mechanism inside that scope; archived legacy documents are
+  provenance only. The charter's Post-1.0 and Never lists are absolute.
+- Art direction: `docs/reference/art-direction.md`. Palette, current renderer evidence, and asset provenance.
+- Live plan: `docs/plan/iterations/` — `RESUME.md` (read this first), requirements and evidence;
+  generated status is `docs/generated/iterations/roadmap.md`.
 - Current substrate map: `docs/reference/architecture/substrate.md`; follow its fact-sheet citations.
 - Keep durable project status in `README.md`: what is built, what is left, and an asset table.
 - Generate visual assets with `/asset-gen`. Confirm the spend with the user before the first paid generation.

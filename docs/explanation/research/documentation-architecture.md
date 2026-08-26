@@ -2,11 +2,13 @@
 
 **Kind:** explanation
 **Authority:** explanatory
-**Status:** accepted
+**Status:** superseded migration research
 **Owner:** project lead
 **Last verified:** 2026-08-24
 
-**Scope:** repository Markdown and generated planning artifacts, not Rust API documentation.
+**Scope:** repository Markdown and generated planning artifacts, not Rust API documentation. This
+records the pre-cutover rationale and inventory; the active execution plan is
+[`../../plan/controlled-documentation-rewrite.md`](../../plan/controlled-documentation-rewrite.md).
 
 ## Recommendation
 
@@ -97,7 +99,7 @@ decisions, and glossary—and recommends ADRs for important, expensive, or risky
    short archive index. Do not silently delete superseded rationale; Git history remains the
    record of ordinary revisions.
 
-5. **Links and validation.** Use portable inline links (`[label](path)`) and relative links for
+5. **Links and validation.** Use portable inline links such as `label (relative-path)` and relative links for
    repository files; GitHub documents both this form and generated section anchors
    ([GitHub Markdown links](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#links)). Add CI checks for Markdown linting, local-file links, anchors, and external links with retry/cache policy. Docs-as-code explicitly supports version control, review, and automated tests
    ([Write the Docs](https://www.writethedocs.org/guide/docs-as-code/)); no primary source found

@@ -45,7 +45,7 @@ All guards are **UNIMPLEMENTED** and block ratification. A zero-test command is 
 
 ## Substrate and decisions
 
-No heating kind or registered heating/weather system exists (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). The only flow is aggregate binary electricity blackout (`simulation/src/map_dynamic/electricity.rs:40-92`), which cannot prove thermal behaviour. The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records no heating save/UI/test surface. Legacy `spec/heating.md` is rewrite input only.
+No heating kind or registered heating/weather system exists (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). The only flow is aggregate binary electricity blackout (`simulation/src/map_dynamic/electricity.rs:40-92`), which cannot prove thermal behaviour. The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records no heating save/UI/test surface. The [archived legacy Heating specification](../../archive/legacy-specifications/heating.md) is rewrite provenance only.
 
 ## Deferred behavior
 

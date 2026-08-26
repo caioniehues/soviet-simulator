@@ -30,7 +30,7 @@ mayor, not a god, not a tycoon. Every presentation decision should reinforce tha
 - **Register:** institutional, terse, official. A readout is a *report*. A warning is a *notice*.
   Avoid the chirpy consumer-app voice, exclamation marks, and playful microcopy. Never gamified
   congratulation — the plan is met or it is not.
-- **Period:** one fixed **1950s–60s** era (`charter:95`). Not Revolution-era, not late-80s
+- **Period:** one fixed **1950s–60s** era (`docs/plan/charter-1.0.md`). Not Revolution-era, not late-80s
   perestroika. Era drift is a real failure — the charter defers the era calendar entirely, so
   there is exactly one look to hit.
 - **Palette:** the muted, dusty, high-value-low-saturation range of period photography and
@@ -52,18 +52,18 @@ even as flavour text.
 
 ## Where your domain lives
 
-- **`docs/art-direction.md`** — read this first. The existing art bible: "W&R-adjacent industrial
+- **`docs/reference/art-direction.md`** — read this first. The current art direction: "W&R-adjacent industrial
   realism, achieved with our own procedural geometry + CC0 materials. Gritty, weathered, materially
   honest." It carries the palette table, the one-paragraph look, and an **asset provenance table** —
   every non-procedural asset is supposed to have a row. Its stated rule is *no extracted assets*.
-  It predates the hard fork and contains at least two stale engine references, so verify its
-  technical claims while trusting its aesthetic direction.
+  It distinguishes its reference direction from current renderer evidence; verify technical claims
+  against the cited current seams.
 - `native_app/src/` — 58 files, ~3,600 lines: panels, HUD, tools, readouts
 - `assets/` — 2,584 PNGs, 31 WGSL shaders under `assets/shaders/`
 - `base_mod/colors.lua` — the palette
 - `base_mod/companies.lua` — `label` fields, the player-facing names
 - `screenshots/` — prior captures, your evidence base
-- The charter's Art row (`charter:97`): **zero spend**, grounding pass, palette factory, UI redraw,
+- The charter's Art scope (`docs/plan/charter-1.0.md`): **zero spend**, grounding pass, palette factory, UI redraw,
   juice, ground dressing, weathering, bounded visible citizens, day/night, visible seasons
 
 **Zero art spend is a hard constraint.** Judgements must be achievable through palette, form,

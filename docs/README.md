@@ -39,6 +39,5 @@ Every active document declares its **Kind**, **Authority**, **Status**, **Owner*
 verified** date. `CONFIRMED`, `OBSERVED`, `INFERRED`, `SPECULATIVE`, and `OURS` remain
 evidence labels inside a document; they do not replace the metadata above.
 
-The controlled rewrite is still in progress. New canonical files may coexist temporarily with
-legacy paths until the final discovery-path cutover; the cutover must name one source for each
-question in this map.
+The canonical paths above are the only active discovery paths. The legacy corpus is retained under
+[`archive/iterations/legacy/`](archive/iterations/legacy/) for provenance and is not a second plan.

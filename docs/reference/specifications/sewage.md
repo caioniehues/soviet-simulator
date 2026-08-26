@@ -43,7 +43,7 @@ All guards are **UNIMPLEMENTED** and block ratification. A zero-test command is 
 
 ## Substrate and decisions
 
-No sewage kind or registered system exists (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). Electricity's road cache (`simulation/src/map/electricity_cache.rs:203-279`) cannot establish sewage. The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records no sewage save/UI/test surface. Legacy `spec/sewage.md` is rewrite input, not mechanism authority.
+No sewage kind or registered system exists (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). Electricity's road cache (`simulation/src/map/electricity_cache.rs:203-279`) cannot establish sewage. The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records no sewage save/UI/test surface. The [archived legacy Sewage specification](../../archive/legacy-specifications/sewage.md) is rewrite provenance, not mechanism authority.
 
 ## Deferred behavior
 

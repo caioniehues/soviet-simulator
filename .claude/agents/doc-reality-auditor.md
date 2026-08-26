@@ -46,6 +46,10 @@ finished is dead weight and will be dispatched by mistake.
 **3. `br` tickets against reality.** For each open ticket, does its work appear done in the code or
 git history? For each closed one, does its `--reason` cite evidence that actually holds? Run
 `br ready`, `br blocked`, `br list --status open`. **Do not close tickets yourself** — report them.
+During a documentation-path cutover, also scan every active issue's description and acceptance
+criteria for deleted or demoted discovery paths. `br` is task-state authority, so a stale path
+there is a release-blocking contradiction even when Markdown links are clean; report the exact
+issue field and canonical replacement.
 
 **4. Counts, totals and cross-references.** Story counts, epic counts, test counts, "N of M done"
 progress lines. Recompute them. They drift silently and get quoted forward.
@@ -58,10 +62,12 @@ conclusion from a false premise, and the next editor will act on the premise.
 `bevy.md`, `src/sim/`, `src/game/`, or the pre-fork rung ladder is suspect. Bevy is not a dependency;
 only an orphan registry directory remains.
 
-**7. Requirement and roadmap artifacts.** `docs/superpowers/iterations/` — do `roadmap.md`,
-`RESUME.md`, `behavior-corpus.md` and `requirements/` agree with each other and with the code?
-`build_roadmap.py` regenerates the roadmap **from the repo root**; check whether it has drifted from
-its source. Corpus entries whose `Command` is `TBD` are unexecuted evidence.
+**7. Requirement and roadmap artifacts.** Do `docs/plan/iterations/requirements/`,
+`docs/plan/iterations/evidence/`, `docs/generated/iterations/roadmap.md`, and
+`docs/plan/iterations/RESUME.md` agree with each other and with the code? The canonical generators
+regenerate requirements, evidence, and roadmap from the repository root; check whether an artifact
+has drifted from its source. Evidence entries whose command runs zero tests or remains unimplemented
+are not promoted proof.
 
 ## Method
 

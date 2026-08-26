@@ -1,12 +1,18 @@
 # Soviet Simulator agent guide
 
+**Kind:** process entrypoint
+**Authority:** operational
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 ## Start here
 
 1. Read `CLAUDE.md` before any work. It contains the fork reality, domain pillars, task ledger, verification command, and delivery bar.
 2. Read `docs/reference/glossary.md` before naming domain concepts or changing the simulation model.
-3. Read `docs/dev-cycle.md` before planning or running a multi-agent wave.
-4. Read `docs/superpowers/iterations/RESUME.md` before resuming an iteration.
-5. Treat `docs/plan/charter-1.0.md` as scope authority, `docs/reference/specifications/` as mechanism authority after each specification is ratified, `br` as task-state authority, and current code as substrate authority. Legacy `spec/` files are rewrite inputs, not current authority.
+3. Read `docs/process/development-cycle.md` before planning or running a multi-agent wave.
+4. Read `docs/plan/iterations/RESUME.md` before resuming an iteration.
+5. Treat `docs/plan/charter-1.0.md` as scope authority, `docs/reference/specifications/` as mechanism authority after each specification is ratified, `br` as task-state authority, and current code as substrate authority. Archived legacy specifications are rewrite provenance, not current authority.
 
 `docs/archive/bevy-track/ROADMAP.md` preserves the discarded Bevy-era history. It is not the plan of record.
 

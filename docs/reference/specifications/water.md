@@ -44,7 +44,7 @@ All guards are **UNIMPLEMENTED** and block ratification. A zero-test command is 
 
 ## Substrate and decisions
 
-No Water network/system exists in current building-kind and scheduler enumerations (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). The physical-economy contracts prohibit Water cargo and require a Water-owned connected finite-rate metered transfer before Trade clearance (`docs/reference/specifications/resources.md:21-25,41-43`; `docs/reference/specifications/trade.md:52-64,77-82`). The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records renderer water only. Legacy `spec/water.md` is rewrite input; its tanker claim is rejected.
+No Water network/system exists in current building-kind and scheduler enumerations (`simulation/src/map/objects/building.rs:17-37`; `simulation/src/init.rs:52-70`). The physical-economy contracts prohibit Water cargo and require a Water-owned connected finite-rate metered transfer before Trade clearance (`docs/reference/specifications/resources.md:21-25,41-43`; `docs/reference/specifications/trade.md:52-64,77-82`). The [Wave 2 fact-sheet](../../research/fact-sheets/wave2-substrate.md#2c--utilities-electricity-water-sewage-heating-and-waste) records renderer water only. The [archived legacy Water specification](../../archive/legacy-specifications/water.md) is rewrite provenance; its tanker claim is rejected.
 
 ## Deferred behavior
 

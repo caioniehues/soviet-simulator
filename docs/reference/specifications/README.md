@@ -65,5 +65,7 @@ binding or proves current fork behavior.
 | Settlement | [Households](households.md), [Citizens](citizens.md), [Education](education.md), [Healthcare](healthcare.md), [Crime](crime.md) |
 | Utilities | [Electricity](electricity.md), [Water](water.md), [Sewage](sewage.md), [Heating](heating.md), [Waste](waste.md) |
 
-Every listed specification is currently `draft`, not ratified. Their legacy counterparts under
-root `spec/` remain rewrite inputs only and are not current mechanism authority.
+Every listed specification is currently `draft`, not ratified. Their archived legacy
+specification counterparts are provenance only and are not current mechanism authority. See
+[`docs/archive/legacy-specifications/`](../../archive/legacy-specifications/) when original
+rewrite inputs must be inspected.

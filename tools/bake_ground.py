@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bake docs/art-direction.md's ground palette into the CC0 ground textures.
+"""Bake docs/reference/art-direction.md's ground palette into CC0 ground textures.
 
 The ambientCG source photos are saturated lawn-green (mean sRGB #446628,
 saturation 0.56).  A StandardMaterial tint cannot correct that: reaching the
@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-# (output, source stem, target hex from docs/art-direction.md, chroma retained)
+# (output, source stem, target hex from docs/reference/art-direction.md, chroma retained)
 #
 # `dirt` is baked twice because one ambientCG photo serves two palette roles:
 # building yards are worn earth, dirt roads are the lighter dry mud beside them.

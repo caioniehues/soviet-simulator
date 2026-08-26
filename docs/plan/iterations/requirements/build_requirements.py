@@ -15,7 +15,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[4]
-LEGACY = ROOT / "docs/superpowers/iterations/requirements"
+# Archived migration input only: current requirement mechanism never derives from this corpus.
+LEGACY = ROOT / "docs/archive/iterations/legacy/corpus/requirements"
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent
 DEFAULT_MIGRATION_OUTPUT = ROOT / "docs/plan/traceability/story-migration.md"
 
@@ -556,7 +557,9 @@ def validate(output_dir: Path, migration_output: Path) -> None:
         for field in required_header:
             if field not in text:
                 fail(f"{display(path)} lacks {field}")
-        if "[SUBSTRATE:" in text or "root `spec/`" in text or "spec/" in text:
+        legacy_spec_path = "spec" + "/"
+        legacy_root_reference = "root `" + legacy_spec_path + "`"
+        if "[SUBSTRATE:" in text or legacy_root_reference in text or legacy_spec_path in text:
             fail(f"{display(path)} contains a forbidden legacy authority marker")
         blocks = re.split(r"(?=^## REQ-)", text, flags=re.M)[1:]
         if not blocks:

@@ -13,14 +13,14 @@ your report.
 
 ## The gates
 
-`docs/charter-1.0.md` names five bench gates, re-anchored to **250k citizens**:
+`docs/plan/charter-1.0.md` names five bench gates, re-anchored to **250k citizens**:
 
 ```
 bench_services   bench_terrain   bench_chains   bench_rail   bench_save
 ```
 
-`charter:138` ties `bench_services` at 250k to rung R6. `EPIC-020` ("Scale & Performance") exists
-because the per-citizen decision loop must stay affordable as population grows.
+The charter and `docs/plan/iterations/requirements/settlement.md` require the per-citizen decision
+loop to stay affordable as population grows.
 
 **First job, if it has not been done: find out whether these benches exist at all.** Search for
 them. A named gate with no runner is a gate that never fails — the same failure shape as a test
@@ -50,8 +50,8 @@ never be weakened to make a number look better.
 
 ## Where the cost lives in this codebase
 
-- **The per-citizen decision loop** — `souls/human.rs`, `souls/desire/`. Scales with population and
-  is the reason `EPIC-020` exists.
+- **The per-citizen decision loop** — `souls/human.rs`, `souls/desire/`. Scales with population;
+  see `docs/plan/iterations/requirements/settlement.md`.
 - **The market's matching loop** — `economy/market.rs` `make_trades` carries a `// Naive O(n²) alg`
   comment on itself. Scales with orders, and orders scale with buildings and citizens.
 - **`Market::advance_dispatches`** — walks the whole `dispatches` Vec every tick. Note
@@ -61,7 +61,8 @@ never be weakened to make a number look better.
   hash-compares every tick. `advance_ticks(n)` exists precisely because that is too expensive to pay
   on every tick of a long scenario.
 - **Pathfinding and routing** — `map_dynamic/`, with a per-tick solver budget as an explicit story.
-- **The grid solver** — budgeted per tick by design (`EPIC-005`).
+- **The grid solver** — budgeted per tick by design; see
+  `docs/plan/iterations/requirements/utilities.md`.
 
 ## Method
 

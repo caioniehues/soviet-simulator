@@ -1,5 +1,11 @@
 # Provenance and licensing
 
+**Kind:** legal provenance
+**Authority:** binding
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-08-24
+
 Soviet Simulator is a hard fork of **Egregoria** by Pâris Douady
 (`@Uriopass`) and contributors — <https://github.com/Uriopass/Egregoria>.
 

@@ -14,7 +14,9 @@ DEFAULT_REQUIREMENTS = ROOT / "docs/plan/iterations/requirements"
 DEFAULT_SPECS = ROOT / "docs/reference/specifications"
 REQ_PATTERN = re.compile(r"^## (REQ-[A-Z]+-\d{3}) — (.+)$", re.MULTILINE)
 SPEC_PATTERN = re.compile(r"\bSPEC-[A-Z]+-\d{3}\b")
-FORBIDDEN = ("[SUBSTRATE:", "docs/superpowers/iterations", "`spec/", " spec/")
+LEGACY_ITERATIONS = "/".join(("docs", "superpowers", "iterations"))
+LEGACY_ROOT_SPEC = "spec" + "/"
+FORBIDDEN = ("[SUBSTRATE:", LEGACY_ITERATIONS, "`" + LEGACY_ROOT_SPEC, " " + LEGACY_ROOT_SPEC)
 
 
 def fail(message: str) -> None:

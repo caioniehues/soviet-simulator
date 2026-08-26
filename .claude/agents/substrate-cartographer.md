@@ -75,7 +75,8 @@ format from memory.**
 ### Ground-truthing our own requirements
 
 This project's requirement cards cite W&R constants — e.g.
-`[SUBSTRATE: ABSENT — greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per spec/citizens.md:52]`.
+`[SUBSTRATE: ABSENT — greenfield, W&R $CITIZEN_ABLE_SERVE CONFIRMED per
+docs/reference/specifications/citizens.md]`.
 Those citations were written from **spec prose**, not from the corpus. When a story you are
 mapping cites a `$CONSTANT` or a specific number (seat formulas, bed counts, serve rates, quality
 thresholds), **verify it against the actual `.ini` files** and say whether it holds. A requirement

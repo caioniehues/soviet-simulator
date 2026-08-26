@@ -3,6 +3,8 @@
 **Kind:** generated current-regression inventory
 **Authority:** current substrate only
 **Status:** informational — not target-proof evidence
+**Owner:** project lead
+**Last verified:** 2026-08-24
 **Generator:** `python3 docs/plan/iterations/evidence/build_evidence.py --extract docs/plan/iterations/extract/requirements.json --specifications docs/reference/specifications --bindings docs/plan/iterations/evidence/evid-spec-bindings.json --output-dir docs/plan/iterations/evidence`
 
 These are every test currently listed by the serial `simulation` test binary. They are deliberately separate from planned `TARGET-EVID-*` scenarios; identical numeric fragments from the legacy corpus are never used as a target binding.
