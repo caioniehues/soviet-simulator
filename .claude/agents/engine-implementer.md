@@ -2,7 +2,7 @@
 name: engine-implementer
 description: Writes renderer and engine-substrate code — wgpu pipelines, render passes, drawables, shaders, GPU timing, frame capture, windowing, input and audio under engine/ and engine_demo/. Use for any task touching the render path or the engine framework. Not for simulation logic, not for native_app/ game panels, not for reusable yakui widgets.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: red
 ---

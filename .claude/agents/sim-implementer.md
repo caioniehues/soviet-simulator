@@ -2,7 +2,7 @@
 name: sim-implementer
 description: Writes simulation-side code — ECS systems, economy, souls, map_dynamic, transportation. Use for any implementation task under simulation/. Knows this fork's determinism harness, its registration points, and the traps that have already cost other agents days. Works from a brief with acceptance criteria and a verification command. Not for UI, not for Lua data, not for architecture decisions.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: blue
 ---

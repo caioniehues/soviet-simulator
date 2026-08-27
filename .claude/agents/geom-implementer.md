@@ -2,7 +2,7 @@
 name: geom-implementer
 description: Writes geometry and math code under geom/ — vectors, matrices, quaternions, splines, polygons, AABB/OBB, rays, segments, frustum culling, heightmap and noise. Use for spatial math, numerical robustness and determinism-sensitive primitives. Not for rendering, not for simulation rules, not for UI.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: cyan
 ---

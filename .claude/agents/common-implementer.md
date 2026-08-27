@@ -2,7 +2,7 @@
 name: common-implementer
 description: Writes shared-utility and process-entry code under common/ and headless/ — timestep, save/load, hashing, RNG, logging, history buffers, iterators, macros, and the headless binary. Tiny surface, enormous blast radius. Not for simulation rules, rendering, or UI.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: yellow
 ---

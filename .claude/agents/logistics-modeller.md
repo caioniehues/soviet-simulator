@@ -2,7 +2,7 @@
 name: logistics-modeller
 description: Domain advisor for the physical goods network — dispatch scheduling, vehicle assets, routing, congestion and transport classes. Consult during Phase 0 design for movement work and as its hard sign-off gate. Knows the traffic-engineering models the current requirements commit to (BPR volume-delay, Gawron blending) and the exact shape of this fork's vehicle substrate. Never writes code.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: blue
 ---

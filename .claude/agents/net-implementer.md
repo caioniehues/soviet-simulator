@@ -2,7 +2,7 @@
 name: net-implementer
 description: Writes networking code under networking/ — client and server connections, authentication, packet framing, world-state send and catch-up replication. Use for multiplayer transport and replication tasks. Not for simulation rules, not for rendering, not for UI.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: green
 ---

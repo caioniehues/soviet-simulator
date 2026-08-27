@@ -2,7 +2,7 @@
 name: data-implementer
 description: Owns the data layer — base_mod/*.lua and prototypes/. Authors and edits items, companies, recipes, vehicles and rolling stock. Small in lines and enormous in consequence: one flag on one item here decides which code path twenty goods take. Use for any change to game data or the prototype schema. Not for simulation logic or UI.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: green
 ---

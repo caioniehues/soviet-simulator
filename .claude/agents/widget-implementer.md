@@ -2,7 +2,7 @@
 name: widget-implementer
 description: Writes reusable yakui and egui widget code under goryak/, egui-inspect/, egui-inspect-derive/ and assets_gui/ — buttons, combo boxes, scroll areas, tooltips, windows, theme, inspection traits and the asset viewer. Use for reusable UI components and the widget theme. Not for native_app/ game panels, which belong to ui-implementer, and not for the renderer.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: magenta
 ---

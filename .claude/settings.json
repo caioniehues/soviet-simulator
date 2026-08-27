@@ -2,20 +2,42 @@
   "hooks": {
     "SessionStart": [
       {
+        "matcher": "",
         "hooks": [
           {
-            "command": "bd prime --hook-json",
-            "type": "command"
+            "type": "command",
+            "command": "bd prime --hook-json"
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "cat >/dev/null || true; command -v code-review-graph >/dev/null 2>&1 || exit 0; git rev-parse --git-dir >/dev/null 2>&1 && code-review-graph status --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || echo 'Not a git repo, skipping'",
+            "command": "cat >/dev/null || true; [ -n \"$CLAUDE_ENV_FILE\" ] || exit 0; [ -d \"$CLAUDE_PROJECT_DIR/.venv\" ] || exit 0; printf 'export VIRTUAL_ENV=\"%s/.venv\"\\nexport PATH=\"%s/.venv/bin:$PATH\"\\n' \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\" > \"$CLAUDE_ENV_FILE\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat >/dev/null || true; CRG=/home/caio/soviet-simulator/.venv/bin/code-review-graph; if [ ! -x \"$CRG\" ]; then echo \"code-review-graph: binary NOT FOUND at $CRG - graph hooks are DISABLED this session (activate the uv venv, or fix the path in .claude/settings.json). Graph answers this session are stale or absent.\"; exit 0; fi; git rev-parse --git-dir >/dev/null 2>&1 && \"$CRG\" status --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || echo \"Not a git repo, skipping\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat >/dev/null || true; [ -n \"$CLAUDE_ENV_FILE\" ] || exit 0; [ -d \"$CLAUDE_PROJECT_DIR/.venv\" ] || exit 0; printf 'export VIRTUAL_ENV=\"%s/.venv\"\\nexport PATH=\"%s/.venv/bin:$PATH\"\\n' \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\" > \"$CLAUDE_ENV_FILE\"",
             "timeout": 10
           }
         ]
@@ -23,11 +45,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "cat >/dev/null || true; command -v code-review-graph >/dev/null 2>&1 || exit 0; git rev-parse --git-dir >/dev/null 2>&1 && code-review-graph update --skip-flows --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || true",
+            "command": "cat >/dev/null || true; CRG=/home/caio/soviet-simulator/.venv/bin/code-review-graph; [ -x \"$CRG\" ] || exit 0; git rev-parse --git-dir >/dev/null 2>&1 && \"$CRG\" update --skip-flows --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || true",
             "timeout": 30
           }
         ]

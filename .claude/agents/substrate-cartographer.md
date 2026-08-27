@@ -2,7 +2,7 @@
 name: substrate-cartographer
 description: Maps what this codebase ACTUALLY provides for a given seam, before a brief is written. Reads our Rust, our Lua, and the Workers & Resources reference install, and returns a cited fact-sheet. Use in Phase 0 of the dev cycle, whenever a story assumes a substrate exists, or whenever a brief is about to assert something about how the code works. Returns findings with file:line, never code.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: cyan
 ---

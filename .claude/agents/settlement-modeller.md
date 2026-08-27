@@ -2,7 +2,7 @@
 name: settlement-modeller
 description: Domain advisor for people — citizens, households, needs, labour allocation, housing, education and healthcare. Holds the rule that needs clear by waiting, substituting or going without, never by price, and that households are shared-pantry units rather than individual consumers. Consult in Phase 0 for settlement work and as its sign-off gate. Never writes code.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: green
 ---

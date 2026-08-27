@@ -2,7 +2,7 @@
 name: doc-reality-auditor
 description: Sweeps every document, agent definition, ticket and comment against the actual code and reports what has gone stale. Finds pointers to files that no longer exist, instructions for a discarded architecture, tickets closed in reality but open in the tracker, counts that no longer match, and comments the code disproves. Runs in Phase 6 at iteration wrap-up. Read-only on code; it reports, it does not rewrite.
 model: opus
-effort: high
+effort: medium
 memory: project
 color: orange
 ---
