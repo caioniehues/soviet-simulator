@@ -3,6 +3,7 @@ name = "simulation"
 version = "0.1.0"
 authors = ["Douady Pâris <paris.douady@hotmail.fr>"]
 edition = "2021"
+publish = false
 
 # Yes I have many dependencies.
 # But it's ok, read this: https://wiki.alopex.li/LetsBeRealAboutDependencies

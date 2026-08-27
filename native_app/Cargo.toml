@@ -3,6 +3,7 @@ name = "native_app"
 version = "0.4.3"
 authors = ["Douady Pâris <paris.douady@hotmail.fr>"]
 edition = "2021"
+publish = false
 
 [dependencies]
 bytemuck      = "1.7.2"
