@@ -56,6 +56,23 @@ fn total_qty(m: &Market, item: ItemID) -> i64 {
     cap + in_flight
 }
 
+#[test]
+fn sov_e1q_export_without_external_endpoint() {
+    let mut ctx = TestCtx::new();
+    let (seller, _, seller_pos, _) = setup_seller_buyer(&mut ctx, 120.0);
+    let cereal = ItemID::new("cereal");
+
+    let mut m = Market::default();
+    m.produce(seller, cereal, 10);
+    m.sell(seller, seller_pos.xy(), cereal, 10, 0);
+
+    let trade_count = m.make_trades(|_| None).len();
+
+    assert_eq!(m.capital(seller, cereal), 10);
+    assert_eq!(m.inner()[&cereal].sell_order(seller).unwrap().qty, 10);
+    assert_eq!(trade_count, 0);
+}
+
 /// sov-ledger-exttrade-cbh: a domestic match reserves stock (`reserved`) for
 /// a buyer without touching `capital`. Production immediately after calls
 /// `sell_all`, which overwrites the sell order with the new full stock and

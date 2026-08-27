@@ -697,12 +697,13 @@ impl Market {
                         log::warn!("{:?} is selling more than it has: {:?}", &seller, qty_sell);
                         continue;
                     }
-                    *cap -= qty_sell;
-                    order.qty -= qty_sell as u32;
 
                     let Some(ext) = find_external(order.pos) else {
                         continue;
                     };
+
+                    *cap -= qty_sell;
+                    order.qty -= qty_sell as u32;
 
                     self.all_trades.push(Trade {
                         buyer: TradeTarget(ext),
