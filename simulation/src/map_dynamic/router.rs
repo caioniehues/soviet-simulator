@@ -271,7 +271,7 @@ fn walk_outside(body: HumanID, pos: Vec3, cbuf: &ParCommandBuffer<HumanEnt>, loc
     });
 }
 
-fn park(map: &Map, vehicle: &mut VehicleEnt, spot_resa: SpotReservation) {
+pub(crate) fn park(map: &Map, vehicle: &mut VehicleEnt, spot_resa: SpotReservation) {
     let trans = vehicle.trans;
     let spot = match spot_resa.get(&map.parking) {
         Some(x) => x,

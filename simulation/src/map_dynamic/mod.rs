@@ -3,7 +3,7 @@ mod dispatch;
 mod electricity;
 mod itinerary;
 mod parking;
-mod router;
+pub(crate) mod router;
 
 pub use binfos::*;
 pub use dispatch::*;

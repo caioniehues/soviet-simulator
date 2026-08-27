@@ -35,23 +35,23 @@ impl UiWorld {
         w
     }
 
-    pub fn commands(&self) -> RefMutSingle<WorldCommands> {
+    pub fn commands(&self) -> RefMutSingle<'_, WorldCommands> {
         self.write::<WorldCommands>()
     }
 
-    pub fn received_commands(&self) -> RefSingle<ReceivedCommands> {
+    pub fn received_commands(&self) -> RefSingle<'_, ReceivedCommands> {
         self.read::<ReceivedCommands>()
     }
 
-    pub fn try_write<T: Any>(&self) -> Option<RefMutSingle<T>> {
+    pub fn try_write<T: Any>(&self) -> Option<RefMutSingle<'_, T>> {
         self.resources.try_write().ok()
     }
 
-    pub fn write<T: Any>(&self) -> RefMutSingle<T> {
+    pub fn write<T: Any>(&self) -> RefMutSingle<'_, T> {
         self.resources.write()
     }
 
-    pub fn read<T: Any>(&self) -> RefSingle<T> {
+    pub fn read<T: Any>(&self) -> RefSingle<'_, T> {
         self.resources.read()
     }
 
@@ -63,11 +63,11 @@ impl UiWorld {
         self.read::<TimeAlways>().0
     }
 
-    pub fn camera(&self) -> RefSingle<crate::rendering::OrbitCamera> {
+    pub fn camera(&self) -> RefSingle<'_, crate::rendering::OrbitCamera> {
         self.read::<crate::rendering::OrbitCamera>()
     }
 
-    pub fn camera_mut(&self) -> RefMutSingle<crate::rendering::OrbitCamera> {
+    pub fn camera_mut(&self) -> RefMutSingle<'_, crate::rendering::OrbitCamera> {
         self.write::<crate::rendering::OrbitCamera>()
     }
 
