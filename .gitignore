@@ -41,3 +41,7 @@ __pycache__
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+/book/
+# Added by code-review-graph
+.code-review-graph/
