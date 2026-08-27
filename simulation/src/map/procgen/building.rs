@@ -88,7 +88,10 @@ pub fn gen_exterior_house(size: f32, seed: u64) -> (ColoredMesh, Vec2) {
         // have to catch because the algorithm for skeleton might fail and is quite complicated
         let (skeleton, (faces, contour)) = unwrap_or!(
             catch_unwind(|| {
-                let skeleton = skeleton(p.as_slice(), &[]);
+                // `None` means the skeleton algorithm detected its own state was
+                // inconsistent; treat it exactly like the panic path below and retry
+                // with a different polygon.
+                let skeleton = skeleton(p.as_slice(), &[])?;
                 let faces = faces_from_skeleton(p.as_slice(), &skeleton, merge_triangles)?;
                 Some((skeleton, faces))
             })
@@ -247,3 +250,67 @@ impl HGrid {
 }
 */
 //fn gen_house
+
+#[cfg(test)]
+mod placement_stress {
+    use super::gen_exterior_house;
+
+    /// Resident set size in kilobytes, from `/proc/self/statm` (page count * page size).
+    fn rss_kb() -> u64 {
+        let statm = std::fs::read_to_string("/proc/self/statm").unwrap_or_default();
+        let pages: u64 = statm
+            .split_whitespace()
+            .nth(1)
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(0);
+        pages * 4
+    }
+
+    /// sov-bo3: `LAV::iter_keys` used to walk a corrupted linked list without a bound,
+    /// which reached 17.6 GB RSS and got the process OOM-killed. `gen_exterior_house`
+    /// is deterministic in `seed`, so this sweep is a fixed, reproducible corpus.
+    ///
+    /// Run it under a hard memory ceiling — it is a memory guard, not a timing test:
+    ///
+    ///   cargo test -p simulation --release placement_stress -- --ignored --nocapture
+    ///
+    /// wrapped in e.g.
+    ///
+    ///   systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 -- <the above>
+    ///
+    /// Before the fix this is killed by the ceiling. After it, it completes and RSS
+    /// stays flat.
+    #[test]
+    #[ignore = "slow memory-guard sweep; run explicitly under a MemoryMax ceiling"]
+    fn gen_exterior_house_8m_100k_placements() {
+        // `gen_exterior_house` reads `crate::colors()`, which reads the prototype set.
+        // Without this the process dies inside an `unwrap_unchecked` — a debug-assert
+        // panic in dev, a SIGSEGV in release. That is unrelated to sov-bo3.
+        static INIT: std::sync::Once = std::sync::Once::new();
+        INIT.call_once(crate::init::init);
+
+        let n: u64 = std::env::var("SOV_BO3_PLACEMENTS")
+            .ok()
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(100_000);
+        let start = rss_kb();
+        let mut peak = start;
+        for seed in 0..n {
+            let (mesh, _) = gen_exterior_house(8.0, seed);
+            assert!(!mesh.faces.is_empty(), "seed {seed} produced no faces");
+            if seed % 10_000 == 0 {
+                let now = rss_kb();
+                peak = peak.max(now);
+                // stderr is unbuffered, so the last line survives a hard kill by the ceiling.
+                eprintln!("seed {seed}: rss {now} kB");
+            }
+        }
+        let end = rss_kb();
+        peak = peak.max(end);
+        eprintln!("{n} placements: start rss {start} kB, peak rss {peak} kB, end rss {end} kB");
+        assert!(
+            peak < start + 512 * 1024,
+            "RSS grew by more than 512 MB across the sweep: {start} kB -> {peak} kB"
+        );
+    }
+}

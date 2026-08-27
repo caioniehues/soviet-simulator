@@ -2,6 +2,7 @@
 
 use crate::{vec2, vec2d, Rayd, Segmentd, Vec2, Vec2d, Vec3};
 use ordered_float::OrderedFloat;
+use std::cell::Cell;
 use std::cmp::{Ordering, Reverse};
 use std::collections::BinaryHeap;
 
@@ -715,18 +716,43 @@ struct LAV {
     id: LavID,
     head: Option<VertexID>,
     len: usize,
+    /// Set by [`LAV::iter_keys`] when the `next` chain is proven not to be a ring
+    /// through `head`. Once set, [`skeleton`] abandons the computation.
+    corrupt: Cell<bool>,
 }
 
 impl LAV {
+    /// Walk the circular `next` chain from `head` and collect the vertex keys.
+    ///
+    /// The walk is bounded at `vs.len() + 1` steps. This bound can never truncate a
+    /// well-formed LAV: a LAV is a ring of DISTINCT vertices drawn from the arena
+    /// `vs`, so it holds at most `vs.len()` of them. Yielding one more is therefore a
+    /// *proof* that the chain re-entered a cycle that does not pass through `head` —
+    /// i.e. the linked list is corrupt — rather than evidence of a merely long polygon.
+    ///
+    /// On that proof we do NOT return the truncated prefix, because a truncated LAV
+    /// silently produces wrong geometry. We record the corruption in `self.corrupt`
+    /// and return nothing; the driver in [`skeleton`] checks the flag and gives up on
+    /// the polygon, which the caller in `simulation` already handles by retrying with
+    /// a different one.
     pub fn iter_keys(&self, vs: &Vertices) -> Vec<VertexID> {
-        if let Some(head) = self.head {
-            std::iter::successors(Some(head), move |&cur| {
-                vs[cur.0].next.filter(|&x| x != head)
-            })
-            .collect()
-        } else {
-            vec![]
+        let Some(head) = self.head else {
+            return vec![];
+        };
+        // + 1 so that reaching the bound is distinguishable from a ring that legitimately
+        // spans the whole arena (the initial LAV of a polygon does exactly that).
+        let limit = vs.len() + 1;
+        let keys: Vec<VertexID> = std::iter::successors(Some(head), move |&cur| {
+            vs[cur.0].next.filter(|&x| x != head)
+        })
+        .take(limit)
+        .collect();
+
+        if keys.len() == limit {
+            self.corrupt.set(true);
+            return vec![];
         }
+        keys
     }
 
     pub fn from_polygon(lavs: &mut Lavs, vs: &mut Vertices, polygon: &[Vec2d]) -> LavID {
@@ -760,6 +786,7 @@ impl LAV {
             id: lav_id,
             head,
             len,
+            corrupt: Cell::new(false),
         });
         lav_id
     }
@@ -771,6 +798,7 @@ impl LAV {
                 id: lav_id,
                 head,
                 len: 0,
+                corrupt: Cell::new(false),
             };
             for vertex in l.iter_keys(vs) {
                 l.len += 1;
@@ -856,7 +884,11 @@ fn merge_sources(skeleton: &mut Vec<Subtree>) {
 ///
 /// Returns the straight skeleton as a list of "subtrees", which are in the form of (source, height, sinks),
 /// where source is the highest points, height is its height, and sinks are the point connected to the source.
-pub fn skeleton(polygon: &[Vec2], holes: &[&[Vec2]]) -> Vec<Subtree> {
+///
+/// Returns `None` when the algorithm detects that its own vertex lists have become
+/// inconsistent (see [`LAV::iter_keys`]). Callers must treat that as "no skeleton for
+/// this polygon" and fall back — never as an empty skeleton.
+pub fn skeleton(polygon: &[Vec2], holes: &[&[Vec2]]) -> Option<Vec<Subtree>> {
     #[cfg(test)]
     println!("beginning skeleton {:?}", polygon);
 
@@ -873,6 +905,10 @@ pub fn skeleton(polygon: &[Vec2], holes: &[&[Vec2]]) -> Vec<Subtree> {
                 queue.push(Reverse(ev))
             }
         }
+    }
+
+    if any_corrupt(&lavs) {
+        return None;
     }
 
     #[cfg(test)]
@@ -925,11 +961,22 @@ pub fn skeleton(polygon: &[Vec2], holes: &[&[Vec2]]) -> Vec<Subtree> {
 
         queue.extend(events.into_iter().map(Reverse));
         output.extend(arc.into_iter());
+
+        if any_corrupt(&lavs) {
+            #[cfg(test)]
+            println!("abandoning skeleton: a LAV linked list is corrupt");
+            return None;
+        }
     }
 
     merge_sources(&mut output);
 
-    output
+    Some(output)
+}
+
+/// True once any LAV's `next` chain has been proven not to be a ring through its head.
+fn any_corrupt(lavs: &Lavs) -> bool {
+    lavs.iter().any(|l| l.corrupt.get())
 }
 
 pub fn faces_from_skeleton(
@@ -1090,7 +1137,7 @@ mod tests {
             vec2(-28.707237, 0.0),
         ];
 
-        let skeleton = skeleton(poly, &[]);
+        let skeleton = skeleton(poly, &[]).unwrap();
         let faces = faces_from_skeleton(poly, &skeleton, false).unwrap().0;
         assert_eq!(faces.len(), 10);
     }
@@ -1103,7 +1150,7 @@ mod tests {
             vec2(20.0, 10.0),
             vec2(0.0, 10.0),
         ];
-        let skeleton = skeleton(poly, &[]);
+        let skeleton = skeleton(poly, &[]).unwrap();
         assert!(!skeleton.is_empty());
         let faces = faces_from_skeleton(poly, &skeleton, false).unwrap().0;
         assert_eq!(faces.len(), 4);
@@ -1125,7 +1172,7 @@ mod tests {
         .copied()
         .rev()
         .collect::<Vec<_>>();
-        let skeleton = skeleton(poly, &[]);
+        let skeleton = skeleton(poly, &[]).unwrap();
         let _ = faces_from_skeleton(poly, &skeleton, false).unwrap().0;
     }
 
@@ -1209,12 +1256,115 @@ mod tests {
                 vec2(169.0, 124.0),
             ],
             &[],
-        );
+        )
+        .unwrap();
 
         assert!(!skeleton.is_empty());
         skeleton.sort_by_key(|x| OrderedFloat(x.source.x));
         for sub in skeleton {
             println!("{:?}", sub);
         }
+    }
+}
+
+#[cfg(test)]
+mod cycle_tests {
+    use super::*;
+
+    /// Build an arena of `n` vertices whose `next` chain leaves `head` and then
+    /// loops back on itself WITHOUT ever returning to `head`.
+    fn corrupt_lav(n: usize) -> (Vertices, LAV) {
+        let seg = Segmentd::new(vec2d(0.0, 0.0), vec2d(1.0, 0.0));
+        let mut vs: Vertices = (0..n)
+            .map(|i| {
+                LAVertex::new(
+                    VertexID(i),
+                    vec2d(i as f64, 0.0),
+                    seg,
+                    seg,
+                    Some((vec2d(0.0, 1.0), vec2d(0.0, 1.0))),
+                )
+            })
+            .collect();
+
+        // 0 -> 1 -> 2 -> ... -> n-1 -> 1  (the tail cycle excludes head 0)
+        for i in 0..n {
+            vs[i].next = Some(VertexID(if i + 1 < n { i + 1 } else { 1 }));
+            vs[i].prev = Some(VertexID(if i == 0 { n - 1 } else { i - 1 }));
+        }
+
+        let lav = LAV {
+            id: LavID(0),
+            head: Some(VertexID(0)),
+            len: n,
+            corrupt: Cell::new(false),
+        };
+        (vs, lav)
+    }
+
+    #[test]
+    fn iter_keys_terminates_on_cycle_not_through_head() {
+        let (vs, lav) = corrupt_lav(8);
+        let keys = lav.iter_keys(&vs);
+        assert!(
+            keys.len() <= vs.len(),
+            "iter_keys walked {} vertices over an {}-vertex arena",
+            keys.len(),
+            vs.len()
+        );
+        assert!(lav.corrupt.get(), "the corruption was not reported");
+        assert!(
+            keys.is_empty(),
+            "a corrupt LAV must not yield partial geometry"
+        );
+    }
+
+    /// The bound must not fire on a well-formed ring that spans the whole arena —
+    /// which is exactly what the initial LAV of a polygon is.
+    #[test]
+    fn iter_keys_walks_a_full_arena_ring() {
+        let (mut vs, lav) = corrupt_lav(8);
+        // repair the tail: n-1 -> 0, making it a proper ring through head
+        let n = vs.len();
+        vs[n - 1].next = Some(VertexID(0));
+        let keys = lav.iter_keys(&vs);
+        assert_eq!(keys.len(), n);
+        assert!(!lav.corrupt.get());
+    }
+
+    /// sov-bo3: the REFUSAL half of the fix, driven through the public entry point.
+    ///
+    /// The bound in `iter_keys` only detects the corruption; what makes the fix a fix
+    /// is that `skeleton` then returns `None` instead of a truncated — i.e. silently
+    /// wrong — skeleton. This is the only test that exercises that path, so stubbing
+    /// `any_corrupt` to `false` must make it fail.
+    ///
+    /// The polygon is a real one, captured verbatim from the production caller:
+    /// `simulation::map::procgen::gen_exterior_house(8.0, 32362)`, which is
+    /// deterministic in its seed. It was the single corrupting input in seeds
+    /// 0..100000 (~1 in 1e5, as the ticket measured). The literals are Rust `f32`
+    /// `Debug` output, which round-trips exactly; do not round them, the corruption
+    /// depends on the exact values.
+    #[test]
+    fn skeleton_refuses_a_polygon_that_corrupts_a_lav() {
+        let poly = &[
+            vec2(1.642981, -2.7928727),
+            vec2(1.642981, -0.5948043),
+            vec2(2.887004, -0.5948043),
+            vec2(2.887004, 2.7928727),
+            vec2(-1.4921961, 2.7928727),
+            vec2(-1.4921961, 2.286723),
+            vec2(-2.8471122, 2.286723),
+            vec2(-2.8471122, 1.0505371),
+            vec2(-1.4921961, 1.0505371),
+            vec2(-1.4921961, 0.5061135),
+            vec2(-2.887004, 0.5061135),
+            vec2(-2.887004, -2.7928727),
+        ];
+
+        assert!(
+            skeleton(poly, &[]).is_none(),
+            "skeleton() must REFUSE a polygon whose LAV goes corrupt, not return a truncated skeleton"
+        );
     }
 }
