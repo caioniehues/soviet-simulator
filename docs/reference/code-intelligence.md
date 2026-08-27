@@ -49,11 +49,47 @@ has ZERO production callers". That claim was true at the time — but a cold LSP
 Rules:
 
 - Warm the server before the first load-bearing query. Any call starts it; one cheap
-  `documentSymbol` is enough. Every agent definition in `.claude/agents/` already says this.
+  `documentSymbol` is enough. **This applies to the main session only** — see below.
 - An empty LSP result is **"unknown"**, never **"none"**, until a second call or a second tool
   agrees.
 - Compiler diagnostics arrive free as a side effect of any LSP call. Read them — they are
   compiler truth, and the graph can never produce them.
+
+## Trap 1b — subagents have no LSP at all
+
+**Measured 2026-08-27, Claude Code 2.1.247. Everything above about LSP applies to the main
+session. A subagent cannot use LSP, whatever its definition says.**
+
+A probe agent whose definition listed `LSP` got, verbatim:
+
+```
+Error: No such tool available: LSP. LSP is disabled for this session, in subagents as well as here.
+ToolSearch("select:LSP,ListAgents")  ->  No matching deferred tools found
+```
+
+Not recoverable from inside. A second agent hit the same wall independently the same hour.
+The message is misleading — LSP kept working in the main session minutes later.
+
+Measured subagent toolset: `Read`, `Bash`, `ToolSearch`, `Skill`, `Write`, `Edit`, and
+`SendMessage` (deferred). Absent: `LSP`, `ListAgents`, `Grep`, `Glob`, `Agent`, `WebFetch`.
+
+Two mechanisms stack. Background subagents — the default — keep only a fixed built-in list
+that excludes `LSP` and `ListAgents`, and the removal reports no error. Auto mode
+additionally removes `Grep` and `Glob`.
+
+**What this means for how work is split here:**
+
+| Job | Who |
+|---|---|
+| Resolve a symbol, find callers, check a type | **The lead**, in the main session |
+| Act on those facts | A subagent, given `file:line` in its brief |
+| Structural questions inside a subagent | **The graph** — MCP tools survive the filter |
+
+The graph is the only code-intelligence tool a subagent can actually reach. That is a
+stronger reason to keep it than any token-saving argument.
+
+Never brief a subagent to "use LSP" or to "warm LSP". Name `grep -n` via Bash as its read
+path, explicitly, because its own definition may still claim otherwise.
 
 ## Trap 2 — `head_matches_build` compares SHAs, not content
 

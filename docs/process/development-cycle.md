@@ -142,6 +142,7 @@ Parallel implementers on disjoint files:
 | `sim-implementer` | `simulation/src/**` — ECS, economy, souls, map_dynamic |
 | `ui-implementer` | `native_app/src/**` — panels, readouts, tools |
 | `data-implementer` | `base_mod/*.lua`, `prototypes/src/**` |
+| — **no in-repo owner** | `engine/`, `geom/`, `networking/`, `common/`, and the remaining workspace crates — ~26,000 lines. Use the global `implementer`, and say so in the brief |
 
 Each logs progress with `bd comments add <id> "…" --author <name>` as it goes, especially when it
 discovers its brief was wrong. Evidence tasks are interleaved with code tasks, never trailed.
@@ -176,6 +177,18 @@ mutation-tested, and one asserted arithmetic rather than the behaviour its story
 | 2 | `ledger-invariant-checker` | opus | Is quantity conserved across this economic seam? Run only when the diff touches the economy |
 | 3 | `reviewer` | opus | General adversarial gate — re-derives from source, never from a worker's summary |
 | 4 | domain advisor | opus | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
+
+**Splitting row 4 for `simulation/src/economy/market.rs`.** Three agents can each claim that file,
+and the row is singular, so name the advisor by what the diff touches rather than by cluster:
+
+| What the diff changes in `market.rs` | Advisor |
+|---|---|
+| The `Dispatch` state machine, routing, truck assignment | `logistics-modeller` |
+| Capital, `reserved`, `requested` arithmetic — any quantity or money seam | `ledger-invariant-checker` (already unconditional at row 2; no separate sign-off) |
+| Clearing policy, shortage behaviour, what an enterprise may request | `kornai-economist` |
+
+A diff can hit two rows; then it gets two sign-offs. `sov-jcl` is the worked example — it lands in
+`Market::advance_dispatches`, so logistics signs off and the ledger gate runs at row 2.
 
 **Why the order — and it is not about tokens.** A reachability defect makes every later review
 moot: there is no point auditing the logic, conservation or design of code that nothing calls. Run
@@ -235,7 +248,7 @@ status; it never closes work in place of `bd`.
 | Agent | Does |
 |---|---|
 | `release-engineer` | Pin dependencies to commits. `egui` is currently `git = "…"` with **no branch or rev at all**, tracking upstream HEAD; `yakui` points at a personal fork's `dev` branch. The build is not reproducible |
-| `perf-engineer` | The five charter bench gates at 250k scale: `bench_services`, `bench_terrain`, `bench_chains`, `bench_rail`, `bench_save` |
+| `perf-engineer` | Five PROPOSED bench gates at 250k scale (`bench_services`, `bench_terrain`, `bench_chains`, `bench_rail`, `bench_save`) — **none exist yet, and the charter names none of them**; it delegates gate definition to the implementation plan (charter:55-57). `sov-1ae` is open to build the first |
 
 Then the visual proof. Per `CLAUDE.md`, work is not done until the user has seen it running: a
 15–20s video, watched back before calling it done. A prior attempt captured the wrong monitor.
