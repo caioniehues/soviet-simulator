@@ -12,10 +12,12 @@ use prototypes::{
 
 use crate::economy::{ItemID, WORKER_CONSUMPTION_PER_MINUTE};
 use crate::map::{BuildingID, Map, PathKind};
+use crate::map_dynamic::router::park;
 use crate::map_dynamic::{
     BuildingInfos, DispatchID, DispatchKind, DispatchQueryTarget, Dispatcher, Itinerary,
+    ParkingManagement,
 };
-use crate::transportation::unpark;
+use crate::transportation::{unpark, VehicleState};
 use crate::world::VehicleEnt;
 use crate::{ParCommandBuffer, SoulID, World};
 
@@ -738,6 +740,7 @@ impl Market {
         binfos: &BuildingInfos,
         dispatcher: &mut Dispatcher,
         cbuf_vehicle: &ParCommandBuffer<VehicleEnt>,
+        parking: &mut ParkingManagement,
         tick: Tick,
     ) {
         let mut i = 0;
@@ -766,24 +769,43 @@ impl Market {
                                 DispatchKind::SmallTruck,
                                 DispatchQueryTarget::Pos(seller_pos),
                             ) {
-                                let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
-                                let route = start.and_then(|start| {
-                                    Itinerary::route(
-                                        tick,
-                                        start,
-                                        seller_pos,
-                                        map,
-                                        PathKind::Vehicle,
-                                    )
+                                // `unpark` only makes sense on a truck that
+                                // is actually `Parked` -- one still mid-
+                                // `RoadToPark` (queued by the Unloading fix
+                                // below, sov-2c4) isn't done arriving at its
+                                // spot yet. Grabbing it anyway made `unpark`
+                                // warn "wasn't parked" and clobber its
+                                // collider without freeing the old grid
+                                // entry, leaving a permanent phantom blocker
+                                // (sov-7pg). Free it back and let the
+                                // dispatcher offer a different truck (or the
+                                // same one, once it's really parked) next
+                                // tick, instead of grabbing it prematurely.
+                                let parked = world.vehicles.get(v).is_some_and(|ve| {
+                                    matches!(ve.vehicle.state, VehicleState::Parked(_))
                                 });
-                                if let Some(route) = route {
-                                    if let Some(ve) = world.vehicles.get_mut(v) {
-                                        ve.it = route;
-                                    }
-                                    cbuf_vehicle.exec_ent(v, move |sim| unpark(sim, v));
-                                    self.dispatches[i].truck = Some(v);
-                                } else {
+                                if !parked {
                                     dispatcher.free(DispatchID::SmallTruck(v));
+                                } else {
+                                    let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
+                                    let route = start.and_then(|start| {
+                                        Itinerary::route(
+                                            tick,
+                                            start,
+                                            seller_pos,
+                                            map,
+                                            PathKind::Vehicle,
+                                        )
+                                    });
+                                    if let Some(route) = route {
+                                        if let Some(ve) = world.vehicles.get_mut(v) {
+                                            ve.it = route;
+                                        }
+                                        cbuf_vehicle.exec_ent(v, move |sim| unpark(sim, v));
+                                        self.dispatches[i].truck = Some(v);
+                                    } else {
+                                        dispatcher.free(DispatchID::SmallTruck(v));
+                                    }
                                 }
                             }
                         }
@@ -965,10 +987,17 @@ impl Market {
                             // that were debited on the way out.
                             *self.m(kind).capital.entry(seller).or_default() += qty as i32;
                             if let Some(v) = truck {
-                                dispatcher.free(DispatchID::SmallTruck(v));
-                                if let Some(ve) = world.vehicles.get_mut(v) {
-                                    ve.it = Itinerary::NONE;
+                                // Same abandoned-truck shape as Unloading
+                                // (sov-2c4): park it for real instead of
+                                // leaving it Driving at the seller's door.
+                                if let Some(pos) = world.vehicles.get(v).map(|ve| ve.trans.pos) {
+                                    if let Ok(spot) = parking.reserve_near(pos, map) {
+                                        if let Some(ve) = world.vehicles.get_mut(v) {
+                                            park(map, ve, spot);
+                                        }
+                                    }
                                 }
+                                dispatcher.free(DispatchID::SmallTruck(v));
                             }
                             remove = true;
                         }
@@ -977,16 +1006,35 @@ impl Market {
                 DispatchState::Unloading => {
                     if ticks_left == 0 {
                         if let Some(v) = truck {
-                            dispatcher.free(DispatchID::SmallTruck(v));
-                            // ponytail: leave the truck Driving wherever it
-                            // stopped instead of re-parking (there's no
-                            // equivalent of `unpark` for this deferred-command
-                            // context); upgrade to the RoutingStep::Park
-                            // spline machinery if idle trucks start blocking
-                            // traffic.
-                            if let Some(ve) = world.vehicles.get_mut(v) {
-                                ve.it = Itinerary::NONE;
+                            // Genuinely park the truck instead of leaving it
+                            // Driving wherever it stopped -- an abandoned
+                            // truck sits in the door's live lane and blocks
+                            // every later dispatch to the same door
+                            // (sov-2c4). `dispatcher.free` is deferred until
+                            // AFTER parking succeeds: freeing it first made
+                            // the truck re-grabbable while still Driving
+                            // toward its spot, and the grab path's
+                            // unconditional `unpark` call then warned
+                            // "wasn't parked" and clobbered its collider
+                            // without removing the stale grid entry --
+                            // exactly the phantom-blocker shape sov-2c4 was
+                            // filed for, confirmed while building this fix
+                            // (sov-7pg). `park` (map_dynamic::router) is the
+                            // same spline machinery `RoutingStep::Park`
+                            // already uses; it owns the `SpotReservation`
+                            // going forward and `vehicle_state_update`
+                            // (transportation/road.rs) frees the truck's
+                            // collider properly on arrival and flips it to
+                            // `VehicleState::Parked`, so the NEXT `unpark`
+                            // call on this truck is legitimate, not a warn.
+                            if let Some(pos) = world.vehicles.get(v).map(|ve| ve.trans.pos) {
+                                if let Ok(spot) = parking.reserve_near(pos, map) {
+                                    if let Some(ve) = world.vehicles.get_mut(v) {
+                                        park(map, ve, spot);
+                                    }
+                                }
                             }
+                            dispatcher.free(DispatchID::SmallTruck(v));
                         }
                         remove = true;
                     } else {

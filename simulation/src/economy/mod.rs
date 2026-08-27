@@ -7,7 +7,7 @@
 //! - The market, which is the place where goods are exchanged.
 //! - The government, which is the entity representing the player
 //!
-use crate::map_dynamic::{BuildingInfos, Dispatcher};
+use crate::map_dynamic::{BuildingInfos, Dispatcher, ParkingManagement};
 use crate::utils::resources::Resources;
 use crate::world::VehicleEnt;
 use crate::ParCommandBuffer;
@@ -107,5 +107,14 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
         }
     }
 
-    m.advance_dispatches(world, &map, &binfos, &mut dispatcher, &cbuf_vehicle, tick);
+    let mut parking = resources.write::<ParkingManagement>();
+    m.advance_dispatches(
+        world,
+        &map,
+        &binfos,
+        &mut dispatcher,
+        &cbuf_vehicle,
+        &mut parking,
+        tick,
+    );
 }
