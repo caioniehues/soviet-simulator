@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Douady Pâris <paris.douady@hotmail.fr>"]
 edition = "2021"
 publish = false
+# Benchmarks are declared explicitly below: `benches/contract/` is a shared
+# module included by the bench target, not a bench target of its own.
+autobenches = false
 
 # Yes I have many dependencies.
 # But it's ok, read this: https://wiki.alopex.li/LetsBeRealAboutDependencies
@@ -34,3 +37,7 @@ diff = "0.1.13"
 [dev-dependencies]
 easybench = "1.1.0"
 quickcheck = "1.0.3"
+
+[[bench]]
+name = "scale_250k"
+harness = false

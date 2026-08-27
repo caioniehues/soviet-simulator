@@ -25,7 +25,10 @@ pub fn render_ssao(gfx: &GfxContext, enc: &mut CommandEncoder) {
             },
         })],
         depth_stencil_attachment: None,
-        timestamp_writes: None,
+        timestamp_writes: gfx
+            .gpu_timings
+            .as_ref()
+            .and_then(|t| t.writes(crate::gpu_timing::GpuPass::Ssao)),
         occlusion_query_set: None,
     });
 

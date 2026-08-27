@@ -9,8 +9,41 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
+use crate::capture::{CaptureRecord, CapturedFrame};
 use crate::egui::EguiWrapper;
-use crate::{get_cursor_icon, AudioContext, FrameContext, GfxContext, InputContext};
+use crate::{get_cursor_icon, AudioContext, FrameContext, GfxContext, GfxOptions, InputContext};
+
+/// How to run the frame loop. Every field defaults to the interactive behaviour the game already
+/// had, so `FrameworkOptions::default()` is exactly the old `start`.
+///
+/// A capture is only evidence if the run is pinned. Fixing the camera is not enough: wall-clock
+/// delta feeds shader time, and live input moves the camera and the terrain raycast. These options
+/// are where both are cut off, at the source, so no caller can forget one.
+#[derive(Clone, Debug, Default)]
+pub struct FrameworkOptions {
+    /// Window inner size in physical pixels. `None` sizes to 80% of the monitor, as before.
+    pub fixed_size: Option<(u32, u32)>,
+    /// Per-frame delta in seconds. `None` uses the wall clock, as before.
+    pub fixed_delta: Option<f32>,
+    /// Stop feeding window and device events to input and egui. Nothing the mouse or keyboard
+    /// does can then reach a pixel.
+    pub freeze_input: bool,
+    /// Ask wgpu for its validation layers.
+    pub validation: bool,
+    /// Render a fixed number of frames, hand the last one to [`State::on_capture`], then exit.
+    pub capture: Option<CaptureOptions>,
+}
+
+/// A fixed capture: render `warmup_frames` frames, then capture frame number `warmup_frames`.
+#[derive(Clone, Debug)]
+pub struct CaptureOptions {
+    /// Frames drawn before the captured one. They let shader compilation, mipmap generation and
+    /// streaming settle, so the captured frame is not the first-frame special case.
+    pub warmup_frames: u32,
+    /// How many frames to sample GPU timings over, ending on the captured frame. `None` leaves
+    /// the timestamp gate off, which is the default.
+    pub gpu_timing_samples: Option<u32>,
+}
 
 #[allow(unused_variables)]
 pub trait State: 'static {
@@ -34,25 +67,43 @@ pub trait State: 'static {
     /// Called every frame to prepare the gui rendering.
     fn render_gui(&mut self, ui: &egui::Context) {}
 
+    /// Called once, on the frame a fixed capture was asked for, before the process exits.
+    ///
+    /// `frame` carries the reason on failure rather than a panic, so a capture that cannot be
+    /// taken reports why instead of bringing the process down. The default does nothing, which is
+    /// what every non-capturing state wants.
+    fn on_capture(&mut self, record: &CaptureRecord, frame: Result<&CapturedFrame, &str>) {}
+
     /// Called every frame to prepare the gui rendering.
     #[cfg(feature = "yakui")]
     fn render_yakui(&mut self) {}
 }
 
-async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>) {
-    let mut ctx = Context::new(window, &el).await;
+async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOptions) {
+    let gfx_opts = GfxOptions {
+        validation: opts.validation,
+        allow_capture: opts.capture.is_some(),
+        gpu_timings: opts
+            .capture
+            .as_ref()
+            .is_some_and(|c| c.gpu_timing_samples.is_some()),
+    };
+    let mut ctx = Context::new(window, &el, gfx_opts).await;
     let mut state = S::new(&mut ctx);
     ctx.gfx.defines_changed = false;
 
     let mut scale_factor = ctx.gfx.window.scale_factor();
     log::info!("initial scale factor: {:?}", scale_factor);
     let mut last_update = Instant::now();
+    let mut frame_ix: u32 = 0;
 
     el.run(move |event, target| {
         target.set_control_flow(ControlFlow::Poll);
 
         if let Event::WindowEvent { event, .. } = &event {
-            ctx.egui.handle_event(&ctx.gfx.window, event);
+            if !opts.freeze_input {
+                ctx.egui.handle_event(&ctx.gfx.window, event);
+            }
         }
 
         #[cfg(feature = "yakui")]
@@ -62,10 +113,14 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>) {
 
         match event {
             Event::DeviceEvent { event, .. } => {
-                ctx.input.handle_device(&event);
+                if !opts.freeze_input {
+                    ctx.input.handle_device(&event);
+                }
             }
             Event::WindowEvent { event, .. } => {
-                ctx.input.handle(&event);
+                if !opts.freeze_input {
+                    ctx.input.handle(&event);
+                }
 
                 if ctx.gfx.update_sc {
                     ctx.gfx.update_sc = false;
@@ -120,7 +175,19 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>) {
                         profiling::scope!("frame");
                         let d = last_update.elapsed();
                         last_update = Instant::now();
-                        ctx.delta = d.as_secs_f32();
+                        ctx.delta = opts.fixed_delta.unwrap_or_else(|| d.as_secs_f32());
+
+                        // Arm the timestamp queries only for the sampled tail, so warm-up frames
+                        // and their shader compilation never enter the timings.
+                        if let (Some(cap), Some(t)) = (&opts.capture, &ctx.gfx.gpu_timings) {
+                            if let Some(samples) = cap.gpu_timing_samples {
+                                let first = cap
+                                    .warmup_frames
+                                    .saturating_sub(samples.saturating_sub(1));
+                                t.set_armed(frame_ix >= first && frame_ix <= cap.warmup_frames);
+                            }
+                        }
+
                         state.update(&mut ctx);
 
                         let (mut enc, view) = ctx.gfx.start_frame(&sco);
@@ -137,6 +204,37 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>) {
                             });
 
                         ctx.gfx.finish_frame(enc);
+
+                        if let Some(t) = &ctx.gfx.gpu_timings {
+                            t.collect_frame(&ctx.gfx.device, &ctx.gfx.queue);
+                        }
+
+                        if let Some(cap) = &opts.capture {
+                            if frame_ix >= cap.warmup_frames {
+                                let record = ctx.gfx.capture_record(
+                                    opts.fixed_size,
+                                    cap.warmup_frames,
+                                    opts.fixed_delta.unwrap_or(0.0),
+                                    opts.validation,
+                                );
+                                match crate::capture::capture_texture(
+                                    &ctx.gfx.device,
+                                    &ctx.gfx.queue,
+                                    &sco.texture,
+                                ) {
+                                    Ok(frame) => state.on_capture(&record, Ok(&frame)),
+                                    Err(e) => {
+                                        log::error!("capture failed: {e}");
+                                        state.on_capture(&record, Err(e.as_str()));
+                                    }
+                                }
+                                sco.present();
+                                target.exit();
+                                return;
+                            }
+                        }
+                        frame_ix += 1;
+
                         let (icon, changed) = get_cursor_icon();
                         if changed {
                             ctx.gfx.window.set_cursor_icon(icon);
@@ -169,6 +267,10 @@ pub fn init() {
 }
 
 pub fn start<S: State>() {
+    start_with_options::<S>(FrameworkOptions::default())
+}
+
+pub fn start_with_options<S: State>(opts: FrameworkOptions) {
     let _ = ThreadPoolBuilder::new().num_threads(8).build_global();
     let el = EventLoop::new().expect("Failed to create event loop");
 
@@ -194,7 +296,7 @@ pub fn start<S: State>() {
                     .ok()
             })
             .expect("Failed to append canvas to body");
-        wasm_bindgen_futures::spawn_local(run(el, Arc::new(window)));
+        wasm_bindgen_futures::spawn_local(run(el, Arc::new(window), opts));
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -217,16 +319,23 @@ pub fn start<S: State>() {
         {
             window = wb;
         }
-        let window = window
-            .with_inner_size(PhysicalSize::new(
+        // A pinned size must also be unresizable: a compositor that lets the user drag the edge
+        // would change the resolution mid-capture.
+        let window = match opts.fixed_size {
+            Some((w, h)) => window
+                .with_inner_size(PhysicalSize::new(w, h))
+                .with_resizable(false),
+            None => window.with_inner_size(PhysicalSize::new(
                 size.width as f32 * 0.8,
                 size.height as f32 * 0.8,
-            ))
+            )),
+        };
+        let window = window
             .with_title(format!("Egregoria {}", include_str!("../../VERSION")))
             .build(&el)
             .expect("Failed to create window");
         let window = Arc::new(window);
-        beul::execute(run::<S>(el, window))
+        beul::execute(run::<S>(el, window, opts))
     }
 }
 
@@ -256,8 +365,8 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn new(window: Arc<Window>, el: &EventLoop<()>) -> Self {
-        let gfx = GfxContext::new(window).await;
+    pub async fn new(window: Arc<Window>, el: &EventLoop<()>, opts: GfxOptions) -> Self {
+        let gfx = GfxContext::new(window, opts).await;
         let input = InputContext::default();
         let audio = AudioContext::new();
         let egui = EguiWrapper::new(&gfx, el);
