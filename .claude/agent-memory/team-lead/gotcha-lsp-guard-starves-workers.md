@@ -1,8 +1,29 @@
 ---
 name: gotcha-lsp-guard-starves-workers
-description: The lsp-first-read-guard hook blocked Read for 4+ workers with no LSP tool and no way out, and its budget flag is shared by every concurrent agent in one cwd — workers silently fell back to `bash cat`
+description: SUBAGENTS HAVE NO LSP — proven by probe 2026-08-27, suspected since 2026-08-23. Never brief a worker to use or warm LSP; resolve symbols yourself and paste file:line. Also: the read-guard budget is shared per cwd
 metadata:
   type: project
+---
+
+## PROVEN 2026-08-27: subagents have NO LSP, and it is not recoverable
+
+A `wiring-auditor` probe whose definition listed `LSP` got, verbatim:
+
+    Error: No such tool available: LSP. LSP is disabled for this session, in subagents as well as here.
+    ToolSearch("select:LSP,ListAgents")  ->  No matching deferred tools found
+
+The message is misleading: LSP kept working in the MAIN session minutes later. Measured subagent
+toolset: `Read`, `Bash`, `ToolSearch`, `Skill`, `Write`, `Edit`, `SendMessage` (deferred).
+Absent: `LSP`, `ListAgents`, `Grep`, `Glob`, `Agent`, `WebFetch`.
+
+**Never brief a worker to use LSP or to "warm" it. Resolve symbols yourself in the main session
+and paste `file:line` into the brief.** A structural graph over MCP is the only code-intelligence
+tool a worker can reach.
+
+**The expensive part is that this note already said so on 2026-08-23** — see the worker quote
+below — and I briefed 4 workers with "your LSP is preloaded, warm it with documentSymbol" anyway.
+Rediscovering it cost ~330k tokens across three agents. Read this file before writing a brief.
+
 ---
 
 `~/.claude/hooks/lsp-first-read-guard.js` has **no LSP-availability check and no escape hatch.**
