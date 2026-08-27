@@ -1331,4 +1331,40 @@ mod cycle_tests {
         assert_eq!(keys.len(), n);
         assert!(!lav.corrupt.get());
     }
+
+    /// sov-bo3: the REFUSAL half of the fix, driven through the public entry point.
+    ///
+    /// The bound in `iter_keys` only detects the corruption; what makes the fix a fix
+    /// is that `skeleton` then returns `None` instead of a truncated — i.e. silently
+    /// wrong — skeleton. This is the only test that exercises that path, so stubbing
+    /// `any_corrupt` to `false` must make it fail.
+    ///
+    /// The polygon is a real one, captured verbatim from the production caller:
+    /// `simulation::map::procgen::gen_exterior_house(8.0, 32362)`, which is
+    /// deterministic in its seed. It was the single corrupting input in seeds
+    /// 0..100000 (~1 in 1e5, as the ticket measured). The literals are Rust `f32`
+    /// `Debug` output, which round-trips exactly; do not round them, the corruption
+    /// depends on the exact values.
+    #[test]
+    fn skeleton_refuses_a_polygon_that_corrupts_a_lav() {
+        let poly = &[
+            vec2(1.642981, -2.7928727),
+            vec2(1.642981, -0.5948043),
+            vec2(2.887004, -0.5948043),
+            vec2(2.887004, 2.7928727),
+            vec2(-1.4921961, 2.7928727),
+            vec2(-1.4921961, 2.286723),
+            vec2(-2.8471122, 2.286723),
+            vec2(-2.8471122, 1.0505371),
+            vec2(-1.4921961, 1.0505371),
+            vec2(-1.4921961, 0.5061135),
+            vec2(-2.887004, 0.5061135),
+            vec2(-2.887004, -2.7928727),
+        ];
+
+        assert!(
+            skeleton(poly, &[]).is_none(),
+            "skeleton() must REFUSE a polygon whose LAV goes corrupt, not return a truncated skeleton"
+        );
+    }
 }
