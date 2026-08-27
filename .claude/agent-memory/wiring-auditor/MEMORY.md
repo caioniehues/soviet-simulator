@@ -46,6 +46,38 @@
    Always literally run the documented command with `--no-run` skipped (i.e. actually run it) and read
    the "N filtered out" / "0 passed" line, don't just grep for the string in isolation.
 
+## Fixed instances of the recurring setter-with-no-caller shape
+
+- `Market::set_requested` (the exact symbol named in this agent's own origin story) got a real
+  production caller in the sov-lpj diff: `recipe_init` (souls/goods_company.rs:21-24) now calls
+  `market.set_requested(soul, item.id, item.amount * recipe.request_multiplier)` directly, and
+  `recipe_act` (line 52-55) changed its read from `.unwrap_or(item.amount)` to a bare `.unwrap()`
+  — the fallback that made the bug invisible is gone, so a missing `set_requested` call would now
+  panic instead of silently no-op. `recipe_init` is called from the real `company_soul` spawn path
+  (goods_company.rs:173) and `recipe_act` from `company_system`, which IS registered
+  (`init.rs:65`). New `Recipe::request_multiplier` (prototypes/src/types/recipe.rs) parses with
+  `.unwrap_or(1)` so all pre-existing recipes stay byte-identical (honest) by default — confirmed
+  by mutation: forcing `base_mod/companies.lua`'s `request_multiplier = 4` back to `1` makes
+  `sov_lpj_flour_factory_hoards_bounded_no_freight_station` fail. Lesson: the same setter symbol
+  can move from TEST-ONLY to REACHABLE across commits — always re-check current callers, don't
+  assume a name flagged once stays flagged forever.
+- New tests in `simulation/src/tests/scenarios/inflation.rs` deliberately avoid the hand-simulated
+  pattern from `hoarding.rs` SCENARIO-0151 (calling `Market::produce`/`buy_until` directly) — they
+  spawn a company through `build_special_building` + a tick so `company_soul`/`company_system` run
+  for real. This is the correct way to prove a recipe-path feature is live; check for it as the
+  bar when a new scenario claims to test soul-level wiring.
+
+## Hazard: never `git checkout -- <file>` on a file inside the audit scope
+
+Mid-audit on 2026-08-26, a mutation-test cleanup used `git checkout -- base_mod/companies.lua`
+meant to *restore my temporary edit*, but the file had uncommitted working-tree changes as part
+of the diff under audit (not yet committed) — `git checkout` silently reset it all the way to
+`HEAD`, deleting both `request_multiplier` lines from the actual diff being reviewed, not just my
+mutation. Recovered by re-adding the two lines by hand and diffing against `git show HEAD:<path>`
+to confirm exact restoration. **When mutation-testing an uncommitted working-tree diff, restore
+by hand-editing back to the known-good state (or `git stash`/reapply), never `git checkout --`,
+which resets to the last commit and destroys any uncommitted target changes along with your own.**
+
 ## Notes on scenario tests specifically
 
 - `simulation/src/tests/scenarios/hoarding.rs` scenario_0151 does NOT exercise `recipe_init`/`recipe_act`

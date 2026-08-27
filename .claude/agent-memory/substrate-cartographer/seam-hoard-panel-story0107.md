@@ -1,9 +1,33 @@
 ---
 name: seam-hoard-panel-story0107
-description: STORY-0107 hoarding-panel seam — Market accessors are public and the building inspector IS reachable, but set_requested has ZERO production callers so no dishonest enterprise can exist in a running game
+description: STORY-0107 hoarding-panel seam — Market accessors public, inspector reachable; the "set_requested is test-only" LEAD FINDING is now SUPERSEDED (fixed at 8531d3c via recipe.request_multiplier)
 metadata:
   type: project
 ---
+
+> **SUPERSEDED IN PART, 2026-08-27, verified at commit 8531d3c.**
+> The LEAD FINDING below ("`set_requested` has zero production callers") is **no
+> longer true**. `simulation/src/souls/goods_company.rs:24` now calls
+> `market.set_requested(soul, item.id, qty)` where
+> `qty = item.amount * recipe.request_multiplier`.
+> `request_multiplier` is a real prototype field
+> (`prototypes/src/types/recipe.rs:52`, parsed at `:63` with `.unwrap_or(1)`),
+> declared in Lua by **2 of 26** companies: `flour-factory = 4`
+> (`base_mod/companies.lua:40`) and `meat-facility = 3` (`:582`).
+> (Count corrected 2026-08-27 from "2 of 27": `grep -c 'type = "goods-company"'`
+> → **26**. The 27 is `grep -c '^        name = '`, which also catches one nested
+> `bgen` name. Use the `type =` count, never the `name =` count.)
+> **Both `request_multiplier` lines were still UNCOMMITTED at 8531d3c**
+> (`git diff base_mod/companies.lua` shows both as `+` lines). If sov-lpj never
+> lands, the original zero-production-callers finding returns.
+> The dishonest enterprise IS now reachable in a running game; the panel's
+> AC-2 no longer needs a simulation/ prerequisite.
+> Also changed: `recipe_act` now uses `market.requested(...).unwrap()`
+> (goods_company.rs:55), NOT `unwrap_or` — see [[seam-simwide-structure-2026-08-27]]
+> for the panic-path analysis. TRAP 3 below (about the `None` case being normal)
+> is therefore also stale.
+> Everything else in this sheet (inspector host path, `dispatches()` being
+> observation-dead, Lua counts, W&R notes) was not re-verified on 2026-08-27.
 
 SEAM: STORY-0107 / sov-hoard-panel-mko — inspection panel showing requested vs consumed
 Verified 2026-08-26 against **working tree at HEAD f89bc3b + dirty**.

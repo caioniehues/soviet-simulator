@@ -15,8 +15,8 @@ metadata:
   I measured 5/5 clean `cargo test -p simulation` (26 passed) and 2/2 serial.
   `tests/test_iso.rs:243` still calls `init()` outside the `Once`, but that is now
   a benign no-op (`let _ = REGISTRY.set(..)`), not UB.
-  CLAUDE.md still says to use `--test-threads=1` and that "a green parallel run
-  proves little" — that instruction is STALE; don't let it discount parallel evidence.
+  CLAUDE.md was updated to say "parallel runs are trustworthy" — the old
+  `--test-threads=1` instruction is gone.
 - The thread-local prototype override is safe because `SeqSchedule::execute`
   (`utils/scheduler.rs:41`) is a sequential for-loop — the sim never runs systems on
   worker threads. The only rayon site is `map/terrain.rs:66` (chunk gen), which is

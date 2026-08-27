@@ -13,7 +13,8 @@ and reviewers keep only looking at the first:
    - credits every remaining buy order instantly (`*capital.entry(buyer) += qty_buy`) — goods from nothing, and
    - debits every leftover sell order (`*cap -= qty_sell`) with only a `*cap < qty_sell` guard.
 
-Path 2 knows nothing about `reserved` or in-flight `Dispatch`es.
+**CORRECTED 2026-08-27:** Path 2's sell-surplus now subtracts `reserved` (market.rs:~693).
+The buy side still credits `capital` instantly with no Dispatch (the sov-abs teleport).
 
 **Why:** `base_mod/items.lua` sets `optout_exttrade = true` on **job-opening only**;
 all 20 physical goods take path 2. So any "nothing teleports" / deferred-transfer

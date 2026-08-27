@@ -19,6 +19,9 @@ Friction log for herdr-based orchestration (user asked these be recorded):
    "APPROVE" idle summary arrived but the full report did not; the teammate couldn't push it
    and the lead had to SendMessage to pull the auditable version. Always require the full
    report in the brief ("your final message is your report") AND expect to pull it anyway.
+   NOT herdr-specific: plain Agent-tool subagents did the same 4× in one wave (sov-00c,
+   2026-08-27) — idle notification, no report, one SendMessage pull recovered each. Budget
+   one pull per worker as normal cost, not an anomaly.
 5. **`herdr agent wait` resolves on momentary idle** — a worker that pauses to think settles
    the wait; a follow-up stability recheck is needed (moot while [[feedback-herdr-no-polling]]
    holds, but bites any future wait).

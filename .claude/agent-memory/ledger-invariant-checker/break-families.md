@@ -146,6 +146,35 @@ foreign counterparty (`market.rs:667, 701`). The domestic match sets
 **No physical flow is gated by money.** Clearing stays by queue, substitution
 and going without.
 
+## sov-lpj: request_multiplier (2026-08-26, audited against uncommitted diff)
+`request_multiplier` (prototypes/src/types/recipe.rs, default 1) only scales
+the QUANTITY a `recipe_init`/`recipe_act` buy order asks for
+(`goods_company.rs:23`: `qty = item.amount * request_multiplier`, fed through
+the unmodified `Market::set_requested`/`buy_until`). It does not touch the
+match/reserve/dispatch transfer mechanism at all — domestic trades still move
+real stock from seller to buyer via the existing `reserved`/`Dispatch`
+machinery (Family A/B, already CLOSED). **Verdict: CONSERVED for the transfer
+mechanism itself — this diff adds no new writer to any bucket in
+[[market-balance-index]].**
+- `buy_until`'s `qty - c as u32` stays safe at any multiplier: `recipe_should_produce`
+  still gates a consumption item's capital at `>= item.amount` (`goods_company.rs:36`,
+  UNCHANGED), so `c` is non-negative and the subtraction only fires when `c < qty`.
+- `recipe_act`'s `.unwrap()` on `market.requested(...)` (`:55`, was `.unwrap_or(...)`)
+  cannot panic in practice: `recipe_init` always runs first for the same soul
+  (`goods_company.rs:173` before `:215`) and always calls `set_requested`
+  unconditionally now — every soul that reaches `recipe_act` already has a
+  `requested` entry for every consumption item.
+- **PROVENANCE, not conservation**: cereal/meat are NOT `optout_exttrade` in
+  `base_mod/items.lua` (only `job-opening` is). So in a real game (freight
+  station present, unlike the test's AC E setup) flour-factory (k=4) and
+  meat-facility (k=3)'s inflated deficit feeds the PRE-EXISTING ext-trade buy
+  mint at `market.rs:667` (`capital.entry(buyer) += qty_buy` from nothing,
+  paired with a `money_delta` debit — this pairing is real, not a leak, it's
+  the known sov-abs "money buys physical goods from nowhere" design issue).
+  This diff does not create that mechanism but multiplies its magnitude by k
+  for these two companies specifically, since it inflates the very buy-order
+  quantity that feeds it. Worth flagging to design, not a FAIL.
+
 ## Numeric consequences to re-check after any of the above
 - `capital` is `i32` and can be negative; `reserved` is `u32`.
   `recipe_should_produce` does `capital - reserved as i32` — with negative

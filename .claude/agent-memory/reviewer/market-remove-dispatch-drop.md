@@ -1,6 +1,6 @@
 ---
 name: market-remove-dispatch-drop
-description: Market::remove both halves now fixed (sov-dispatch-wedge-ab4 r3 buyer, r4 seller truck-free); SimDrop::sim_drop takes &mut World; dead-seller drop is truck-only, never a ledger event
+description: Market::remove BOTH halves FIXED (r3 buyer settle, r4 seller truck-free); SimDrop takes &mut World; dead-seller drop is truck-only, not a ledger event
 metadata:
   type: project
 ---

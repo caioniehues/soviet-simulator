@@ -73,13 +73,19 @@ to the final `retain(|d| d.seller != soul)` at `:390`. Arms:
 - `Loading`/`ToDestination`/`Returning` (`:316`) → route truck home, set
   `Returning`; else declared loss + warn + free truck.
 - `Unloading` (`:369`) → declared loss + warn + free truck.
-`DispatchState::Returning` in `advance_dispatches` (`:930`) HAS the
+`DispatchState::Returning` in `advance_dispatches` (`:963`) HAS the
 truck-vanished guard as of round 3; arrival credits `capital[seller] += qty`
-at `:954` and `swap_remove`s in the same iteration (credits exactly once —
+at `:987` and `swap_remove`s in the same iteration (credits exactly once —
 verified by 1500 extra ticks in `audit_returning_credits_seller_exactly_once`).
-Truck is still not freed on the seller-side `retain` at `:390` — **pre-existing**
-(round-2 diff shows the old retain had the same shape), truck-leak only, no
-quantity consequence since the seller's whole row is wiped.
+
+**CORRECTED 2026-08-27 (HEAD `8531d3c`): the seller-side truck leak is FIXED.**
+An earlier version of this file said the truck is "still not freed on the
+seller-side `retain`". That is no longer true — `market.rs:398-403` now does
+`for d in self.dispatches.iter().filter(|d| d.seller == soul) { if let Some(v)
+= d.truck { dispatcher.free(...) } }` *before* the `retain` at `:403`, with a
+"round 4" comment at `:392-397` explaining that `Dispatcher::query` skips
+anything in `reserved_by` and only `free` clears it, so dropping without
+freeing removed the truck from the city permanently.
 
 ## `SimDrop::sim_drop` (widened round 3)
 Signature `fn sim_drop(self, id, world: &mut World, res: &mut Resources)` —

@@ -2,8 +2,8 @@
 name: substrate-cartographer
 description: Maps what this codebase ACTUALLY provides for a given seam, before a brief is written. Reads our Rust, our Lua, and the Workers & Resources reference install, and returns a cited fact-sheet. Use in Phase 0 of the dev cycle, whenever a story assumes a substrate exists, or whenever a brief is about to assert something about how the code works. Returns findings with file:line, never code.
 tools: Read, Grep, Glob, Bash, ToolSearch, LSP, WebSearch, WebFetch, SendMessage, ListAgents
-model: sonnet
-effort: medium
+model: opus
+effort: high
 memory: project
 color: cyan
 ---
@@ -35,8 +35,8 @@ Each of those cost 110–155k tokens. You cost less than one of them.
 A seam is only mapped when you have checked all three. They are meaningless separately — splitting
 them is precisely how `optout_exttrade` hid.
 
-**1. Our Rust.** `simulation/src/` (~15k lines: ECS, economy, souls, map, map_dynamic,
-transportation), `native_app/src/` (~3.6k lines: panels, tools), `prototypes/src/`, `engine/`,
+**1. Our Rust.** `simulation/src/` (~17.7k lines: ECS, economy, souls, map, map_dynamic,
+transportation), `native_app/src/` (~10.1k lines: panels, tools), `prototypes/src/`, `engine/`,
 `common/`.
 
 **2. Our Lua.** `base_mod/*.lua` — ~950 lines declaring every item, company, recipe, vehicle and
@@ -96,7 +96,7 @@ Verify on demand, per seam. Do not sweep all 1,472 files unasked.
   are different claims and must be labelled differently.
 - **Quantify.** "Only one of 21 items sets this flag" is a fact a lead can act on. "Some items
   opt out" is not.
-- Use `LSP` (`ToolSearch` with `select:LSP` once to load it) — `findReferences` and
+- Use `LSP` (preloaded in your toolset — no `ToolSearch` needed) — `findReferences` and
   `goToDefinition` beat grep for reachability questions. Grep is for Lua, `.ini` and docs.
 
 ## What you return

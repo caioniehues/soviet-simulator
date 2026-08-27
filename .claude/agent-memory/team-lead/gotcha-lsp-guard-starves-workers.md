@@ -35,20 +35,33 @@ workers arrive already in surgical mode through no fault of their own.
 Nobody reported it as a blocker — they quietly degraded to `bash cat`, so the tool-discipline rule
 was being violated wave-wide and invisibly.
 
-**A tested fix exists and is NOT installed** (global user config — needs the user's own go-ahead).
-It adds a per-file consecutive-block counter that relents after 2 blocks with a loud warning, so an
-agent that genuinely cannot call LSP is never deadlocked, while an agent that does call LSP never
-reaches it. Verified standalone: blocks twice, allows on the third attempt, and the normal
-progression (md free · 2 free reads · warn at 3 · block at 4 · re-reads free) is unchanged.
-Tracked as the `br` ticket `sov-lsp-guard-deadlock-*`.
+**The fix IS installed** (confirmed 2026-08-26 by reading `~/.claude/hooks/lsp-first-read-guard.js`
+directly — this memory previously said "not installed"; that was stale). It adds a per-file
+consecutive-block counter (`RELENT_AFTER = 2`) that relents at every gate (Gate 1 warmup, Gate 4
+nav, Gate 5 surgical) with a loud `emitWarning`, so an agent that genuinely cannot call LSP is
+never deadlocked, while an agent that does call LSP never reaches it. The warning text itself says
+"say so in your report rather than falling back to `bash cat`" — so a worker reporting "no LSP
+tool available, using Bash/grep" is the fix working as designed, not a new failure.
 
-**How to apply until it is fixed:**
+**Session-scale facts (2026-08-27, sov-00c review wave, 7/7 workers):** when the LSP tool is
+disabled for the SESSION ("LSP is disabled for this session, in subagents as well as here"),
+every subagent lacks it — do not put an LSP-warmup instruction in briefs then; instead state
+the working read path: Read relents on the **third** attempt per file (`n > RELENT_AFTER`,
+RELENT_AFTER=2 — not the second, as this note previously implied), and `grep -n` via Bash is
+sanctioned by the guard's own message. All 7 workers completed with grep-based evidence.
 
-- When a worker reports reading via `bash cat`/`grep`, do not treat it as sloppiness — check
-  whether the guard left it any alternative.
-- Ask workers to state LSP availability in their environment note, so degradation is visible.
-- Expect later workers in a large parallel wave to be more restricted than earlier ones; it is a
-  shared-counter artifact, not a difference in how they work.
+**How to read a worker reporting this:**
+
+- Not sloppiness, not a new bug — the escape hatch fired because either the LSP tool was genuinely
+  absent from that agent's toolset, or two block-and-retry cycles happened first (rare in practice
+  since ToolSearch("select:LSP") usually succeeds).
+- Still worth checking per-brief: did the brief instruct the LSP warmup call up front? Omitting it
+  is a lead-side gap (the global tool-discipline rule lives in the lead's context, not
+  auto-inherited by a subagent) — the guard rescues the agent from a deadlock, it does not make the
+  agent call LSP in the first place.
+- The flag is still keyed on cwd only (shared across concurrent agents in one repo) — later workers
+  in a large parallel wave can still be more restricted than earlier ones. That part of the
+  original finding stands.
 
 See [[feedback-agent-thoroughness-over-cost]] — a hook that silently caps a worker's reads is the
 same harm as a budget in the prompt, arriving through the harness instead.

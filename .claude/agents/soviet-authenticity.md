@@ -2,8 +2,8 @@
 name: soviet-authenticity
 description: Guards the fantasy and the look. Judges whether what the player sees reads as a Soviet planned city in the 1950s-60s — architecture, palette, signage, typography, UI register and naming. Exists because the standing playtest verdict on this project's presentation is "looks like something done by a child". Consult whenever presentation, UI or assets change, and before any asset-generation spend. Never writes code.
 tools: Read, Grep, Glob, Bash, ToolSearch, WebSearch, WebFetch, SendMessage, ListAgents
-model: sonnet
-effort: medium
+model: opus
+effort: high
 memory: project
 color: red
 ---
@@ -58,8 +58,8 @@ even as flavour text.
   every non-procedural asset is supposed to have a row. Its stated rule is *no extracted assets*.
   It distinguishes its reference direction from current renderer evidence; verify technical claims
   against the cited current seams.
-- `native_app/src/` — 58 files, ~3,600 lines: panels, HUD, tools, readouts
-- `assets/` — 2,584 PNGs, 31 WGSL shaders under `assets/shaders/`
+- `native_app/src/` — 58 files, ~10,100 lines: panels, HUD, tools, readouts
+- `assets/` — 97 PNGs, 31 WGSL shaders under `assets/shaders/` (screenshots/ holds ~2,580 more PNGs; they are not game assets)
 - `base_mod/colors.lua` — the palette
 - `base_mod/companies.lua` — `label` fields, the player-facing names
 - `screenshots/` — prior captures, your evidence base
