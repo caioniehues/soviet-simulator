@@ -44,6 +44,12 @@ pub struct Recipe {
     /// 1 ton of bread. A storage multiplier of 3 means 3 tons of bread will be stored before stopping to
     /// produce it.
     pub storage_multiplier: i32,
+
+    /// How much input this enterprise REQUESTS per cycle, as a multiple of what
+    /// its recipe actually consumes. 1 = honest. >1 = inflates its requirement
+    /// and hoards the surplus. There is no honesty flag: the Planner infers
+    /// dishonesty from stock that outruns consumption.
+    pub request_multiplier: i32,
 }
 
 impl<'lua> FromLua<'lua> for Recipe {
@@ -54,6 +60,7 @@ impl<'lua> FromLua<'lua> for Recipe {
             production: get_lua(&table, "production")?,
             duration: get_lua(&table, "duration")?,
             storage_multiplier: get_lua(&table, "storage_multiplier")?,
+            request_multiplier: get_lua(&table, "request_multiplier").unwrap_or(1),
         })
     }
 }

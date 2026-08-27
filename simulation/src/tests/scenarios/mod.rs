@@ -15,6 +15,7 @@
 use super::*;
 
 mod hoarding;
+mod inflation;
 mod ledger;
 mod recipe_provided;
 mod retail;

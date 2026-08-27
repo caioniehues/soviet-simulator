@@ -74,6 +74,7 @@ fn scenario_0093_recipe_multi_input_multi_output() {
         ],
         duration: dur(50),
         storage_multiplier: 5,
+        request_multiplier: 1,
     };
     assert!(recipe.consumption.len() >= 2);
     assert!(recipe.production.len() >= 2);
@@ -160,6 +161,7 @@ fn scenario_0095_full_output_storage_halts_production() {
         }],
         duration: dur(10),
         storage_multiplier: 0,
+        request_multiplier: 1,
     };
 
     let mut market = ctx.g.write::<Market>();
@@ -243,6 +245,7 @@ fn scenario_0097_production_never_checks_treasury() {
         }],
         duration: dur(10),
         storage_multiplier: 5,
+        request_multiplier: 1,
     };
 
     let mut market = ctx.g.write::<Market>();

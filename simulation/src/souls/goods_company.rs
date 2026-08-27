@@ -20,9 +20,8 @@ use super::desire::Work;
 
 pub fn recipe_init(recipe: &Recipe, soul: SoulID, near: Vec2, market: &mut Market) {
     for item in &recipe.consumption {
-        let qty = market
-            .requested(soul, item.id)
-            .unwrap_or(item.amount as u32);
+        let qty = item.amount as u32 * recipe.request_multiplier as u32;
+        market.set_requested(soul, item.id, qty);
         market.buy_until(soul, near, item.id, qty)
     }
     for item in &recipe.production {
@@ -53,9 +52,7 @@ pub fn recipe_should_produce(recipe: &Recipe, soul: SoulID, market: &Market) -> 
 pub fn recipe_act(recipe: &Recipe, soul: SoulID, near: Vec2, market: &mut Market) {
     for item in &recipe.consumption {
         market.produce(soul, item.id, -item.amount);
-        let qty = market
-            .requested(soul, item.id)
-            .unwrap_or(item.amount as u32);
+        let qty = market.requested(soul, item.id).unwrap();
         market.buy_until(soul, near, item.id, qty);
     }
     for item in &recipe.production {
