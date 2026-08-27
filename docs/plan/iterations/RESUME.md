@@ -6,6 +6,12 @@
 **Owner:** project lead
 **Last verified:** 2026-08-27
 
+> **2026-08-27 — a separate wave is in progress and is NOT part of this documentation plan.**
+> The `sov-m0q` tooling evidence epic was worked and cut short. Its handoff, including a P1 crash
+> bug (`sov-bo3`) and an ungated branch (`wip/sov-m0q-wave1`), is in
+> [`HANDOFF-2026-08-27-tooling-wave.md`](HANDOFF-2026-08-27-tooling-wave.md). Read that before
+> taking any tooling, CI, benchmark or renderer work.
+
 ## Verified state
 
 Read this after the charter and development cycle, then confirm live state with `bd` before taking
