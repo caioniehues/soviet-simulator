@@ -1,5 +1,7 @@
 # Resource Ontology
 
+> Superseded by ../../reference/specifications/resources.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R physical typed commodities, generalised + deepened (OURS)

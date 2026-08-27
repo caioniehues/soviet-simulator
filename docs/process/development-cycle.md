@@ -28,31 +28,39 @@ never delegated.
 
 ## The roster
 
-Fifteen agents in `.claude/agents/`, invoked by name. Every one exists because something specific
+Sixteen agents in `.claude/agents/`, invoked by name. Every one exists because something specific
 went wrong; each prompt carries that evidence, so the trap is inherited rather than rediscovered.
 
 | Phase | Agent | Tier | Owns |
 |---|---|---|---|
 | 0 | `substrate-cartographer` | opus | What the code, the Lua and the reference game actually do |
 | 0 / 4 | `kornai-economist` | opus | Shortage economy, queue-clearing, the dishonest enterprise |
-| 0 / 4 | `logistics-modeller` | opus | Dispatch, vehicles, routing, congestion — 25 stories |
-| 0 / 4 | `utilities-modeller` | opus | Power, water, sewage, heat, waste, weather — 26 stories |
-| 0 / 4 | `settlement-modeller` | opus | Citizens, households, needs, services — 24 stories |
-| 0 / — | `soviet-authenticity` | sonnet | The fantasy and the look; judges from frames |
-| 2 | `sim-implementer` | sonnet | `simulation/` — ~15,400 lines |
-| 2 | `ui-implementer` | sonnet | `native_app/` — ~3,600 lines |
-| 2 | `data-implementer` | sonnet | `base_mod/*.lua`, `prototypes/` — ~950 lines |
-| 3 | `evidence-auditor` | sonnet | The tests, not the code. Every guard seen failing |
-| 4 | `wiring-auditor` | sonnet | Is it reachable from the running game? |
+| 0 / 4 | `logistics-modeller` | opus | Dispatch, vehicles, routing, congestion |
+| 0 / 4 | `utilities-modeller` | opus | Power, water, sewage, heat, waste, weather |
+| 0 / 4 | `settlement-modeller` | opus | Citizens, households, needs, services |
+| 0 / — | `soviet-authenticity` | opus | The fantasy and the look; judges from frames |
+| 2 | `sim-implementer` | opus | `simulation/` — ~17,700 lines |
+| 2 | `ui-implementer` | opus | `native_app/` — ~10,100 lines |
+| 2 | `data-implementer` | opus | `base_mod/*.lua` ~950 + `prototypes/` ~2,790 — ~3,740 lines |
+| 3 | `evidence-auditor` | opus | The tests, not the code. Every guard seen failing |
+| 4 | `wiring-auditor` | opus | Is it reachable from the running game? |
 | 4 | `ledger-invariant-checker` | opus | Is quantity conserved? Economy diffs only |
 | 4 | `reviewer` *(global)* | opus | General adversarial gate |
-| 6 | `doc-reality-auditor` | sonnet | Docs, agents and tickets vs the code |
-| 7 | `release-engineer` | sonnet | Reproducible builds, pinning, licence |
-| 7 | `perf-engineer` | sonnet | The five bench gates at 250k |
+| — | `debugger` | opus | Root cause of a concrete misbehavior: diagnosis + minimal failing repro, never the fix. On demand, any phase |
+| 6 | `doc-reality-auditor` | opus | Docs, agents and tickets vs the code |
+| 7 | `release-engineer` | opus | Reproducible builds, pinning, licence |
+| 7 | `perf-engineer` | opus | The five bench gates at 250k |
 
-Tiering is deliberate and measured, not cosmetic: **sonnet implements, opus reviews and advises.**
-The quality lever is the review gate, never the implementer's tier. Do not "upgrade" an implementer
-to fix quality — add the gate.
+Tiering is now uniform opus/high across all 16 in-repo agents (user decision 2026-08-27;
+supersedes the earlier uniform-sonnet policy). The standing opus review gate (`reviewer`, global)
+remains the quality lever. The gate stays mandatory —
+a high implementer tier does not replace it; the measured result (an opus reviewer caught a bug
+an opus implementer shipped) was measured at opus tier.
+
+A codex cross-vendor gate is **planned, not built**. `.codex/agents/` mirrors 15 roles as `.toml`
+adapters but contains no reviewer and no gate entry point (verified 2026-08-27: `ls .codex/agents`
+shows no `reviewer.toml`). Do not skip arranging the opus gate on the belief that a second one
+already exists.
 
 ## Starting an iteration
 
@@ -138,8 +146,9 @@ Parallel implementers on disjoint files:
 Each logs progress with `bd comments add <id> "…" --author <name>` as it goes, especially when it
 discovers its brief was wrong. Evidence tasks are interleaved with code tasks, never trailed.
 
-Implementers are **sonnet**. The quality lever is the review gate, not implementer tier — this is
-measured, not assumed. Do not "upgrade" an implementer to fix quality; add the gate.
+Implementers are **opus** (user decision 2026-08-27). The quality lever is still the review gate,
+not implementer tier — this is measured, not assumed. A high tier does not earn a gate skip; every
+non-trivial diff still runs the chain.
 
 ---
 
@@ -163,7 +172,7 @@ mutation-tested, and one asserted arithmetic rather than the behaviour its story
 
 | # | Agent | Tier | Asks |
 |---|---|---|---|
-| 1 | `wiring-auditor` | sonnet | Is every new API actually called from production code? |
+| 1 | `wiring-auditor` | opus | Is every new API actually called from production code? |
 | 2 | `ledger-invariant-checker` | opus | Is quantity conserved across this economic seam? Run only when the diff touches the economy |
 | 3 | `reviewer` | opus | General adversarial gate — re-derives from source, never from a worker's summary |
 | 4 | domain advisor | opus | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
@@ -179,6 +188,9 @@ observable state" is unmet outside `cargo test`.
 
 Every gate re-derives from primary sources. A verifier that reads the producer's summary is
 grading its own work.
+
+See also: [process-layer drift review](review-2026-08-26-vs-swarmforge.md) for unresolved findings
+against this roster and gate chain.
 
 ---
 
@@ -209,8 +221,8 @@ code, and reports what is stale.
   from `bd`, commits, executed commands, and current generated artifacts instead of copying them.
 
 Then update the re-derived requirements and evidence inputs, run their documented `--check`
-commands, regenerate [`the roadmap`](../generated/iterations/roadmap.md) with
-`python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/plan/iterations/evidence/target-scenarios.json --output docs/generated/iterations/roadmap.md`,
+commands, regenerate [`the roadmap`](../generated/roadmap.md) with
+`python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/generated/evidence/target-scenarios.json --output docs/generated/roadmap.md`,
 and confirm every promoted scenario runs a non-zero test filter. A generated roadmap reports
 status; it never closes work in place of `bd`.
 

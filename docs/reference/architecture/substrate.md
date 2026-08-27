@@ -84,4 +84,6 @@ mechanism.
 
 The three Wave 1 fact-sheets are the current cited source maps. They did not run gameplay,
 performance, save-migration, corrupted-save, or mutation validation. Those unperformed checks
-must remain unclaimed until a later evidence artifact records their command and result.
+must remain unclaimed until a later evidence artifact records their command and result. The
+planning corpus and discovery paths derived from these fact-sheets are inventoried separately in
+[wave3-corpus](../../research/fact-sheets/wave3-corpus.md) (superseded; kept as provenance).

@@ -92,68 +92,182 @@
       "test": "tests::scenarios::hoarding::scenario_0151_inflated_request_hoards_honest_does_not"
     },
     {
-      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_exttrade_double_spend -- --test-threads=1",
+      "command": "cargo test -p simulation tests::scenarios::inflation::sov_lpj_flour_factory_hoards_bounded_no_freight_station -- --test-threads=1",
       "id": "REGRESSION-016",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::inflation::sov_lpj_flour_factory_hoards_bounded_no_freight_station"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::inflation::sov_lpj_requested_is_set_by_production_recipe_init -- --test-threads=1",
+      "id": "REGRESSION-017",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::inflation::sov_lpj_requested_is_set_by_production_recipe_init"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_dead_buyer_loading_goods_returned -- --test-threads=1",
+      "id": "REGRESSION-018",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_dead_buyer_loading_goods_returned"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_dead_buyer_tosource_releases_reservation -- --test-threads=1",
+      "id": "REGRESSION-019",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_dead_buyer_tosource_releases_reservation"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_dead_seller_frees_its_truck -- --test-threads=1",
+      "id": "REGRESSION-020",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_dead_seller_frees_its_truck"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_demolish_buyer_building_end_to_end_conserves -- --test-threads=1",
+      "id": "REGRESSION-021",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::scenario_demolish_buyer_building_end_to_end_conserves"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_exttrade_double_spend -- --test-threads=1",
+      "id": "REGRESSION-022",
       "scope": "current substrate regression",
       "test": "tests::scenarios::ledger::scenario_ledger_exttrade_double_spend"
     },
     {
       "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_job_opening_reserve_leak -- --test-threads=1",
-      "id": "REGRESSION-017",
+      "id": "REGRESSION-023",
       "scope": "current substrate regression",
       "test": "tests::scenarios::ledger::scenario_ledger_job_opening_reserve_leak"
     },
     {
       "command": "cargo test -p simulation tests::scenarios::ledger::scenario_ledger_remove_leak -- --test-threads=1",
-      "id": "REGRESSION-018",
+      "id": "REGRESSION-024",
       "scope": "current substrate regression",
       "test": "tests::scenarios::ledger::scenario_ledger_remove_leak"
     },
     {
+      "command": "cargo test -p simulation tests::scenarios::ledger::sov_e1q_export_without_external_endpoint -- --test-threads=1",
+      "id": "REGRESSION-025",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::ledger::sov_e1q_export_without_external_endpoint"
+    },
+    {
       "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0093_recipe_multi_input_multi_output -- --test-threads=1",
-      "id": "REGRESSION-019",
+      "id": "REGRESSION-026",
       "scope": "current substrate regression",
       "test": "tests::scenarios::recipe_provided::scenario_0093_recipe_multi_input_multi_output"
     },
     {
       "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0094_extraction_no_consumed_inputs -- --test-threads=1",
-      "id": "REGRESSION-020",
+      "id": "REGRESSION-027",
       "scope": "current substrate regression",
       "test": "tests::scenarios::recipe_provided::scenario_0094_extraction_no_consumed_inputs"
     },
     {
       "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0095_full_output_storage_halts_production -- --test-threads=1",
-      "id": "REGRESSION-021",
+      "id": "REGRESSION-028",
       "scope": "current substrate regression",
       "test": "tests::scenarios::recipe_provided::scenario_0095_full_output_storage_halts_production"
     },
     {
       "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0096_workforce_sourced_live_from_present_population -- --test-threads=1",
-      "id": "REGRESSION-022",
+      "id": "REGRESSION-029",
       "scope": "current substrate regression",
       "test": "tests::scenarios::recipe_provided::scenario_0096_workforce_sourced_live_from_present_population"
     },
     {
       "command": "cargo test -p simulation tests::scenarios::recipe_provided::scenario_0097_production_never_checks_treasury -- --test-threads=1",
-      "id": "REGRESSION-023",
+      "id": "REGRESSION-030",
       "scope": "current substrate regression",
       "test": "tests::scenarios::recipe_provided::scenario_0097_production_never_checks_treasury"
     },
     {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_bakery_keeps_producing_with_uncollected_loaves -- --test-threads=1",
+      "id": "REGRESSION-031",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_bakery_keeps_producing_with_uncollected_loaves"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_dead_truck_tosource_cancels_without_leak -- --test-threads=1",
+      "id": "REGRESSION-032",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_dead_truck_tosource_cancels_without_leak"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_dead_truck_while_returning_terminates -- --test-threads=1",
+      "id": "REGRESSION-033",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_dead_truck_while_returning_terminates"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_demolished_buyer_returns_goods_physically -- --test-threads=1",
+      "id": "REGRESSION-034",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_demolished_buyer_returns_goods_physically"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_double_match_does_not_orphan_reservation -- --test-threads=1",
+      "id": "REGRESSION-035",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_double_match_does_not_orphan_reservation"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_human_order_never_fills_via_external_market -- --test-threads=1",
+      "id": "REGRESSION-036",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_human_order_never_fills_via_external_market"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_never_matched_waiting_is_not_reset -- --test-threads=1",
+      "id": "REGRESSION-037",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_never_matched_waiting_is_not_reset"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_retail_buyer_despawn_releases_reservation -- --test-threads=1",
+      "id": "REGRESSION-038",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_retail_buyer_despawn_releases_reservation"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_retail_no_dispatch_settles_at_eat_time -- --test-threads=1",
+      "id": "REGRESSION-039",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_retail_no_dispatch_settles_at_eat_time"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_retail_ttl_releases_and_resets_buyfood -- --test-threads=1",
+      "id": "REGRESSION-040",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_retail_ttl_releases_and_resets_buyfood"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_returning_with_severed_road_terminates -- --test-threads=1",
+      "id": "REGRESSION-041",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_returning_with_severed_road_terminates"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::retail::scenario_ttl_expired_arrival_is_not_a_free_meal -- --test-threads=1",
+      "id": "REGRESSION-042",
+      "scope": "current substrate regression",
+      "test": "tests::scenarios::retail::scenario_ttl_expired_arrival_is_not_a_free_meal"
+    },
+    {
       "command": "cargo test -p simulation tests::scenarios::scenario_harness_smoke -- --test-threads=1",
-      "id": "REGRESSION-024",
+      "id": "REGRESSION-043",
       "scope": "current substrate regression",
       "test": "tests::scenarios::scenario_harness_smoke"
     },
     {
       "command": "cargo test -p simulation tests::test_iso::quickcheck_map_ser -- --test-threads=1",
-      "id": "REGRESSION-025",
+      "id": "REGRESSION-044",
       "scope": "current substrate regression",
       "test": "tests::test_iso::quickcheck_map_ser"
     },
     {
       "command": "cargo test -p simulation tests::test_iso::test_world_survives_serde -- --test-threads=1",
-      "id": "REGRESSION-026",
+      "id": "REGRESSION-045",
       "scope": "current substrate regression",
       "test": "tests::test_iso::test_world_survives_serde"
     }

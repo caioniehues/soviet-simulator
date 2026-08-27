@@ -2,7 +2,7 @@
 
 **Kind:** plan
 **Authority:** operational
-**Status:** active
+**Status:** superseded — rewrite completed, cutover commit `b6381a5`; see `docs/plan/iterations/RESUME.md`
 **Owner:** project lead
 **Last verified:** 2026-08-24
 
@@ -51,7 +51,7 @@ charter + glossary + current substrate fact-sheets
 ```
 
 No generated file, RESUME handoff, old ADR, or archived document can establish scope or mechanism
-upstream. `br` remains the only task-state authority.
+upstream. `bd` remains the only task-state authority.
 
 ## Wave 1 — archive, foundations, and physical core
 
@@ -140,7 +140,7 @@ transfers, and every other stated conservation seam.
 | `docs/plan/iterations/evidence/` | Rebuild scenarios, corpus, and coverage with real commands/test bindings; no promoted sentinel may remain `TBD`. |
 | `docs/generated/iterations/roadmap.md` | Rewrite the generator to consume requirement metadata, validate totals, and regenerate the file at its new path. |
 
-Reconstruct `docs/plan/iterations/RESUME.md` from current `br` state, verified commits, executed test
+Reconstruct `docs/plan/iterations/RESUME.md` from current `bd` state, verified commits, executed test
 commands, and regenerated counts. Do not copy narrative status forward.
 
 ### Final reconciliation and cutover
@@ -156,7 +156,7 @@ commands, and regenerated counts. Do not copy narrative status forward.
 1. `evidence-auditor` verifies executable evidence and rejects zero-test filters.
 2. `wiring-auditor`, then conditional `ledger-invariant-checker`, then `reviewer` and domain sign-offs.
 3. Lead dispositions every finding; no orphaned review comments.
-4. `doc-reality-auditor` checks docs, agent definitions, `br`, generated counts, paths, and current code.
+4. `doc-reality-auditor` checks docs, agent definitions, `bd`, generated counts, paths, and current code.
 5. `scribe` captures only durable enforcement lessons after the corpus is clean.
 
 ## Mechanical completion checks

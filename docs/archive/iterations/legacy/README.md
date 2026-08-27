@@ -13,5 +13,5 @@ STORY identity migration only.
 
 It establishes no current scope, mechanism, task status, target implementation, scenario command,
 or generated count. Use [`../../../plan/iterations/RESUME.md`](../../../plan/iterations/RESUME.md)
-for the current handoff and [`../../../generated/iterations/roadmap.md`](../../../generated/iterations/roadmap.md)
+for the current handoff and [`../../../generated/roadmap.md`](../../../generated/roadmap.md)
 for current derived reporting.

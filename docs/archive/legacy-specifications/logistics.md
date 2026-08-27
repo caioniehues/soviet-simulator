@@ -1,5 +1,7 @@
 # Logistics
 
+> Superseded by ../../reference/specifications/logistics.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R distribution offices generalised into a policy scheduler; CS1 `TransferManager` offer-matching for comparison

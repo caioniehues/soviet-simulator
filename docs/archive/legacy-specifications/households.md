@@ -1,5 +1,7 @@
 # Households
 
+> Superseded by ../../reference/specifications/households.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 `CitizenUnit` mechanics (kept, generalized), W&R data grammar (kept), allocation policy OURS

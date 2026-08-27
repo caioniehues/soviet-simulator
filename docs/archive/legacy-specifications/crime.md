@@ -1,5 +1,7 @@
 # Crime
 
+> Superseded by ../../reference/specifications/crime.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 generation formula + physical-arrest path; W&R fed-prisoner grammar; black market is OURS

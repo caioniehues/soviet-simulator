@@ -1,0 +1,5 @@
+[book]
+title = "Soviet Simulator Docs"
+src = "docs"
+
+[preprocessor.pagetoc]

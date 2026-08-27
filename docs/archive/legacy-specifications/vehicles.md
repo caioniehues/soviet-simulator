@@ -1,5 +1,7 @@
 # Vehicles
 
+> Superseded by ../../reference/specifications/vehicles.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R physical owned vehicles; CS1 transient-spawn as the rejected contrast

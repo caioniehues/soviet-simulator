@@ -1,5 +1,7 @@
 # Zoning
 
+> Superseded by ../../reference/specifications/zoning.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 zoning grid (studied and largely rejected) + W&R planned placement (kept)

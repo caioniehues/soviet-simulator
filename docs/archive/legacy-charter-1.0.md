@@ -1,5 +1,7 @@
 # The 1.0 Charter
 
+> Superseded by ../plan/charter-1.0.md — provenance only.
+
 **Status:** the plan of record for shipping soviet-simulator 1.0. Authored 2026-08-17
 as the destination of the wayfinder map
 [the Road to 1.0](https://github.com/caioniehues/soviet-simulator/issues/81) — 28

@@ -14,7 +14,7 @@ the proposed contract for review; it cannot establish completion or override the
 
 The [1.0 charter](../../plan/charter-1.0.md) controls scope, the
 [glossary](../glossary.md) controls terminology, current code plus the cited
-[substrate map](../architecture/substrate.md) controls claims about what exists, and `br` controls
+[substrate map](../architecture/substrate.md) controls claims about what exists, and `bd` controls
 task state. A specification controls only the target mechanism inside charter scope.
 
 Each specification separates:

@@ -1,5 +1,7 @@
 # Sewage
 
+> Superseded by ../../reference/specifications/sewage.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R separate sewage network with treat-or-discharge choice

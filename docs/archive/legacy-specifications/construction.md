@@ -1,5 +1,7 @@
 # Construction
 
+> Superseded by ../../reference/specifications/construction.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R physical construction, deepened to explicit phases (OURS); CS1 for road-cost + placement UX

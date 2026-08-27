@@ -1,5 +1,7 @@
 # Buildings
 
+> Superseded by ../../reference/specifications/buildings.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R authored-prefab grammar (kept) + CS1 growable lifecycle (mined for parts)

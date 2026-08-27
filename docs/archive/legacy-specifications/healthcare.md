@@ -1,5 +1,7 @@
 # Healthcare
 
+> Superseded by ../../reference/specifications/healthcare.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 ambulance/bed loop + W&R fuelled-vehicle infrastructure, coverage field stripped (OURS)

@@ -10,7 +10,7 @@
 
 This charter defines the 1.0 destination and cut line for the Rust/Egregoria hard fork. It binds
 scope, not implementation status or mechanism. The current code and cited substrate fact-sheets
-describe what exists; ratified specifications define how an in-scope system must behave; `br`
+describe what exists; ratified specifications define how an in-scope system must behave; `bd`
 defines task state.
 
 Earlier completion markings, rung status, estimates, and implementation assertions from the

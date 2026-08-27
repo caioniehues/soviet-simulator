@@ -1,5 +1,7 @@
 # Foreign Trade
 
+> Superseded by ../../reference/specifications/trade.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R physical dual-currency trade, with a published (non-opaque) market model (OURS)

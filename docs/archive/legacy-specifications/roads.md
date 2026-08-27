@@ -1,5 +1,7 @@
 # Roads
 
+> Superseded by ../../reference/specifications/roads.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 network engine (adopted) + W&R road-class model (adopted); CS2 two-layer concept dropped

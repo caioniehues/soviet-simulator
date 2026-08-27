@@ -5,7 +5,7 @@
 **Status:** draft
 **Owner:** project lead
 **Last verified:** 2026-08-24
-**Generator:** `python3 docs/plan/iterations/evidence/build_evidence.py --extract docs/plan/iterations/extract/requirements.json --specifications docs/reference/specifications --bindings docs/plan/iterations/evidence/evid-spec-bindings.json --output-dir docs/plan/iterations/evidence`
+**Generator:** `python3 docs/plan/iterations/evidence/build_evidence.py --extract docs/plan/iterations/extract/requirements.json --specifications docs/reference/specifications --bindings docs/plan/iterations/evidence/evid-spec-bindings.json --output-dir docs/generated/evidence`
 
 All rows are planned target evidence. `UNIMPLEMENTED` means no target guard has been implemented or mutation-proven; current regressions are listed separately and are not target proof.
 

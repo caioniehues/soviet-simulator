@@ -18,7 +18,7 @@ may be re-ratified only by a new or explicitly superseding decision that checks 
 current substrate and charter.
 
 No new decision is created merely to preserve an old ADR number or conclusion. The charter binds
-scope; the glossary binds terminology; specifications bind in-scope mechanism; `br` binds task
+scope; the glossary binds terminology; specifications bind in-scope mechanism; `bd` binds task
 state.
 
 ## Lifecycle

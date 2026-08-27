@@ -89,7 +89,7 @@ Do not review implementation correctness, style or performance. Other agents own
   that date under parallel runs may have been unreliable — check the date before trusting it.
 - Scenario tests live in `simulation/src/tests/scenarios/` and carry corpus IDs in their names
   (`scenario_0082_...`, `journey_0001_...`). The behavior corpus addresses them by ID.
-- `docs/plan/iterations/evidence/target-scenarios.json` and `evid-spec-bindings.json` bind target
+- `docs/generated/evidence/target-scenarios.json` and `evid-spec-bindings.json` bind target
   scenarios to specifications and commands. An unimplemented binding or a command that runs zero
   tests is unexecuted evidence — say so.
 - Never weaken `TestCtx::tick()`'s determinism check to make anything pass.

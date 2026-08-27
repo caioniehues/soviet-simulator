@@ -17,7 +17,7 @@ claim true merely by containing it. Use the authority map below before relying o
 | What project words mean | [Glossary](reference/glossary.md) | Terminology only |
 | What the current fork actually provides | [Substrate architecture](reference/architecture/substrate.md) and its cited fact-sheets | Observed implementation reality |
 | How an in-scope system must behave | `reference/specifications/` | Binding mechanisms after ratification |
-| What is being worked on now | `br` | Task state only |
+| What is being worked on now | `bd` | Task state only |
 
 Authority flows downward: charter, glossary, and observed substrate constrain specifications;
 specifications constrain requirements; requirements constrain scenarios and generated status.

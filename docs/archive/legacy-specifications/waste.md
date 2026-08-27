@@ -1,5 +1,7 @@
 # Waste
 
+> Superseded by ../../reference/specifications/waste.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R typed circular-economy waste loop; CS1 confirms the hauled-not-piped shape

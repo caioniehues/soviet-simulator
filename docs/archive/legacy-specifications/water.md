@@ -1,5 +1,7 @@
 # Water
 
+> Superseded by ../../reference/specifications/water.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R quality-graded pipe network; CS1 grid rejected

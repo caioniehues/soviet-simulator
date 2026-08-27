@@ -1,5 +1,7 @@
 # Production
 
+> Superseded by ../../reference/specifications/production.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R transformation process, deepened; CS1 worker-scaling for comparison (OURS synthesis)

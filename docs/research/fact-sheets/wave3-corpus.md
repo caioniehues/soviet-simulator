@@ -2,7 +2,7 @@
 
 **Kind:** reference
 **Authority:** reference
-**Status:** active
+**Status:** superseded — the rewrite it describes has shipped, cutover commit `b6381a5`; see `docs/plan/iterations/RESUME.md`
 **Owner:** architecture
 **Last verified:** 2026-08-24
 **Commit:** `15b97ca`
@@ -24,7 +24,7 @@ binding charter + binding glossary + current code/fact-sheets
 ```
 
 The charter binds only scope; current code and fact-sheets describe present behaviour; ratified
-specifications bind an in-scope mechanism; `br` owns task state
+specifications bind an in-scope mechanism; `bd` owns task state
 (`docs/plan/charter-1.0.md:9-19`, `docs/reference/specifications/README.md:15-18`). A draft does
 not establish completion or override the charter (`docs/reference/specifications/README.md:9-11`).
 Requirements and scenarios must cite stable `SPEC-*` anchors rather than mutable lines
@@ -41,7 +41,7 @@ reporting surfaces, never authority upstream of requirements.
 | Sentinels | **6** promoted sentinels, all `TBD` | `docs/archive/iterations/legacy/corpus/behavior-corpus.md:11-18` | No sentinel is promotable until its command runs at least one test. |
 | Coverage ledger | 23 rows: 22 `covered`, 1 `non-normative`; all cite root `spec/` paths | `docs/archive/iterations/legacy/corpus/coverage-ledger.md:6-32` | Rebuild from rewritten requirement-to-SPEC-to-evidence links; labels are not proof of current coverage. |
 | Roadmap/generator | Parser recognizes deferred markers but emitted header is hard-coded to “plus 1 deferred” | `docs/archive/iterations/legacy/corpus/build_roadmap.py:82-99`, `docs/archive/iterations/legacy/corpus/build_roadmap.py:188-194`; false archived header at `docs/archive/iterations/legacy/corpus/roadmap.md:1-3` | Replace generator around explicit requirement metadata; validate totals and reproduce the new roadmap byte-for-byte. |
-| RESUME | Reports 151 scenarios/5 sentinels despite the 153-row/6-sentinel corpus; calls truck work in flight despite current SmallTruck registration and real dispatch | stale counts at `docs/archive/iterations/legacy/corpus/RESUME.md:12-20`; stale truck narrative at `docs/archive/iterations/legacy/corpus/RESUME.md:73-85`; current code at `simulation/src/map_dynamic/dispatch.rs:95-104`, `simulation/src/economy/market.rs:462-609` | Reconstruct from current `br`, verified commits, executed commands, and regenerated counts; copy no narrative status forward. |
+| RESUME | Reports 151 scenarios/5 sentinels despite the 153-row/6-sentinel corpus; calls truck work in flight despite current SmallTruck registration and real dispatch | stale counts at `docs/archive/iterations/legacy/corpus/RESUME.md:12-20`; stale truck narrative at `docs/archive/iterations/legacy/corpus/RESUME.md:73-85`; current code at `simulation/src/map_dynamic/dispatch.rs:95-104`, `simulation/src/economy/market.rs:462-609` | Reconstruct from current `bd`, verified commits, executed commands, and regenerated counts; copy no narrative status forward. |
 
 The exact 149/370/153/6/TBD inventory was counted from the current files on 2026-08-24. The
 legacy RESUME's 130-scheduled/19-deferred statement conflicts with the generator output's
@@ -79,7 +79,7 @@ Wave 3 must proceed in this order:
 
 1. Write story migration and re-derived requirements before extract, evidence, or roadmap.
 2. Re-extract and validate structured data, then rebuild executable evidence and a total-validating generator.
-3. Reconstruct RESUME from `br`, verified commits, executed commands, and regenerated counts.
+3. Reconstruct RESUME from `bd`, verified commits, executed commands, and regenerated counts.
 4. Cut root discovery, process, art-direction, agent definitions, and approved research/plan paths together.
 5. Prove no active old-path reference remains, every live requirement resolves to charter and SPEC, every promoted scenario runs a nonzero test, and generated output reproduces byte-for-byte.
 

@@ -1,5 +1,7 @@
 # Education
 
+> Superseded by ../../reference/specifications/education.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 enrolment-as-job + W&R attendance chain, field abstraction stripped (OURS)

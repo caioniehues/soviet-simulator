@@ -1,5 +1,7 @@
 # Pathfinding
 
+> Superseded by ../../reference/specifications/pathfinding.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 PathFind (adopted as Burst A*); W&R confirms the whole layer is OURS to build

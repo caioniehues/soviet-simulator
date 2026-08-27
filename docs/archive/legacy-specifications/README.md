@@ -1,5 +1,11 @@
 # Specifications
 
+**Kind:** index
+**Authority:** provenance only
+**Status:** archived
+**Owner:** project lead
+**Last verified:** 2026-08-26
+
 One file per subsystem. Each is a living document that evolves from stub → draft model → validated model as Phase 1 research proceeds.
 
 ## Evidence levels

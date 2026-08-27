@@ -4,7 +4,7 @@
 **Authority:** operational handoff only; `bd` (beads, replaced `br` 2026-08-26) remains task-state authority
 **Status:** cutover complete — commit `b6381a5`; parent closure recorded in `bd`
 **Owner:** project lead
-**Last verified:** 2026-08-26
+**Last verified:** 2026-08-27
 
 ## Verified state
 
@@ -28,7 +28,7 @@ Commit `942c25e` established the current planning inputs and reporting output:
 | `requirements/` plus `story-migration.md` | 149 migrated STORY rows; 21 live re-derived requirements | Requirements derive scope from the charter and mechanism references from stable `SPEC-*` anchors |
 | `extract/requirements.json` | 21 extracted requirements | Structured input only; schema validity is not target proof |
 | `evidence/` | 107 planned `EVID-*` targets, 0 implemented; 26 current regressions separate | Target evidence is not current code evidence until its guard exists and mutation proof is recorded |
-| `generated/iterations/roadmap.md` | 21 requirements, 107 planned targets, 0 implemented | Reporting only; cannot establish scope or task completion |
+| `generated/roadmap.md` | 21 requirements, 107 planned targets, 0 implemented | Reporting only; cannot establish scope or task completion |
 
 The legacy 149-story corpus, including stale `RESUME`, scenarios, roadmaps, requirements, extracts,
 and generators, is retained unchanged at [`../../archive/iterations/legacy/corpus/`](../../archive/iterations/legacy/corpus/).
@@ -42,21 +42,41 @@ none validates target implementation by itself.
 ```bash
 python3 docs/plan/iterations/requirements/build_requirements.py --check
 python3 docs/plan/iterations/extract/build_extract.py --requirements docs/plan/iterations/requirements --specifications docs/reference/specifications --output docs/plan/iterations/extract/requirements.json --check
-python3 docs/plan/iterations/evidence/build_evidence.py --extract docs/plan/iterations/extract/requirements.json --specifications docs/reference/specifications --bindings docs/plan/iterations/evidence/evid-spec-bindings.json --output-dir docs/plan/iterations/evidence --check
-python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/plan/iterations/evidence/target-scenarios.json --output docs/generated/iterations/roadmap.md --check
+python3 docs/plan/iterations/evidence/build_evidence.py --extract docs/plan/iterations/extract/requirements.json --specifications docs/reference/specifications --bindings docs/plan/iterations/evidence/evid-spec-bindings.json --output-dir docs/generated/evidence --check
+python3 docs/plan/iterations/build_roadmap.py --requirements-dir docs/plan/iterations/requirements --extract docs/plan/iterations/extract/requirements.json --evidence docs/generated/evidence/target-scenarios.json --output docs/generated/roadmap.md --check
 ```
 
 The most recent recorded exact serial suite is `cargo test -p simulation -- --test-threads=1`:
-26 passed, 0 failed, 0 filtered; doc-tests 0 (Wave 3 evidence/reviewer gate record on `bd` child
-`.14`; re-confirmed at clean HEAD `f89bc3b` on 2026-08-26 — see the parent close reason for the
-real output). This is a substrate-regression check, not proof of the 107 target rows.
+45 passed, 0 failed, 0 filtered in 43.23s; doc-tests 0. Run at commit `91d9cb4` on 2026-08-27.
+This is a substrate-regression check, not proof of the 107 target rows.
 
-Note: while `sov-dispatch-wedge-ab4` work is uncommitted in the working tree, the evidence
-`--check` diverges there by design (the wedge adds simulation tests); regeneration of
-`current-regression-inventory.json` and the roadmap is owed at that issue's Phase 6 wrap.
+The evidence regeneration owed since `7e4b82f` is DONE (2026-08-27). All four generated evidence
+artifacts now live together under `docs/generated/evidence/` — `target-scenarios.json`,
+`current-regression-inventory.json`, `current-regression-inventory.md` and `coverage.md` — because
+`build_evidence.py` writes all four to a single `--output-dir`. Only the two Markdown files had
+been moved, which made the documented `--check` above exit 1. The inventory now reports 45
+regressions, matching the live suite. Every command in the block above exits 0.
+
+Inputs stay where they are: `build_evidence.py` and `evid-spec-bindings.json` remain under
+`docs/plan/iterations/evidence/`. Generated artifacts live under `docs/generated/`; generators and
+their inputs live under `docs/plan/`.
 
 ## Next work
 
-Wave 3 and the rewrite parent are closed. Live work is tracked in `bd` (`bd ready`); as of
-2026-08-26 the front of the queue is `sov-dispatch-wedge-ab4` (P1, round 4 in flight) and
-`sov-hoard-panel-mko` (Phase 0 fact-sheet in flight).
+Live work is tracked in `bd`. **Re-derive the queue with `bd ready`** rather than trusting this
+section — it went stale the day it was written last time.
+
+As of 2026-08-27 the dishonest-enterprise core loop is wired end to end. `sov-lpj`
+(REQ-PRODUCTION-001, the `request_multiplier` field) landed at commit `0caee71`; the truck-parking
+bugs it was blocked on, `sov-2c4` and `sov-7pg`, landed at `e27a068`. Before that commit
+`Market::set_requested` had zero production callers, so the surplus was identically zero in a
+running game and the core loop existed only inside a test.
+
+That unblocked **`sov-hoard-panel-mko` (STORY-0107)** — the inspection panel showing requested
+versus consumed. It is the natural next story: the surplus now exists in the simulation, but THE
+PLANNER still cannot see it.
+
+Behind it sit five dispatch-wedge bugs (`sov-jcl`, `sov-xyx`, `sov-abs`, `sov-dii`, `sov-6qx`) and
+the in-progress tooling epic `sov-m0q`. `sov-361` stays open: commit `bc555d9` fixed
+`mismatched_lifetime_syntaxes` in engine, common and map_dynamic, but NOT the files that ticket
+names — `simulation/src/lib.rs:319+` and `simulation/src/utils/resources.rs` still warn.

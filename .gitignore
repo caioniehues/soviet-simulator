@@ -5,6 +5,11 @@
 !.claude/agents/
 !.claude/agent-memory/
 !.claude/skills/
+# Hooks are repo wiring, not machine state: CLAUDE.md tells every agent the
+# knowledge graph "auto-updates on file changes (via hooks)", and that promise
+# is only true if the hooks ship with the repo. settings.local.json stays
+# ignored -- it holds per-machine permissions.
+!.claude/settings.json
 CLAUDE.local.md
 /screenshots
 /saves

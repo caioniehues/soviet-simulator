@@ -1,5 +1,7 @@
 # Citizen Needs / Wants / Aspirations
 
+> Superseded by ../../reference/specifications/needs.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 citizen skeleton + W&R physical causality, pushed deeper (OURS)

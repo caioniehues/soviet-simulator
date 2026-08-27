@@ -1,0 +1,500 @@
+<title>Ecosystem Research</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+
+  :root {
+    --ground: #F0EBE3;
+    --surface: #FDFBF7;
+    --text: #1C2127;
+    --text-secondary: #4A4640;
+    --text-muted: #7A746B;
+    --border: #D5CFC4;
+    --border-light: #E5E0D6;
+    --accent-red: #8B2D1A;
+    --accent-red-bg: #F5E8E4;
+    --accent-brass: #7A6C3A;
+    --accent-brass-bg: #F0ECD6;
+    --accent-green: #4A6741;
+    --accent-green-bg: #E4EDE2;
+    --accent-blue: #3D4F5F;
+    --accent-blue-bg: #E2E8ED;
+    --code-bg: #E8E3D9;
+    --highlight: #FFF8E1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #181B1F;
+      --surface: #1E2228;
+      --text: #D8D2C7;
+      --text-secondary: #A8A29A;
+      --text-muted: #6E6960;
+      --border: #2E3238;
+      --border-light: #262A2F;
+      --accent-red: #C4503A;
+      --accent-red-bg: #2A1F1C;
+      --accent-brass: #B5A362;
+      --accent-brass-bg: #25231A;
+      --accent-green: #6E9964;
+      --accent-green-bg: #1C241A;
+      --accent-blue: #6B8BA3;
+      --accent-blue-bg: #1A2229;
+      --code-bg: #252830;
+      --highlight: #2A2618;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #181B1F;
+    --surface: #1E2228;
+    --text: #D8D2C7;
+    --text-secondary: #A8A29A;
+    --text-muted: #6E6960;
+    --border: #2E3238;
+    --border-light: #262A2F;
+    --accent-red: #C4503A;
+    --accent-red-bg: #2A1F1C;
+    --accent-brass: #B5A362;
+    --accent-brass-bg: #25231A;
+    --accent-green: #6E9964;
+    --accent-green-bg: #1C241A;
+    --accent-blue: #6B8BA3;
+    --accent-blue-bg: #1A2229;
+    --code-bg: #252830;
+    --highlight: #2A2618;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--text);
+    font-family: 'Source Sans 3', 'Source Sans Pro', -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; text-wrap: balance; }
+  h1 { font-size: 1.75rem; margin: 0 0 0.25rem; color: var(--text); }
+  h2 { font-size: 1.25rem; margin: 2.5rem 0 1rem; color: var(--accent-brass); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.05rem; margin: 0 0 0.35rem; color: var(--text); font-weight: 700; }
+
+  .subtitle { font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 1.5rem; }
+
+  a { color: var(--accent-blue); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--accent-brass); }
+  a:focus-visible { outline: 2px solid var(--accent-brass); outline-offset: 2px; border-radius: 2px; }
+
+  code { font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85em; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 3px; }
+
+  /* verdict block */
+  .verdict-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-red);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .verdict-block h2 { margin: 0 0 0.75rem; border: none; padding: 0; font-size: 1.1rem; color: var(--accent-red); }
+  .verdict-block p { margin: 0.4rem 0; font-size: 0.92rem; }
+
+  /* section cards */
+  .lens {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .lens-header { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .lens-num { font-family: 'Playfair Display', Georgia, serif; font-size: 0.85rem; color: var(--accent-brass); min-width: 1.5rem; }
+
+  /* badges */
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+  }
+  .badge-adopt { background: var(--accent-green-bg); color: var(--accent-green); }
+  .badge-study { background: var(--accent-blue-bg); color: var(--accent-blue); }
+  .badge-build { background: var(--accent-red-bg); color: var(--accent-red); }
+  .badge-stay { background: var(--accent-brass-bg); color: var(--accent-brass); }
+
+  /* tables */
+  .tbl-wrap { overflow-x: auto; margin: 0.75rem 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+    padding: 0.5rem 0.6rem;
+  }
+  td {
+    border-bottom: 1px solid var(--border-light);
+    padding: 0.45rem 0.6rem;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+
+  /* gap callouts */
+  .gap {
+    background: var(--highlight);
+    border-left: 3px solid var(--accent-brass);
+    padding: 0.6rem 1rem;
+    margin: 0.75rem 0;
+    font-size: 0.88rem;
+  }
+  .gap strong { color: var(--accent-red); }
+
+  /* compact lists */
+  .findings { list-style: none; padding: 0; margin: 0.5rem 0; }
+  .findings li {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.88rem;
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) 1fr;
+    gap: 0.75rem;
+  }
+  .findings li:last-child { border-bottom: none; }
+  .find-name { font-weight: 600; }
+  .find-meta { color: var(--text-muted); font-size: 0.78rem; }
+
+  /* summary grid */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    padding: 1rem;
+  }
+  .summary-card h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .summary-card p { font-size: 0.85rem; color: var(--text-secondary); margin: 0.25rem 0; }
+
+  .verdict-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+  }
+
+  .codebase-stat { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.85rem; }
+  .codebase-stat:last-child { border-bottom: none; }
+  .stat-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 640px) {
+    body { padding: 1.25rem 1rem 3rem; font-size: 14px; }
+    h1 { font-size: 1.4rem; }
+    .findings li { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<header>
+  <h1>Ecosystem Research · soviet-simulator</h1>
+  <div class="subtitle">2026-08-27 · 8 researcher agents · 6 lenses + vulkano/wgpu comparison + codebase scan</div>
+</header>
+
+<!-- VERDICT -->
+<div class="verdict-block">
+  <h2>Synthesis</h2>
+  <p><strong>Stay on wgpu.</strong> Switching to vulkano would require rewriting 31 WGSL shaders, 13 render pipelines, and both UI integrations (yakui-wgpu, egui-wgpu) — for a library with an 18-month release gap, 15× fewer commits, and no WGSL support. The 250k-entity target is achievable on wgpu with GPU-driven culling (compute shader → <code>multi_draw_indirect</code>); Bevy 0.16 benchmarks 127k objects at 101 FPS using this pattern.</p>
+  <p><strong>Most gaps are ours to build.</strong> No crate implements Kornai's shortage economy, freight custody state machines, BPR volume-delay, reservoir-graph water, or runtime dispatch loops. These are domain-specific — they are the game, not library work. The ecosystem provides noise generation, VRP solving, validation macros, and rendering patterns — components, not replacements.</p>
+  <p><strong>Three things worth adopting:</strong> <code>noise-rs</code> or <code>fastnoise-lite</code> for terrain generation input; <code>garde</code> or <code>validator</code> for prototype struct range checks; and the GPU-culling pattern from vkguide/Bevy/Ambient for entity rendering at scale.</p>
+</div>
+
+<!-- VULKANO vs WGPU -->
+<h2>Vulkano vs wgpu — the rendering question</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>Stay on wgpu</h3>
+    <span class="badge badge-stay">Verdict</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Metric</th><th>wgpu</th><th>Vulkano</th></tr></thead>
+      <tbody>
+        <tr><td>Version</td><td>v30.0.1 (2026-08-22)</td><td>v0.35.0 (2025-02-07)</td></tr>
+        <tr><td>Stars</td><td>17,873</td><td>5,143</td></tr>
+        <tr><td>Commits (6 mo)</td><td>~853</td><td>~55</td></tr>
+        <tr><td>Contributors</td><td>~406</td><td>~231</td></tr>
+        <tr><td>Shader language</td><td>WGSL (native), GLSL, SPIR-V</td><td>GLSL only, SPIR-V</td></tr>
+        <tr><td>Backends</td><td>Vulkan, Metal, DX12, WebGPU, OpenGL</td><td>Vulkan only</td></tr>
+        <tr><td>Multi-queue</td><td>No (RFC #8844 open)</td><td>Yes (native Vulkan)</td></tr>
+        <tr><td>Bindless</td><td>In progress (#3637)</td><td>Yes (native Vulkan)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:0.88rem; color:var(--text-secondary);">Our codebase: <strong>29 files</strong> import wgpu (all in <code>engine/src/</code>), <strong>31 WGSL shaders</strong>, <strong>13 render pipelines</strong>, 1 compute pipeline, zero GLSL/SPIR-V. wgpu is walled behind <code>GfxContext</code>. UI depends on <code>yakui-wgpu</code> and <code>egui-wgpu</code> — no vulkano equivalents exist.</p>
+
+  <div class="gap"><strong>Migration cost to vulkano:</strong> full shader rewrite (WGSL→GLSL), pipeline rebuild, buffer management rewrite, swapchain rewrite, UI library replacement. Cost to upgrade wgpu 0.20→v30: 10 major versions of breaking changes, but WGSL shaders survive and migration notes exist for each.</div>
+
+  <p style="font-size:0.88rem; color:var(--text-secondary);">Vulkano's theoretical advantage (multi-queue, bindless) does not justify the migration. wgpu's single-queue limitation has not been shown to be our bottleneck. The 250k target is a CPU-side culling problem, not a GPU-queue problem.</p>
+</div>
+
+<!-- LENS 1: RENDERING -->
+<h2>1 · Rendering at 250k entities</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>GPU-driven culling is the pattern</h3>
+    <span class="badge badge-study">Study & port</span>
+  </div>
+
+  <p style="font-size:0.88rem;">Our <code>entity_render.rs</code> iterates all vehicles + humans every frame (humans twice). Three sibling modules already cull (frustum, bbox, circle) — entity_render does not. The fix is a compute shader that culls AABBs against the frustum and writes surviving instances into an indirect draw buffer.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Reference</th><th>Stars</th><th>Scale evidence</th><th>Licence</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Bevy 0.16 renderer</td><td>38k+</td><td>127k objects, 101 FPS (RTX 4090 mobile)</td><td>MIT/Apache</td><td>Canonical wgpu GPU-cull pattern; <code>cull.wgsl</code> readable in isolation</td></tr>
+        <tr><td>Ambient engine</td><td>3,909</td><td>"Hundreds of thousands", no FPS number</td><td>Apache-2.0</td><td>One compute pass across all cameras; per-entity upload only on change</td></tr>
+        <tr><td>vkguide compute_culling</td><td>—</td><td>250k draws, 60+ FPS on Switch</td><td>—</td><td>Most detailed tutorial; sphere-bounds frustum test translatable to WGSL</td></tr>
+        <tr><td>Oxidator</td><td>359</td><td>35k units rendered, 100k target</td><td>MIT</td><td>Closest genre (RTS); instancing alone, no GPU cull</td></tr>
+        <tr><td>Voidin</td><td>77</td><td>—</td><td>MIT</td><td>Compute-cull + BVH on wgpu, no engine baggage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="gap"><strong>No wgpu benchmark exists at exactly 250k entities.</strong> Closest data points: 250k on OpenGL (50 FPS, no culling), 250k on Vulkan (60+ FPS with GPU cull), 127k on wgpu (101 FPS with GPU cull). Extrapolation is favourable but unproven — a custom benchmark is required.</div>
+
+  <p style="font-size:0.88rem;"><strong>Palette rendering:</strong> No crate exists. The pattern is a WGSL fragment shader: grayscale texture index → palette array lookup. ~20 lines. Maps directly to our Lua color table.</p>
+  <p style="font-size:0.88rem;"><strong>Day/night:</strong> No standalone crate outside Bevy. The pattern is: time scalar (0–24h) → lerp sun direction → pass as uniform → multiply in fragment shader. ~20 lines.</p>
+</div>
+
+<!-- LENS 2: TERRAIN -->
+<h2>2 · Terrain generation</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>Noise libraries are mature; erosion is thin; reservoir-graph water has no prior art</h3>
+    <span class="badge badge-adopt">Adopt noise</span>
+    <span class="badge badge-build">Build erosion + water</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Crate</th><th>Stars</th><th>Last active</th><th>Licence</th><th>Role</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>noise-rs</td><td>1,079</td><td>2026-06</td><td>Apache/MIT</td><td>Noise input</td><td>7 algorithm types + fractals + rich combinators; canonical Rust noise crate</td></tr>
+        <tr><td>fastnoise-lite</td><td>3,486</td><td>2026-06</td><td>MIT</td><td>Noise input</td><td>Faster, fewer combinators; multi-language; simpler API</td></tr>
+        <tr><td>symbios-ground</td><td>4</td><td>2026-08</td><td>MIT</td><td>Full terrain</td><td>Hydraulic + thermal erosion, tile streaming; only combined crate. v0.3.1, 4 stars — maturity risk</td></tr>
+        <tr><td>terrain-erosion-3-ways</td><td>942</td><td>2022-11</td><td>MIT</td><td>Reference (Python)</td><td>Best erosion algorithm reference; vectorised, well-documented</td></tr>
+        <tr><td>fastlem</td><td>52</td><td>2025-01</td><td>MPL-2.0</td><td>Reference (archived)</td><td>Graph-based drainage networks — closest to reservoir-graph water; archived, MPL-2.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="gap"><strong>Reservoir-graph water:</strong> No Rust crate implements a persistent hydrological network. The closest conceptual match (fastlem's drainage model) is archived and MPL-2.0. This is custom work.</div>
+
+  <p style="font-size:0.88rem;"><strong>Path:</strong> adopt <code>noise-rs</code> or <code>fastnoise-lite</code> as the elevation source (seed-based, composable). Port hydraulic erosion from terrain-erosion-3-ways or evaluate symbios-ground (test against the Python reference first). Build reservoir-graph water from scratch.</p>
+</div>
+
+<!-- LENS 3: SHORTAGE ECONOMY -->
+<h2>3 · Shortage economy — Kornai model</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>No implementation exists in any language</h3>
+    <span class="badge badge-build">Build from scratch</span>
+  </div>
+
+  <p style="font-size:0.88rem;">Searched GitHub repos, academic indices (arXiv), developer indices, and web. <strong>Zero open-source implementations</strong> of Kornai's shortage economy, dishonest enterprise, request-multiplier inflation, soft budget constraint, or queue-based clearing as a first-class economic system.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Find</th><th>Lang</th><th>Stars</th><th>What it has</th><th>What it lacks</th></tr></thead>
+      <tbody>
+        <tr><td>Prosperity-Wars</td><td>C#</td><td>315</td><td>Priority-queue planned economy; government storage distribution</td><td>No shortage emergence, no hoarding, no dishonest behaviour</td></tr>
+        <tr><td>Half-Earth Socialism</td><td>Rust/WASM</td><td>71</td><td>Physical-unit allocation without money</td><td>No enterprise agents, no shortage dynamics; AGPL</td></tr>
+        <tr><td>deepbullwhip</td><td>Python</td><td>0</td><td>Demand amplification; ordering policies with safety stock</td><td>Market context, not planned economy</td></tr>
+        <tr><td>Beer Game envs</td><td>Python</td><td>low</td><td>Hoarding emergence from info delay; Gym env for RL</td><td>No planned-economy framing</td></tr>
+        <tr><td>socialist_planning</td><td>Python</td><td>24</td><td>Cockshott-Cottrell input-output planning</td><td>Pure optimisation, no agents, no shortage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="gap"><strong>The bullwhip effect is the same mechanism as dishonest-enterprise request inflation,</strong> transposed to a different domain. The ordering policies (order-up-to with safety stock, smoothing variants) are the mathematical formulation of "how much to over-request." The amplification ratio is a tuning metric. The deepbullwhip codebase and Beer Game environment are the closest algorithmic references.</div>
+
+  <p style="font-size:0.88rem;"><strong>Also notable:</strong> SpaceProjectSim (Rust, 189★) has "shortage-urgency multipliers" that modulate pricing by scarcity level — adaptable to queue-priority adjustment. Worth a source-code read.</p>
+</div>
+
+<!-- LENS 4: FREIGHT DISPATCH -->
+<h2>4 · Freight dispatch &amp; routing</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>One mature VRP solver; custody, BPR, and runtime dispatch are ours to build</h3>
+    <span class="badge badge-study">Study VRP solver</span>
+    <span class="badge badge-build">Build domain logic</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Crate</th><th>Stars</th><th>Licence</th><th>Type</th><th>Covers</th></tr></thead>
+      <tbody>
+        <tr><td>reinterpretcat/vrp</td><td>~500</td><td>Apache-2.0</td><td>Solver</td><td>14+ VRP variants; depot return, multi-trip, heterogeneous fleet, time-dependent</td></tr>
+        <tr><td>pathfinding (in use)</td><td>—</td><td>Apache/MIT</td><td>Graph routing</td><td>A*, Dijkstra, BFS — single-vehicle shortest path</td></tr>
+        <tr><td>flat_spatial (in use)</td><td>—</td><td>MIT</td><td>Spatial index</td><td>Grid-based O(1) cell lookup for nearest-vehicle queries</td></tr>
+        <tr><td>rstar</td><td>555</td><td>MIT/Apache</td><td>Spatial index</td><td>R*-tree; better worst-case for skewed distributions</td></tr>
+        <tr><td>A/B Street</td><td>8,200</td><td>Apache-2.0</td><td>Traffic sim</td><td>Lane-level urban traffic; discrete-event queue model (not BPR)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="gap"><strong>Five gaps nothing covers:</strong> (1) Freight custody state machine — no crate anywhere models factory→truck→store handoffs. (2) BPR volume-delay — zero Rust implementations; formula is ~5 lines, Frank-Wolfe equilibrium assignment is the real work. (3) Gawron route-choice blending — MATSim only (Java). (4) Dispatch recovery policy — game logic. (5) Runtime dispatch loop — all VRP solvers are offline/batch.</div>
+
+  <p style="font-size:0.88rem;"><strong>Design references:</strong> eqasim's VDF module (Java, GPL-2.0) documents how to integrate BPR into an iterative simulation loop. AequilibraE (Python) implements five VDF variants + four assignment algorithms.</p>
+</div>
+
+<!-- LENS 5: DETERMINISTIC SIM -->
+<h2>5 · Deterministic simulation framework</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>Our hand-rolled schedule is the right architecture; no crate replaces it</h3>
+    <span class="badge badge-stay">Keep current</span>
+    <span class="badge badge-study">Study patterns</span>
+  </div>
+
+  <p style="font-size:0.88rem;">No crate provides the full stack (deterministic tick + command buffers + save/load failure detection + 250k scale). The ECS libraries offer entity storage and command buffers but leave determinism to the user — which is what we already do.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Crate/Project</th><th>Stars</th><th>Cmd buffers</th><th>Det. schedule</th><th>Save/load</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>hecs</td><td>1,361</td><td>Yes</td><td>No (user)</td><td>No</td><td>Active</td></tr>
+        <tr><td>Flecs + Rust</td><td>8,623 / 335</td><td>Yes (staged)</td><td>Yes (pipelines)</td><td>JSON</td><td>Active / Alpha bindings</td></tr>
+        <tr><td>Shipyard</td><td>877</td><td>No</td><td>Workloads</td><td>No</td><td>Active</td></tr>
+        <tr><td>corvid_replay</td><td>0</td><td>N/A</td><td>N/A</td><td>Yes + hash divergence</td><td>GPL-3.0, new</td></tr>
+        <tr><td>SpaceProjectSim</td><td>189</td><td>Yes (SimCommand)</td><td>Yes (serial)</td><td>SQLite</td><td>Active (game)</td></tr>
+        <tr><td>OpenShard</td><td>13</td><td>Yes (Commands)</td><td>Yes (fixed serial)</td><td>SQLite/PG</td><td>Active (server)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:0.88rem;"><strong>Extractable patterns:</strong> corvid_replay's HashTrace (state hashes catch divergence — our determinism test's missing teeth). fortress-rollback's deterministic-collections discipline (BTreeMap everywhere, FNV-1a hashing). OpenShard's "tick owns the RNG" pattern. SpaceProjectSim's spatial LoD ticking for scale.</p>
+</div>
+
+<!-- LENS 6: LUA VALIDATION -->
+<h2>6 · Lua/Luau data validation</h2>
+
+<div class="lens">
+  <div class="lens-header">
+    <h3>Rust-side derive macros + a custom known-fields set</h3>
+    <span class="badge badge-adopt">Adopt validator crate</span>
+    <span class="badge badge-build">Build unknown-key check</span>
+  </div>
+
+  <p style="font-size:0.88rem;">Probe-proven: <code>production_amount = 0</code> passes validation but crashes the sim (divide by zero); <code>request_multiplier = -3</code> wraps to <code>u32::MAX</code>; unknown keys like <code>max_power</code> are silently ignored.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Option</th><th>Stars</th><th>Range</th><th>Unknown keys</th><th>Structured errors</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:700;">garde (Rust)</td><td>888</td><td>Yes</td><td>No</td><td>Yes</td><td>Derive macros, nested dive, context; MIT/Apache</td></tr>
+        <tr><td style="font-weight:700;">validator (Rust)</td><td>2,509</td><td>Yes</td><td>No</td><td>Yes</td><td>Derive macros; 61.7M downloads; MIT</td></tr>
+        <tr><td>osyrisrblx/t (Lua)</td><td>327</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Luau-native; Roblox-specific parts need stripping; MIT</td></tr>
+        <tr><td>tableshape (Lua)</td><td>123</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Luau compat unverified; MIT</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="gap"><strong>Unknown-key detection is the hard gap.</strong> No Rust crate solves it — it is a property of the source table, not the deserialized struct. Two paths: (A) extend the <code>gen_prototypes!</code> macro to emit a known-fields set, iterate <code>Table::pairs()</code> after <code>from_lua()</code>, warn on unrecognised keys — no external dependency. (B) Run a Lua-side validator (tableshape or osyrisrblx/t) before Rust reads the table — requires Luau compatibility testing.</div>
+
+  <p style="font-size:0.88rem;"><strong>Recommended path:</strong> Add <code>garde</code> derive macros to prototype structs for range checks. Extend the existing macro to emit a known-fields <code>&amp;[&amp;str]</code> and check <code>Table::pairs()</code> against it. No Lua-side dependency needed.</p>
+</div>
+
+<!-- WHAT NOTHING COVERS -->
+<h2>Explicit gaps — what we build ourselves</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="verdict-label" style="color:var(--accent-red);">Shortage economy</div>
+    <h3>Kornai model</h3>
+    <p>No implementation in any language. Dishonest enterprise, request-multiplier inflation, soft budget constraint, queue-based clearing — all custom. Nearest algorithmic reference: bullwhip effect literature.</p>
+  </div>
+  <div class="summary-card">
+    <div class="verdict-label" style="color:var(--accent-red);">Freight custody</div>
+    <h3>State machine</h3>
+    <p>Factory→truck→store custody handoffs with haul events. No crate anywhere. Domain-specific game logic.</p>
+  </div>
+  <div class="summary-card">
+    <div class="verdict-label" style="color:var(--accent-red);">BPR &amp; Gawron</div>
+    <h3>Volume-delay + route blending</h3>
+    <p>Zero Rust implementations. BPR formula is trivial (~5 lines); Frank-Wolfe equilibrium assignment is the real work. Design refs: eqasim (Java), AequilibraE (Python).</p>
+  </div>
+  <div class="summary-card">
+    <div class="verdict-label" style="color:var(--accent-red);">Reservoir-graph water</div>
+    <h3>Persistent hydrology</h3>
+    <p>No Rust crate. Closest: fastlem's drainage network (archived, MPL-2.0). Build from the Delaunay + flow-accumulation pattern.</p>
+  </div>
+  <div class="summary-card">
+    <div class="verdict-label" style="color:var(--accent-red);">Runtime dispatch</div>
+    <h3>Continuous dispatcher</h3>
+    <p>All VRP solvers are offline/batch. The event-driven dispatch loop that reacts to simulation state — including recovery on failed delivery — is game logic.</p>
+  </div>
+  <div class="summary-card">
+    <div class="verdict-label" style="color:var(--accent-red);">Determinism proof</div>
+    <h3>At 250k scale</h3>
+    <p>No crate publishes a repeat-run divergence test at 250k entities. The pattern (hash state per tick, compare on replay) is ~50 lines — our determinism test already has the structure, it just needs teeth.</p>
+  </div>
+</div>
+
+<!-- WHAT TO ADOPT -->
+<h2>Adoption candidates — summary</h2>
+
+<div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Crate</th><th>Action</th><th>Stars</th><th>Licence</th><th>What for</th><th>Risk</th></tr></thead>
+    <tbody>
+      <tr><td>noise-rs <em>or</em> fastnoise-lite</td><td><span class="badge badge-adopt">Adopt</span></td><td>1,079 / 3,486</td><td>Apache-MIT / MIT</td><td>Terrain elevation source</td><td>Low — mature, well-tested</td></tr>
+      <tr><td>garde</td><td><span class="badge badge-adopt">Adopt</span></td><td>888</td><td>MIT/Apache</td><td>Prototype struct range validation</td><td>Low — derive macro, 3.65M downloads</td></tr>
+      <tr><td>reinterpretcat/vrp</td><td><span class="badge badge-study">Study</span></td><td>~500</td><td>Apache-2.0</td><td>VRP problem definition & solving (offline)</td><td>Medium — may be heavier than needed for our dispatch</td></tr>
+      <tr><td>rstar</td><td><span class="badge badge-study">Study</span></td><td>555</td><td>MIT/Apache</td><td>Alternative spatial index for non-uniform fleet distributions</td><td>Low — well-maintained</td></tr>
+      <tr><td>symbios-ground</td><td><span class="badge badge-study">Study</span></td><td>4</td><td>MIT</td><td>Terrain generation + erosion</td><td>High — 4 stars, v0.3.1, unproven quality</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CODEBASE SCAN -->
+<h2>Codebase wgpu depth — scan results</h2>
+
+<div class="lens" style="max-width:480px;">
+  <div class="codebase-stat"><span>Files importing <code>wgpu</code></span><span class="stat-val">29</span></div>
+  <div class="codebase-stat"><span>WGSL shader files</span><span class="stat-val">31</span></div>
+  <div class="codebase-stat"><span>GLSL/SPIR-V files</span><span class="stat-val">0</span></div>
+  <div class="codebase-stat"><span>Render pipelines</span><span class="stat-val">13</span></div>
+  <div class="codebase-stat"><span>Compute pipelines</span><span class="stat-val">1</span></div>
+  <div class="codebase-stat"><span>Engine consumers (outside <code>engine/</code>)</span><span class="stat-val">31 files</span></div>
+  <div class="codebase-stat"><span>wgpu version</span><span class="stat-val">0.20.1</span></div>
+  <div class="codebase-stat"><span>Windowing</span><span class="stat-val">winit 0.29.4</span></div>
+  <div class="codebase-stat"><span>Abstraction layer</span><span class="stat-val">GfxContext (engine crate)</span></div>
+</div>
+
+<footer style="margin-top:3rem; padding-top:1rem; border-top:1px solid var(--border); font-size:0.78rem; color:var(--text-muted);">
+  <p>8 opus researchers · ~430k tokens total · all reports verified against architecture review findings from sov-00c. No code was changed. Charter scope and substrate.md classifications unchanged.</p>
+  <p>Markdown twin for agents: <code>.planning/research-synthesis-2026-08-27.md</code> (not yet written — this artifact is the primary record).</p>
+</footer>

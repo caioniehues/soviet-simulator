@@ -6,6 +6,8 @@
 **Owner:** project lead
 **Last verified:** 2026-08-24
 
+**Speak to the user in ASD-STE100** (Simplified Technical English): short sentences, active voice, one instruction per sentence, simple words, one name per thing. Full rule: `~/.claude/rules/ste100.md`. Code, commits, and repo docs keep their own conventions.
+
 Rust, ECS. The fork happened 2026-08-22 and **the earlier Bevy track was discarded**. Bevy is not a
 dependency; its documents live only under `docs/archive/bevy-track/`. Trust current code for
 substrate behavior. The repo is GPL-3.0 by inheritance, permanently.
@@ -20,7 +22,7 @@ state. Two design pillars constrain every change:
 
 Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
 
-- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 15-agent roster and what each is
+- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 16-agent roster and what each is
   for. Every phase names the failure it exists to prevent. Read it before dispatching ANY implementation
   or gate agent — ticket work included, not just waves. The roster there decides which agent gets which
   lane (`sim-implementer`/`ui-implementer`/`data-implementer`, plus the domain gates); global generics are
@@ -30,8 +32,12 @@ Clearing is by queue, substitution and going without — **never by price**. Mon
   provenance only. The charter's Post-1.0 and Never lists are absolute.
 - Art direction: `docs/reference/art-direction.md`. Palette, current renderer evidence, and asset provenance.
 - Live plan: `docs/plan/iterations/` — `RESUME.md` (read this first), requirements and evidence;
-  generated status is `docs/generated/iterations/roadmap.md`.
+  generated status is `docs/generated/roadmap.md`.
 - Current substrate map: `docs/reference/architecture/substrate.md`; follow its fact-sheet citations.
+- Code intelligence: `docs/reference/code-intelligence.md`. Which of LSP and the knowledge
+  graph answers which question, the two traps that produce confident wrong answers (a cold
+  language server reporting "No references found"; `head_matches_build` comparing SHAs rather
+  than file content), and what must be installed for the graph hooks to do anything at all.
 - Keep durable project status in `README.md`: what is built, what is left, and an asset table.
 - Generate visual assets with `/asset-gen`. Confirm the spend with the user before the first paid generation.
 
@@ -62,9 +68,10 @@ memory system (`bd remember` is not used here).
 
 ### Adopted conventions (2026-08-26, from `docs/reference/bd-capability-survey.md`)
 
-- **`BEADS_ACTOR=<agent-name>`** in every worker's environment (or `--actor` per command): it
-  stamps comments, events, and — via the installed `prepare-commit-msg` hook — an
-  `Executed-By:` trailer on commits. Leads set it in briefs; workers use their roster name.
+- **Attribution is `--author <roster-name>` on `bd comments add`** — that works. The old
+  `BEADS_ACTOR`/`Executed-By:` trailer convention was DELETED 2026-08-27: bd 1.2.2's
+  `prepare-commit-msg` hook is inert (verified — 0 of 60 commits carry the trailer). Do not
+  set `BEADS_ACTOR`; do not cite `Executed-By:` trailers as provenance.
 - **Wave setup goes through `bd batch`**: N creates + deps as one transaction (stdin grammar:
   `create <type> <priority> <title>`, `dep add <from> <to>`, `close <id> [reason]`).
 - **Session close adds a drift sweep**: `bd stale --days 14` and `bd orphans` (issues cited in
@@ -176,3 +183,57 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 - Do not commit or push without clear authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
 <!-- END BEADS INTEGRATION -->
+
+<!-- code-review-graph MCP tools -->
+## MCP Tools: code-review-graph
+
+**This project has a knowledge graph. Start with the code-review-graph
+MCP tools to narrow scope, then read the source.**
+
+> **Precedence, repo rule:** narrow scope with the graph, but **LSP stays first for
+> symbol-level intelligence** — who calls what, types, rename safety, compiler warnings. The
+> graph's call edges are AST heuristics carrying a confidence tier; LSP is compiler truth.
+> Warm the language server with one `documentSymbol` call before your first load-bearing
+> query: a cold server answers `findReferences` with "No references found", which reads
+> exactly like a true negative. Full rules and the measured evidence:
+> `docs/reference/code-intelligence.md`. The graph is cheaper than scanning files and
+gives you structural context (callers, dependents, test coverage) that file search cannot.
+
+### When to use graph tools FIRST
+
+- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
+- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
+- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
+- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
+- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
+
+### Verify in the source
+
+- Narrow scope with the graph, then read the source. Do not change code from graph output alone.
+- For any non-trivial change, read the implementation and the relevant tests before concluding.
+- Verify the exact source when touching behavior, database logic, migrations, retries, fallbacks,
+  recovery, or compatibility code.
+- When the graph and the source disagree, the source wins. The graph may be stale or may not
+  model that relationship.
+- An empty graph result can mean "not indexed" or "not statically visible", not "does not exist".
+
+### Key Tools
+
+| Tool | Use when |
+| ------ | ---------- |
+| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
+| `get_review_context_tool` | Need source snippets for review — token-efficient |
+| `get_impact_radius_tool` | Understanding blast radius of a change |
+| `get_affected_flows_tool` | Finding which execution paths are impacted |
+| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
+| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
+| `get_architecture_overview_tool` | Understanding high-level codebase structure |
+| `refactor_tool` | Planning renames, finding dead code |
+
+### Workflow
+
+1. The graph auto-updates on file changes (via hooks).
+2. Use `detect_changes_tool` for code review.
+3. Use `get_affected_flows_tool` to understand impact.
+4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+<!-- /code-review-graph MCP tools -->

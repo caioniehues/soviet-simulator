@@ -1,5 +1,7 @@
 # Traffic Behaviour
 
+> Superseded by ../../reference/specifications/traffic.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 emergent congestion (adopted, minus despawn) — verified: no global solver

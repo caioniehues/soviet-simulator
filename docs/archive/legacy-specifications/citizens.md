@@ -1,5 +1,7 @@
 # Citizens
 
+> Superseded by ../../reference/specifications/citizens.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** CS1 citizen struct + lifecycle (kept), CS1 job market (replaced by planning), W&R fluid labour (rejected, with one borrowed escape valve)

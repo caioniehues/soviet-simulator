@@ -1,5 +1,7 @@
 # Heating
 
+> Superseded by ../../reference/specifications/heating.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R base-game heat network + CS1 Snowfall's temperature-driven demand and electric fallback

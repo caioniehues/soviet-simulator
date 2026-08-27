@@ -1,5 +1,7 @@
 # Electricity
 
+> Superseded by ../../reference/specifications/electricity.md — provenance only.
+
 **Status:** draft model (grounded in research)
 **Phase:** 1
 **Primary inspiration:** W&R explicit wire network + voltage tiers; CS1 pulse only as an amortisation pattern
