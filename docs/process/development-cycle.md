@@ -42,6 +42,11 @@ went wrong; each prompt carries that evidence, so the trap is inherited rather t
 | 2 | `sim-implementer` | opus | `simulation/` — ~17,700 lines |
 | 2 | `ui-implementer` | opus | `native_app/` — ~10,100 lines |
 | 2 | `data-implementer` | opus | `base_mod/*.lua` ~950 + `prototypes/` ~2,790 — ~3,740 lines |
+| 2 | `engine-implementer` | opus | `engine/` ~12,500 + `engine_demo/` ~520 — ~13,000 lines |
+| 2 | `geom-implementer` | opus | `geom/` — ~10,500 lines |
+| 2 | `widget-implementer` | opus | `goryak/` ~5,250 + `egui-inspect*` ~1,410 + `assets_gui/` ~1,165 — ~7,800 lines |
+| 2 | `net-implementer` | opus | `networking/` — ~2,050 lines |
+| 2 | `common-implementer` | opus | `common/` ~1,290 + `headless/` ~80 — ~1,370 lines |
 | 3 | `evidence-auditor` | opus | The tests, not the code. Every guard seen failing |
 | 4 | `wiring-auditor` | opus | Is it reachable from the running game? |
 | 4 | `ledger-invariant-checker` | opus | Is quantity conserved? Economy diffs only |
@@ -142,7 +147,16 @@ Parallel implementers on disjoint files:
 | `sim-implementer` | `simulation/src/**` — ECS, economy, souls, map_dynamic |
 | `ui-implementer` | `native_app/src/**` — panels, readouts, tools |
 | `data-implementer` | `base_mod/*.lua`, `prototypes/src/**` |
-| — **no in-repo owner** | `engine/`, `geom/`, `networking/`, `common/`, and the remaining workspace crates — ~26,000 lines. Use the global `implementer`, and say so in the brief |
+| `engine-implementer` | `engine/src/**`, `engine_demo/**` — wgpu pipelines, passes, drawables, shaders, GPU timing, frame capture, input |
+| `geom-implementer` | `geom/src/**` — vectors, matrices, quaternions, splines, volumes, frustum culling. Determinism-critical |
+| `widget-implementer` | `goryak/src/**`, `egui-inspect*/**`, `assets_gui/src/**` — reusable yakui/egui widgets, theme, asset viewer |
+| `net-implementer` | `networking/src/**` — connections, authentication, packets, world-send, catch-up replication |
+| `common-implementer` | `common/src/**`, `headless/src/**` — timestep, saveload, rand, hashing. Tiny surface, enormous blast radius |
+
+**Every workspace crate now has an owner** (measured 2026-08-27: 34,762 lines were previously
+unowned, not the ~26,000 this table used to claim — it omitted `goryak/`, `assets_gui/` and the
+`egui-inspect` pair). The global `implementer` is no longer the fallback for any crate in this
+repo. If a task spans two lanes, split it; two agents must never own one file.
 
 Each logs progress with `bd comments add <id> "…" --author <name>` as it goes, especially when it
 discovers its brief was wrong. Evidence tasks are interleaved with code tasks, never trailed.

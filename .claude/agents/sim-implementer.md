@@ -1,7 +1,6 @@
 ---
 name: sim-implementer
 description: Writes simulation-side code — ECS systems, economy, souls, map_dynamic, transportation. Use for any implementation task under simulation/. Knows this fork's determinism harness, its registration points, and the traps that have already cost other agents days. Works from a brief with acceptance criteria and a verification command. Not for UI, not for Lua data, not for architecture decisions.
-tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, Agent, SendMessage, Skill
 model: opus
 effort: high
 memory: project

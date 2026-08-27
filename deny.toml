@@ -1,0 +1,89 @@
+# cargo-deny 0.20.2 policy baseline. See docs/process/dependency-policy.md.
+
+[graph]
+all-features = true
+
+[advisories]
+# Each temporary exception is owned by the project lead and expires 2026-11-25.
+# It records a known current-lockfile finding; it is not an approval or legal advice.
+ignore = [
+    { id = "RUSTSEC-2021-0065", reason = "anymap is transitive through yakui; replace or update the UI stack before review." },
+    { id = "RUSTSEC-2021-0139", reason = "ansi_term is transitive through structopt; replace or update the CLI stack before review." },
+    { id = "RUSTSEC-2022-0104", reason = "structopt is used by headless; migrate it before review." },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error is transitive through an existing macro dependency; update that dependency before review." },
+    { id = "RUSTSEC-2024-0375", reason = "atty is transitive through existing CLI dependencies; update those dependencies before review." },
+    { id = "RUSTSEC-2024-0379", reason = "fast-float is transitive through the existing UI stack; update that stack before review." },
+    { id = "RUSTSEC-2024-0436", reason = "paste is transitive through existing dependencies; update the dependent stack before review." },
+    { id = "RUSTSEC-2025-0003", reason = "fast-float is transitive through the existing UI stack; update that stack before review." },
+    { id = "RUSTSEC-2025-0056", reason = "adler is transitive through existing image and backtrace dependencies; update those dependencies before review." },
+    { id = "RUSTSEC-2025-0141", reason = "bincode is a direct existing serialization dependency; choose and migrate to a maintained format before review." },
+    { id = "RUSTSEC-2026-0007", reason = "bytes is transitive through existing platform dependencies; update the dependent stack before review." },
+    { id = "RUSTSEC-2026-0009", reason = "time is a development-only transitive dependency; update the dependent test stack before review." },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser is transitive through font rendering dependencies; replace or update the font stack before review." },
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml is transitive through the Wayland stack; update that stack before review." },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml is transitive through the Wayland stack; update that stack before review." },
+    { id = "RUSTSEC-2026-0204", reason = "crossbeam-epoch is transitive through existing concurrency dependencies; update that stack before review." },
+    { id = "RUSTSEC-2021-0145", reason = "atty is transitive through structopt; migrate the headless CLI before review." },
+    { id = "RUSTSEC-2026-0186", reason = "memmap2 is transitive through the existing Wayland stack; update that stack before review." },
+    { id = "RUSTSEC-2026-0097", reason = "rand is used by simulation test support and the UI stack; update those dependencies before review." },
+    { id = "RUSTSEC-2025-0055", reason = "tracing-subscriber is transitive through profiling; update that stack before review." },
+    { crate = "bytemuck@1.16.1", reason = "The locked UI and renderer graph selects this yanked version; update the graph before review." },
+    { crate = "bytes@1.6.0", reason = "The locked platform graph selects this yanked version; update the graph before review." },
+]
+yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+
+[licenses]
+confidence-threshold = 0.8
+# Inventory from `cargo deny list` on 2026-08-27. This is technical policy, not legal advice.
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "OFL-1.1",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "Zlib",
+]
+exceptions = [
+    # Owner: project lead. Review: 2026-11-25. epaint declares this non-SPDX
+    # font license branch in Cargo.toml; its upstream deny.toml allows it too.
+    { allow = ["LicenseRef-UFL-1.0"], name = "epaint", version = "0.27.2" },
+]
+
+[licenses.private]
+# Owner: project lead. The unpublished local workspace is project-owned GPL-3.0.
+# This does not ignore third-party packages with absent or unknown licenses.
+# REQUIRES `publish = false` in all 13 workspace [package] blocks. cargo-deny
+# decides "private" from `publish`; without it this setting is INERT and the
+# 11 local crates without license metadata fail the licenses check.
+# See docs/process/dependency-policy.md.
+ignore = true
+
+[bans]
+# Current duplicate versions remain visible while their inventory is reduced deliberately.
+multiple-versions = "warn"
+wildcards = "deny"
+# Internal path and workspace crates omit versions by Cargo convention. This
+# keeps registry wildcards denied while allowing only local path specifications.
+# REQUIRES `publish = false` in all 13 workspace [package] blocks. Without it
+# cargo-deny rejects this setting outright: "allow-wildcard-paths is enabled,
+# but does not apply to public crates as crates.io disallows path dependencies".
+# See docs/process/dependency-policy.md.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = [
+    "https://github.com/emilk/egui",
+    "https://github.com/Uriopass/yakui",
+]

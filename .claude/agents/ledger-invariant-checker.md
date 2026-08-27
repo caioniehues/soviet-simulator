@@ -1,7 +1,6 @@
 ---
 name: ledger-invariant-checker
 description: Adversarial specialist for the economic ledger. Asks only whether quantity and money are conserved across a seam — that units are never created from nothing, never silently destroyed, and never counted in two places at once. Run in Phase 4 whenever a diff touches economy, market, dispatch, storage or trade. Builds the concrete failing sequence or reports none. Never writes production code.
-tools: Read, Grep, Glob, Bash, ToolSearch, Agent, SendMessage, Skill
 model: opus
 effort: high
 memory: project

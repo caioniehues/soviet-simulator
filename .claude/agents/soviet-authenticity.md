@@ -1,7 +1,6 @@
 ---
 name: soviet-authenticity
 description: Guards the fantasy and the look. Judges whether what the player sees reads as a Soviet planned city in the 1950s-60s — architecture, palette, signage, typography, UI register and naming. Exists because the standing playtest verdict on this project's presentation is "looks like something done by a child". Consult whenever presentation, UI or assets change, and before any asset-generation spend. Never writes code.
-tools: Read, Grep, Glob, Bash, ToolSearch, Agent, WebSearch, WebFetch, SendMessage, Skill
 model: opus
 effort: high
 memory: project

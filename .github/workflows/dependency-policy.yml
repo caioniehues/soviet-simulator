@@ -1,0 +1,57 @@
+# Tracer-bullet CI: runs the dependency policy check and nothing else.
+#
+# Scope is deliberately one job with one check. Do NOT add build, test,
+# packaging or release steps here (sov-ztg). Policy, exceptions and the local
+# evidence this mirrors: docs/process/dependency-policy.md
+name: dependency-policy
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cost control only. A superseded run on the same ref is cancelled; the newest
+# run still executes the same check and still fails on a violation.
+concurrency:
+  group: dependency-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned in lockstep with docs/process/dependency-policy.md. Changing this
+  # invalidates the recorded local evidence; re-record it before changing.
+  CARGO_DENY_VERSION: 0.20.2
+  CARGO_TERM_COLOR: never
+
+jobs:
+  cargo-deny:
+    name: cargo-deny check
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit sha, not a moving tag, for the same reason the
+      # checker version is pinned.
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # --locked: the checker's own dependency graph comes from its published
+      # Cargo.lock and is not re-resolved at install time.
+      - name: Install cargo-deny ${{ env.CARGO_DENY_VERSION }}
+        run: cargo install cargo-deny --version "${CARGO_DENY_VERSION}" --locked
+
+      # Guards against a silently different checker producing a different
+      # verdict from the local one.
+      - name: Confirm the pinned version is the one that will run
+        run: |
+          cargo-deny --version
+          test "$(cargo-deny --version)" = "cargo-deny ${CARGO_DENY_VERSION}"
+
+      # The exact command proven locally, run from the repository root against
+      # the repository's deny.toml. No extra flags: any flag would make the CI
+      # subject differ from the local one.
+      #
+      # A non-zero exit fails the step, which fails the job. There is no
+      # continue-on-error and no '|| true' anywhere in this workflow.
+      - name: cargo-deny check
+        run: cargo-deny check

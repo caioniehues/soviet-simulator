@@ -1,7 +1,6 @@
 ---
 name: wiring-auditor
 description: Asks one question about a diff — is this actually reachable from the running game? Finds APIs with no production callers, config that nothing reads, tests that pass while the feature is unwired, and commands whose subject does not exist. Runs as the FIRST and cheapest gate in Phase 4, before any opus reviewer. Fast, narrow, read-only.
-tools: Read, Grep, Glob, Bash, ToolSearch, Agent, SendMessage, Skill
 model: opus
 effort: high
 memory: project

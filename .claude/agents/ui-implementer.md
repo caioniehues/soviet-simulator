@@ -1,7 +1,6 @@
 ---
 name: ui-implementer
 description: Writes presentation-side code — panels, HUD, readouts, tools and inspectors under native_app/. Use for any player-facing surface. Knows that the sim's test harness cannot drive the UI, so UI work is proven by a public sim accessor plus an eyeballed frame. Holds the planner fantasy and the standing "looks like a child made it" bar. Not for simulation logic.
-tools: Read, Edit, Write, Grep, Glob, Bash, ToolSearch, Agent, SendMessage, Skill
 model: opus
 effort: high
 memory: project

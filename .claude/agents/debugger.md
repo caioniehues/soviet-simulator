@@ -1,7 +1,6 @@
 ---
 name: debugger
 description: Root-cause investigator for a concrete misbehavior — a failing or flaky test, a panic, a wrong number, a sim that diverges from what a spec or scenario says. Delivers the diagnosis with file:line, the causal chain, and a minimal failing repro (test or probe output) — never the fix; the fix goes to the owning implementer lane. Use proactively when a bug's cause is unknown; not for review (Phase 4 gates), not for test auditing (evidence-auditor), and not when the cause is already known — that is implementer work.
-tools: Read, Grep, Glob, Bash, ToolSearch, Agent, SendMessage, Skill
 model: opus
 effort: high
 memory: project
