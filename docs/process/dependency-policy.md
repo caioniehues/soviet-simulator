@@ -234,7 +234,7 @@ is 0.20.2, and runs `cargo-deny check`. It contains no `continue-on-error` and
 no `|| true`. It adds no build, test, packaging or release step.
 
 `actions/checkout` is pinned to commit
-`11d5960a326750d5838078e36cf38b85af677262` (tag `v4.4.0`), for the same reason
+`fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` (tag `v5.1.0`), for the same reason
 the checker version is pinned: a moving tag is not a reproducible input.
 
 ### What is proven, and what is not
@@ -251,25 +251,64 @@ Verified locally on 2026-08-27:
   exit 8 with the sources mutation applied, and exit 0 again after restoring
   `deny.toml`.
 
-**Not verified, and not claimed.** The workflow has never executed on GitHub
-Actions. `act` and Docker are unavailable on the development machine, and the
-change is not pushed. These remain open until the first real run:
+Verified on GitHub Actions on 2026-08-27 (see "After the first real run"): the
+job runs, the pinned install succeeds on `ubuntu-latest`, a violation renders as
+a FAILED check on a pull request, and the CI and local outputs are identical.
 
-- that the job runs at all, and that `cargo install cargo-deny --version 0.20.2
-  --locked` succeeds on `ubuntu-latest` with its preinstalled toolchain;
-- that a red step actually renders as a failed check on the pull request;
-- that the CI finding text matches the local finding text for the same
-  mutation. Use Mutation B for that comparison: `sources` is derived only from
-  `Cargo.lock`, so it is the one check whose output must be identical on both
-  machines.
-
-The remote does allow the job to run: `repos/.../actions/permissions` reports
+The remote allows the job to run: `repos/.../actions/permissions` reports
 `{"enabled":true,"allowed_actions":"all"}`, and the repository had zero
 workflows before this one.
 
 ### After the first real run
 
-Compare the CI log for `cargo-deny check` against the local output recorded
-above. Then apply Mutation B on a branch, confirm the job goes red with the
-same five `error[source-not-allowed]` findings, and revert. Record the run URL
-here. Until that is done, treat this workflow as installed but unproven.
+Three real runs, all on 2026-08-27:
+
+| Run | Ref | Mutation | Result |
+| --- | --- | --- | --- |
+| [33103168877](https://github.com/caioniehues/soviet-simulator/actions/runs/33103168877) | `main` | none | success, 4m19s |
+| [33106713230](https://github.com/caioniehues/soviet-simulator/actions/runs/33106713230) | PR [#120](https://github.com/caioniehues/soviet-simulator/pull/120) | Mutation B | **FAILURE**, 2m52s |
+| — | — | — | mutation reverted, branch deleted |
+
+Run 33106713230, job
+[98638382820](https://github.com/caioniehues/soviet-simulator/actions/runs/33106713230/job/98638382820),
+step-by-step: `Set up job` ok, `Check out the repository` ok, `Install cargo-deny
+0.20.2` ok, `Confirm the pinned version is the one that will run` ok (printed
+`cargo-deny 0.20.2`), `cargo-deny check` **failed**, `##[error]Process completed
+with exit code 8`. `gh pr checks 120` reported `cargo-deny check  fail`, and the
+PR's `statusCheckRollup` reported `{"name":"cargo-deny check","status":"COMPLETED","conclusion":"FAILURE"}`.
+The gate therefore does stop a pull request; it does not fail open.
+
+**Same finding, local and CI.** The `cargo-deny check` step body from the CI log
+was stripped of GitHub's log prefix and its `##[group]` header, and both outputs
+had the absolute workspace path normalised (`/home/runner/work/soviet-simulator/soviet-simulator/`
+and `/home/caio/sov-ztg-wt/` -> `WORKSPACE/`). `diff` on the result is empty:
+all 3428 lines match, including the five `error[source-not-allowed]` findings at
+`Cargo.lock:402:13`, `403:18`, `404:18`, `405:21` and `406:19` for `yakui`,
+`yakui-core`, `yakui-wgpu`, `yakui-widgets`, `yakui-winit`, every dependency
+tree, and the closing `advisories ok, bans ok, licenses ok, sources FAILED`.
+This is why Mutation B is the mutation to use: `sources` derives only from
+`Cargo.lock`, so byte-equality is achievable. An advisories mutation could not
+prove this, because its output depends on the RustSec snapshot.
+
+Restoration was proven with `git diff main -- deny.toml` (empty), `git status`
+(clean), matching `sha256sum` against `git cat-file blob main:deny.toml`
+(`ebb4bdec…`), and a re-run of `cargo-deny check` returning exit 0.
+
+### actions/checkout and the Node 20 deprecation
+
+Both runs carried this annotation:
+
+```
+Node.js 20 is deprecated. The following actions target Node.js 20 but are being
+forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262.
+```
+
+Today it is a warning, not a failure — the runner force-runs the v4 action on
+Node 24. It becomes a hard breakage when GitHub removes that forcing. Because
+the action is pinned to a commit sha on purpose, no tag can fix this for us; the
+bump is manual and deliberate.
+
+The fix is `actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09` (tag
+`v5.1.0`), whose `action.yml` declares `runs: using: node24`. v6 and v7 also
+declare `node24`; v5 is the smallest step that removes the warning. Pin the sha,
+never the tag.
