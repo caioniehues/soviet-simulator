@@ -5,11 +5,13 @@ extern crate common;
 pub mod u8slice;
 
 mod audio;
+pub mod capture;
 mod drawables;
 pub mod egui;
 pub mod framework;
 mod geometry;
 mod gfx;
+pub mod gpu_timing;
 pub mod input;
 mod lamplights;
 mod material;

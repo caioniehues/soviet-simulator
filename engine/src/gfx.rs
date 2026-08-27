@@ -83,6 +83,14 @@ pub struct GfxContext {
 
     #[allow(dead_code)] // keep adapter alive
     pub(crate) adapter: Adapter,
+    /// Which GPU drew this. Recorded in every capture so two frames can be told apart.
+    pub adapter_info: wgpu::AdapterInfo,
+    /// Features the device was actually created with, which is not what was requested.
+    pub enabled_features: wgpu::Features,
+    /// Per-pass GPU timestamps. `None` unless the opt-in gate is on AND the adapter supports it.
+    pub gpu_timings: Option<crate::gpu_timing::GpuTimings>,
+    /// Why GPU timing is or is not running, in words fit for an evidence file.
+    pub gpu_timing_status: String,
 
     pub perf: PerfCounters,
 }
@@ -131,6 +139,19 @@ impl ShadowQuality {
             ShadowQuality::NoShadows => None,
         }
     }
+}
+
+/// Run-level graphics choices that must be fixed before the device exists, so they cannot be
+/// changed from the settings panel. Every field defaults to the behaviour the game already had.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct GfxOptions {
+    /// Ask wgpu for its validation layers. Off by default; see the note in [`GfxContext::new`].
+    pub validation: bool,
+    /// Add `COPY_SRC` to the surface so a frame can be read back. Off by default, because it
+    /// changes the surface configuration of every normal run if left on.
+    pub allow_capture: bool,
+    /// Request `TIMESTAMP_QUERY` when the adapter supports it. Off by default (sov-sqs).
+    pub gpu_timings: bool,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -257,18 +278,24 @@ impl<'a> FrameContext<'a> {
 }
 
 impl GfxContext {
-    pub async fn new(window: Arc<Window>) -> Self {
+    pub async fn new(window: Arc<Window>, opts: GfxOptions) -> Self {
         let mut backends = backend_bits_from_env().unwrap_or_else(Backends::all);
         if std::env::var("RENDERDOC").is_ok() {
             backends = Backends::VULKAN;
         }
 
-        let flags = if cfg!(debug_assertions) {
-            // TODO: re enable validation when https://github.com/gfx-rs/wgpu/issues/5231 is fixed
+        // Validation stays off by default because of gfx-rs/wgpu#5231. That is a decision, not a
+        // measurement: the issue predates the pinned wgpu, so this comment must never be read as
+        // current evidence that validation is unavailable (sov-ba8). `GfxOptions::validation`
+        // exists so the claim can be re-tested against whatever version is pinned today.
+        let mut flags = if cfg!(debug_assertions) {
             wgpu::InstanceFlags::DEBUG
         } else {
             wgpu::InstanceFlags::empty()
         };
+        if opts.validation {
+            flags |= wgpu::InstanceFlags::VALIDATION;
+        }
 
         let instance = wgpu::Instance::new(InstanceDescriptor {
             backends,
@@ -289,17 +316,59 @@ impl GfxContext {
 
         let limit = wgpu::Limits::default();
 
-        let (device, queue) = adapter
+        // Check what the adapter actually has BEFORE asking for it. Requesting an unsupported
+        // feature fails device creation outright, and a missing developer feature must never stop
+        // the game from starting.
+        let adapter_info = adapter.get_info();
+        let mut required_features = wgpu::Features::empty();
+        let mut gpu_timing_status = if !opts.gpu_timings {
+            "disabled: opt-in gate off".to_string()
+        } else if !adapter.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
+            format!(
+                "not available: adapter '{}' ({:?}) does not report TIMESTAMP_QUERY",
+                adapter_info.name, adapter_info.backend
+            )
+        } else {
+            required_features |= wgpu::Features::TIMESTAMP_QUERY;
+            "enabled".to_string()
+        };
+
+        let mut requested = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::empty(),
-                    required_limits: limit,
+                    required_features,
+                    required_limits: limit.clone(),
                 },
                 None,
             )
-            .await
-            .expect("failed to find a suitable device");
+            .await;
+
+        if let Err(ref e) = requested {
+            if !required_features.is_empty() {
+                // The adapter claimed the feature and the device still refused it. Report why and
+                // carry on without it rather than failing to start.
+                log::error!("device rejected optional features ({e}), retrying without them");
+                gpu_timing_status = format!("not available: device rejected TIMESTAMP_QUERY ({e})");
+                required_features = wgpu::Features::empty();
+                requested = adapter
+                    .request_device(
+                        &wgpu::DeviceDescriptor {
+                            label: None,
+                            required_features,
+                            required_limits: limit,
+                        },
+                        None,
+                    )
+                    .await;
+            }
+        }
+
+        let (device, queue) = requested.expect("failed to find a suitable device");
+
+        let gpu_timings = required_features
+            .contains(wgpu::Features::TIMESTAMP_QUERY)
+            .then(|| crate::gpu_timing::GpuTimings::new(&device, &queue));
 
         let capabilities = surface.get_capabilities(&adapter);
 
@@ -313,8 +382,15 @@ impl GfxContext {
         let win_height = window.inner_size().height;
         let win_scale_factor = window.scale_factor();
 
+        let mut usage = TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING;
+        if opts.allow_capture {
+            // Only a capture run pays for this. Leaving it on would change the surface
+            // configuration of every ordinary run.
+            usage |= TextureUsages::COPY_SRC;
+        }
+
         let sc_desc = SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            usage,
             format,
             width: win_width,
             height: win_height,
@@ -412,6 +488,10 @@ impl GfxContext {
             sc_desc,
             update_sc: false,
             adapter,
+            adapter_info,
+            enabled_features: device.features(),
+            gpu_timings,
+            gpu_timing_status,
             fbos,
             surface,
             pipelines: RwLock::new(Pipelines::new()),
@@ -644,6 +724,71 @@ impl GfxContext {
         self.settings = Some(settings);
     }
 
+    /// The render passes that actually run under the current settings, in submission order.
+    ///
+    /// Derived from the same conditions [`GfxContext::render`] branches on, so it cannot drift
+    /// into a fixed list that names a pass which is switched off.
+    ///
+    /// This lists the frame-level passes only. Drawables, egui, PBR and the mipmap generator open
+    /// further passes of their own that are not enumerated here.
+    pub fn enabled_passes(&self) -> Vec<&'static str> {
+        use crate::gpu_timing::GPU_PASS_NAMES;
+        let mut v = vec![GPU_PASS_NAMES[0]];
+        if self.defines.contains_key("PBR_ENABLED") {
+            v.push("pbr_prepass");
+        }
+        if self.render_params.value().shadow_mapping_resolution != 0 {
+            v.extend_from_slice(&GPU_PASS_NAMES[1..1 + N_CASCADES]);
+        }
+        if self.defines.contains_key("SSAO") {
+            v.push(GPU_PASS_NAMES[5]);
+        }
+        // The fog pass has no gate: its `defines` check is commented out in passes/fog.rs, so it
+        // runs every frame regardless of the fog setting.
+        v.push(GPU_PASS_NAMES[6]);
+        v.push(GPU_PASS_NAMES[7]);
+        v.push(GPU_PASS_NAMES[8]);
+        v.push("ui_blur");
+        v.push("gui");
+        v
+    }
+
+    /// Everything the engine knows about how the current frame was produced.
+    ///
+    /// Read from live state — adapter, surface, settings, draw counters — rather than from
+    /// anything the caller asserts, so the record cannot claim a configuration that was not used.
+    pub fn capture_record(
+        &self,
+        requested_size: Option<(u32, u32)>,
+        warmup_frames: u32,
+        fixed_delta: f32,
+        validation_requested: bool,
+    ) -> crate::capture::CaptureRecord {
+        let perf = self.perf.snapshot();
+        crate::capture::CaptureRecord {
+            adapter: self.adapter_info.clone(),
+            enabled_features: self.enabled_features,
+            width: self.sc_desc.width,
+            height: self.sc_desc.height,
+            requested_size,
+            surface_format: self.sc_desc.format,
+            present_mode: self.sc_desc.present_mode,
+            msaa_samples: self.samples,
+            validation_requested,
+            passes: self.enabled_passes(),
+            warmup_frames,
+            fixed_delta,
+            total_drawcalls: perf.total_drawcalls,
+            total_triangles: perf.total_triangles,
+            gpu_timings: self
+                .gpu_timings
+                .as_ref()
+                .map(|t| t.summary())
+                .unwrap_or_default(),
+            gpu_timing_status: self.gpu_timing_status.clone(),
+        }
+    }
+
     pub fn set_time(&mut self, time: f32) {
         self.render_params.value_mut().time = time;
     }
@@ -842,7 +987,10 @@ impl GfxContext {
                 depth_ops: None,
                 stencil_ops: None,
             }),
-            timestamp_writes: None,
+            timestamp_writes: self
+                .gpu_timings
+                .as_ref()
+                .and_then(|t| t.writes(crate::gpu_timing::GpuPass::Main)),
             occlusion_query_set: None,
         });
         render_pass.set_bind_group(0, &self.render_params.bg, &[]);
@@ -882,13 +1030,14 @@ impl GfxContext {
                     label: Some("shadow map encoder"),
                 });
             let sun_view = self.sun_shadowmap.layer_view(i as u32);
-            self.shadow_map_one_pass(u, objsref, &sun_view, &mut smap_enc);
+            self.shadow_map_one_pass(i, u, objsref, &sun_view, &mut smap_enc);
             smap_enc.finish()
         })
     }
 
     fn shadow_map_one_pass<'a>(
         &'a self,
+        cascade: usize,
         u: &Uniform<RenderParams>,
         objsref: &[Box<dyn Drawable>],
         shadowmap_view: &'a TextureView,
@@ -906,7 +1055,9 @@ impl GfxContext {
                 }),
                 stencil_ops: None,
             }),
-            timestamp_writes: None,
+            timestamp_writes: self.gpu_timings.as_ref().and_then(|t| {
+                crate::gpu_timing::GpuPass::shadow_cascade(cascade).and_then(|p| t.writes(p))
+            }),
             occlusion_query_set: None,
         });
 
@@ -935,7 +1086,10 @@ impl GfxContext {
                 }),
                 stencil_ops: None,
             }),
-            timestamp_writes: None,
+            timestamp_writes: self
+                .gpu_timings
+                .as_ref()
+                .and_then(|t| t.writes(crate::gpu_timing::GpuPass::DepthPrepass)),
             occlusion_query_set: None,
         });
 
