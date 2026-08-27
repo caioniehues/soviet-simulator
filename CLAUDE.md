@@ -66,28 +66,17 @@ memory system (`bd remember` is not used here).
 | **Micro** — progress, findings, blockers | `bd comments add` | **the worker doing the work** |
 | Live session view | Claude tasks | main session only, mirrors the macro layer |
 
-### Adopted conventions (2026-08-26, from `docs/reference/bd-capability-survey.md`)
+### Adopted conventions
 
-- **Attribution is `--author <roster-name>` on `bd comments add`** — that works. The old
-  `BEADS_ACTOR`/`Executed-By:` trailer convention was DELETED 2026-08-27: bd 1.2.2's
-  `prepare-commit-msg` hook is inert (verified — 0 of 60 commits carry the trailer). Do not
-  set `BEADS_ACTOR`; do not cite `Executed-By:` trailers as provenance.
-- **Wave setup goes through `bd batch`**: N creates + deps as one transaction (stdin grammar:
-  `create <type> <priority> <title>`, `dep add <from> <to>`, `close <id> [reason]`).
-- **Session close adds a drift sweep**: `bd stale --days 14` and `bd orphans` (issues cited in
-  commit messages but never closed — the failure our commit-sha convention creates).
-- **Postponed ≠ blocked**: use `bd defer <id> --until <date> --reason "…"` instead of an
-  open issue worded "not now". `bd undefer` reverses.
-- **`validation.on-create = warn` is active** (config.yaml): creating without `--acceptance`
-  warns, never blocks. Keep acceptance criteria first-class.
-- **Gate-chain formula**: `.beads/formulas/gate-chain.formula.toml` encodes the Phase-4 chain
-  (wiring → domain → reviewer). Pour per story: `bd mol pour gate-chain --var story=<id>
-  --var scope=<range>`. Molecules structure work only — no execution hooks; epics do not
-  auto-close, sweep with `bd epic close-eligible`.
-- **Version is pinned at 1.2.2** — a recovery re-release of 1.1.2. Never run `bd upgrade`
-  casually (1.2.1 schema-skew trap); `bd doctor` does not work in embedded mode; upstream doc
-  pages on work leases / events journal / sync federation / HTTP API describe an unreleased
-  version. Telemetry is disabled (`metrics.disabled=true`, user-level config).
+Recorded in **`docs/reference/bd-capability-survey.md` §5** — attribution via `--author`, `bd batch`
+for wave setup, the `bd stale`/`bd orphans` close sweep, `bd defer` for postponed work,
+`validation.on-create = warn`, and the Phase-4 gate-chain formula. Read that section before
+running a wave. Two things stay here because a session must not be able to miss them:
+
+- **Never run `bd upgrade` casually** — bd is pinned at 1.2.2, and a machine that ever ran 1.2.1
+  has a v65 schema 1.2.2 cannot read.
+- **The `BEADS_ACTOR`/`Executed-By:` trailer convention is DELETED** (2026-08-27, the hook is
+  inert). Do not set it; do not cite those trailers as provenance.
 
 ### If you are a worker
 
@@ -129,60 +118,14 @@ Judge progress from the running game, never from a clean build: verify the struc
 Decide from how the task is framed how to work. A task that invites collaboration — open-ended, exploratory, phrased as a direction rather than a spec — gets the live game early: checkpoint at decisions of taste, scope, or cost, and build freely in between. A task handed over as a finished brief to execute gets reasonable calls and steady progress, no blocking. Either way the result is proven, not claimed — if the user hasn't seen it running, finish with a 15–20s video of the game in action, and watch it back before you call the work done.
 
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
-## Beads Issue Tracker
+<!-- The managed Beads block that stood here was removed 2026-08-28: the `bd prime`
+     SessionStart hook injects the same command reference and session-close protocol
+     every session, and the `## Task tracking` section above states this repo's real
+     policy, which overrides two of that block's rules. Run `bd prime` for commands. -->
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
-
-### Quick Reference
-
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
-```
-
-### Rules
-
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
-
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
-
-## Agent Context Profiles
-
-The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
-
-- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
-- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
-- **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
-
-## Session Completion
-
-This protocol applies when ending a Beads implementation workflow. It is subordinate to explicit user, repository, and orchestrator instructions.
-
-1. **File issues for remaining work** - Create beads for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **Handle git/sync by active profile**:
-   ```bash
-   # Conservative/minimal/default: report status and proposed commands; wait for approval.
-   git status
-
-   # Team-maintainer opt-in only, unless current instructions forbid it:
-   git pull --rebase
-   git push
-   git status
-   ```
-5. **Hand off** - Summarize changes, validation, issue status, and any blocked sync/commit/push step
-
-**Critical rules:**
-- Explicit user or orchestrator instructions override this Beads block.
-- Do not commit or push without clear authority from the active profile or the current user request.
-- If a required sync or push is blocked, stop and report the exact command and error.
-<!-- END BEADS INTEGRATION -->
+**Git authority:** do not commit, push, or run `bd dolt push` without explicit authority
+from the user. If a required sync or push is blocked, stop and report the exact command
+and the error — never work around it.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

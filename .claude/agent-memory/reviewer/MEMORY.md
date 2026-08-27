@@ -12,4 +12,6 @@
 - [exec runs after kill](parcommandbuffer-exec-after-kill.md) — PROVED: apply() runs exec closures for entities killed in same drain
 - [Determinism test cannot fail](determinism-test-cannot-fail.md) — PROVED by mutation: 11 divergences + green test; substrate.md:37 "Absent" is correct
 - [Silent decode to default seam](silent-decode-default-seam.md) — 16 resources cross save/load, errors swallowed into defaults, only map guarded
+- [Skeleton corrupt-LAV refusal](skeleton-corrupt-lav-refusal.md) — skeleton() returns Option since sov-bo3; the vs.len()+1 bound's `+1` is load-bearing; ONE production caller
+- [No test CI in this repo](repo-has-no-test-ci.md) — only dependency-policy.yml (cargo-deny); score coverage against a default local `cargo test`, never against CI
 - [Review method patterns](review-method-patterns.md) — LSP warmup, out-of-tree oracles, mutation protocol, concurrent-review fencing (ported from refactor-reviewer)

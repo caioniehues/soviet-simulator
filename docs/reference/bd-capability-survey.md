@@ -204,3 +204,88 @@ reclamation — irrelevant at 36 issues), `backup`, `restore`.
 - Whether the beads Claude Code plugin is installed anywhere here — if it ever is, `bd setup
   claude` must NOT also install its SessionStart hook (double `bd prime` = double tokens).
 - `export.auto=true` behavior — untested live; verify once if we switch to it.
+
+## 5. Adopted conventions (2026-08-26; moved here from CLAUDE.md 2026-08-28)
+
+These were resident in the root `CLAUDE.md` and are recorded here instead. `CLAUDE.md` keeps a
+pointer plus the two direction-reversal traps that a session must not be able to miss.
+
+- **Attribution is `--author <roster-name>` on `bd comments add`** — that works. The old
+  `BEADS_ACTOR`/`Executed-By:` trailer convention was DELETED 2026-08-27: bd 1.2.2's
+  `prepare-commit-msg` hook is inert (verified — 0 of 60 commits carry the trailer). Do not
+  set `BEADS_ACTOR`; do not cite `Executed-By:` trailers as provenance.
+- **Wave setup goes through `bd batch`**: N creates + deps as one transaction (stdin grammar:
+  `create <type> <priority> <title>`, `dep add <from> <to>`, `close <id> [reason]`).
+- **Session close adds a drift sweep**: `bd stale --days 14` and `bd orphans` (issues cited in
+  commit messages but never closed — the failure our commit-sha convention creates).
+- **Postponed ≠ blocked**: use `bd defer <id> --until <date> --reason "…"` instead of an
+  open issue worded "not now". `bd undefer` reverses.
+- **`validation.on-create = warn` is active** (config.yaml): creating without `--acceptance`
+  warns, never blocks. Keep acceptance criteria first-class.
+- **Gate-chain formula**: `.beads/formulas/gate-chain.formula.toml` encodes the Phase-4 chain
+  (wiring → domain → reviewer). Pour per story: `bd mol pour gate-chain --var story=<id>
+  --var scope=<range>`. Molecules structure work only — no execution hooks; epics do not
+  auto-close, sweep with `bd epic close-eligible`.
+- **Version is pinned at 1.2.2** — a recovery re-release of 1.1.2. Never run `bd upgrade`
+  casually (1.2.1 schema-skew trap); `bd doctor` does not work in embedded mode; upstream doc
+  pages on work leases / events journal / sync federation / HTTP API describe an unreleased
+  version. Telemetry is disabled (`metrics.disabled=true`, user-level config).
+
+## 6. Open question from §4 — RESOLVED and FIXED 2026-08-28 (double `bd prime`)
+
+§4 asked whether the beads Claude Code plugin was installed, and warned that `bd setup claude`
+must not also install a SessionStart hook, because "double `bd prime` = double tokens".
+
+**The prediction was correct.** The plugin is installed (`beads@beads-marketplace`, 31 lifetime
+uses) and two SessionStart hooks were each running `bd prime`:
+
+| # | Registered in | Command | Scope |
+|---|---|---|---|
+| 1 | beads plugin `.claude-plugin/plugin.json` → `hooks.SessionStart` | `bd prime` | user — every project |
+| 2 | this repo's `.claude/settings.json` → `SessionStart` | `bd prime --hook-json` | project — checked in |
+
+Payloads are the same content, 5,573 vs 5,574 chars (one trailing newline). The duplicate cost
+**~1,390 est. tokens per session**.
+
+**Fix applied 2026-08-28:** hook #2 was deleted from `.claude/settings.json`. The plugin now owns
+`bd prime` alone, and it covers **both** `SessionStart` and `PreCompact` (the plugin registers
+both; the project settings registered only SessionStart, so PreCompact recovery is a net gain).
+Verified: `bd prime` in a directory with no bd workspace prints nothing and exits 0, so the
+user-scope plugin hook is harmless in repos that do not use bd.
+
+**Known consequence:** this repo is no longer self-contained for `bd prime`. A clone without the
+beads plugin installed gets no bd context at session start. `CLAUDE.md` and `bd prime` itself
+still document the workflow, so the loss is the automatic injection, not the knowledge.
+
+**Trap for whoever audits hooks next — this is why it went unnoticed for so long.** A plugin's
+`hooks` key takes **two different shapes**: an inline object (beads) or a string path to a hooks
+file (compass, ponytail). Searching for `hooks.json` files finds the second kind and misses the
+first entirely — and under `~/.claude/plugins` it also surfaces `.codex-plugin` and
+`.cursor-plugin` variants that Claude Code never reads. Enumerate both shapes, and restrict to
+`.claude-plugin`, with:
+
+```bash
+find ~/.claude/plugins/cache -path '*/.claude-plugin/plugin.json' -exec jq -r '
+  select(.hooks != null)
+  | .name as $n
+  | if (.hooks|type) == "object"
+    then "\($n): INLINE -> \(.hooks|keys|join(","))"
+    else "\($n): FILE   -> \(.hooks)"
+    end' {} + | sort -u
+```
+
+Verified output 2026-08-28 — three plugins register hooks, and only one does it inline:
+
+```
+beads:    INLINE -> PreCompact,SessionStart
+compass:  FILE   -> ./hooks/hooks.json
+ponytail: FILE   -> ./hooks/claude-codex-hooks.json
+```
+
+Do not use a bare `-maxdepth` here; the cache nests as
+`<marketplace>/<plugin>/<version>/.claude-plugin/plugin.json`, and a depth guess silently
+returns nothing. `-path` is what makes the sweep exhaustive.
+
+An earlier draft of this section blamed the `--hook-json` output envelope. That was wrong:
+`bd prime --hook-json` emits one clean `{"hookSpecificOutput":{"additionalContext":…}}` object
+with the text exactly once. The duplication was always two registered hooks.

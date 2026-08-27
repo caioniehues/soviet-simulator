@@ -7,6 +7,7 @@
 - [Persistence + determinism](seam-persistence-determinism-2026-08-27.md) — two-run determinism check EXISTS but can never fail; 1 of 16 resources guarded; 8531d3c
 - [Inherited perimeter](seam-perimeter-native-app.md) — request_multiplier PROVEN to silently default on typo; native_app has ZERO tests; 8531d3c+dirty
 - [Render/engine seam](seam-render-engine-2026-08-27.md) — colors.lua IS a palette authority; seasons ABSENT; headless is NOT a render adapter; 8531d3c
+- [External-drive / MCP seam](seam-external-drive-mcp-2026-08-27.md) — new crate CAN own a Simulation; apply() returns () so failures are silent; AddTrain is a no-op; 0aa5c35
 - [LSP read-guard relent](gotcha-lsp-read-guard-relent.md) — retry the same file 3x; batch files to pay 3 rounds total
 - [Economy/logistics depth map](seam-economy-logistics-2026-08-27.md) — Market is two modules; sold.0 leaks for 6 stores; EcoStats counts matches not deliveries; 8531d3c
 - [Data-layer seam](seam-data-layer-2026-08-27.md) — one Lua digit (amount=0) panics via unguarded Money div; leisure+road-vehicles dead; 8531d3c

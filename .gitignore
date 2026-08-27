@@ -19,6 +19,13 @@ progress.md
 
 # Claude Code dumps local-command transcripts at the repo root
 *-local-command-*.txt
+# ...and dumps raw session transcripts there too, under a date-time prefix
+20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9]*-*.txt
+
+# coding-tools (`ct`) run logs -- machine state, not project knowledge
+.ct/
+# direnv venv activation -- per-machine paths
+.envrc
 
 # unrelated vendored clone, not part of this workspace
 /vectiler

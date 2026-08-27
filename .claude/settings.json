@@ -6,15 +6,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bd prime --hook-json"
-          }
-        ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
             "command": "cat >/dev/null || true; [ -n \"$CLAUDE_ENV_FILE\" ] || exit 0; [ -d \"$CLAUDE_PROJECT_DIR/.venv\" ] || exit 0; printf 'export VIRTUAL_ENV=\"%s/.venv\"\\nexport PATH=\"%s/.venv/bin:$PATH\"\\n' \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\" > \"$CLAUDE_ENV_FILE\"",
             "timeout": 10
           }
