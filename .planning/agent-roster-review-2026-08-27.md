@@ -94,8 +94,12 @@ the charter names `bench_services`/`bench_terrain`/`bench_chains`/`bench_rail`/`
 Reality: `grep -ni bench docs/plan/charter-1.0.md` → ONE hit, saying the opposite —
 "the relevant implementation and release plans define the benchmark gates" (charter:55-57).
 No `[[bench]]` in any Cargo.toml, no `benches/` dir, no bench name anywhere in `.rs`.
-`sov-1ae` ("Build the fixed-seed 250k benchmark contract") is OPEN.
-*Fix:* say the benches do not exist yet and point at `sov-1ae`. Drop the charter attribution.
+~~`sov-1ae` ("Build the fixed-seed 250k benchmark contract") is OPEN.~~ — **SUPERSEDED
+2026-08-28.** `sov-1ae` is CLOSED: cancelled 2026-08-27, WIP preserved unmerged on `wip/sov-m0q-wave1`.
+*Fix:* say the benches do not exist yet and that the 250k lane was cancelled; do not point a
+reader at `sov-1ae` as available work. Drop the charter attribution. (Both applied 2026-08-28
+in `perf-engineer.md`, `settlement-modeller.md`, `common-implementer.md` and
+`development-cycle.md`; the frontmatter half of B3 is applied too.)
 
 **B4. `evidence-auditor.md:92-94` — wrong path (my error from earlier today)**
 Says `evid-spec-bindings.json` is in `docs/generated/evidence/`.
@@ -271,7 +275,12 @@ in all 20 — the delegation rule is not violated anywhere.
 - **`sim-implementer`'s lot trap is correct** — `map.rs:719` inside `Map::connect`, guarded at `:693`.
 - **`native_app/src/init.rs:85-86`** exact in all 9 copies.
 - **No Bevy, Godot, `src/sim/` or pre-fork reference survives in any body.**
-- **The Ponytail hook is real** and registered.
+- ~~**The Ponytail hook is real** and registered.~~ — **REFUTED 2026-08-28.** The plugin was
+  retired 2026-08-27 (last hook injection 10:23). Evidence: absent from `claude plugin list`;
+  absent from `installed_plugins.json`; no `enabledPlugins` entry in any settings file; no
+  `.ponytail-active` flag file; zero `ponytail:` markers survive in source. The four agent
+  bodies that restated the ladder ("the ladder arrives via hook") were replaced the same day
+  by the `## Engineering practice — all lanes` block now carried by every agent definition.
 - **`base_mod/colors.lua` does hold UI colours** — REFUTED as a finding.
 - **`.codex/agents`: 15 adapters, no `reviewer.toml`** — `development-cycle.md:60-63` is right.
   (Gap: no `debugger.toml`; the new agent has no mirror.)
