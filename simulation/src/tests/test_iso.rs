@@ -248,6 +248,7 @@ fn test_world_survives_serde() {
 
     let mut check_size = 1024;
     let mut check_start = 3;
+    let mut divergence_tick = None;
 
     'main: loop {
         if check_size == 0 {
@@ -277,7 +278,8 @@ fn test_world_survives_serde() {
                 println!("not equal sim+sim2");
                 sim.save_to_disk("world");
                 sim2.save_to_disk("world2");
-                check_start = tick - check_size;
+                divergence_tick = Some(tick);
+                check_start = (tick - check_size).max(3);
                 check_size = check_size / 2;
                 continue 'main;
             }
@@ -285,7 +287,8 @@ fn test_world_survives_serde() {
                 println!("not equal sim");
                 deser.save_to_disk("world");
                 sim.save_to_disk("world2");
-                check_start = tick - check_size;
+                divergence_tick = Some(tick);
+                check_start = (tick - check_size).max(3);
                 check_size = check_size / 2;
                 continue 'main;
             }
@@ -293,7 +296,8 @@ fn test_world_survives_serde() {
                 println!("not equal sim2");
                 deser.save_to_disk("world");
                 sim2.save_to_disk("world2");
-                check_start = tick - check_size;
+                divergence_tick = Some(tick);
+                check_start = (tick - check_size).max(3);
                 check_size = check_size / 2;
                 continue 'main;
             }
@@ -302,5 +306,9 @@ fn test_world_survives_serde() {
         }
 
         break;
+    }
+
+    if let Some(tick) = divergence_tick {
+        panic!("determinism divergence detected at tick {tick}");
     }
 }
