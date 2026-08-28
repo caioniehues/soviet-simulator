@@ -422,23 +422,65 @@ fn scenario_dead_truck_tosource_cancels_without_leak() {
     );
     drop(m);
 
-    // A fresh truck and a fresh buy order must be able to complete normally:
-    // proves the dead truck's dispatcher reservation isn't still blocking or
+    // The dead truck's dispatcher reservation must not still be blocking or
     // otherwise wedging future dispatches.
+    //
+    // This used to be proved by driving a second buy to completion. It was
+    // not proving that: the seller's sell order had already been consumed by
+    // the first match, so no domestic match was possible, and the buyer's
+    // 5 units arrived via the ext-trade teleport that sov-abs removed. With a
+    // re-posted sell order a genuine second delivery does start -- a dispatch
+    // is created and a truck assigned -- but the freshly spawned truck then
+    // sits at `Driving` without moving, which is a vehicle-substrate problem
+    // (see the `unpark`/collider note in `transportation/road.rs`) and not
+    // what this scenario is about.
+    //
+    // So assert the dispatcher pool directly, which is the stated claim: a
+    // leaked `reserved_by` entry makes exactly one truck permanently
+    // unqueryable.
     spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos).expect("truck must spawn");
-    ctx.g
-        .write::<Market>()
-        .buy(buyer, buyer_pos.xy(), cereal, 5);
+    ctx.tick(); // let dispatch_system re-register positions
 
-    assert!(
-        drain_or_return(&mut ctx, 6000),
-        "a fresh dispatch must complete normally after the dead-truck cancellation"
-    );
-    assert_eq!(
-        ctx.g.read::<Market>().capital(buyer, cereal),
-        5,
-        "the second delivery must complete cleanly"
-    );
+    let all_trucks: Vec<_> = ctx
+        .g
+        .world()
+        .vehicles
+        .iter()
+        .filter(|(_, v)| matches!(v.vehicle.kind, VehicleKind::Truck))
+        .map(|(id, _)| id)
+        .collect();
+    assert!(!all_trucks.is_empty(), "the city must have trucks");
+
+    let (world, res) = ctx.g.world_res();
+    let map = res.read::<crate::map::Map>();
+    let mut dispatcher = res.write::<crate::map_dynamic::Dispatcher>();
+    dispatcher.update(&map, world);
+
+    // Drain the pool. `Dispatcher::update` never purges an entity that was
+    // removed from `world.vehicles`, so the dead truck's stale cache entry can
+    // still be handed out here -- assert on which LIVE trucks came back, not
+    // on the count.
+    let mut handed_out = Vec::new();
+    for _ in 0..all_trucks.len() + 4 {
+        let Some(crate::map_dynamic::DispatchID::SmallTruck(v)) = dispatcher.query(
+            &map,
+            crate::map_dynamic::DispatchKind::SmallTruck,
+            crate::map_dynamic::DispatchQueryTarget::Pos(seller_pos),
+        ) else {
+            break;
+        };
+        handed_out.push(v);
+    }
+    for t in &all_trucks {
+        assert!(
+            handed_out.contains(t),
+            "every live truck must still be reservable after the dead-truck \
+             cancellation; one left in `reserved_by` is leaked out of the city \
+             permanently: {:?} missing from {:?}",
+            t,
+            handed_out
+        );
+    }
 }
 
 /// (v)(a) Loading with the buyer's building demolished after the truck has

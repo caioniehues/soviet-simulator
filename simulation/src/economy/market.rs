@@ -611,6 +611,47 @@ impl Market {
                     Some(trade)
                 }));
 
+            // External trading, buy side. Pushed BEFORE the dispatch loop
+            // below, so an import lands in `all_trades[dispatch_start..]`
+            // and gets a `Dispatch` out of the freight station like any
+            // other physical delivery (sov-abs). It used to be pushed after
+            // that loop, with `capital[buyer]` credited right here: goods
+            // appeared in the buyer's larder in the same tick, having moved
+            // nowhere, and no enterprise in a city with a freight station
+            // could ever experience an unmet input need.
+            if !*optout_exttrade {
+                // Humans never clear through the external market: retail
+                // clears by queue and going-without only (never by money —
+                // an ext-trade buy attaches a money_delta, forbidden on the
+                // human path, see `RetailClaim`). Their unmatched buy orders
+                // must survive this pass untouched so they're still there
+                // for next tick's domestic match, not silently dropped.
+                let btaken: BTreeMap<_, _> = buy_orders
+                    .extract_if(.., |s, _| !matches!(s, SoulID::Human(_)))
+                    .collect();
+                // All remaining (non-human) buyers can fulfil since they can buy externally
+                self.all_trades.reserve(btaken.len());
+                for (buyer, order) in btaken {
+                    let qty_buy = order.qty as i32;
+
+                    let Some(ext) = find_external(order.pos) else {
+                        continue;
+                    };
+
+                    // No capital moves here. The border is debited when the
+                    // truck loads at the freight station and the buyer is
+                    // credited when it unloads at their door, exactly like a
+                    // domestic trade (`Market::advance_dispatches`).
+                    self.all_trades.push(Trade {
+                        buyer: TradeTarget(buyer),
+                        seller: TradeTarget(ext),
+                        qty: qty_buy,
+                        kind,
+                        money_delta: -(*ext_value * qty_buy as i64), // we buy from external so we pay
+                    });
+                }
+            }
+
             // Labor isn't cargo: hiring already happens synchronously off
             // `trades` in `economy::market_update` the moment a match is
             // made, so a "job-opening" match never needs a truck to
@@ -664,36 +705,6 @@ impl Market {
 
             // External trading
             if !*optout_exttrade {
-                // Humans never clear through the external market: retail
-                // clears by queue and going-without only (never by money —
-                // an ext-trade buy attaches a money_delta and credits
-                // capital directly, both forbidden on the human path, see
-                // `RetailClaim`). Their unmatched buy orders must survive
-                // this pass untouched so they're still there for next
-                // tick's domestic match, not silently dropped.
-                let btaken: BTreeMap<_, _> = buy_orders
-                    .extract_if(.., |s, _| !matches!(s, SoulID::Human(_)))
-                    .collect();
-                // All remaining (non-human) buyers can fulfil since they can buy externally
-                self.all_trades.reserve(btaken.len());
-                for (buyer, order) in btaken {
-                    let qty_buy = order.qty as i32;
-
-                    let Some(ext) = find_external(order.pos) else {
-                        continue;
-                    };
-
-                    *capital.entry(buyer).or_default() += qty_buy;
-
-                    self.all_trades.push(Trade {
-                        buyer: TradeTarget(buyer),
-                        seller: TradeTarget(ext),
-                        qty: qty_buy,
-                        kind,
-                        money_delta: -(*ext_value * qty_buy as i64), // we buy from external so we pay
-                    });
-                }
-
                 // Seller surplus goes to external trading. Stock already
                 // reserved for a domestic buyer (matched but not yet picked
                 // up by a dispatch) isn't free to export: `sell_all` re-posts

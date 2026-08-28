@@ -79,6 +79,12 @@ pub enum DispatchQueryTarget {
     Lane(LaneID),
 }
 
+/// How far from a lane of the right kind a `DispatchQueryTarget::Pos` may sit
+/// and still be served. A building whose door is further away than this can
+/// never be offered a vehicle, so anything that wants to be *delivered to*
+/// must check the same distance before promising a delivery.
+pub const DISPATCH_LANE_CUTOFF: f32 = 50.0;
+
 impl Dispatcher {
     /// Updates the dispatcher cache about the dispatachable entities to know where they are relative
     /// to the map, so that queries can be answered quickly
@@ -236,7 +242,7 @@ impl DispatchOne {
 
         let target_lane = match target {
             DispatchQueryTarget::Pos(pos) => {
-                let lid = map.nearest_lane(pos, kind.lane_kind(), Some(50.0))?;
+                let lid = map.nearest_lane(pos, kind.lane_kind(), Some(DISPATCH_LANE_CUTOFF))?;
                 let lane = map.lanes().get(lid)?;
                 let proj = lane.points.project(pos);
                 start_along = lane.points.length_at_proj(proj);

@@ -12,9 +12,13 @@
 use super::*;
 
 use super::hoarding::{
-    build_company_at, drain_dispatches, mk_soul, remove_soul, setup_seller_buyer,
+    build_company_at, drain_dispatches, drain_dispatches_of, mk_soul, remove_soul,
+    setup_seller_buyer,
 };
 use super::inflation::remove_default_freight_station;
+use crate::map::BuildingKind;
+use geom::OBB;
+use prototypes::{BuildingGen, FreightStationPrototypeID};
 use crate::economy::{DispatchState, Market};
 use crate::map_dynamic::BuildingInfos;
 use crate::transportation::{spawn_parked_vehicle, VehicleKind};
@@ -186,7 +190,7 @@ fn scenario_ledger_exttrade_double_spend() {
     };
 
     assert!(
-        drain_dispatches(&mut ctx, 4000),
+        drain_dispatches_of(&mut ctx, 4000, cereal),
         "domestic dispatch never completed"
     );
 
@@ -568,6 +572,137 @@ fn scenario_demolish_buyer_building_end_to_end_conserves() {
         m.capital(buyer, cereal),
         0,
         "a demolished buyer must never be credited"
+    );
+}
+
+/// sov-abs: an ext-trade import is the acquisition of a PHYSICAL good. It
+/// must move like one — a `Dispatch` out of the freight station, credited to
+/// the buyer only when the truck physically arrives — never as a same-tick
+/// capital credit at the border. Before the fix, `make_trades` pushed the
+/// import trades AFTER the dispatch-creation loop had already run over
+/// `all_trades[dispatch_start..]`, so an import got no dispatch at all and
+/// `*capital.entry(buyer) += qty_buy` put the goods in the buyer's larder in
+/// the same tick, having moved nowhere. That made shortage impossible for any
+/// enterprise in any city with a freight station.
+///
+/// The station here is deliberately a REACHABLE one on the factory's own
+/// road: the default `START_COMMANDS` station sits at ~(4300,6300) with no
+/// road near it, so leaving it in place would prove nothing about the
+/// physical path.
+#[test]
+fn sov_abs_ext_trade_import_is_physical() {
+    let mut ctx = TestCtx::new();
+    remove_default_freight_station(&mut ctx);
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(300.0, 0.0, 0.0)]);
+
+    // The freight-station prototype is 160x200 (base_mod/data.lua); park it
+    // clear of the factory, with a spur road running out to its door.
+    // `NoWalkway`'s door_pos is RELATIVE to the OBB centre, and the door must
+    // land within 50 units of a driving lane: `DispatchOne::query` resolves
+    // `DispatchQueryTarget::Pos` with `map.nearest_lane(pos, .., Some(50.0))`
+    // (dispatch.rs), so a station further from the road than that can never
+    // be offered a truck and its dispatch sits in ToSource forever.
+    let station_centre = Vec2::new(150.0, 200.0);
+    ctx.apply(&[WorldCommand::MapBuildSpecialBuilding {
+        pos: OBB::new(station_centre, Vec2::X, 160.0, 200.0),
+        kind: BuildingKind::RailFreightStation(FreightStationPrototypeID::new("freight-station")),
+        gen: BuildingGen::NoWalkway {
+            // Relative, and rotated by the OBB axis: (110, 0) lands the door
+            // at absolute (150, 90), just past the spur's end.
+            door_pos: Vec2::new(110.0, 0.0),
+        },
+        zone: None,
+        connected_road: None,
+    }]);
+    ctx.tick();
+    assert_eq!(
+        ctx.g.world().freight_stations.len(),
+        1,
+        "exactly one, reachable, freight station must exist"
+    );
+    // The spur stops just short of the station footprint (y 200..400): a road
+    // endpoint that lands INSIDE a building makes MapProject resolve to
+    // ProjectKind::Building and Map::make_connection hits unreachable!().
+    ctx.build_roads(&[
+        Vec3::new(250.0, 0.0, 0.0),
+        Vec3::new(station_centre.x, station_centre.y - 120.0, 0.0),
+    ]);
+
+    let station_b = ctx
+        .g
+        .map()
+        .buildings()
+        .iter()
+        .find(|(_, b)| matches!(b.kind, BuildingKind::RailFreightStation(_)))
+        .map(|(id, _)| id)
+        .unwrap();
+    let station_door = ctx.g.map().buildings.get(station_b).unwrap().door_pos;
+    assert!(
+        station_door.xy().distance(Vec2::new(150.0, 80.0)) < 50.0,
+        "the station door must be within the dispatcher's 50-unit lane cutoff \
+         of the spur, or no truck can ever be offered for the import: {:?}",
+        station_door
+    );
+
+    // A flour-factory consumes cereal (request_multiplier 4 => it asks the
+    // market for 4). No domestic seller of cereal exists here, so the border
+    // is the only possible source.
+    let factory_b = build_company_at(
+        &mut ctx,
+        GoodsCompanyID::new("flour-factory").prototype(),
+        Vec2::new(100.0, 20.0),
+    );
+    ctx.tick(); // company soul spawns, recipe_init posts the buy order
+
+    let soul = ctx.g.read::<BuildingInfos>().owner(factory_b).unwrap();
+    let cereal = ItemID::new("cereal");
+
+    // Run to the first tick on which the border does anything at all.
+    let mut ticks = 0;
+    loop {
+        ctx.tick();
+        ticks += 1;
+        let m = ctx.g.read::<Market>();
+        if m.capital(soul, cereal) > 0 || m.dispatches().iter().any(|d| d.kind == cereal) {
+            break;
+        }
+        assert!(ticks < 200, "the border never traded with the factory");
+    }
+
+    {
+        let m = ctx.g.read::<Market>();
+        assert_eq!(
+            m.capital(soul, cereal),
+            0,
+            "an imported good must NOT be in the buyer's capital on the tick it \
+             was matched -- that is a teleport across the border"
+        );
+        assert!(
+            m.dispatches().iter().any(|d| {
+                d.kind == cereal
+                    && d.buyer == soul
+                    && matches!(d.seller, SoulID::FreightStation(_))
+            }),
+            "the import must be carried by a Dispatch out of the freight \
+             station, like any other physical delivery: {:?}",
+            m.dispatches()
+        );
+    }
+
+    // ...and it must actually arrive, or the fix has merely replaced a
+    // teleport with a permanent shortage.
+    let mut ticks = 0;
+    while ctx.g.read::<Market>().capital(soul, cereal) == 0 {
+        ctx.tick();
+        ticks += 1;
+        assert!(
+            ticks < 20000,
+            "the imported cereal never physically arrived at the factory"
+        );
+    }
+    assert!(
+        ticks > 0,
+        "the arrival must take at least one further tick after the match"
     );
 }
 
