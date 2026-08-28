@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "adapter_class": "radv-navi3x",
+  "adapter_match": {
+    "backend": "Vulkan",
+    "vendor_id": 4098,
+    "device_id": 29822,
+    "driver": "radv"
+  },
+  "scene": "baseline",
+  "max_regression_fraction": 0.30,
+  "tolerance_rationale": "Measured main-pass spread was about 10 percent on RADV NAVI32. The 30 percent limit gives three times that observed noise while still catching a material regression.",
+  "medians_us": {
+    "depth_prepass": 25.120,
+    "shadow_cascade_0": 12.480,
+    "shadow_cascade_1": 10.200,
+    "shadow_cascade_2": 10.240,
+    "shadow_cascade_3": 10.200,
+    "ssao": 33.680,
+    "fog": 28.360,
+    "main": 92.120,
+    "background": 24.360
+  },
+  "rank_order": [
+    ["main", "ssao"],
+    ["ssao", "fog"],
+    ["fog", "depth_prepass"],
+    ["depth_prepass", "background"]
+  ]
+}

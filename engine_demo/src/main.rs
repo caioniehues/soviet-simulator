@@ -5,10 +5,12 @@ use engine::{
 };
 use geom::{vec3, Camera, Degrees, InfiniteFrustrum, LinearColor, Plane, Radians, Vec2, Vec3};
 
+use crate::capture::CaptureScene;
 use crate::helmet::Helmet;
 use crate::spheres::Spheres;
 use crate::terrain::Terrain;
 
+mod capture;
 mod helmet;
 mod spheres;
 mod terrain;
@@ -38,6 +40,9 @@ struct State {
 
     gfx_settings: GfxSettings,
     sun_angle: Degrees,
+
+    /// `Some` for a fixed capture run. While set, nothing may read the wall clock or the input.
+    capture: Option<&'static CaptureScene>,
 }
 
 impl engine::framework::State for State {
@@ -56,24 +61,41 @@ impl engine::framework::State for State {
             meshes.push(i.build(gfx).unwrap());
         }
 
-        let mut camera = Camera::new(vec3(9.0, -30.0, 13.0), 1000.0, 1000.0);
+        let scene = crate::capture::args().map(|a| a.scene);
+
+        let mut camera = match scene {
+            Some(s) => Camera::new(s.cam_pos, s.width as f32, s.height as f32),
+            None => Camera::new(vec3(9.0, -30.0, 13.0), 1000.0, 1000.0),
+        };
         camera.dist = 0.0;
-        camera.pitch = Radians(0.0);
-        camera.yaw = Radians(-std::f32::consts::PI / 2.0);
+        camera.pitch = Radians(scene.map_or(0.0, |s| s.cam_pitch));
+        camera.yaw = Radians(scene.map_or(-std::f32::consts::PI / 2.0, |s| s.cam_yaw));
 
         ctx.audio.set_settings(100.0, 100.0, 100.0, 100.0);
 
-        let gfx_settings = GfxSettings {
-            shader_debug: true,
-            ..Default::default()
+        let gfx_settings = match scene {
+            Some(s) => s.settings,
+            None => GfxSettings {
+                shader_debug: true,
+                ..Default::default()
+            },
         };
 
+        let mut demo_elements: Vec<(Box<dyn DemoElement>, bool)> = vec![
+            (Box::new(Spheres::init(ctx)), true),
+            (Box::new(Helmet::init(ctx)), true),
+            (Box::new(Terrain::init(ctx)), true),
+        ];
+        // A scene names exactly which elements draw, so adding a new demo element cannot change
+        // an existing capture.
+        if let Some(s) = scene {
+            for (de, enabled) in &mut demo_elements {
+                *enabled = s.elements.contains(&de.name());
+            }
+        }
+
         Self {
-            demo_elements: vec![
-                (Box::new(Spheres::init(ctx)), true),
-                (Box::new(Helmet::init(ctx)), true),
-                (Box::new(Terrain::init(ctx)), true),
-            ],
+            demo_elements,
             camera,
             is_captured: false,
             delta: 0.0,
@@ -81,7 +103,8 @@ impl engine::framework::State for State {
             camera_speed: 100.0,
             ms_hist: History::new(128),
             gfx_settings,
-            sun_angle: Degrees(0.0),
+            sun_angle: Degrees(scene.map_or(0.0, |s| s.sun_angle_deg)),
+            capture: scene,
         }
     }
 
@@ -91,7 +114,12 @@ impl engine::framework::State for State {
         ctx.gfx.update_settings(self.gfx_settings);
         self.ms_hist.add_value(ctx.delta);
 
-        let delta = self.camera_movement(ctx);
+        // Capture runs never sample input: the camera is the scene's, not the mouse's. Input
+        // events are already cut off in engine::framework, so this is belt and braces.
+        let delta = match self.capture {
+            Some(scene) => scene.delta,
+            None => self.camera_movement(ctx),
+        };
 
         let sun = Vec2::from_angle(self.sun_angle.into())
             .z0()
@@ -104,7 +132,15 @@ impl engine::framework::State for State {
         gfx.set_camera(self.camera);
 
         let params = gfx.render_params.value_mut();
-        params.time_always = (params.time_always + delta) % 3600.0;
+        // Shader time is the other wall-clock path into a pixel: it accumulates delta and drives
+        // anything animated. A capture pins it instead of advancing it.
+        params.time_always = match self.capture {
+            Some(scene) => scene.time,
+            None => (params.time_always + delta) % 3600.0,
+        };
+        if let Some(scene) = self.capture {
+            params.time = scene.time;
+        }
         params.sun_col = 4.0
             * sun.z.max(0.0).sqrt().sqrt()
             * LinearColor::new(1.0, 0.95 + sun.z * 0.05, 0.95 + sun.z * 0.05, 1.0);
@@ -145,11 +181,70 @@ impl engine::framework::State for State {
         }
     }
 
+    fn on_capture(
+        &mut self,
+        record: &engine::capture::CaptureRecord,
+        frame: Result<&engine::capture::CapturedFrame, &str>,
+    ) {
+        let Some(args) = crate::capture::args() else {
+            return;
+        };
+        let enabled: Vec<(&str, bool)> = self
+            .demo_elements
+            .iter()
+            .map(|(de, on)| (de.name(), *on))
+            .collect();
+
+        let frame = match frame {
+            Ok(f) => f,
+            Err(reason) => {
+                // A concrete reason, not a panic. Nothing else in the process is disturbed.
+                eprintln!("capture FAILED: {reason}");
+                eprintln!(
+                    "adapter: {} ({:?})",
+                    record.adapter.name, record.adapter.backend
+                );
+                std::process::exit(2);
+            }
+        };
+
+        match crate::capture::write_outputs(args, record, frame, &enabled) {
+            Ok((png, json)) => {
+                println!("capture ok");
+                println!("  image:  {}", png.display());
+                println!("  record: {}", json.display());
+                println!(
+                    "  adapter: {} ({:?}, {:?})",
+                    record.adapter.name, record.adapter.backend, record.adapter.device_type
+                );
+                println!("  resolution: {}x{}", record.width, record.height);
+                println!("  passes: {}", record.passes.join(", "));
+                println!("  gpu timing: {}", record.gpu_timing_status);
+                for t in &record.gpu_timings {
+                    println!(
+                        "    {:<18} n={:<3} min={:>8.1}us median={:>8.1}us max={:>8.1}us",
+                        t.pass, t.samples, t.min_us, t.median_us, t.max_us
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("capture FAILED while writing output: {e}");
+                std::process::exit(2);
+            }
+        }
+    }
+
     fn resized(&mut self, _: &mut Context, size: (u32, u32, f64)) {
         self.camera.set_viewport(size.0 as f32, size.1 as f32);
     }
 
     fn render_gui(&mut self, ui: &egui::Context) {
+        // The settings window prints a frames-per-second average. Drawing it would put a
+        // wall-clock number into the captured pixels.
+        if self.capture.is_some() {
+            return;
+        }
+
         egui::Window::new("Demo elements")
             .resizable(true)
             .show(ui, |ui| {
@@ -203,21 +298,27 @@ impl State {
         if ctx.input.mouse.pressed.contains(&MouseButton::Left) {
             let _ = ctx
                 .gfx
-                .window
+                .window()
                 .set_cursor_grab(engine::CursorGrabMode::Confined);
-            ctx.gfx.window.set_cursor_visible(false);
+            ctx.gfx.window().set_cursor_visible(false);
             self.is_captured = true;
         }
 
         if ctx.input.cursor_left {
-            let _ = ctx.gfx.window.set_cursor_grab(engine::CursorGrabMode::None);
-            ctx.gfx.window.set_cursor_visible(true);
+            let _ = ctx
+                .gfx
+                .window()
+                .set_cursor_grab(engine::CursorGrabMode::None);
+            ctx.gfx.window().set_cursor_visible(true);
             self.is_captured = false;
         }
 
         if ctx.input.keyboard.pressed.contains(&Key::Escape) {
-            let _ = ctx.gfx.window.set_cursor_grab(engine::CursorGrabMode::None);
-            ctx.gfx.window.set_cursor_visible(true);
+            let _ = ctx
+                .gfx
+                .window()
+                .set_cursor_grab(engine::CursorGrabMode::None);
+            ctx.gfx.window().set_cursor_visible(true);
             self.is_captured = false;
         }
 
@@ -286,7 +387,33 @@ impl State {
 }
 
 fn main() {
+    let args = match crate::capture::parse_args(std::env::args()) {
+        Ok(v) => v,
+        // --help and --list-scenes arrive here too; they are not failures.
+        Err(msg) => {
+            println!("{msg}");
+            return;
+        }
+    };
+
     engine::framework::init();
 
-    engine::framework::start::<State>();
+    let Some(args) = args else {
+        // Interactive demo, exactly as before.
+        engine::framework::start::<State>();
+        return;
+    };
+
+    let opts = engine::framework::FrameworkOptions {
+        fixed_size: Some((args.scene.width, args.scene.height)),
+        fixed_delta: Some(args.scene.delta),
+        freeze_input: true,
+        validation: args.validation,
+        capture: Some(engine::framework::CaptureOptions {
+            warmup_frames: args.scene.warmup_frames,
+            gpu_timing_samples: args.gpu_timings.then_some(args.gpu_samples),
+        }),
+    };
+    crate::capture::set_args(args);
+    engine::framework::start_with_options::<State>(opts);
 }

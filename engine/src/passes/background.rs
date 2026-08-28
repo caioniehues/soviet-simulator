@@ -40,7 +40,10 @@ pub fn render_background(gfx: &GfxContext, enc: &mut CommandEncoder, frame: &Tex
             }),
             stencil_ops: None,
         }),
-        timestamp_writes: None,
+        timestamp_writes: gfx
+            .gpu_timings
+            .as_ref()
+            .and_then(|t| t.writes(crate::gpu_timing::GpuPass::Background)),
         occlusion_query_set: None,
     });
 

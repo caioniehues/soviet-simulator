@@ -50,6 +50,22 @@ impl PerfCounters {
         }
     }
 
+    /// Read the counters without needing `&mut`, for recording alongside a capture.
+    pub fn snapshot(&self) -> PerfCountersStatic {
+        use std::sync::atomic::Ordering::Relaxed;
+        PerfCountersStatic {
+            total_triangles: self.total_triangles.load(Relaxed),
+            total_drawcalls: self.total_drawcalls.load(Relaxed),
+            depth_triangles: self.depth_triangles.load(Relaxed),
+            depth_drawcalls: self.depth_drawcalls.load(Relaxed),
+            shadows_triangles: self.shadows_triangles.load(Relaxed),
+            shadows_drawcalls: self.shadows_drawcalls.load(Relaxed),
+            heightmap_triangles: self.heightmap_triangles.load(Relaxed),
+            heightmap_depth_triangles: self.heightmap_depth_triangles.load(Relaxed),
+            heightmap_shadows_triangles: self.heightmap_shadows_triangles.load(Relaxed),
+        }
+    }
+
     pub fn clear(&mut self) {
         *self.total_triangles.get_mut() = 0;
         *self.total_drawcalls.get_mut() = 0;

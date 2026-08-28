@@ -11,8 +11,8 @@ use wgpu::{
     FrontFace, ImageCopyTexture, ImageDataLayout, InstanceDescriptor, MultisampleState,
     PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
     RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerDescriptor, Surface,
-    SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView,
-    TextureViewDescriptor, VertexBufferLayout, VertexState,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexBufferLayout, VertexState,
 };
 use winit::window::{Fullscreen, Window};
 
@@ -40,8 +40,8 @@ pub struct FBOs {
 }
 
 pub struct GfxContext {
-    pub window: Arc<Window>,
-    pub surface: Surface<'static>,
+    window: Option<Arc<Window>>,
+    surface: Option<Surface<'static>>,
     pub device: Device,
     pub queue: Queue,
     pub fbos: FBOs,
@@ -83,6 +83,14 @@ pub struct GfxContext {
 
     #[allow(dead_code)] // keep adapter alive
     pub(crate) adapter: Adapter,
+    /// Which GPU drew this. Recorded in every capture so two frames can be told apart.
+    pub adapter_info: wgpu::AdapterInfo,
+    /// Features the device was actually created with, which is not what was requested.
+    pub enabled_features: wgpu::Features,
+    /// Per-pass GPU timestamps. `None` unless the opt-in gate is on AND the adapter supports it.
+    pub gpu_timings: Option<crate::gpu_timing::GpuTimings>,
+    /// Why GPU timing is or is not running, in words fit for an evidence file.
+    pub gpu_timing_status: String,
 
     pub perf: PerfCounters,
 }
@@ -131,6 +139,19 @@ impl ShadowQuality {
             ShadowQuality::NoShadows => None,
         }
     }
+}
+
+/// Run-level graphics choices that must be fixed before the device exists, so they cannot be
+/// changed from the settings panel. Every field defaults to the behaviour the game already had.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct GfxOptions {
+    /// Ask wgpu for its validation layers. Off by default; see the note in [`GfxContext::new`].
+    pub validation: bool,
+    /// Add `COPY_SRC` to the surface so a frame can be read back. Off by default, because it
+    /// changes the surface configuration of every normal run if left on.
+    pub allow_capture: bool,
+    /// Request `TIMESTAMP_QUERY` when the adapter supports it. Off by default (sov-sqs).
+    pub gpu_timings: bool,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -257,18 +278,38 @@ impl<'a> FrameContext<'a> {
 }
 
 impl GfxContext {
-    pub async fn new(window: Arc<Window>) -> Self {
+    pub async fn new(window: Arc<Window>, opts: GfxOptions) -> Self {
+        let size = window.inner_size();
+        let scale_factor = window.scale_factor();
+        Self::new_with_target(Some(window), (size.width, size.height, scale_factor), opts).await
+    }
+
+    pub async fn new_offscreen(width: u32, height: u32, opts: GfxOptions) -> Self {
+        Self::new_with_target(None, (width, height, 1.0), opts).await
+    }
+
+    async fn new_with_target(
+        window: Option<Arc<Window>>,
+        target_size: (u32, u32, f64),
+        opts: GfxOptions,
+    ) -> Self {
         let mut backends = backend_bits_from_env().unwrap_or_else(Backends::all);
         if std::env::var("RENDERDOC").is_ok() {
             backends = Backends::VULKAN;
         }
 
-        let flags = if cfg!(debug_assertions) {
-            // TODO: re enable validation when https://github.com/gfx-rs/wgpu/issues/5231 is fixed
+        // Validation stays off by default because of gfx-rs/wgpu#5231. That is a decision, not a
+        // measurement: the issue predates the pinned wgpu, so this comment must never be read as
+        // current evidence that validation is unavailable (sov-ba8). `GfxOptions::validation`
+        // exists so the claim can be re-tested against whatever version is pinned today.
+        let mut flags = if cfg!(debug_assertions) {
             wgpu::InstanceFlags::DEBUG
         } else {
             wgpu::InstanceFlags::empty()
         };
+        if opts.validation {
+            flags |= wgpu::InstanceFlags::VALIDATION;
+        }
 
         let instance = wgpu::Instance::new(InstanceDescriptor {
             backends,
@@ -277,44 +318,97 @@ impl GfxContext {
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
         });
 
-        let surface = instance.create_surface(window.clone()).unwrap();
+        let surface = window
+            .as_ref()
+            .map(|window| instance.create_surface(window.clone()).unwrap());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
-                compatible_surface: Some(&surface),
+                compatible_surface: surface.as_ref(),
             })
             .await
             .expect("failed to find a suitable adapter");
 
         let limit = wgpu::Limits::default();
 
-        let (device, queue) = adapter
+        // Check what the adapter actually has BEFORE asking for it. Requesting an unsupported
+        // feature fails device creation outright, and a missing developer feature must never stop
+        // the game from starting.
+        let adapter_info = adapter.get_info();
+        let mut required_features = wgpu::Features::empty();
+        let mut gpu_timing_status = if !opts.gpu_timings {
+            "disabled: opt-in gate off".to_string()
+        } else if !adapter.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
+            format!(
+                "not available: adapter '{}' ({:?}) does not report TIMESTAMP_QUERY",
+                adapter_info.name, adapter_info.backend
+            )
+        } else {
+            required_features |= wgpu::Features::TIMESTAMP_QUERY;
+            "enabled".to_string()
+        };
+
+        let mut requested = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::empty(),
-                    required_limits: limit,
+                    required_features,
+                    required_limits: limit.clone(),
                 },
                 None,
             )
-            .await
-            .expect("failed to find a suitable device");
+            .await;
 
-        let capabilities = surface.get_capabilities(&adapter);
+        if let Err(ref e) = requested {
+            if !required_features.is_empty() {
+                // The adapter claimed the feature and the device still refused it. Report why and
+                // carry on without it rather than failing to start.
+                log::error!("device rejected optional features ({e}), retrying without them");
+                gpu_timing_status = format!("not available: device rejected TIMESTAMP_QUERY ({e})");
+                required_features = wgpu::Features::empty();
+                requested = adapter
+                    .request_device(
+                        &wgpu::DeviceDescriptor {
+                            label: None,
+                            required_features,
+                            required_limits: limit,
+                        },
+                        None,
+                    )
+                    .await;
+            }
+        }
 
-        let format = *capabilities
-            .formats
-            .iter()
-            .find(|x| x.is_srgb())
-            .unwrap_or_else(|| &capabilities.formats[0]);
+        let (device, queue) = requested.expect("failed to find a suitable device");
 
-        let win_width = window.inner_size().width;
-        let win_height = window.inner_size().height;
-        let win_scale_factor = window.scale_factor();
+        let gpu_timings = required_features
+            .contains(wgpu::Features::TIMESTAMP_QUERY)
+            .then(|| crate::gpu_timing::GpuTimings::new(&device, &queue));
+
+        let format = surface
+            .as_ref()
+            .map(|surface| {
+                let capabilities = surface.get_capabilities(&adapter);
+                *capabilities
+                    .formats
+                    .iter()
+                    .find(|x| x.is_srgb())
+                    .unwrap_or_else(|| &capabilities.formats[0])
+            })
+            .unwrap_or(TextureFormat::Rgba8UnormSrgb);
+
+        let (win_width, win_height, win_scale_factor) = target_size;
+
+        let mut usage = TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING;
+        if opts.allow_capture {
+            // Only a capture run pays for this. Leaving it on would change the surface
+            // configuration of every ordinary run.
+            usage |= TextureUsages::COPY_SRC;
+        }
 
         let sc_desc = SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            usage,
             format,
             width: win_width,
             height: win_height,
@@ -326,7 +420,9 @@ impl GfxContext {
         //        let samples = if cfg!(target_arch = "wasm32") { 1 } else { 4 };
         let samples = 1;
         let fbos = Self::create_textures(&device, &sc_desc, samples);
-        surface.configure(&device, &sc_desc);
+        if let Some(surface) = &surface {
+            surface.configure(&device, &sc_desc);
+        }
 
         let screen_uv_vertices = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("screen quad vertices"),
@@ -412,6 +508,10 @@ impl GfxContext {
             sc_desc,
             update_sc: false,
             adapter,
+            adapter_info,
+            enabled_features: device.features(),
+            gpu_timings,
+            gpu_timing_status,
             fbos,
             surface,
             pipelines: RwLock::new(Pipelines::new()),
@@ -594,11 +694,13 @@ impl GfxContext {
         }
 
         if Some(settings.fullscreen) != self.settings.map(|s| s.fullscreen) {
-            self.window.set_fullscreen(
-                settings
-                    .fullscreen
-                    .then(|| Fullscreen::Borderless(self.window.current_monitor())),
-            )
+            if let Some(window) = &self.window {
+                window.set_fullscreen(
+                    settings
+                        .fullscreen
+                        .then(|| Fullscreen::Borderless(window.current_monitor())),
+                )
+            }
         }
 
         let present_mode = if settings.vsync {
@@ -644,6 +746,95 @@ impl GfxContext {
         self.settings = Some(settings);
     }
 
+    /// The render passes that actually run under the current settings, in submission order.
+    ///
+    /// Derived from the same conditions [`GfxContext::render`] branches on, so it cannot drift
+    /// into a fixed list that names a pass which is switched off.
+    ///
+    /// This lists the frame-level passes only. Drawables, egui, PBR and the mipmap generator open
+    /// further passes of their own that are not enumerated here.
+    pub fn enabled_passes(&self) -> Vec<&'static str> {
+        use crate::gpu_timing::GPU_PASS_NAMES;
+        let mut v = vec![GPU_PASS_NAMES[0]];
+        if self.defines.contains_key("PBR_ENABLED") {
+            v.push("pbr_prepass");
+        }
+        if self.render_params.value().shadow_mapping_resolution != 0 {
+            v.extend_from_slice(&GPU_PASS_NAMES[1..1 + N_CASCADES]);
+        }
+        if self.defines.contains_key("SSAO") {
+            v.push(GPU_PASS_NAMES[5]);
+        }
+        // The fog pass has no gate: its `defines` check is commented out in passes/fog.rs, so it
+        // runs every frame regardless of the fog setting.
+        v.push(GPU_PASS_NAMES[6]);
+        v.push(GPU_PASS_NAMES[7]);
+        v.push(GPU_PASS_NAMES[8]);
+        v.push("ui_blur");
+        v.push("gui");
+        v
+    }
+
+    /// Everything the engine knows about how the current frame was produced.
+    ///
+    /// Read from live state — adapter, surface, settings, draw counters — rather than from
+    /// anything the caller asserts, so the record cannot claim a configuration that was not used.
+    pub fn capture_record(
+        &self,
+        requested_size: Option<(u32, u32)>,
+        warmup_frames: u32,
+        fixed_delta: f32,
+        validation_requested: bool,
+    ) -> crate::capture::CaptureRecord {
+        let perf = self.perf.snapshot();
+        crate::capture::CaptureRecord {
+            adapter: self.adapter_info.clone(),
+            enabled_features: self.enabled_features,
+            width: self.sc_desc.width,
+            height: self.sc_desc.height,
+            requested_size,
+            surface_format: self.sc_desc.format,
+            present_mode: self.sc_desc.present_mode,
+            msaa_samples: self.samples,
+            validation_requested,
+            passes: self.enabled_passes(),
+            warmup_frames,
+            fixed_delta,
+            total_drawcalls: perf.total_drawcalls,
+            total_triangles: perf.total_triangles,
+            gpu_timings: self
+                .gpu_timings
+                .as_ref()
+                .map(|t| t.summary())
+                .unwrap_or_default(),
+            gpu_timing_status: self.gpu_timing_status.clone(),
+        }
+    }
+
+    pub fn window(&self) -> &Window {
+        self.window
+            .as_deref()
+            .expect("the offscreen graphics target has no window")
+    }
+
+    pub fn surface(&self) -> &Surface<'static> {
+        self.surface
+            .as_ref()
+            .expect("the offscreen graphics target has no surface")
+    }
+
+    pub fn create_offscreen_target(&self) -> Texture {
+        Texture::create_fbo(
+            &self.device,
+            (self.sc_desc.width, self.sc_desc.height),
+            self.sc_desc.format,
+            TextureUsages::RENDER_ATTACHMENT
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
+            None,
+        )
+    }
+
     pub fn set_time(&mut self, time: f32) {
         self.render_params.value_mut().time = time;
     }
@@ -655,7 +846,7 @@ impl GfxContext {
         self.frustrum = InfiniteFrustrum::from_reversez_invviewproj(cam.eye(), cam.inv_proj_cache);
     }
 
-    pub fn start_frame(&mut self, sco: &SurfaceTexture) -> (Encoders, TextureView) {
+    pub fn start_frame(&mut self, target: &wgpu::Texture) -> (Encoders, TextureView) {
         let mut before_main = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor {
@@ -692,7 +883,7 @@ impl GfxContext {
                 after_main,
                 gui: None,
             },
-            sco.texture.create_view(&TextureViewDescriptor::default()),
+            target.create_view(&TextureViewDescriptor::default()),
         )
     }
 
@@ -842,7 +1033,10 @@ impl GfxContext {
                 depth_ops: None,
                 stencil_ops: None,
             }),
-            timestamp_writes: None,
+            timestamp_writes: self
+                .gpu_timings
+                .as_ref()
+                .and_then(|t| t.writes(crate::gpu_timing::GpuPass::Main)),
             occlusion_query_set: None,
         });
         render_pass.set_bind_group(0, &self.render_params.bg, &[]);
@@ -882,13 +1076,14 @@ impl GfxContext {
                     label: Some("shadow map encoder"),
                 });
             let sun_view = self.sun_shadowmap.layer_view(i as u32);
-            self.shadow_map_one_pass(u, objsref, &sun_view, &mut smap_enc);
+            self.shadow_map_one_pass(i, u, objsref, &sun_view, &mut smap_enc);
             smap_enc.finish()
         })
     }
 
     fn shadow_map_one_pass<'a>(
         &'a self,
+        cascade: usize,
         u: &Uniform<RenderParams>,
         objsref: &[Box<dyn Drawable>],
         shadowmap_view: &'a TextureView,
@@ -906,7 +1101,9 @@ impl GfxContext {
                 }),
                 stencil_ops: None,
             }),
-            timestamp_writes: None,
+            timestamp_writes: self.gpu_timings.as_ref().and_then(|t| {
+                crate::gpu_timing::GpuPass::shadow_cascade(cascade).and_then(|p| t.writes(p))
+            }),
             occlusion_query_set: None,
         });
 
@@ -935,7 +1132,10 @@ impl GfxContext {
                 }),
                 stencil_ops: None,
             }),
-            timestamp_writes: None,
+            timestamp_writes: self
+                .gpu_timings
+                .as_ref()
+                .and_then(|t| t.writes(crate::gpu_timing::GpuPass::DepthPrepass)),
             occlusion_query_set: None,
         });
 
@@ -1026,7 +1226,9 @@ impl GfxContext {
         self.sc_desc.width = self.size.0;
         self.sc_desc.height = self.size.1;
 
-        self.surface.configure(&self.device, &self.sc_desc);
+        if let Some(surface) = &self.surface {
+            surface.configure(&self.device, &self.sc_desc);
+        }
         self.fbos = Self::create_textures(&self.device, &self.sc_desc, self.samples);
         self.update_simplelit_bg();
     }
