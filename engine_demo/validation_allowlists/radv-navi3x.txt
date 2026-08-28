@@ -1,0 +1,4 @@
+# Known RADV NAVI32 defect tracked by sov-ejz. Remove this entry when sov-ejz closes.
+SYNC-HAZARD-WRITE-AFTER-WRITE
+# Vulkan loader warning observed on Mesa 26.2.1 during the same capture.
+WARNING-vkGetDeviceProcAddr-device
