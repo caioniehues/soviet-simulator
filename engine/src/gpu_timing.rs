@@ -52,40 +52,55 @@ pub const GPU_PASS_NAMES: [&str; N_GPU_PASSES] = [
     "background",
 ];
 
-/// One contiguous run of timestamp queries and its fixed resolve-buffer destination.
+/// One contiguous run of timestamp queries, plus where its bytes belong.
+///
+/// Two different offsets, deliberately kept apart:
+///
+/// * `destination_offset` is what goes to `resolve_query_set`. wgpu requires it to be a
+///   multiple of `QUERY_RESOLVE_BUFFER_ALIGNMENT` (256 bytes,
+///   `wgpu-types-0.20.0/src/lib.rs:80`), enforced at
+///   `wgpu-core-0.21.1/src/command/query.rs:423`. The whole resolve buffer is
+///   `N_QUERIES * 8` = 144 bytes, so **0 is the only legal value that can ever exist**, and
+///   every run resolves to the front of the scratch buffer in turn.
+/// * `readback_offset` is where the run is then copied in the readback buffer, which keeps
+///   the fixed per-pass slot layout the reader depends on. Buffer-to-buffer copies only need
+///   `COPY_BUFFER_ALIGNMENT` (4 bytes), and every run offset here is a multiple of 16.
 #[derive(Debug, PartialEq, Eq)]
 struct QueryResolveRun {
     range: Range<u32>,
     destination_offset: u64,
+    readback_offset: u64,
 }
 
-/// Return query-slot runs and their fixed resolve-buffer destinations.
+/// Return the contiguous runs of query slots that were actually written this frame.
 ///
-/// Each pass occupies two fixed slots in the resolve and readback buffers.
+/// Only written slots are resolved: wgpu-core resets a query pool solely for the runs used in
+/// a command buffer, so reading a slot that no pass wrote is Vulkan undefined behaviour.
 fn written_query_runs(written: &[bool; N_GPU_PASSES]) -> Vec<QueryResolveRun> {
     let mut runs = Vec::new();
     let mut start = None;
+
+    let push = |runs: &mut Vec<QueryResolveRun>, range: Range<u32>| {
+        runs.push(QueryResolveRun {
+            readback_offset: range.start as u64 * 8,
+            // The only alignment-legal resolve destination for a 144-byte buffer.
+            destination_offset: 0,
+            range,
+        });
+    };
 
     for (pass, was_written) in written.iter().copied().enumerate() {
         match (start, was_written) {
             (None, true) => start = Some(pass),
             (Some(first), false) => {
-                let range = (first as u32 * 2)..(pass as u32 * 2);
-                runs.push(QueryResolveRun {
-                    destination_offset: range.start as u64 * 8,
-                    range,
-                });
+                push(&mut runs, (first as u32 * 2)..(pass as u32 * 2));
                 start = None;
             }
             _ => {}
         }
     }
     if let Some(first) = start {
-        let range = (first as u32 * 2)..N_QUERIES;
-        runs.push(QueryResolveRun {
-            destination_offset: range.start as u64 * 8,
-            range,
-        });
+        push(&mut runs, (first as u32 * 2)..N_QUERIES);
     }
 
     runs
@@ -214,10 +229,27 @@ impl GpuTimings {
         let mut enc = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("gpu timestamp resolve encoder"),
         });
+        // Each run is resolved to the front of the scratch buffer -- the only alignment-legal
+        // destination -- and immediately copied to its fixed slot in the readback buffer, so
+        // run N is drained before run N+1 overwrites the scratch.
+        //
+        // What makes that safe is wgpu-core's resource tracker, NOT command ordering. In-order
+        // submission alone does not prevent a read-after-write hazard in Vulkan; a barrier
+        // does. wgpu-core emits one on both sides of each iteration:
+        //   wgpu-core-0.21.1/src/command/query.rs:504
+        //     raw_encoder.transition_buffers(dst_barrier.into_iter());  before copy_query_results
+        //   wgpu-core-0.21.1/src/command/transfer.rs:735
+        //     cmd_buf_raw.transition_buffers(src_barrier.into_iter().chain(dst_barrier));
+        //     before copy_buffer_to_buffer
+        //
+        // So do not batch all the resolves ahead of all the copies, and do not lower this to raw
+        // hal: either change drops the interleaving the tracker's barriers are derived from, and
+        // the guarantee is lost silently.
         for run in written_query_runs(&written) {
+            let bytes = (run.range.end - run.range.start) as u64 * 8;
             enc.resolve_query_set(&self.set, run.range, &self.resolve, run.destination_offset);
+            enc.copy_buffer_to_buffer(&self.resolve, 0, &self.readback, run.readback_offset, bytes);
         }
-        enc.copy_buffer_to_buffer(&self.resolve, 0, &self.readback, 0, (N_QUERIES as u64) * 8);
         queue.submit(Some(enc.finish()));
 
         let slice = self.readback.slice(..);
@@ -297,7 +329,8 @@ mod tests {
             written_query_runs(&written),
             vec![QueryResolveRun {
                 range: 2..6,
-                destination_offset: 16,
+                destination_offset: 0,
+                readback_offset: 16,
             }]
         );
     }
@@ -315,16 +348,59 @@ mod tests {
                 QueryResolveRun {
                     range: 0..2,
                     destination_offset: 0,
+                    readback_offset: 0,
                 },
                 QueryResolveRun {
                     range: 6..8,
-                    destination_offset: 48,
+                    destination_offset: 0,
+                    readback_offset: 48,
                 },
                 QueryResolveRun {
                     range: 16..18,
-                    destination_offset: 128,
+                    destination_offset: 0,
+                    readback_offset: 128,
                 },
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod alignment_guard {
+    use super::*;
+
+    /// Every offset handed to `resolve_query_set` must satisfy wgpu's
+    /// `QUERY_RESOLVE_BUFFER_ALIGNMENT` (256 bytes,
+    /// `wgpu-types-0.20.0/src/lib.rs:80`). `wgpu-core-0.21.1/src/command/query.rs:423`
+    /// rejects anything else with `ResolveError::BufferOffsetAlignment`, which the default
+    /// uncaptured-error handler turns into a panic mid-capture.
+    ///
+    /// The resolve buffer is `N_QUERIES * 8` = 144 bytes, smaller than one alignment unit,
+    /// so 0 is the only offset that can ever be legal.
+    #[test]
+    fn every_resolve_offset_is_alignment_legal_for_all_masks() {
+        for bits in 0u32..(1 << N_GPU_PASSES) {
+            let mut written = [false; N_GPU_PASSES];
+            for (i, w) in written.iter_mut().enumerate() {
+                *w = bits & (1 << i) != 0;
+            }
+            for run in written_query_runs(&written) {
+                assert_eq!(
+                    run.destination_offset % wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT,
+                    0,
+                    "mask {written:?} emits resolve destination_offset {} \
+                     which is not a multiple of {}",
+                    run.destination_offset,
+                    wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT,
+                );
+                assert_eq!(
+                    run.readback_offset % wgpu::COPY_BUFFER_ALIGNMENT,
+                    0,
+                    "mask {written:?} emits readback_offset {} which is not a multiple of {}",
+                    run.readback_offset,
+                    wgpu::COPY_BUFFER_ALIGNMENT,
+                );
+            }
+        }
     }
 }
