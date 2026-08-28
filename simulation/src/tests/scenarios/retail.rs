@@ -525,7 +525,7 @@ fn scenario_demolished_buyer_returns_goods_physically() {
 /// without unbounded state growth (no capital, no claim, no dispatch).
 #[test]
 fn scenario_human_order_never_fills_via_external_market() {
-    let mut ctx = TestCtx::new();
+    let ctx = TestCtx::new();
     let buyer = mk_human((1 << 32) | 77);
     let ext = mk_soul_stub(); // stands in for `find_external`'s pick
 

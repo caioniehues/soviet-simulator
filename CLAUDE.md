@@ -22,7 +22,7 @@ state. Two design pillars constrain every change:
 
 Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
 
-- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 16-agent roster and what each is
+- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 22-agent roster and what each is
   for. Every phase names the failure it exists to prevent. Read it before dispatching ANY implementation
   or gate agent — ticket work included, not just waves. The roster there decides which agent gets which
   lane (`sim-implementer`/`ui-implementer`/`data-implementer`, plus the domain gates); global generics are
