@@ -271,7 +271,12 @@ in all 20 — the delegation rule is not violated anywhere.
 - **`sim-implementer`'s lot trap is correct** — `map.rs:719` inside `Map::connect`, guarded at `:693`.
 - **`native_app/src/init.rs:85-86`** exact in all 9 copies.
 - **No Bevy, Godot, `src/sim/` or pre-fork reference survives in any body.**
-- **The Ponytail hook is real** and registered.
+- ~~**The Ponytail hook is real** and registered.~~ — **REFUTED 2026-08-28.** The plugin was
+  retired 2026-08-27 (last hook injection 10:23). Evidence: absent from `claude plugin list`;
+  absent from `installed_plugins.json`; no `enabledPlugins` entry in any settings file; no
+  `.ponytail-active` flag file; zero `ponytail:` markers survive in source. The four agent
+  bodies that restated the ladder ("the ladder arrives via hook") were replaced the same day
+  by the `## Engineering practice — all lanes` block now carried by every agent definition.
 - **`base_mod/colors.lua` does hold UI colours** — REFUTED as a finding.
 - **`.codex/agents`: 15 adapters, no `reviewer.toml`** — `development-cycle.md:60-63` is right.
   (Gap: no `debugger.toml`; the new agent has no mirror.)

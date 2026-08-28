@@ -342,7 +342,7 @@ plugin on 2026-08-24 and are disabled; only their *artifacts* survive.
 | Layer | Owner | Use it for |
 |---|---|---|
 | Verbs + role playbooks | `compass` plugin | `/compass` routes one hop at a time; `/grill`, `/spec`, `/implement`, `/review`, `/debug`, `/lead`, `/tickets` are its verbs; the role playbooks preload into the generic agents |
-| How much to build | `ponytail` | The ladder: YAGNI, stdlib first, shortest working diff — governs every implementer |
+| How much to build | the agent bodies themselves | The `ponytail` plugin was **retired 2026-08-27** and no ladder arrives at runtime. Every agent in `.claude/agents/` now carries an `## Engineering practice — all lanes` block, plus a lane block (`## Engineering practice in this lane` for the nine code writers, `## How to judge — all gates` + `## How to judge in this lane` for the judges and advisors) |
 | The iteration | **this document** | Who does each part, and what gates it. Sovereign inside this repo: where a generic verb and this document conflict, this document wins, then fix whichever artifact drifted |
 | Outer loop | `docs/plan/iterations/` + `build_roadmap.py` | Requirements, evidence, the generated roadmap. The corpus and the Phase 6 regeneration command outlived the retired `iterative-development` skill and remain canonical |
 
