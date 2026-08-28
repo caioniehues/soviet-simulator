@@ -26,4 +26,13 @@ that says "add a test" against a suite already containing it is describing the
 past. Report the discrepancy as a finding rather than silently adapting; on
 this project that finding is often worth more than the task.
 
-Related: [[dispatcher-truck-pool]].
+**Second occurrence, 2026-08-28 (sov-dda.3).** A brief said "build the
+lane-queue prototype spike; claim it". `bd show` line 1 read `[● P2 · CLOSED]`
+— done the previous day, commit 38bf942, branch and worktree already removed,
+preserved as tag `archive/sov-dda-3-lane-queues`. The cheapest tell is the
+FIRST LINE of `bd show`: read the status badge before the description. When the
+ticket is closed, the useful work is re-deriving its recorded evidence rather
+than rebuilding it — that is how the 2.3x error in this one was caught
+([[rederive-recorded-spike-numbers]]).
+
+Related: [[dispatcher-truck-pool]], [[rederive-recorded-spike-numbers]].

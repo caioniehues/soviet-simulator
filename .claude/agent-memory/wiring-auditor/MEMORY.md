@@ -27,6 +27,25 @@
   feature has no in-game observation surface yet. Not necessarily a defect (iteration may be sim-only
   by design) but worth naming every time a story's own wording claims "the planner/player can observe X."
 
+- **`START_COMMANDS` (`simulation/src/lib.rs:193-198`) runs in `Simulation::new` — the REAL game
+  path, not just `TestCtx`.** Decoded 2026-08-28: 12 commands = 10 `MapMakeConnection`, all with
+  `lanes_forward`/`lanes_backward` of kind **`Rail` only**, plus one `MapBuildSpecialBuilding`
+  (`RailFreightStation` at ~(4300,6300)) and one `AddTrain`. **A freshly started game therefore has
+  ZERO `LaneKind::Driving` lanes anywhere on the map.** Any production filter that requires a
+  driving lane (e.g. `map.nearest_lane(pos, LaneKind::Driving, ..)`) rejects everything until the
+  player lays road. Decode it with a python `re` + `json.loads` on the `r#"..."#` literal — that is
+  a 20-second check and it settles "can a real city hit this branch" outright.
+
+- **The dispatcher pool reserve/free asymmetry**: see
+  [Dispatcher pool mutation blindspot](dispatcher-pool-mutation-blindspot.md) — why a
+  "every live truck is still reservable" assertion is sound when the truck is alive and
+  **provably vacuous** when the scenario destroyed it.
+
+- **Engine capture / offscreen path**: see [Engine capture wiring](engine-capture-wiring.md) —
+  `FrameworkOptions::requires_window()` is the only switch between the windowed and headless
+  render loops, the `yakui` cargo-feature-unification trap, and the negative-control technique
+  that proves a headless branch is really the one doing the work.
+
 ## Recurring failure shapes (seen 2+ times — expect them again)
 
 1. **Public setter with zero production callers, only a test scenario calls it.** Pattern: function A
@@ -45,6 +64,14 @@
    as test fn names anywhere in the tree; the actual new tests are scenario_0082/0083/0093-0097/0151).
    Always literally run the documented command with `--no-run` skipped (i.e. actually run it) and read
    the "N filtered out" / "0 passed" line, don't just grep for the string in isolation.
+3. **A test that asserts a pure function on a literal the test itself built.** Seen sov-pci:
+   `engine_demo/tests/capture_contract.rs:60` constructs a `FrameworkOptions` with `capture: Some(..)`
+   and asserts `!opts.requires_window()`. It exercises one `is_none()` and nothing else — no GPU,
+   no `run_offscreen`, no `GfxContext`. It reads in a green test list exactly like an end-to-end
+   proof of the feature. Ask of every new test: **which production entry point does it call?** If the
+   answer is "a getter on a struct the test filled in", the feature has zero automated coverage and
+   the only evidence is whatever a human ran by hand. Same family as shape 2 — a green line whose
+   subject is not the feature.
 
 ## Fixed instances of the recurring setter-with-no-caller shape
 
@@ -66,6 +93,33 @@
   spawn a company through `build_special_building` + a tick so `company_soul`/`company_system` run
   for real. This is the correct way to prove a recipe-path feature is live; check for it as the
   bar when a new scenario claims to test soul-level wiring.
+
+## Mutation-testing safely: use a THROWAWAY worktree, never the audit scope
+
+Refinement of the hazard below, proven to work 2026-08-28. To mutation-test a branch:
+`git -C <main repo> worktree add /home/caio/sov-mut-wt --detach <branch>`, mutate there with a
+python read/replace (with an `assert s.count(old)==1` so a silent no-op mutation is impossible),
+`cargo test -p simulation <one test>`, then `git -C <main repo> worktree remove --force`. The
+audit worktree is never touched, `git checkout --` is never needed, and a full `simulation`
+test build in the fresh worktree costs ~60s. Two caveats: run `git worktree remove` with
+`-C <main repo>` and absolute paths (a `cd` to a non-repo dir kills the command), and pipe the
+run through `grep -E "panicked at|assertion"` rather than `tail -N` — a Rust backtrace is long
+enough that `tail -25` scrolls the actual assertion message off the top.
+
+## Hazard: OTHER AGENTS EDIT THE AUDIT WORKTREE WHILE YOU AUDIT IT
+
+2026-08-28, `fix/sov-wave-market`: mid-audit, `git status --porcelain` in the audit worktree
+showed `M simulation/src/economy/market.rs` that was not mine — a concurrent agent had
+re-introduced the exact `*capital.entry(buyer).or_default() += qty_buy;` teleport line the
+branch removes, presumably for their own mutation test. `stat -c %y` put the edit 4.5 minutes
+AFTER my `cargo test` had already started, so my clean run was against committed source — but
+had it landed a minute earlier I would have reported a green suite that was measuring mutated
+code, or a spurious failure as a defect in the diff.
+
+**Therefore: run `git status --porcelain` on the audit worktree at the START and again at the
+END of every audit, and `stat -c %y` any dirty file against your test run's start time.** State
+in the report which commit/tree your evidence actually came from. Do not "fix" the stray edit
+and do not `git checkout --` it — it is another agent's live working state.
 
 ## Hazard: never `git checkout -- <file>` on a file inside the audit scope
 

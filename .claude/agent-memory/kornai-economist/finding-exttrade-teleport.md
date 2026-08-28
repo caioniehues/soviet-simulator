@@ -1,42 +1,85 @@
 ---
 name: finding-exttrade-teleport
-description: Ext-trade status 2026-08-26 — the free-goods leak IS fixed, but ext-trade still credits enterprise capital with no Dispatch whenever a freight station exists (bd sov-abs)
+description: Ext-trade IMPORT teleport is FIXED (commit 7721cdd, sov-abs, signed off 2026-08-28); the EXPORT half still teleports; the border is still an unbounded source
 metadata:
   type: project
 ---
 
-Verified against the working tree **2026-08-26** during the sov-lpj consult.
-Supersedes the standing brief's claim that "scarcity is currently switched off".
+## FIXED — the free-goods leak (verified 2026-08-26)
 
-## FIXED — the free-goods leak
+`find_external` returning `None` runs BEFORE any credit. With no freight
+station, unmatched enterprise buy orders are correctly denied. Humans are
+carved out entirely (`extract_if(.., |s,_| !matches!(s, SoulID::Human(_)))`),
+so retail clears by queue and going-without only.
 
-The old violation (`sov-ledger-exttrade-cbh`) said market.rs credited a buyer
-their full requested quantity *before* checking `find_external`. **No longer
-true.** At `market.rs:667-671` the `let Some(ext) = find_external(order.pos)
-else { continue; }` now runs **before** `*capital.entry(buyer) += qty_buy`.
-With no freight station (the normal early game) unmatched enterprise buy
-orders are correctly denied. Early-game shortage is real.
+## FIXED — the import teleport (commit 7721cdd, sov-abs, 2026-08-28)
 
-Humans were additionally carved out entirely (market.rs:651-661): their
-unmatched buy orders survive the ext-trade pass untouched, so retail clears by
-queue and going-without only.
+The ext-trade BUY block now sits **ahead of** the dispatch-creation loop in
+`Market::make_trades` and **touches no capital**. An import becomes an ordinary
+`Dispatch` whose seller is a `SoulID::FreightStation`; the border is debited at
+`Loading`, the buyer credited on arrival at `ToDestination`.
 
-## STILL LIVE — the teleport (bd **sov-abs**, P2, filed 2026-08-26)
+**Signed off with conditions** by kornai-economist 2026-08-28. Full ruling is the
+`bd comments sov-abs` entry authored `kornai-economist`.
 
-Once **any** freight station exists, every unmatched non-human enterprise buy
-order is satisfied *instantly*: capital credited at `market.rs:671` with **no
-Dispatch**. The dispatch loop at `market.rs:604` iterates
-`all_trades[dispatch_start..]` and has already run by the time ext trades are
-pushed at `market.rs:673`. Goods appear in the larder having moved nowhere.
+### Magnitudes that make it real shortage, not a one-tick delay
+- `UP_DT = 20ms` (`common/src/timestep.rs:3`) → 50 ticks/second.
+- Truck max speed `6.0` u/s (`transportation/vehicle.rs:64`) → **0.12 units/tick**.
+- `DISPATCH_DWELL_TICKS = 3` (`market.rs:133`).
+- A 200-unit station→factory leg ≈ **1700 ticks**, plus the ToSource leg.
+- `companies.lua` sets `n_trucks = 1` on every company → the shared Dispatcher
+  pool is ~one truck per enterprise; imports contend with domestic deliveries.
+- No truck free → the dispatch waits in `ToSource` with **nothing debited**.
+  That is a genuine queue.
 
-Breaks **nothing teleports** (charter-1.0.md:29) and defeats enterprise-side
-shortage entirely wherever it is live.
+### Guards that must not be removed (G1–G3)
+1. The human carve-out predicate, guarded by
+   `retail::scenario_human_order_never_fills_via_external_market`.
+2. The **ordering** — the ext-trade buy block above the dispatch loop. Moving it
+   back reinstates the teleport with no compile error;
+   `ledger::sov_abs_ext_trade_import_is_physical` is the only catcher.
+3. No capital credited in the ext-trade buy block.
 
-**Why it matters beyond itself:** a hoarding enterprise's withdrawal has no
-victim, because everyone downstream is backfilled free at the border. Any
-demonstration of the dishonest-enterprise loop must therefore run in a city
-with **no freight station**, or it proves nothing about shortage. That is a
-binding acceptance constraint on [[ruling-inflation-source]].
+## STILL LIVE — three successor items, none blocking
+
+- **The EXPORT half still teleports.** The seller-surplus block still debits
+  capital and credits money in the same tick with no `Dispatch`. Does not
+  corrupt the hoarding signal (hoards are on the INPUT side; `sell_all` only
+  posts production items), but output storage pressure never bites where a
+  reachable station exists, so `storage_multiplier` halts are unreachable there.
+- **The border is an unbounded SOURCE.** `advance_dispatches` debits the
+  FreightStation seller with no stock and no reservation; its capital goes
+  negative without limit. Accepted for 1.0 (transport is the binding
+  constraint), but Kornai separates the soft domestic budget constraint from the
+  **hard external** one. The right bound is freight-station **throughput**
+  (units/tick), which is also the W&R precedent.
+- **The border out-competes domestic supply by one tick.** Domestic matching
+  runs first, but only for the tick the order is posted; `extract_if` then hands
+  every survivor to the border. An enterprise never queues on a domestic
+  producer that will have stock next tick. Not a violation — shortage is
+  preserved — but it makes the border the DEFAULT supplier, not the residual one.
+
+## Reachability filter (accepted scope addition)
+
+`find_external` now filters to stations whose door is within
+`DISPATCH_LANE_CUTOFF` (50.0, `map_dynamic/dispatch.rs:86`) of a driving lane.
+**An unreachable border is a closed border** — correct economics. Two caveats:
+it tests proximity to *any* lane, not route connectivity (a station on a
+disconnected road island still passes and stalls in `ToSource`), and a city
+whose only station is unreachable silently gets no external trade with no
+Planner-facing signal. Both want a readout, not a code change.
+
+## Standing hoarding caveat — DOWNGRADED, not obsolete
+
+The old rule "any hoarding demonstration must run in a city with NO freight
+station" is relaxed. A demonstration may now use one, but must constrain the
+truck pool or the station distance, or assert on **delay and queue length**
+rather than permanent denial — with plentiful trucks and a near station the
+backfill still eventually completes, so shortage becomes delay, not denial.
+`sov_lpj_flour_factory_hoards_bounded_no_freight_station` stays as the clean
+bounded-hoard proof.
 
 **Lesson for future audits:** re-verify the standing "known violations" list
-against the tree before citing it. Half of this one had been fixed.
+against the tree before citing it. This entry has now gone stale twice.
+
+Related: [[ruling-inflation-source]], [[numbers-base-mod]]

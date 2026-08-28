@@ -46,6 +46,18 @@ for consumption `c`, multiplier `k`: stock oscillates in `[k*c - c, k*c]`,
 surplus is `(k-1)*c`, **constant**, reached after one delivery cycle.
 A test asserting unbounded growth will fail.
 
+**AMENDED 2026-08-28 (sov-abs, commit 7721cdd): the bound holds ONLY in a city
+with no reachable freight station.** `buy_until` (market.rs:421) reads `capital`
+only and does not count in-flight dispatches. Now that an import takes ~2000
+ticks instead of 0, a filled hoarder re-posts on each production cycle and
+STACKS imports: for flour-factory (k=4, amount 1) successive cycles post 1, then
+2, then 3 — up to 6 units in flight against a target of 4. Steady-state hoard
+therefore EXCEEDS k*c wherever a reachable border exists. An honest company
+(k=1) never stacks: it consumes to capital 0 and stalls. So honest=0 /
+dishonest>0 survives and is amplified — accepted, and Kornai-true (repeat
+requisitioning under unreliable delivery). Do not generalise the no-station
+test's numbers. See [[finding-exttrade-teleport]].
+
 True to Kornai anyway: the firm's target reserve is a stock, not a flow. What
 grows without bound in Kornai is the *shortage the hoard causes elsewhere*.
 The permanent withdrawal of `(k-1)*c` per hoarder is the gameplay.
