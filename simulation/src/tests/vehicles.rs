@@ -1,3 +1,64 @@
+use super::*;
+use crate::transportation::{
+    spawn_parked_vehicle, unpark, TransportGrid, VehicleKind, VehicleState,
+};
+
+/// sov-6qx: `unpark` used to warn "wasn't parked" and then carry on anyway --
+/// inserting a SECOND transport-grid entry and overwriting `v.collider` with
+/// its handle. The first entry was never removed (only `Transporter::destroy`
+/// does that), leaving a phantom obstacle with speed 0 parked in a lane
+/// forever. `unpark` on a vehicle that is already `Driving` must leave the
+/// grid exactly as it found it.
+#[test]
+fn unpark_on_driving_vehicle_leaks_no_phantom_collider() {
+    let mut ctx = TestCtx::new();
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(100.0, 0.0, 0.0)]);
+
+    let car = spawn_parked_vehicle(&mut ctx.g, VehicleKind::Car, Vec3::ZERO)
+        .expect("a parked car must spawn");
+    assert!(
+        unpark(&mut ctx.g, car),
+        "setup: unparking a genuinely Parked car must succeed"
+    );
+
+    let v = ctx.g.world().vehicles.get(car).expect("car entity");
+    assert!(
+        matches!(v.vehicle.state, VehicleState::Driving),
+        "setup: the first unpark must leave the car Driving"
+    );
+    let coll_before = v.collider.expect("a driving car holds a Transporter").0;
+    let len_before = ctx.g.read::<TransportGrid>().len();
+
+    // The bug: a second unpark, on a car that is emphatically not Parked.
+    assert!(
+        !unpark(&mut ctx.g, car),
+        "unpark must refuse a non-Parked vehicle and say so to its caller"
+    );
+
+    let coll_after = ctx
+        .g
+        .world()
+        .vehicles
+        .get(car)
+        .expect("car entity")
+        .collider
+        .expect("collider")
+        .0;
+    assert_eq!(
+        len_before,
+        ctx.g.read::<TransportGrid>().len(),
+        "unpark on a non-Parked vehicle must not add a transport-grid entry"
+    );
+    assert_eq!(
+        coll_before, coll_after,
+        "the vehicle must keep its existing collider, not orphan it"
+    );
+    assert!(
+        ctx.g.read::<TransportGrid>().get(coll_before).is_some(),
+        "the original grid entry must still be the live one"
+    );
+}
+
 /*
 use crate::map_dynamic::{Destination, Itinerary, ParkingManagement, Router};
 use prototypes::GameTime;

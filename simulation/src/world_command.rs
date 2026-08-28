@@ -356,7 +356,10 @@ impl WorldCommand {
                     else {
                         continue;
                     };
-                    unpark(sim, v_id);
+                    if !unpark(sim, v_id) {
+                        log::error!("freshly spawned car {:?} refused to unpark", v_id);
+                        continue;
+                    }
 
                     sim.write::<RandomVehicles>().vehicles.insert(v_id);
                 }

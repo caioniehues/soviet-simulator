@@ -801,7 +801,14 @@ impl Market {
                                         if let Some(ve) = world.vehicles.get_mut(v) {
                                             ve.it = route;
                                         }
-                                        cbuf_vehicle.exec_ent(v, move |sim| unpark(sim, v));
+                                        cbuf_vehicle.exec_ent(v, move |sim| {
+                                            if !unpark(sim, v) {
+                                                log::error!(
+                                                    "dispatch grabbed {:?} as Parked but unpark refused",
+                                                    v
+                                                );
+                                            }
+                                        });
                                         self.dispatches[i].truck = Some(v);
                                     } else {
                                         dispatcher.free(DispatchID::SmallTruck(v));

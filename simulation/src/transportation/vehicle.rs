@@ -104,23 +104,38 @@ impl VehicleKind {
     }
 }
 
-pub fn unpark(sim: &mut Simulation, vehicle: VehicleID) {
-    let v = unwrap_ret!(sim.world.vehicles.get_mut(vehicle));
+/// Frees the vehicle's parking spot and puts it into the transport grid.
+///
+/// Refuses to act on a vehicle that is not [`VehicleState::Parked`], and says
+/// so through its return value: a `Driving`, `Panicking` or `RoadToPark`
+/// vehicle already holds a [`Transporter`], and inserting a second grid entry
+/// would orphan the first (only `Transporter::destroy` ever removes one),
+/// leaving a phantom speed-0 obstacle sitting in a lane forever (sov-6qx).
+///
+/// Returns `true` when the vehicle was parked and is now driving, `false` when
+/// the call was refused (unknown entity, or not parked). Callers must handle
+/// `false`: nothing at all was changed.
+#[must_use]
+pub fn unpark(sim: &mut Simulation, vehicle: VehicleID) -> bool {
+    let v = unwrap_ret!(sim.world.vehicles.get_mut(vehicle), false);
     let w = v.vehicle.kind.width();
     let trans = v.trans;
 
-    if let VehicleState::Parked(spot) =
-        std::mem::replace(&mut v.vehicle.state, VehicleState::Driving)
-    {
-        sim.write::<ParkingManagement>().free(spot);
-    } else {
-        log::warn!("Trying to unpark {:?} that wasn't parked", vehicle);
+    if !matches!(v.vehicle.state, VehicleState::Parked(_)) {
+        return false;
     }
+    let VehicleState::Parked(spot) =
+        std::mem::replace(&mut v.vehicle.state, VehicleState::Driving)
+    else {
+        unreachable!("state was checked to be Parked just above");
+    };
+    sim.write::<ParkingManagement>().free(spot);
 
     let coll = put_vehicle_in_transport_grid(sim, w, trans);
 
-    let v = unwrap_ret!(sim.world.vehicles.get_mut(vehicle));
+    let v = unwrap_ret!(sim.world.vehicles.get_mut(vehicle), false);
     v.collider = Some(coll);
+    true
 }
 
 pub fn spawn_parked_vehicle(
