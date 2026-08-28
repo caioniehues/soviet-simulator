@@ -291,23 +291,28 @@ fn scenario_never_matched_waiting_is_not_reset() {
 /// Calls `BuyFood::apply` directly for one human, using a single split
 /// borrow (`world_res`) so world mutation and resource reads don't conflict
 /// the way two separate `Simulation::read`/`world_mut_unchecked` calls would.
-fn apply_buyfood(g: &mut crate::Simulation, human_id: HumanID) {
+fn apply_buyfood(
+    g: &mut crate::Simulation,
+    human_id: HumanID,
+) -> crate::souls::human::HumanDecisionKind {
     let (world, res) = g.world_res();
     let cbuf = res.read::<ParCommandBuffer<HumanEnt>>();
     let binfos = res.read::<BuildingInfos>();
+    let map = res.read::<crate::map::Map>();
     let market = res.read::<Market>();
     let time = res.read::<GameTime>();
     let h = world.humans.get_mut(human_id).unwrap();
     h.food.apply(
         &cbuf,
         &binfos,
+        &map,
         &market,
         &time,
         human_id,
         &h.trans,
         &h.location,
         &mut h.bought,
-    );
+    )
 }
 
 /// (iv) `recipe_should_produce` reads capital MINUS reserved: a seller
@@ -802,4 +807,98 @@ fn drain_or_return(ctx: &mut TestCtx, max_ticks: u32) -> bool {
         }
     }
     false
+}
+
+/// sov-xyx: `BoughtAt(b)` is an inescapable sink when `b` is demolished
+/// mid-walk. Every exit from that arm needs `loc == Building(b)`, but
+/// `routing_changed_system` marks the destination reached on a dead building
+/// WITHOUT pushing `GetInBuilding` (`map_dynamic/router.rs`), so `loc` never
+/// advances: the human re-emits `GoTo` forever, hunger ramps, and the bread
+/// demand it represents silently vanishes from what the Planner observes.
+/// Demolishing the store must return the customer to `Empty` so it re-queues,
+/// WITHOUT advancing `last_ate` (went without, same as the expired-claim
+/// branch).
+#[test]
+fn scenario_demolished_store_releases_bought_at_customer() {
+    let mut ctx = TestCtx::new();
+    ctx.build_roads(&[
+        geom::Vec3::new(0.0, 0.0, 0.0),
+        geom::Vec3::new(200.0, 0.0, 0.0),
+    ]);
+    let bakery = GoodsCompanyID::new("bakery").prototype();
+    let seller_b = build_company_at(&mut ctx, bakery, geom::Vec2::new(30.0, 20.0));
+    let house = ctx.build_house_at(geom::Vec2::new(150.0, 20.0));
+    ctx.tick();
+    let seller = ctx.g.read::<BuildingInfos>().owner(seller_b).unwrap();
+    let seller_pos = ctx.g.map().buildings.get(seller_b).unwrap().door_pos;
+    drop(ctx.g.map());
+
+    let human_id = spawn_human(&mut ctx.g, house).expect("human must spawn");
+    let buyer = SoulID::Human(human_id);
+
+    match_one_bread(&mut ctx, seller, seller_pos, buyer);
+
+    // Force `BoughtAt(seller_b)` while the human is still at home: this is
+    // the in-transit customer the ticket is about.
+    {
+        let (world, _res) = ctx.g.world_res();
+        world
+            .humans
+            .get_mut(human_id)
+            .unwrap()
+            .food
+            .set_state_bought_at_for_test(seller_b);
+    }
+    assert_ne!(
+        ctx.g.world().humans.get(human_id).unwrap().location,
+        crate::transportation::Location::Building(seller_b),
+        "the customer must still be in transit for this test to mean anything"
+    );
+
+    let last_ate_before = ctx.g.world().humans.get(human_id).unwrap().food.last_ate;
+
+    // Real demolition, through the same command the player's bulldozer uses.
+    ctx.apply(&[WorldCommand::MapRemoveBuilding(seller_b)]);
+    assert!(
+        !ctx.g.map().buildings().contains_key(seller_b),
+        "the store must actually be gone"
+    );
+    drop(ctx.g.map());
+    // Why the guard needs `&Map` and not the `binfos` the ticket named:
+    // nothing removes a demolished building from `BuildingInfos`, and
+    // slotmapd's `SecondaryMap::get` only version-checks its own slot, so the
+    // entry (and its `owner`) outlive the bulldozer. `binfos` is not a
+    // liveness oracle for a BuildingID.
+    assert!(
+        ctx.g.read::<BuildingInfos>().get(seller_b).is_some(),
+        "BuildingInfos still holds the demolished building -- so it cannot be \
+         the existence check"
+    );
+
+    let decision = apply_buyfood(&mut ctx.g, human_id);
+    ParCommandBuffer::<HumanEnt>::apply(&mut ctx.g);
+    assert!(
+        matches!(decision, crate::souls::human::HumanDecisionKind::Yield),
+        "a demolished store must not keep emitting GoTo, got {:?}",
+        decision
+    );
+    assert_eq!(
+        last_ate_before,
+        ctx.g.world().humans.get(human_id).unwrap().food.last_ate,
+        "going without must NOT advance last_ate (never game over)"
+    );
+
+    // Back in `Empty`, the next decision re-queues a real buy order — the
+    // observable proof the demand did not silently disappear.
+    apply_buyfood(&mut ctx.g, human_id);
+    ParCommandBuffer::<HumanEnt>::apply(&mut ctx.g);
+    assert!(
+        ctx.g
+            .read::<Market>()
+            .inner()
+            .get(&bread())
+            .and_then(|sm| sm.buy_order(buyer))
+            .is_some(),
+        "the customer must re-queue a bread buy order after the store died"
+    );
 }

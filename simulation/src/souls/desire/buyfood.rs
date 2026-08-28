@@ -5,7 +5,7 @@ use geom::Transform;
 use prototypes::{GameInstant, GameTime, ItemID};
 
 use crate::economy::{find_trade_place, Bought, Market};
-use crate::map::BuildingID;
+use crate::map::{BuildingID, Map};
 use crate::map_dynamic::{BuildingInfos, Destination};
 use crate::souls::human::HumanDecisionKind;
 use crate::transportation::Location;
@@ -67,6 +67,7 @@ impl BuyFood {
         &mut self,
         cbuf: &ParCommandBuffer<HumanEnt>,
         binfos: &BuildingInfos,
+        map: &Map,
         market: &Market,
         time: &GameTime,
         id: HumanID,
@@ -115,6 +116,27 @@ impl BuyFood {
                 Yield
             }
             BuyFoodState::BoughtAt(b) => {
+                // The store can be demolished while the customer is still
+                // walking to it. `routing_changed_system` force-sets
+                // `cur_dest` on a dead building WITHOUT pushing
+                // `GetInBuilding` (map_dynamic/router.rs), so `loc` never
+                // becomes `Building(b)` and every exit below is unreachable:
+                // the human re-emits `GoTo` forever and can never eat again.
+                // Reset to `Empty` so the desire re-queues somewhere else.
+                // `last_ate` must NOT advance -- went without, exactly like
+                // the expired-claim branch. Nothing is settled: the seller
+                // soul died with its building and `Market::remove` already
+                // released its reservations.
+                //
+                // This is a state check, not an event subscription: `apply`
+                // is not polled every tick (`decision.wait`), so the
+                // demolition may be many ticks in the past by the time we
+                // get here.
+                if !map.buildings().contains_key(b) {
+                    log::debug!("{:?}'s store {:?} was demolished, going without", id, b);
+                    self.state = BuyFoodState::Empty;
+                    return Yield;
+                }
                 if loc == &Location::Building(b) {
                     // The claim can have expired (TTL) or been released
                     // (despawn raced this) during the walk over: check

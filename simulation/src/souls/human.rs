@@ -228,7 +228,7 @@ pub fn update_decision(
         NextDesire::Home(home) => decision.kind = home.apply(),
         NextDesire::Work(work) => decision.kind = work.apply(loc, router),
         NextDesire::Food(food) => {
-            decision.kind = food.apply(cbuf, binfos, market, time, me, trans, loc, bought)
+            decision.kind = food.apply(cbuf, binfos, map, market, time, me, trans, loc, bought)
         }
         NextDesire::None => {}
     }
