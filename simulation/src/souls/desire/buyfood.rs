@@ -120,18 +120,24 @@ impl BuyFood {
                 // walking to it. `routing_changed_system` force-sets
                 // `cur_dest` on a dead building WITHOUT pushing
                 // `GetInBuilding` (map_dynamic/router.rs), so `loc` never
-                // becomes `Building(b)` and every exit below is unreachable:
-                // the human re-emits `GoTo` forever and can never eat again.
-                // Reset to `Empty` so the desire re-queues somewhere else.
-                // `last_ate` must NOT advance -- went without, exactly like
-                // the expired-claim branch. Nothing is settled: the seller
-                // soul died with its building and `Market::remove` already
-                // released its reservations.
+                // becomes `Building(b)` and every exit below is unreachable.
+                // Reset to `Empty` so the desire re-queues; `last_ate` must
+                // NOT advance -- went without, like the expired-claim branch.
                 //
-                // This is a state check, not an event subscription: `apply`
-                // is not polled every tick (`decision.wait`), so the
-                // demolition may be many ticks in the past by the time we
-                // get here.
+                // The seller's reservation is deliberately not this arm's to
+                // release, and it is NOT already gone: on the demolition tick
+                // the seller soul is still alive, because
+                // `update_decision_system` is registered before
+                // `company_system` (init.rs) and `company_system` is what
+                // kills a company whose building vanished. The reservation is
+                // released either by `Market::remove(seller)` when that kill
+                // lands, or by the unconditional retail-claim TTL sweep at the
+                // end of `advance_dispatches` -- abandoning `BoughtAt` does not
+                // remove the claim, so the sweep still reaches it. Re-queueing
+                // before then is safe because `retail_claims` is keyed by
+                // BUYER: one human holds one claim, and `make_trades` releases
+                // a displaced claim's reservation on the old seller's row
+                // before overwriting it.
                 if !map.buildings().contains_key(b) {
                     log::debug!("{:?}'s store {:?} was demolished, going without", id, b);
                     self.state = BuyFoodState::Empty;

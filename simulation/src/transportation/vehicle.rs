@@ -106,15 +106,16 @@ impl VehicleKind {
 
 /// Frees the vehicle's parking spot and puts it into the transport grid.
 ///
-/// Refuses to act on a vehicle that is not [`VehicleState::Parked`], and says
-/// so through its return value: a `Driving`, `Panicking` or `RoadToPark`
-/// vehicle already holds a [`Transporter`], and inserting a second grid entry
-/// would orphan the first (only `Transporter::destroy` ever removes one),
-/// leaving a phantom speed-0 obstacle sitting in a lane forever (sov-6qx).
+/// Refuses a vehicle that is not [`VehicleState::Parked`]: it already holds a
+/// [`Transporter`], and only `Transporter::destroy` ever removes a grid entry,
+/// so inserting a second one orphans the first as a permanent phantom obstacle
+/// (sov-6qx).
 ///
 /// Returns `true` when the vehicle was parked and is now driving, `false` when
-/// the call was refused (unknown entity, or not parked). Callers must handle
-/// `false`: nothing at all was changed.
+/// the call was refused. Both refusals reachable today -- unknown entity, or
+/// not `Parked` -- return before changing anything, so a caller that recorded a
+/// reservation or ownership before calling must roll it back on `false` (see
+/// `Market::release_tosource_truck`).
 #[must_use]
 pub fn unpark(sim: &mut Simulation, vehicle: VehicleID) -> bool {
     let v = unwrap_ret!(sim.world.vehicles.get_mut(vehicle), false);
