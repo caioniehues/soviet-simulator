@@ -571,6 +571,174 @@ fn scenario_demolish_buyer_building_end_to_end_conserves() {
     );
 }
 
+/// sov-jcl: the outbound `Loading` leg, buyer building ALIVE (`door_pos`
+/// returns `Some`) but `Itinerary::route` to it returns `None` — e.g. the road
+/// between them was bulldozed. Before the fix this branch fell through without
+/// touching `ticks_left` or any counter, so the dispatch re-entered the
+/// `Loading` arm identically every tick, forever: the truck stayed reserved out
+/// of the `Dispatcher` pool and the seller's already-debited goods rode along
+/// with it. The sibling *return* leg has been bounded by
+/// `MAX_RETURN_ROUTE_RETRIES` since the wedge fix; this is the same bound on
+/// the outbound leg.
+///
+/// Mutation: delete the `else if outbound_route_retries + 1 >= ...` arm in
+/// `advance_dispatches`' `Loading` state and this test hangs on an immortal
+/// dispatch.
+#[test]
+fn sov_jcl_outbound_loading_route_failure_is_bounded() {
+    let mut ctx = TestCtx::new();
+    // Two road networks with no connection between them. The seller sits on
+    // one, the buyer on the other: the truck can reach the seller (so the
+    // dispatch gets to `Loading` and the seller is debited) but no
+    // `PathKind::Vehicle` route to the buyer can ever be found. The buyer's
+    // building is never touched, so `door_pos(buyer)` keeps returning `Some`
+    // — this is the live-buyer/no-route trigger, NOT the demolished-buyer
+    // wedge that the return leg already bounds.
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(80.0, 0.0, 0.0)]);
+    ctx.build_roads(&[Vec3::new(600.0, 0.0, 0.0), Vec3::new(760.0, 0.0, 0.0)]);
+
+    let seller_b = build_company_at(
+        &mut ctx,
+        GoodsCompanyID::new("cereal-farm").prototype(),
+        Vec2::new(30.0, 20.0),
+    );
+    let buyer_b = build_company_at(
+        &mut ctx,
+        GoodsCompanyID::new("flour-factory").prototype(),
+        Vec2::new(680.0, 20.0),
+    );
+    ctx.tick(); // company souls spawn on the next tick
+
+    let seller = ctx.g.read::<BuildingInfos>().owner(seller_b).unwrap();
+    let buyer = ctx.g.read::<BuildingInfos>().owner(buyer_b).unwrap();
+    let seller_pos = ctx.g.map().buildings.get(seller_b).unwrap().door_pos;
+    let buyer_pos = ctx.g.map().buildings.get(buyer_b).unwrap().door_pos;
+
+    spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos).expect("truck must spawn");
+
+    let cereal = ItemID::new("cereal");
+    {
+        let mut m = ctx.g.write::<Market>();
+        m.produce(seller, cereal, 10);
+        m.sell(seller, seller_pos.xy(), cereal, 10, 0);
+        m.buy(buyer, buyer_pos.xy(), cereal, 10);
+    }
+
+    // Drive until the truck has physically arrived and is Loading. Strictly
+    // `Loading`: once a dispatch reaches `ToDestination` the route already
+    // succeeded and this defect's branch is never entered.
+    let mut ticks = 0;
+    loop {
+        ctx.tick();
+        ticks += 1;
+        let reached = ctx
+            .g
+            .read::<Market>()
+            .dispatches()
+            .iter()
+            .any(|d| d.kind == cereal && matches!(d.state, DispatchState::Loading));
+        if reached {
+            break;
+        }
+        assert!(ticks < 4000, "dispatch never reached Loading");
+    }
+    assert_eq!(
+        ctx.g.read::<Market>().capital(seller, cereal),
+        0,
+        "seller must already be debited once the truck has loaded"
+    );
+    assert!(
+        ctx.g.map().buildings().contains_key(buyer_b),
+        "the buyer must be ALIVE throughout, or this exercises the \
+         demolished-buyer wedge instead"
+    );
+
+    let trucks_before = ctx
+        .g
+        .world()
+        .vehicles
+        .iter()
+        .filter(|(_, v)| matches!(v.vehicle.kind, VehicleKind::Truck))
+        .count();
+
+    // The bound is MAX_RETURN_ROUTE_RETRIES (20); give it a margin.
+    for _ in 0..40 {
+        ctx.tick();
+    }
+
+    {
+        let m = ctx.g.read::<Market>();
+        assert!(
+            m.dispatches().iter().all(|d| d.kind != cereal),
+            "an unroutable outbound Loading dispatch must be given up on, not \
+             retried forever: {:?}",
+            m.dispatches()
+        );
+        assert_eq!(
+            m.capital(buyer, cereal),
+            0,
+            "the goods never physically arrived, so the buyer is never credited"
+        );
+        assert_eq!(
+            m.capital(seller, cereal),
+            0,
+            "the goods were debited at Loading and are stranded on a truck that \
+             can reach nobody -- an honest logged loss, never a teleport-refund"
+        );
+    }
+
+    // Nothing in this scenario destroys a vehicle, so the pool check below is
+    // not satisfiable by the sibling "truck vanished while loading" branch.
+    let all_trucks: Vec<_> = ctx
+        .g
+        .world()
+        .vehicles
+        .iter()
+        .filter(|(_, v)| matches!(v.vehicle.kind, VehicleKind::Truck))
+        .map(|(id, v)| (id, v.trans.pos))
+        .collect();
+    assert_eq!(
+        all_trucks.len(),
+        trucks_before,
+        "no truck may be destroyed here, or the free() check below is vacuous"
+    );
+    // `Dispatcher::query` walks lanes outward from its target, so it can only
+    // ever reach the trucks on the seller's road network (the buyer's
+    // flour-factory spawns its own truck on the far, disconnected one).
+    let reachable_trucks = all_trucks.iter().filter(|(_, p)| p.x < 300.0).count();
+    assert!(
+        reachable_trucks >= 2,
+        "the seller's network must hold the dispatch's truck plus at least one \
+         other, or a leak of exactly one is indistinguishable from an empty pool"
+    );
+
+    // The truck must be back in the pool: the same drain-until-None check
+    // `scenario_dead_seller_frees_its_truck` uses. A leaked `reserved_by`
+    // entry makes exactly one truck permanently unqueryable.
+    let (world, res) = ctx.g.world_res();
+    let map = res.read::<crate::map::Map>();
+    let mut dispatcher = res.write::<crate::map_dynamic::Dispatcher>();
+    dispatcher.update(&map, world);
+
+    let mut handed_out = 0;
+    while dispatcher
+        .query(
+            &map,
+            crate::map_dynamic::DispatchKind::SmallTruck,
+            crate::map_dynamic::DispatchQueryTarget::Pos(seller_pos),
+        )
+        .is_some()
+    {
+        handed_out += 1;
+        assert!(handed_out <= all_trucks.len(), "query returned duplicates");
+    }
+    assert_eq!(
+        handed_out, reachable_trucks,
+        "at exhaustion the dispatch must call `dispatcher.free`; a truck left \
+         in `reserved_by` is leaked out of the city permanently"
+    );
+}
+
 /// A dead BUYER after the truck has already loaded (seller debited, goods
 /// physically on the truck): the fix must hand the goods to the same
 /// physical return-to-seller path a live buyer-demolition takes, not

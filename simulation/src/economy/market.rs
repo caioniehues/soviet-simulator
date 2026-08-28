@@ -133,10 +133,15 @@ pub fn find_trade_place(target: TradeTarget, binfos: &BuildingInfos) -> Option<B
 const DISPATCH_DWELL_TICKS: u32 = 3;
 
 /// How many consecutive tick-retries a `Loading` dispatch gets to find a
-/// route back to the seller (see `DispatchState::Returning`) before giving
-/// up and treating the goods as lost. A severed road can make the route
-/// search fail forever; without a bound this reintroduces the exact wedge
-/// shape this ticket exists to close.
+/// route out — either onward to a live buyer (`DispatchState::ToDestination`)
+/// or back to the seller after the buyer was demolished
+/// (`DispatchState::Returning`) — before giving up and treating the goods as
+/// lost. A severed road can make the route search fail forever; without a
+/// bound this reintroduces the exact wedge shape this ticket exists to close.
+///
+/// Both legs share `Dispatch::return_route_retries`: a dispatch only ever
+/// leaves `Loading` by one of them, and a budget already spent failing to
+/// reach the buyer is not worth re-granting to reach the seller.
 const MAX_RETURN_ROUTE_RETRIES: u32 = 20;
 
 /// How long a human's retail claim (a matched-but-uncollected store purchase,
@@ -930,9 +935,35 @@ impl Market {
                                         ve.it = route;
                                     }
                                     self.dispatches[i].state = DispatchState::ToDestination;
+                                } else if return_route_retries + 1 >= MAX_RETURN_ROUTE_RETRIES {
+                                    // sov-jcl: the buyer's building is still
+                                    // standing but no route reaches it (e.g.
+                                    // the road between them was bulldozed).
+                                    // Retrying unbounded here keeps the truck
+                                    // reserved out of the dispatcher pool and
+                                    // the dispatch immortal, so bound it
+                                    // exactly like the return leg below. The
+                                    // goods were debited at `ToSource`
+                                    // arrival and are physically on the
+                                    // truck: this is an honest logged loss,
+                                    // never a teleport-refund.
+                                    log::warn!(
+                                        "dispatch dropped {:?} {:?} ({:?} -> {:?}): no route to \
+                                         a live buyer after {} attempts",
+                                        qty,
+                                        kind,
+                                        seller,
+                                        buyer,
+                                        MAX_RETURN_ROUTE_RETRIES
+                                    );
+                                    dispatcher.free(DispatchID::SmallTruck(v));
+                                    remove = true;
+                                } else {
+                                    // No route found: stay in Loading
+                                    // (ticks_left at 0) and retry next tick.
+                                    self.dispatches[i].return_route_retries =
+                                        return_route_retries + 1;
                                 }
-                                // No route found: stay in Loading (ticks_left at 0)
-                                // and retry next tick.
                             } else {
                                 // Wedge (a): buyer's building was demolished.
                                 // The goods are already debited from the
