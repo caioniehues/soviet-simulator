@@ -99,17 +99,72 @@ The `Read` guard fires in subagents; `ct-steer` does not. Cause not investigated
 will or will not run. (Separately, `ct-steer` was verified as not installed at user scope
 on 2026-08-28, so its absence in a subagent may simply be that.)
 
-### 5. The code graph gave a confidently wrong zero
+### 5. The graph IS reachable — and it gave a confidently wrong zero
 
-`references_to` on `Market::set_requested` returned **0**, with the accompanying string
-`"this 0 is a real absence"`. It was not. LSP found **4** references across 3 files;
-`callers_of` found 2; `grep` found 4.
+These two facts have to travel as a pair. The graph is the answer to "what code
+intelligence CAN a subagent use", and it is also the tool that lied.
+
+**MCP tools survive the subagent tool filter.** Every `mcp__code-review-graph__*` tool is
+reachable in a subagent — confirmed live in this session's wave. `LSP` is not, `Grep` and
+`Glob` are not, but the graph is. It is therefore **the only code-intelligence tool a
+subagent can actually call**, and a brief should name it alongside `grep -n` as the read
+path, not treat it as optional.
+
+Schemas arrive **deferred**, so they are absent from the visible tool list until loaded:
+`ToolSearch("select:mcp__code-review-graph__query_graph_tool,mcp__code-review-graph__get_impact_radius_tool")`.
+Only a `no matching deferred tools found` result proves absence.
+
+**And now the trap.** `references_to` on `Market::set_requested` returned **0**, with the
+accompanying string `"this 0 is a real absence"`. It was not. LSP found **4** references
+across 3 files; `callers_of` found 2; `grep` found 4.
 
 **Never close a question on a graph zero.** An empty graph result means "not indexed" or
 "not statically visible", never "does not exist" — and the graph's own phrasing may
 assert otherwise. This sits alongside the two traps already in
 `docs/reference/code-intelligence.md` (`head_matches_build` compares SHAs not content;
 edges carry `EXTRACTED`/`INFERRED`/`AMBIGUOUS` confidence).
+
+#### The server's five PROMPTS are a different mechanism, and they are NOT reachable
+
+Prompts are not tools. The server registers five with `@mcp.prompt()`
+(`main.py:1059-1101`): `review_changes`, `architecture_map`, `debug_issue`,
+`onboard_developer`, `pre_merge_check`. They surface in the **main session only**, as
+slash commands of the form `/mcp__code-review-graph__debug_issue`. A subagent cannot
+invoke a slash command, so a lead who wants a worker to follow one of these workflows
+must **paste the expanded steps into the brief**.
+
+Bodies live in `.venv/lib/python3.13/site-packages/code_review_graph/prompts.py`.
+`debug_issue` expands to, verbatim in substance:
+
+1. `get_minimal_context(task="debug: <description>")`
+2. `semantic_search_nodes(query=<keywords>, detail_level="minimal", limit=5)`
+3. for the top 1–2 results, `query_graph(pattern="callers_of", target=<name>, detail_level="minimal")`
+4. if execution flow matters, `get_flow(name=<the single most relevant flow>)`
+5. `get_review_context` / `get_impact_radius` **only** to trace the blast radius of a
+   specific change
+
+Every prompt carries the same token preamble, and it is good practice regardless of which
+prompt you are following: `get_minimal_context` first; `detail_level="minimal"` unless
+minimal is insufficient; escalate to `standard`/`verbose` only for the specific entities
+that need it; **never more than 3 graph calls per turn**; prefer targeted queries
+(`query_graph` on a symbol) over broad scans (`list_communities` with full members).
+
+#### The install is FINE — but a future breakage would now be silent
+
+`.venv/bin/code-review-graph` exists, is executable, and answers: **Nodes 3732, Edges
+30017, Files 333**, built on `main` at `2cc7331e`. The graph hooks are not broken. Do not
+write that they are.
+
+What is worth knowing: the **uncommitted** `.claude/settings.json` change replaces a loud
+`SessionStart` check —
+
+```
+code-review-graph: binary NOT FOUND at $CRG - graph hooks are DISABLED this session ...
+```
+
+— with a silent `[ -x "$CRG" ] || exit 0` guard in `PostToolUse`. The session-start
+warning is gone. So if the venv does break later, nothing says so: every agent simply
+gets stale graph answers, and finding 5's trap arrives with no warning attached.
 
 ### 6. `fff` is OFF
 
@@ -144,8 +199,11 @@ confirm the position points at the symbol before concluding anything.
 | Fan-out reads | A subagent may spawn helpers; the verdict stays with it |
 
 Name the read path in every brief: `Read`, plus `grep -n` / `rg` through `Bash`, plus
-`ct view` / `ct search`. Say explicitly that the worker has no LSP, because the worker's
-own definition and the `Read` guard's block text may both claim otherwise.
+`ct view` / `ct search`, plus **the graph MCP tools**, which are the worker's only code
+intelligence. Say explicitly that the worker has no LSP, because the worker's own
+definition and the `Read` guard's block text may both claim otherwise. And if you want a
+worker to follow one of the server's five prompts, paste the expanded steps in — it
+cannot run the slash command.
 
 ## Related
 
