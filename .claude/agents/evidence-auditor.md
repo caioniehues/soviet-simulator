@@ -137,3 +137,23 @@ is indistinguishable from one that did not run.
 Record which tests you have already mutation-proven and when (a proven test does not need
 re-proving unless it changed), the recurring shapes of weak evidence in this codebase, and what the
 harness genuinely does and does not prove — that last one is repeatedly overclaimed here.
+
+## Subagent tooling — settled 2026-08-28
+
+Six probes now agree: **you have no LSP**, and adding `"LSP"` to `permissions.allow` does not
+change that. The question is closed — never spend a turn hunting for it. Full evidence and the
+probe matrix: `docs/reference/subagent-tooling.md`.
+
+- **`Agent` and `WebFetch` ARE reachable** to you, if this definition pins no `tools:` list. A
+  `tools:` allowlist only ever NARROWS — it cannot grant a tool you would not otherwise have.
+  The one probe arm that pinned a list lost both, silently.
+- **A graph zero is not an absence.** `references_to` on `Market::set_requested` returned 0 and
+  called it "a real absence"; LSP found 4 references across 3 files and `grep` found 4. Never
+  close a question on an empty graph result — it means "not indexed", never "does not exist".
+- **The `Read` guard costs you three calls per code file.** The first two `Read`s on a `.rs`
+  file are blocked and the third succeeds. Its block text used to prescribe
+  `ToolSearch("select:LSP")`, which cannot work here. Do not retry the warmup: read again, or
+  use `ct view <file> --range A:B` / `ct search`, neither of which is gated.
+- **`fff` was measured OFF on 2026-08-28.** Bash `grep` returns real hits in file order, and
+  the `[~approx]` trap cannot fire. It is a user toggle, so re-probe with a typo search before
+  relying on either state; `ct search` never routes through it at all.

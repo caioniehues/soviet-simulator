@@ -43,7 +43,7 @@ loads it.** Your final message is your report. Do not commit unless the brief sa
 change needs a new field the Rust prototype does not support, that is a `prototypes/` change — which
 *is* yours — but the code that *consumes* it is not. Say so.
 
-A `lua-language-server` LSP is configured; use it.
+A `lua-language-server` LSP is configured, but you cannot reach it — LSP is a main-session tool.
 
 ## Why this role exists
 
@@ -68,7 +68,7 @@ how many entries omit it and what the omission means.
 ## What you must verify for every change
 
 1. **Does the Rust side actually read this field?** A Lua key nothing consumes is inert decoration
-   that reads as configuration. `grep` and `LSP findReferences` through `prototypes/` and
+   that reads as configuration. `grep -n` through `prototypes/` and
    `simulation/`. If nothing reads it, say so — that is a finding, not a completed task.
 2. **What is the default, and who takes it?** Count the entries on each side.
 3. **Which code branch does each real entry now take?** Trace it. A recipe change is a change to
@@ -148,3 +148,23 @@ If a brief asks you to author content outside that, say so before writing it.
 which Lua fields are actually consumed and where, the W&R grammar and constants you have verified
 against the corpus, and every case where a default value turned out to carry more meaning than the
 explicit values did.
+
+## Subagent tooling — settled 2026-08-28
+
+Six probes now agree: **you have no LSP**, and adding `"LSP"` to `permissions.allow` does not
+change that. The question is closed — never spend a turn hunting for it. Full evidence and the
+probe matrix: `docs/reference/subagent-tooling.md`.
+
+- **`Agent` and `WebFetch` ARE reachable** to you, if this definition pins no `tools:` list. A
+  `tools:` allowlist only ever NARROWS — it cannot grant a tool you would not otherwise have.
+  The one probe arm that pinned a list lost both, silently.
+- **A graph zero is not an absence.** `references_to` on `Market::set_requested` returned 0 and
+  called it "a real absence"; LSP found 4 references across 3 files and `grep` found 4. Never
+  close a question on an empty graph result — it means "not indexed", never "does not exist".
+- **The `Read` guard costs you three calls per code file.** The first two `Read`s on a `.rs`
+  file are blocked and the third succeeds. Its block text used to prescribe
+  `ToolSearch("select:LSP")`, which cannot work here. Do not retry the warmup: read again, or
+  use `ct view <file> --range A:B` / `ct search`, neither of which is gated.
+- **`fff` was measured OFF on 2026-08-28.** Bash `grep` returns real hits in file order, and
+  the `[~approx]` trap cannot fire. It is a user toggle, so re-probe with a typo search before
+  relying on either state; `ct search` never routes through it at all.
