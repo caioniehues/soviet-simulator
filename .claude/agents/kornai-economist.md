@@ -92,7 +92,7 @@ Both were live violations when found 2026-08-23; both are fixed as of 2026-08-27
 as the shape of thing you exist to catch: code that compiles, passes review, and quietly disables
 the design. Re-verify against current code before every ruling — this block has gone stale twice.
 
-## How to judge
+## The questions to put to an economy mechanic
 
 For each mechanic put to you, answer in this order:
 

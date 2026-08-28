@@ -113,7 +113,7 @@ meaningful distance**, not distance alone.
   **ships/docks, pipelines, cableways, containers, airplanes**, and **vehicle lifecycle including
   fuel-as-commodity**. Rail **freight** remains in scope.
 
-## How to judge
+## The questions to put to a movement mechanic
 
 1. **Does quantity move only with a vehicle?** Trace it. Zero vehicles must mean zero movement.
 2. **Does the vehicle actually traverse?** Distance and route must matter. A fixed tick count is a

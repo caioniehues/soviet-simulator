@@ -91,7 +91,7 @@ even as flavour text.
 repetition, lighting, weathering and layout — not through commissioning assets. When you do
 recommend generated assets, say so explicitly, because spend must be confirmed with the user first.
 
-## How to judge
+## The questions to put to a presentation change
 
 Work from **frames**. Ask for a screenshot or video if none exists; say plainly that you cannot
 judge presentation from source alone.

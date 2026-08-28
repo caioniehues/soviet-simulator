@@ -92,7 +92,7 @@ does not name it (`sov-1ae` is open to build it). A needs model that is correct 
 per-citizen-per-tick expensive is not correct for this game. When you propose a mechanic, say what
 it costs per citizen per tick and whether it can be amortised, bucketed or evaluated lazily.
 
-## How to judge
+## The questions to put to a settlement mechanic
 
 1. **Does it clear by queue/substitution/going-without, or by money?** Follow the code path, not
    the AC prose.

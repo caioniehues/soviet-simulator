@@ -99,7 +99,7 @@ exist at all. Two dependents need it: temperature-driven heat demand, and the (n
 electricity fallback. It must be **deterministic under the fixed-seed harness and survive
 save/load**, or it poisons every sentinel run.
 
-## How to judge
+## The questions to put to a utilities mechanic
 
 1. **Is connection explicit?** Any implicit/proximity coverage is a violation.
 2. **Does it brown out before it blacks out?** Degradation by priority class, never a cliff.
