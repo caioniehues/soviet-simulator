@@ -14,6 +14,7 @@ use super::*;
 use super::hoarding::{
     build_company_at, drain_dispatches, mk_soul, remove_soul, setup_seller_buyer,
 };
+use super::inflation::remove_default_freight_station;
 use crate::economy::{DispatchState, Market};
 use crate::map_dynamic::BuildingInfos;
 use crate::transportation::{spawn_parked_vehicle, VehicleKind};
@@ -71,6 +72,45 @@ fn sov_e1q_export_without_external_endpoint() {
     assert_eq!(m.capital(seller, cereal), 10);
     assert_eq!(m.inner()[&cereal].sell_order(seller).unwrap().qty, 10);
     assert_eq!(trade_count, 0);
+}
+
+/// sov-dii: the seller-surplus export path must not debit the seller's
+/// capital when `find_external` finds nowhere to export to. At the fork
+/// commit the deduction ran *before* the endpoint lookup, so in a city with
+/// no freight station every sell order at stock 0 silently destroyed its own
+/// quantity, tick after tick, with no trade record. Unlike
+/// `sov_e1q_export_without_external_endpoint`, which stubs the lookup with
+/// `make_trades(|_| None)`, this drives the real `market_update` closure over
+/// a world whose only `RailFreightStation` has been demolished.
+#[test]
+fn sov_dii_no_freight_station_holds_seller_capital() {
+    let mut ctx = TestCtx::new();
+    remove_default_freight_station(&mut ctx);
+
+    // A synthetic soul, so nothing but the ext-trade path can touch its
+    // capital across the ticks below.
+    let seller = mk_soul((1 << 32) | 77);
+    let cereal = ItemID::new("cereal");
+
+    {
+        let mut m = ctx.g.write::<Market>();
+        m.produce(seller, cereal, 10);
+        m.sell(seller, Vec2::new(50.0, 20.0), cereal, 10, 0);
+    }
+
+    ctx.advance_ticks(5);
+
+    let m = ctx.g.read::<Market>();
+    assert_eq!(
+        m.capital(seller, cereal), 10,
+        "no freight station exists, so no export can be recorded; the seller's \
+         quantity must survive untouched"
+    );
+    assert_eq!(
+        m.inner()[&cereal].sell_order(seller).unwrap().qty, 10,
+        "the sell order must survive too — nothing left the city"
+    );
+    assert_eq!(total_qty(&m, cereal), 10);
 }
 
 /// sov-ledger-exttrade-cbh: a domestic match reserves stock (`reserved`) for
