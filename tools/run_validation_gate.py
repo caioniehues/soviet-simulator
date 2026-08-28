@@ -3,8 +3,10 @@
 
 import argparse
 import json
+import math
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -30,6 +32,33 @@ def validation_lines(stderr: str) -> list[str]:
         for line in stderr.splitlines()
         if any(marker in line.casefold() for marker in VALIDATION_MARKERS)
     ]
+
+
+def require_record_written_by_this_run(path: Path, not_before: float) -> None:
+    """Reject a capture record that predates the run the gate just wrapped.
+
+    Without this the record is a free-floating path the operator supplies and the gate
+    believes. Moving `--out` to a fresh directory while leaving `--capture-record` pointed at
+    an older validated record -- an ordinary slip, not an attack -- let a run with
+    validation_requested=false and zero validation markers report PASS.
+
+    Freshness is checked rather than deriving the path from the child's output directory,
+    because this gate wraps an arbitrary command: parsing `--out` and `--scene` back out of
+    engine_demo's argv would couple a general-purpose gate to one binary's CLI and would
+    silently stop binding anything the moment those flags change or a second consumer appears.
+    An mtime is mechanism-independent.
+    """
+    try:
+        mtime = path.stat().st_mtime
+    except OSError as error:
+        raise ValueError(f"cannot stat capture record {path}: {error}") from error
+    if mtime < not_before:
+        raise ValueError(
+            f"capture record {path} was last written at "
+            f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))}, before this run "
+            f"started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(not_before))}; "
+            f"it describes a different run and proves nothing about this one"
+        )
 
 
 def validation_was_requested(path: Path) -> bool:
@@ -72,6 +101,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    # Floored to the second so a filesystem with coarse timestamp granularity cannot make a
+    # record written *during* the run look older than the run.
+    started_at = math.floor(time.time())
     try:
         allowlist = read_allowlist(args.allowlist)
         result = subprocess.run(
@@ -122,6 +154,7 @@ def main(argv: list[str]) -> int:
     # the capture record's own flag, or at least one observed validation message.
     if args.capture_record is not None:
         try:
+            require_record_written_by_this_run(args.capture_record, started_at)
             requested = validation_was_requested(args.capture_record)
         except ValueError as error:
             print(f"FAIL validation gate: {error}", file=sys.stderr)

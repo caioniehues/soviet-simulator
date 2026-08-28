@@ -1,6 +1,8 @@
 import json
+import os
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -135,7 +137,14 @@ class ValidationGateTests(unittest.TestCase):
             artifact = tmp_path / "validation-messages.txt"
             record = tmp_path / "capture.json"
             allowlist.write_text("")
-            record.write_text(json.dumps({"device": {"validation_requested": False}}))
+            # The child writes its own record, exactly as engine_demo does. Pre-writing it
+            # would be the stale-record hole this gate now refuses.
+            writes_record = (
+                "import json,pathlib;"
+                f"pathlib.Path({str(record)!r}).write_text("
+                "json.dumps({'device': {'validation_requested': False}}));"
+                "print('capture ok')"
+            )
             result = subprocess.run(
                 [
                     "python3",
@@ -149,7 +158,7 @@ class ValidationGateTests(unittest.TestCase):
                     "--",
                     "python3",
                     "-c",
-                    "print('capture ok')",
+                    writes_record,
                 ],
                 text=True,
                 capture_output=True,
@@ -166,7 +175,12 @@ class ValidationGateTests(unittest.TestCase):
             artifact = tmp_path / "validation-messages.txt"
             record = tmp_path / "capture.json"
             allowlist.write_text("")
-            record.write_text(json.dumps({"device": {"validation_requested": True}}))
+            writes_record = (
+                "import json,pathlib;"
+                f"pathlib.Path({str(record)!r}).write_text("
+                "json.dumps({'device': {'validation_requested': True}}));"
+                "print('capture ok')"
+            )
             result = subprocess.run(
                 [
                     "python3",
@@ -180,7 +194,7 @@ class ValidationGateTests(unittest.TestCase):
                     "--",
                     "python3",
                     "-c",
-                    "print('capture ok')",
+                    writes_record,
                 ],
                 text=True,
                 capture_output=True,
@@ -218,6 +232,49 @@ class ValidationGateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 3)
         self.assertIn("- SYNC-HAZARD-READ-AFTER-WRITE new", result.stderr)
         self.assertIn("FAIL validation command exited 3", result.stderr)
+
+    def test_refuses_a_capture_record_older_than_the_run(self):
+        """N1: a record the run did not write proves nothing about that run.
+
+        Reproduces the operator slip that reaches B2's failure mode in a new shape -- moving
+        --out to a fresh directory while leaving --capture-record pointed at an older,
+        genuinely validated record.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            allowlist = tmp_path / "allowlist.txt"
+            artifact = tmp_path / "validation-messages.txt"
+            stale = tmp_path / "older-validated-capture.json"
+            allowlist.write_text("")
+            stale.write_text(json.dumps({"device": {"validation_requested": True}}))
+            # Predate the gate's start by an hour, the way a record from an earlier session does.
+            an_hour_ago = time.time() - 3600
+            os.utime(stale, (an_hour_ago, an_hour_ago))
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(GATE),
+                    "--allowlist",
+                    str(allowlist),
+                    "--artifact",
+                    str(artifact),
+                    "--capture-record",
+                    str(stale),
+                    "--",
+                    "python3",
+                    "-c",
+                    "print('capture ok')",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("before this run started at", result.stderr)
+        self.assertIn("proves nothing about this one", result.stderr)
+        self.assertNotIn("PASS", result.stdout)
 
 
 if __name__ == "__main__":
