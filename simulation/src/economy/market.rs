@@ -194,11 +194,12 @@ pub struct Dispatch {
     /// The truck carrying this dispatch. `None` while waiting for the
     /// `Dispatcher` to find one available.
     truck: Option<crate::world::VehicleID>,
-    /// Failed `Itinerary::route` attempts while trying to route the truck
-    /// back to the seller after the buyer's building was demolished (see
-    /// `DispatchState::Returning`). A severed road can make this fail
-    /// forever, so it's bounded (see `MAX_RETURN_ROUTE_RETRIES`) rather than
-    /// retried indefinitely — that would just reintroduce the wedge shape.
+    /// Failed `Itinerary::route` attempts made from `DispatchState::Loading`.
+    /// Despite the name it counts BOTH exits from `Loading` — onward to a live
+    /// buyer, and back to the seller after the buyer's building was demolished
+    /// (see `MAX_RETURN_ROUTE_RETRIES`, which explains why one shared budget).
+    /// A severed road can make either fail forever, so it's bounded rather
+    /// than retried indefinitely — that would just reintroduce the wedge shape.
     return_route_retries: u32,
 }
 

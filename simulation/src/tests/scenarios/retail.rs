@@ -357,14 +357,15 @@ fn scenario_bakery_keeps_producing_with_uncollected_loaves() {
 
 /// (v)(b) ToSource with a truck reserved but the vehicle entity gone: nothing
 /// was ever debited, so cancellation is just freeing the reservations -- no
-/// leaked dispatcher slot, no phantom seller debit. A second, still-alive
-/// truck proves the dispatcher doesn't wedge: if the dead truck's
-/// `reserved_by` entry were never freed, that alone wouldn't block a fresh
-/// query (a new candidate is a new id) -- what it WOULD do is drive a second
-/// dispatch to the same dead entity again, since `query` prefers the nearest
-/// unreserved candidate and a leaked reservation is invisible until reused.
-/// Driving a second buy through end to end after the first truck dies is the
-/// concrete proof the cancellation path is clean.
+/// leaked dispatcher slot, no phantom seller debit.
+///
+/// The leak is asserted on the dead truck's OWN `reserved_by` entry, which is
+/// the only place it is observable. A reservation removes the entity from the
+/// dispatcher's position cache and `free` never re-inserts it -- that happens
+/// in `Dispatcher::update`, which iterates live vehicles. So a despawned truck
+/// is never handed back by `query` whether or not it was freed, and phrasing
+/// the check over queryable trucks (as an earlier version of this test did)
+/// cannot fail.
 #[test]
 fn scenario_dead_truck_tosource_cancels_without_leak() {
     let mut ctx = TestCtx::new();
@@ -400,6 +401,21 @@ fn scenario_dead_truck_tosource_cancels_without_leak() {
         DispatchState::ToSource
     );
 
+    // Precondition: the truck really was reserved for this dispatch. Without
+    // this the leak the test is named for cannot happen, and the assertion
+    // below would pass for the wrong reason.
+    assert_eq!(
+        ctx.g.read::<Market>().dispatches()[0].truck(),
+        Some(dead_truck),
+        "the dispatch must have taken the only truck"
+    );
+    assert!(
+        ctx.g
+            .read::<crate::map_dynamic::Dispatcher>()
+            .is_reserved(crate::map_dynamic::DispatchID::SmallTruck(dead_truck)),
+        "the dispatcher must be holding a reservation on that truck"
+    );
+
     // The vehicle entity vanishes before arriving (e.g. despawned).
     ctx.g.world_mut_unchecked().vehicles.remove(dead_truck);
 
@@ -422,65 +438,17 @@ fn scenario_dead_truck_tosource_cancels_without_leak() {
     );
     drop(m);
 
-    // The dead truck's dispatcher reservation must not still be blocking or
-    // otherwise wedging future dispatches.
-    //
-    // This used to be proved by driving a second buy to completion. It was
-    // not proving that: the seller's sell order had already been consumed by
-    // the first match, so no domestic match was possible, and the buyer's
-    // 5 units arrived via the ext-trade teleport that sov-abs removed. With a
-    // re-posted sell order a genuine second delivery does start -- a dispatch
-    // is created and a truck assigned -- but the freshly spawned truck then
-    // sits at `Driving` without moving, which is a vehicle-substrate problem
-    // (see the `unpark`/collider note in `transportation/road.rs`) and not
-    // what this scenario is about.
-    //
-    // So assert the dispatcher pool directly, which is the stated claim: a
-    // leaked `reserved_by` entry makes exactly one truck permanently
-    // unqueryable.
-    spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos).expect("truck must spawn");
-    ctx.tick(); // let dispatch_system re-register positions
-
-    let all_trucks: Vec<_> = ctx
-        .g
-        .world()
-        .vehicles
-        .iter()
-        .filter(|(_, v)| matches!(v.vehicle.kind, VehicleKind::Truck))
-        .map(|(id, _)| id)
-        .collect();
-    assert!(!all_trucks.is_empty(), "the city must have trucks");
-
-    let (world, res) = ctx.g.world_res();
-    let map = res.read::<crate::map::Map>();
-    let mut dispatcher = res.write::<crate::map_dynamic::Dispatcher>();
-    dispatcher.update(&map, world);
-
-    // Drain the pool. `Dispatcher::update` never purges an entity that was
-    // removed from `world.vehicles`, so the dead truck's stale cache entry can
-    // still be handed out here -- assert on which LIVE trucks came back, not
-    // on the count.
-    let mut handed_out = Vec::new();
-    for _ in 0..all_trucks.len() + 4 {
-        let Some(crate::map_dynamic::DispatchID::SmallTruck(v)) = dispatcher.query(
-            &map,
-            crate::map_dynamic::DispatchKind::SmallTruck,
-            crate::map_dynamic::DispatchQueryTarget::Pos(seller_pos),
-        ) else {
-            break;
-        };
-        handed_out.push(v);
-    }
-    for t in &all_trucks {
-        assert!(
-            handed_out.contains(t),
-            "every live truck must still be reservable after the dead-truck \
-             cancellation; one left in `reserved_by` is leaked out of the city \
-             permanently: {:?} missing from {:?}",
-            t,
-            handed_out
-        );
-    }
+    // The leak itself. `reserved_by` is the only place it shows: nothing ever
+    // purges an entry naming a despawned entity, so a reservation not released
+    // here is held forever.
+    assert!(
+        !ctx.g
+            .read::<crate::map_dynamic::Dispatcher>()
+            .is_reserved(crate::map_dynamic::DispatchID::SmallTruck(dead_truck)),
+        "cancelling the dispatch must release the dead truck's dispatcher \
+         reservation; a `reserved_by` entry naming a despawned entity is never \
+         cleared by any later `update`"
+    );
 }
 
 /// (v)(a) Loading with the buyer's building demolished after the truck has
@@ -1013,8 +981,8 @@ fn scenario_tosource_unpark_refusal_releases_the_truck() {
     // Give it a truck and register it the way `dispatch_system` does, without
     // ticking: a full tick would assign the truck AND flush the vehicle
     // command buffer, closing the window this test is about.
-    let truck = spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos)
-        .expect("truck must spawn");
+    let truck =
+        spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos).expect("truck must spawn");
     {
         let (world, res) = ctx.g.world_res();
         let map = res.read::<crate::map::Map>();

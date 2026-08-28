@@ -122,6 +122,23 @@ impl Dispatcher {
         disp.reserved_by.remove(&ent);
     }
 
+    /// Test-only: whether `ent` is still held by a reservation.
+    ///
+    /// This is the ONLY way to observe a leaked reservation for an entity that
+    /// no longer exists in the world. `DispatchOne::reserve` removes the entity
+    /// from `positions`, and `free` puts it back only via the next `update`,
+    /// which iterates LIVE vehicles — so a despawned entity is invisible to
+    /// `query` whether or not it was freed, and any assertion phrased over
+    /// queryable entities is blind to the leak.
+    #[cfg(test)]
+    pub(crate) fn is_reserved(&self, ent: impl Into<DispatchID>) -> bool {
+        let ent: DispatchID = ent.into();
+        let kind: DispatchKind = ent.into();
+        self.dispatches
+            .get(&kind)
+            .is_some_and(|disp| disp.reserved_by.contains(&ent))
+    }
+
     pub fn unregister(&mut self, id: DispatchID) {
         let kind = id.into();
         let Some(disp) = self.dispatches.get_mut(&kind) else {

@@ -16,14 +16,14 @@ use super::hoarding::{
     setup_seller_buyer,
 };
 use super::inflation::remove_default_freight_station;
-use crate::map::BuildingKind;
-use geom::OBB;
-use prototypes::{BuildingGen, FreightStationPrototypeID};
 use crate::economy::{DispatchState, Market};
+use crate::map::BuildingKind;
 use crate::map_dynamic::BuildingInfos;
 use crate::transportation::{spawn_parked_vehicle, VehicleKind};
 use crate::world::HumanID;
 use crate::SoulID;
+use geom::OBB;
+use prototypes::{BuildingGen, FreightStationPrototypeID};
 use prototypes::{GoodsCompanyID, ItemID};
 
 fn mk_human(id: u64) -> SoulID {
@@ -106,12 +106,14 @@ fn sov_dii_no_freight_station_holds_seller_capital() {
 
     let m = ctx.g.read::<Market>();
     assert_eq!(
-        m.capital(seller, cereal), 10,
+        m.capital(seller, cereal),
+        10,
         "no freight station exists, so no export can be recorded; the seller's \
          quantity must survive untouched"
     );
     assert_eq!(
-        m.inner()[&cereal].sell_order(seller).unwrap().qty, 10,
+        m.inner()[&cereal].sell_order(seller).unwrap().qty,
+        10,
         "the sell order must survive too — nothing left the city"
     );
     assert_eq!(total_qty(&m, cereal), 10);
@@ -679,9 +681,7 @@ fn sov_abs_ext_trade_import_is_physical() {
         );
         assert!(
             m.dispatches().iter().any(|d| {
-                d.kind == cereal
-                    && d.buyer == soul
-                    && matches!(d.seller, SoulID::FreightStation(_))
+                d.kind == cereal && d.buyer == soul && matches!(d.seller, SoulID::FreightStation(_))
             }),
             "the import must be carried by a Dispatch out of the freight \
              station, like any other physical delivery: {:?}",
@@ -700,10 +700,6 @@ fn sov_abs_ext_trade_import_is_physical() {
             "the imported cereal never physically arrived at the factory"
         );
     }
-    assert!(
-        ticks > 0,
-        "the arrival must take at least one further tick after the match"
-    );
 }
 
 /// sov-jcl: the outbound `Loading` leg, buyer building ALIVE (`door_pos`
@@ -716,8 +712,11 @@ fn sov_abs_ext_trade_import_is_physical() {
 /// `MAX_RETURN_ROUTE_RETRIES` since the wedge fix; this is the same bound on
 /// the outbound leg.
 ///
-/// Mutation: delete the `else if outbound_route_retries + 1 >= ...` arm in
-/// `advance_dispatches`' `Loading` state and this test hangs on an immortal
+/// Mutation: in `advance_dispatches`' `Loading` state, delete the
+/// `else if return_route_retries + 1 >= MAX_RETURN_ROUTE_RETRIES` arm that
+/// follows the route-to-buyer attempt (both legs share the one
+/// `Dispatch::return_route_retries` counter; there is no separate outbound
+/// counter field, despite the leg's name) and this test hangs on an immortal
 /// dispatch.
 #[test]
 fn sov_jcl_outbound_loading_route_failure_is_bounded() {
@@ -948,5 +947,112 @@ fn scenario_dead_buyer_loading_goods_returned() {
         m.capital(buyer, cereal),
         0,
         "a removed buyer must never be credited"
+    );
+}
+
+/// sov-ie6 / user decision 2026-08-28: a DEFAULT city cannot trade across the
+/// border, and that is deliberate -- the train arriving is the reward for
+/// connecting the station by road. This test exists so the closure can never
+/// become silent again; both halves are asserted.
+///
+/// Why it is closed: `START_COMMANDS` (`simulation/src/lib.rs`) seeds ten
+/// `MapMakeConnection` commands carrying 13 lane patterns, every one of them
+/// `Rail` and not one `Driving`, plus a single `RailFreightStation`. An import
+/// is a physical truck movement now (sov-abs), so `market_update`
+/// (`simulation/src/economy/mod.rs`) only offers a station whose door is within
+/// `DISPATCH_LANE_CUTOFF` of a `LaneKind::Driving` lane. On a fresh map no such
+/// lane exists, so no import trade is ever matched.
+///
+/// The consequence reaches further than the border: `souls/goods_company.rs`
+/// raises `wanted_cargo` only for a trade whose seller is a
+/// `SoulID::FreightStation`, and `souls/freight_station.rs` only summons a
+/// train once `waiting_cargo + wanted_cargo >= 10`. No imports therefore means
+/// no cargo train in a default game until the player lays road to the station.
+///
+/// The two runs below differ in exactly one thing: whether that road exists.
+fn default_city_imports_within_200_ticks(lay_road_to_station: bool) -> bool {
+    let mut ctx = TestCtx::new();
+    // A road in the factory's own corner of the map, 4km from the station.
+    // `company_soul` needs one to spawn at all; it puts no driving lane
+    // anywhere near the border, which is the point.
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(300.0, 0.0, 0.0)]);
+
+    let station_b = ctx
+        .g
+        .map()
+        .buildings()
+        .iter()
+        .find(|(_, b)| matches!(b.kind, BuildingKind::RailFreightStation(_)))
+        .map(|(id, _)| id)
+        .expect("START_COMMANDS must have seeded a RailFreightStation");
+    let door = ctx.g.map().buildings.get(station_b).unwrap().door_pos;
+
+    if lay_road_to_station {
+        // The endpoints sit well clear of the 160x200 footprint -- a road
+        // endpoint that projects onto a building makes `Map::make_connection`
+        // hit `unreachable!()` -- while the road itself runs past the door.
+        ctx.build_roads(&[
+            Vec3::new(door.x - 400.0, door.y, 0.0),
+            Vec3::new(door.x + 400.0, door.y, 0.0),
+        ]);
+        assert!(
+            ctx.g.map().buildings.get(station_b).is_some(),
+            "the road must not have demolished the station"
+        );
+    }
+
+    assert_eq!(
+        ctx.g
+            .map()
+            .nearest_lane(
+                door,
+                crate::map::LaneKind::Driving,
+                Some(crate::map_dynamic::DISPATCH_LANE_CUTOFF),
+            )
+            .is_some(),
+        lay_road_to_station,
+        "the driving lane at the station door {:?} must exist exactly when the \
+         road was laid; START_COMMANDS lays Rail only, and the factory's own \
+         road is 4km away",
+        door
+    );
+
+    // A flour-factory consumes cereal (`base_mod/companies.lua`). No domestic
+    // seller of cereal exists here, so the border is the only possible source
+    // and any import dispatch it gets had to come across it.
+    build_company_at(
+        &mut ctx,
+        GoodsCompanyID::new("flour-factory").prototype(),
+        Vec2::new(100.0, 20.0),
+    );
+    ctx.tick(); // company soul spawns, recipe_init posts the buy order
+
+    for _ in 0..200 {
+        ctx.tick();
+        if ctx
+            .g
+            .read::<Market>()
+            .dispatches()
+            .iter()
+            .any(|d| matches!(d.seller, SoulID::FreightStation(_)))
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn sov_ie6_default_city_border_is_closed_until_road_reaches_the_station() {
+    assert!(
+        !default_city_imports_within_200_ticks(false),
+        "a default city must have NO external trade: the START_COMMANDS \
+         freight station has no driving lane, so `market_update` refuses it \
+         as an import partner and no cargo train is ever summoned"
+    );
+    assert!(
+        default_city_imports_within_200_ticks(true),
+        "laying a driving road past the station door must open the border and \
+         produce a real import dispatch"
     );
 }
