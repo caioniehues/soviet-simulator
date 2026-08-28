@@ -197,6 +197,14 @@ pub struct Dispatch {
     return_route_retries: u32,
 }
 
+impl Dispatch {
+    /// The truck currently reserved for this dispatch, if one has been
+    /// assigned yet.
+    pub fn truck(&self) -> Option<crate::world::VehicleID> {
+        self.truck
+    }
+}
+
 impl Default for Market {
     fn default() -> Self {
         let prices = calculate_prices(1.25);
@@ -733,6 +741,28 @@ impl Market {
     /// enters `Unloading`; must be called once per tick for dispatches to ever
     /// complete. With no truck available, a dispatch simply waits in `ToSource` —
     /// no capital moves.
+    /// Rolls back the truck reservation `advance_dispatches` recorded for a
+    /// `ToSource` dispatch, putting it back to "waiting for a truck" so the
+    /// next tick retries. Returns whether a dispatch was actually rolled back.
+    ///
+    /// Needed because the truck is assigned here but `unpark` runs deferred
+    /// through `ParCommandBuffer<VehicleEnt>`: if the truck stopped being
+    /// `Parked` in between, `unpark` refuses (sov-6qx) and the truck never
+    /// moves. `ToSource` has no tick countdown, so a dispatch left holding a
+    /// motionless truck waits forever and freezes the seller's reservation
+    /// with it. Identified by the truck rather than by index because
+    /// `dispatches` is `swap_remove`d and indices do not survive a tick; a
+    /// truck is reserved by at most one dispatch at a time.
+    pub(crate) fn release_tosource_truck(&mut self, v: crate::world::VehicleID) -> bool {
+        for d in &mut self.dispatches {
+            if d.state == DispatchState::ToSource && d.truck == Some(v) {
+                d.truck = None;
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn advance_dispatches(
         &mut self,
         world: &mut World,
@@ -801,7 +831,37 @@ impl Market {
                                         if let Some(ve) = world.vehicles.get_mut(v) {
                                             ve.it = route;
                                         }
-                                        cbuf_vehicle.exec_ent(v, move |sim| unpark(sim, v));
+                                        // `unpark` is deferred, so the
+                                        // `Parked` check above and the actual
+                                        // unpark do not observe the same
+                                        // world. If the truck left `Parked`
+                                        // in between, `unpark` refuses
+                                        // (sov-6qx) and never moves it --
+                                        // and a `Parked` vehicle has no
+                                        // collider, so `vehicle_decision_system`
+                                        // skips it and its itinerary never
+                                        // ends. `ToSource` has no timeout, so
+                                        // logging the refusal and keeping
+                                        // `truck = Some(v)` would freeze this
+                                        // dispatch, the truck and the
+                                        // seller's reserved quantity forever.
+                                        // Undo our own bookkeeping instead:
+                                        // release the truck and drop back to
+                                        // "no truck yet" so the next tick
+                                        // retries.
+                                        cbuf_vehicle.exec_ent(v, move |sim| {
+                                            if unpark(sim, v) {
+                                                return;
+                                            }
+                                            log::warn!(
+                                                "{:?} left Parked before its deferred unpark; \
+                                                 releasing it back to the dispatcher",
+                                                v
+                                            );
+                                            sim.write::<Market>().release_tosource_truck(v);
+                                            sim.write::<Dispatcher>()
+                                                .free(DispatchID::SmallTruck(v));
+                                        });
                                         self.dispatches[i].truck = Some(v);
                                     } else {
                                         dispatcher.free(DispatchID::SmallTruck(v));

@@ -214,7 +214,18 @@ pub fn routing_update_system(world: &mut World, resources: &mut Resources) {
                     }
                 }
                 RoutingStep::Unpark(vehicle) => {
-                    cbuf_vehicle.exec_ent(vehicle, move |sim| unpark(sim, vehicle));
+                    cbuf_vehicle.exec_ent(vehicle, move |sim| {
+                        if !unpark(sim, vehicle) {
+                            // Already driving (or gone): the step is a no-op
+                            // rather than a second grid entry (sov-6qx). The
+                            // route itself is unaffected -- the vehicle keeps
+                            // the collider it already has.
+                            log::debug!(
+                                "Unpark step on {:?} which wasn't parked; left as is",
+                                vehicle
+                            );
+                        }
+                    });
                 }
                 RoutingStep::GetInVehicle(vehicle) => {
                     if !world.vehicles.contains_key(vehicle) {

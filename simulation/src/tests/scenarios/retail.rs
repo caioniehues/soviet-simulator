@@ -13,7 +13,7 @@ use crate::economy::{DispatchState, Market};
 use crate::map_dynamic::BuildingInfos;
 use crate::souls::goods_company::recipe_should_produce;
 use crate::souls::human::spawn_human;
-use crate::transportation::{spawn_parked_vehicle, VehicleKind};
+use crate::transportation::{spawn_parked_vehicle, unpark, VehicleKind};
 use crate::world::{HumanEnt, HumanID};
 use crate::{ParCommandBuffer, SoulID};
 use prototypes::{GameTime, GoodsCompanyID, ItemID, Money, TICKS_PER_HOUR};
@@ -291,23 +291,28 @@ fn scenario_never_matched_waiting_is_not_reset() {
 /// Calls `BuyFood::apply` directly for one human, using a single split
 /// borrow (`world_res`) so world mutation and resource reads don't conflict
 /// the way two separate `Simulation::read`/`world_mut_unchecked` calls would.
-fn apply_buyfood(g: &mut crate::Simulation, human_id: HumanID) {
+fn apply_buyfood(
+    g: &mut crate::Simulation,
+    human_id: HumanID,
+) -> crate::souls::human::HumanDecisionKind {
     let (world, res) = g.world_res();
     let cbuf = res.read::<ParCommandBuffer<HumanEnt>>();
     let binfos = res.read::<BuildingInfos>();
+    let map = res.read::<crate::map::Map>();
     let market = res.read::<Market>();
     let time = res.read::<GameTime>();
     let h = world.humans.get_mut(human_id).unwrap();
     h.food.apply(
         &cbuf,
         &binfos,
+        &map,
         &market,
         &time,
         human_id,
         &h.trans,
         &h.location,
         &mut h.bought,
-    );
+    )
 }
 
 /// (iv) `recipe_should_produce` reads capital MINUS reserved: a seller
@@ -802,4 +807,248 @@ fn drain_or_return(ctx: &mut TestCtx, max_ticks: u32) -> bool {
         }
     }
     false
+}
+
+/// sov-xyx: `BoughtAt(b)` is an inescapable sink when `b` is demolished
+/// mid-walk. Every exit from that arm needs `loc == Building(b)`, but
+/// `routing_changed_system` marks the destination reached on a dead building
+/// WITHOUT pushing `GetInBuilding` (`map_dynamic/router.rs`), so `loc` never
+/// advances: the human re-emits `GoTo` forever, hunger ramps, and the bread
+/// demand it represents silently vanishes from what the Planner observes.
+/// Demolishing the store must return the customer to `Empty` so it re-queues,
+/// WITHOUT advancing `last_ate` (went without, same as the expired-claim
+/// branch).
+#[test]
+fn scenario_demolished_store_releases_bought_at_customer() {
+    let mut ctx = TestCtx::new();
+    ctx.build_roads(&[
+        geom::Vec3::new(0.0, 0.0, 0.0),
+        geom::Vec3::new(200.0, 0.0, 0.0),
+    ]);
+    let bakery = GoodsCompanyID::new("bakery").prototype();
+    let seller_b = build_company_at(&mut ctx, bakery, geom::Vec2::new(30.0, 20.0));
+    let house = ctx.build_house_at(geom::Vec2::new(150.0, 20.0));
+    ctx.tick();
+    let seller = ctx.g.read::<BuildingInfos>().owner(seller_b).unwrap();
+    let seller_pos = ctx.g.map().buildings.get(seller_b).unwrap().door_pos;
+    drop(ctx.g.map());
+
+    let human_id = spawn_human(&mut ctx.g, house).expect("human must spawn");
+    let buyer = SoulID::Human(human_id);
+
+    match_one_bread(&mut ctx, seller, seller_pos, buyer);
+
+    // Force `BoughtAt(seller_b)` while the human is still at home: this is
+    // the in-transit customer the ticket is about.
+    {
+        let (world, _res) = ctx.g.world_res();
+        world
+            .humans
+            .get_mut(human_id)
+            .unwrap()
+            .food
+            .set_state_bought_at_for_test(seller_b);
+    }
+    assert_ne!(
+        ctx.g.world().humans.get(human_id).unwrap().location,
+        crate::transportation::Location::Building(seller_b),
+        "the customer must still be in transit for this test to mean anything"
+    );
+
+    let last_ate_before = ctx.g.world().humans.get(human_id).unwrap().food.last_ate;
+
+    // Real demolition, through the same command the player's bulldozer uses.
+    ctx.apply(&[WorldCommand::MapRemoveBuilding(seller_b)]);
+    assert!(
+        !ctx.g.map().buildings().contains_key(seller_b),
+        "the store must actually be gone"
+    );
+    drop(ctx.g.map());
+    // Why the guard needs `&Map` and not the `binfos` the ticket named:
+    // nothing removes a demolished building from `BuildingInfos`, and
+    // slotmapd's `SecondaryMap::get` only version-checks its own slot, so the
+    // entry (and its `owner`) outlive the bulldozer. `binfos` is not a
+    // liveness oracle for a BuildingID.
+    assert!(
+        ctx.g.read::<BuildingInfos>().get(seller_b).is_some(),
+        "BuildingInfos still holds the demolished building -- so it cannot be \
+         the existence check"
+    );
+
+    let decision = apply_buyfood(&mut ctx.g, human_id);
+    ParCommandBuffer::<HumanEnt>::apply(&mut ctx.g);
+    assert!(
+        matches!(decision, crate::souls::human::HumanDecisionKind::Yield),
+        "a demolished store must not keep emitting GoTo, got {:?}",
+        decision
+    );
+    assert_eq!(
+        last_ate_before,
+        ctx.g.world().humans.get(human_id).unwrap().food.last_ate,
+        "going without must NOT advance last_ate (never game over)"
+    );
+
+    // Back in `Empty`, the next decision re-queues a real buy order — the
+    // observable proof the demand did not silently disappear.
+    apply_buyfood(&mut ctx.g, human_id);
+    ParCommandBuffer::<HumanEnt>::apply(&mut ctx.g);
+    assert!(
+        ctx.g
+            .read::<Market>()
+            .inner()
+            .get(&bread())
+            .and_then(|sm| sm.buy_order(buyer))
+            .is_some(),
+        "the customer must re-queue a bread buy order after the store died"
+    );
+}
+
+/// Runs one `Market::advance_dispatches` exactly as `economy::market_update`
+/// does, but WITHOUT flushing `ParCommandBuffer<VehicleEnt>` -- so a test can
+/// look at the world in the window between a dispatch reserving a truck and
+/// the deferred `unpark` actually running.
+fn advance_dispatches_once(ctx: &mut TestCtx) {
+    let (world, res) = ctx.g.world_res();
+    let mut m = res.write::<Market>();
+    let map = res.read::<crate::map::Map>();
+    let binfos = res.read::<BuildingInfos>();
+    let mut dispatcher = res.write::<crate::map_dynamic::Dispatcher>();
+    let cbuf_vehicle = res.read::<ParCommandBuffer<crate::world::VehicleEnt>>();
+    let mut parking = res.write::<crate::map_dynamic::ParkingManagement>();
+    let tick = res.read::<GameTime>().tick;
+    m.advance_dispatches(
+        world,
+        &map,
+        &binfos,
+        &mut dispatcher,
+        &cbuf_vehicle,
+        &mut parking,
+        tick,
+    );
+}
+
+/// sov-6qx (gate condition, logistics-modeller): a refusal signal is only safe
+/// where the caller can undo its OWN bookkeeping. `DispatchState::ToSource`
+/// reserves the truck from the `Dispatcher` and records `truck = Some(v)`
+/// BEFORE the deferred `unpark` runs, so a refusal must roll both back.
+/// `ToSource` has no tick countdown -- its only other exit is the truck entity
+/// vanishing -- so a dispatch left holding a truck that will never move waits
+/// forever and freezes the seller's reserved quantity with it. A `Parked`
+/// vehicle has no collider, and `vehicle_decision_system` skips colliderless
+/// vehicles, so `it.has_ended` never becomes true for it either.
+#[test]
+fn scenario_tosource_unpark_refusal_releases_the_truck() {
+    use crate::map_dynamic::{DispatchID, DispatchKind, DispatchQueryTarget, Dispatcher};
+
+    let mut ctx = TestCtx::new();
+    let (seller, buyer, seller_pos, buyer_pos) = setup_seller_buyer(&mut ctx, 120.0);
+
+    let cereal = ItemID::new("cereal");
+    {
+        let mut m = ctx.g.write::<Market>();
+        m.produce(seller, cereal, 10);
+        m.sell(seller, seller_pos.xy(), cereal, 5, 0);
+        m.buy(buyer, buyer_pos.xy(), cereal, 5);
+    }
+
+    // No truck exists yet, so the dispatch is created and sits in ToSource
+    // with `truck: None` -- there is nothing for the dispatcher to hand it.
+    let mut ticks = 0;
+    loop {
+        ctx.tick();
+        ticks += 1;
+        if !ctx.g.read::<Market>().dispatches().is_empty() {
+            break;
+        }
+        assert!(ticks < 4000, "dispatch was never created");
+    }
+    assert_eq!(
+        ctx.g.read::<Market>().dispatches()[0].truck(),
+        None,
+        "setup: no truck exists yet, so none can be assigned"
+    );
+
+    // Give it a truck and register it the way `dispatch_system` does, without
+    // ticking: a full tick would assign the truck AND flush the vehicle
+    // command buffer, closing the window this test is about.
+    let truck = spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos)
+        .expect("truck must spawn");
+    {
+        let (world, res) = ctx.g.world_res();
+        let map = res.read::<crate::map::Map>();
+        res.write::<Dispatcher>().update(&map, world);
+    }
+
+    // One `advance_dispatches`: the truck IS Parked, so it passes the guard at
+    // the grab site, gets reserved, routed, and recorded -- and an `unpark` is
+    // QUEUED on the vehicle command buffer rather than run.
+    advance_dispatches_once(&mut ctx);
+    assert_eq!(
+        ctx.g.read::<Market>().dispatches()[0].truck(),
+        Some(truck),
+        "setup: the dispatch must have taken the truck"
+    );
+
+    // The window: the truck stops being Parked before the queued unpark runs.
+    // Any non-Parked state reaches the same refusal branch (mid-RoadToPark is
+    // the shape logistics modelled); a competing unpark is the simplest real
+    // way to get there, and is itself the double-grab race.
+    assert!(
+        unpark(&mut ctx.g, truck),
+        "setup: this first unpark is the legitimate one and must succeed"
+    );
+
+    // Flush: the queued unpark now refuses.
+    ParCommandBuffer::<crate::world::VehicleEnt>::apply(&mut ctx.g);
+
+    let m = ctx.g.read::<Market>();
+    assert_eq!(
+        m.dispatches().len(),
+        1,
+        "the dispatch must survive the rollback, not vanish with the goods"
+    );
+    assert_eq!(m.dispatches()[0].state, DispatchState::ToSource);
+    assert_eq!(
+        m.dispatches()[0].truck(),
+        None,
+        "a refused unpark must return the dispatch to 'waiting for a truck', \
+         not leave it holding a truck that will never move"
+    );
+    assert_eq!(
+        m.reserved(seller, cereal),
+        5,
+        "the rollback must not touch the ledger: the sale is still reserved"
+    );
+    assert_eq!(
+        m.capital(seller, cereal),
+        10,
+        "nothing has been debited -- the truck never reached the seller"
+    );
+    drop(m);
+
+    // ...and the truck must be free for the dispatcher to offer again, which
+    // is what makes the next tick a real retry rather than a stall.
+    //
+    // `DispatchOne::reserve` REMOVES the entity from the position cache, and
+    // `Dispatcher::free` only clears `reserved_by` -- the position comes back
+    // at the next `Dispatcher::update`, which `dispatch_system` runs every
+    // tick (see the note on `Dispatcher::free`). So the honest check is: run
+    // that update, then ask. Without the rollback the truck is still in
+    // `reserved_by` and `query` skips it no matter how often it is
+    // re-registered.
+    let (world, res) = ctx.g.world_res();
+    let map = res.read::<crate::map::Map>();
+    let mut dispatcher = res.write::<Dispatcher>();
+    dispatcher.update(&map, world);
+    let offered = dispatcher.query(
+        &map,
+        DispatchKind::SmallTruck,
+        DispatchQueryTarget::Pos(seller_pos),
+    );
+    assert_eq!(
+        offered,
+        Some(DispatchID::SmallTruck(truck)),
+        "the truck must be released back to the dispatcher, not left reserved \
+         by a dispatch that can never use it"
+    );
 }

@@ -5,7 +5,7 @@ use geom::Transform;
 use prototypes::{GameInstant, GameTime, ItemID};
 
 use crate::economy::{find_trade_place, Bought, Market};
-use crate::map::BuildingID;
+use crate::map::{BuildingID, Map};
 use crate::map_dynamic::{BuildingInfos, Destination};
 use crate::souls::human::HumanDecisionKind;
 use crate::transportation::Location;
@@ -67,6 +67,7 @@ impl BuyFood {
         &mut self,
         cbuf: &ParCommandBuffer<HumanEnt>,
         binfos: &BuildingInfos,
+        map: &Map,
         market: &Market,
         time: &GameTime,
         id: HumanID,
@@ -115,6 +116,33 @@ impl BuyFood {
                 Yield
             }
             BuyFoodState::BoughtAt(b) => {
+                // The store can be demolished while the customer is still
+                // walking to it. `routing_changed_system` force-sets
+                // `cur_dest` on a dead building WITHOUT pushing
+                // `GetInBuilding` (map_dynamic/router.rs), so `loc` never
+                // becomes `Building(b)` and every exit below is unreachable.
+                // Reset to `Empty` so the desire re-queues; `last_ate` must
+                // NOT advance -- went without, like the expired-claim branch.
+                //
+                // The seller's reservation is deliberately not this arm's to
+                // release, and it is NOT already gone: on the demolition tick
+                // the seller soul is still alive, because
+                // `update_decision_system` is registered before
+                // `company_system` (init.rs) and `company_system` is what
+                // kills a company whose building vanished. The reservation is
+                // released either by `Market::remove(seller)` when that kill
+                // lands, or by the unconditional retail-claim TTL sweep at the
+                // end of `advance_dispatches` -- abandoning `BoughtAt` does not
+                // remove the claim, so the sweep still reaches it. Re-queueing
+                // before then is safe because `retail_claims` is keyed by
+                // BUYER: one human holds one claim, and `make_trades` releases
+                // a displaced claim's reservation on the old seller's row
+                // before overwriting it.
+                if !map.buildings().contains_key(b) {
+                    log::debug!("{:?}'s store {:?} was demolished, going without", id, b);
+                    self.state = BuyFoodState::Empty;
+                    return Yield;
+                }
                 if loc == &Location::Building(b) {
                     // The claim can have expired (TTL) or been released
                     // (despawn raced this) during the walk over: check
