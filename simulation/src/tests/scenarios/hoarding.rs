@@ -102,6 +102,31 @@ pub(super) fn drain_dispatches(ctx: &mut TestCtx, max_ticks: u32) -> bool {
     false
 }
 
+/// Like `drain_dispatches`, but waits only for the dispatches of one item.
+///
+/// A scenario that drives `make_trades` with a stub `find_external` naming a
+/// soul that owns no building creates background ext-trade imports whose
+/// `door_pos` is `None`; those can never leave `ToSource`, so waiting for the
+/// dispatch list to empty would hang on activity the scenario is not about.
+pub(super) fn drain_dispatches_of(ctx: &mut TestCtx, max_ticks: u32, kind: ItemID) -> bool {
+    let mut spent = 0;
+    while spent < max_ticks {
+        let chunk = (max_ticks - spent).min(50);
+        ctx.advance_ticks(chunk);
+        spent += chunk;
+        if !ctx
+            .g
+            .read::<Market>()
+            .dispatches()
+            .iter()
+            .any(|d| d.kind == kind)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 /// SCENARIO-0082: a matched trade must not move stock on its own. Stock only
 /// leaves the seller when the truck actually arrives and enters `Loading`,
 /// and only reaches the buyer when it arrives and enters `Unloading`. Proves

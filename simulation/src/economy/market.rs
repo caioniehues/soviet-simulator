@@ -133,10 +133,15 @@ pub fn find_trade_place(target: TradeTarget, binfos: &BuildingInfos) -> Option<B
 const DISPATCH_DWELL_TICKS: u32 = 3;
 
 /// How many consecutive tick-retries a `Loading` dispatch gets to find a
-/// route back to the seller (see `DispatchState::Returning`) before giving
-/// up and treating the goods as lost. A severed road can make the route
-/// search fail forever; without a bound this reintroduces the exact wedge
-/// shape this ticket exists to close.
+/// route out — either onward to a live buyer (`DispatchState::ToDestination`)
+/// or back to the seller after the buyer was demolished
+/// (`DispatchState::Returning`) — before giving up and treating the goods as
+/// lost. A severed road can make the route search fail forever; without a
+/// bound this reintroduces the exact wedge shape this ticket exists to close.
+///
+/// Both legs share `Dispatch::return_route_retries`: a dispatch only ever
+/// leaves `Loading` by one of them, and a budget already spent failing to
+/// reach the buyer is not worth re-granting to reach the seller.
 const MAX_RETURN_ROUTE_RETRIES: u32 = 20;
 
 /// How long a human's retail claim (a matched-but-uncollected store purchase,
@@ -189,11 +194,12 @@ pub struct Dispatch {
     /// The truck carrying this dispatch. `None` while waiting for the
     /// `Dispatcher` to find one available.
     truck: Option<crate::world::VehicleID>,
-    /// Failed `Itinerary::route` attempts while trying to route the truck
-    /// back to the seller after the buyer's building was demolished (see
-    /// `DispatchState::Returning`). A severed road can make this fail
-    /// forever, so it's bounded (see `MAX_RETURN_ROUTE_RETRIES`) rather than
-    /// retried indefinitely — that would just reintroduce the wedge shape.
+    /// Failed `Itinerary::route` attempts made from `DispatchState::Loading`.
+    /// Despite the name it counts BOTH exits from `Loading` — onward to a live
+    /// buyer, and back to the seller after the buyer's building was demolished
+    /// (see `MAX_RETURN_ROUTE_RETRIES`, which explains why one shared budget).
+    /// A severed road can make either fail forever, so it's bounded rather
+    /// than retried indefinitely — that would just reintroduce the wedge shape.
     return_route_retries: u32,
 }
 
@@ -606,6 +612,47 @@ impl Market {
                     Some(trade)
                 }));
 
+            // External trading, buy side. Pushed BEFORE the dispatch loop
+            // below, so an import lands in `all_trades[dispatch_start..]`
+            // and gets a `Dispatch` out of the freight station like any
+            // other physical delivery (sov-abs). It used to be pushed after
+            // that loop, with `capital[buyer]` credited right here: goods
+            // appeared in the buyer's larder in the same tick, having moved
+            // nowhere, and no enterprise in a city with a freight station
+            // could ever experience an unmet input need.
+            if !*optout_exttrade {
+                // Humans never clear through the external market: retail
+                // clears by queue and going-without only (never by money —
+                // an ext-trade buy attaches a money_delta, forbidden on the
+                // human path, see `RetailClaim`). Their unmatched buy orders
+                // must survive this pass untouched so they're still there
+                // for next tick's domestic match, not silently dropped.
+                let btaken: BTreeMap<_, _> = buy_orders
+                    .extract_if(.., |s, _| !matches!(s, SoulID::Human(_)))
+                    .collect();
+                // All remaining (non-human) buyers can fulfil since they can buy externally
+                self.all_trades.reserve(btaken.len());
+                for (buyer, order) in btaken {
+                    let qty_buy = order.qty as i32;
+
+                    let Some(ext) = find_external(order.pos) else {
+                        continue;
+                    };
+
+                    // No capital moves here. The border is debited when the
+                    // truck loads at the freight station and the buyer is
+                    // credited when it unloads at their door, exactly like a
+                    // domestic trade (`Market::advance_dispatches`).
+                    self.all_trades.push(Trade {
+                        buyer: TradeTarget(buyer),
+                        seller: TradeTarget(ext),
+                        qty: qty_buy,
+                        kind,
+                        money_delta: -(*ext_value * qty_buy as i64), // we buy from external so we pay
+                    });
+                }
+            }
+
             // Labor isn't cargo: hiring already happens synchronously off
             // `trades` in `economy::market_update` the moment a match is
             // made, so a "job-opening" match never needs a truck to
@@ -659,36 +706,6 @@ impl Market {
 
             // External trading
             if !*optout_exttrade {
-                // Humans never clear through the external market: retail
-                // clears by queue and going-without only (never by money —
-                // an ext-trade buy attaches a money_delta and credits
-                // capital directly, both forbidden on the human path, see
-                // `RetailClaim`). Their unmatched buy orders must survive
-                // this pass untouched so they're still there for next
-                // tick's domestic match, not silently dropped.
-                let btaken: BTreeMap<_, _> = buy_orders
-                    .extract_if(.., |s, _| !matches!(s, SoulID::Human(_)))
-                    .collect();
-                // All remaining (non-human) buyers can fulfil since they can buy externally
-                self.all_trades.reserve(btaken.len());
-                for (buyer, order) in btaken {
-                    let qty_buy = order.qty as i32;
-
-                    let Some(ext) = find_external(order.pos) else {
-                        continue;
-                    };
-
-                    *capital.entry(buyer).or_default() += qty_buy;
-
-                    self.all_trades.push(Trade {
-                        buyer: TradeTarget(buyer),
-                        seller: TradeTarget(ext),
-                        qty: qty_buy,
-                        kind,
-                        money_delta: -(*ext_value * qty_buy as i64), // we buy from external so we pay
-                    });
-                }
-
                 // Seller surplus goes to external trading. Stock already
                 // reserved for a domestic buyer (matched but not yet picked
                 // up by a dispatch) isn't free to export: `sell_all` re-posts
@@ -930,9 +947,35 @@ impl Market {
                                         ve.it = route;
                                     }
                                     self.dispatches[i].state = DispatchState::ToDestination;
+                                } else if return_route_retries + 1 >= MAX_RETURN_ROUTE_RETRIES {
+                                    // sov-jcl: the buyer's building is still
+                                    // standing but no route reaches it (e.g.
+                                    // the road between them was bulldozed).
+                                    // Retrying unbounded here keeps the truck
+                                    // reserved out of the dispatcher pool and
+                                    // the dispatch immortal, so bound it
+                                    // exactly like the return leg below. The
+                                    // goods were debited at `ToSource`
+                                    // arrival and are physically on the
+                                    // truck: this is an honest logged loss,
+                                    // never a teleport-refund.
+                                    log::warn!(
+                                        "dispatch dropped {:?} {:?} ({:?} -> {:?}): no route to \
+                                         a live buyer after {} attempts",
+                                        qty,
+                                        kind,
+                                        seller,
+                                        buyer,
+                                        MAX_RETURN_ROUTE_RETRIES
+                                    );
+                                    dispatcher.free(DispatchID::SmallTruck(v));
+                                    remove = true;
+                                } else {
+                                    // No route found: stay in Loading
+                                    // (ticks_left at 0) and retry next tick.
+                                    self.dispatches[i].return_route_retries =
+                                        return_route_retries + 1;
                                 }
-                                // No route found: stay in Loading (ticks_left at 0)
-                                // and retry next tick.
                             } else {
                                 // Wedge (a): buyer's building was demolished.
                                 // The goods are already debited from the
@@ -1181,8 +1224,6 @@ fn calculate_prices(price_multiplier: f32) -> BTreeMap<ItemID, Money> {
             let price_workers = recipe.duration.minutes()
                 * company.n_workers as f64
                 * WORKER_CONSUMPTION_PER_MINUTE;
-
-            dbg!(price_consumption, price_workers, qty);
 
             let newprice = (price_consumption
                 + Money::new_inner((price_workers.inner() as f32 * price_multiplier) as i64))

@@ -63,6 +63,21 @@ observed source. No row promotes an observed behavior into a desired contract.
 | Imports credit stock immediately and exports can debit stock before a border endpoint exists. | Conflicting; economy violation | `ECO-SUB-002` |
 | Unmatched demand can be removed instead of persisting as a shortage queue. | Conflicting; economy violation | `ECO-SUB-001` |
 
+**A default city has no external trade, by design.** `START_COMMANDS`
+(`simulation/src/lib.rs:443+`) seeds ten `MapMakeConnection` commands carrying 13 lane patterns —
+every one of them `Rail`, not one `Driving` — plus a single `RailFreightStation` whose door lands at
+`(4297.4, 6315.3)`. An import is a physical truck movement since sov-abs, so `market_update`
+(`simulation/src/economy/mod.rs:63-91`) only offers a freight station whose door sits within
+`DISPATCH_LANE_CUTOFF` (50 units, `simulation/src/map_dynamic/dispatch.rs:86`) of a
+`LaneKind::Driving` lane. On a fresh map no such lane exists, so no import trade is ever matched.
+The effect reaches past the border: `simulation/src/souls/goods_company.rs:226-231` raises
+`wanted_cargo` only for a trade whose seller is a `SoulID::FreightStation`, and
+`simulation/src/souls/freight_station.rs:139` only summons a train at
+`waiting_cargo + wanted_cargo >= 10` — so **no cargo train runs in a default game until the player
+lays road to the station**. This is a ratified design decision (user, 2026-08-28): the train
+arriving is the reward for connecting. It is asserted in both directions by
+`tests::scenarios::ledger::sov_ie6_default_city_border_is_closed_until_road_reaches_the_station`.
+
 The logistics and economy classifications come from [wave1-logistics](../../research/fact-sheets/wave1-logistics.md)
 and [wave1-economy](../../research/fact-sheets/wave1-economy.md). They are rewrite constraints,
 not an implementation backlog.

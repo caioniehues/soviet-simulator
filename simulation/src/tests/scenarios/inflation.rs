@@ -36,7 +36,7 @@ use prototypes::{GoodsCompanyID, ItemID};
 /// buy/sell orders are placed, and one tick must elapse afterward so
 /// `freight_station_system` actually drops the now-orphaned `FreightStationEnt`
 /// out of `world.freight_stations` (see module doc comment).
-fn remove_default_freight_station(ctx: &mut TestCtx) {
+pub(super) fn remove_default_freight_station(ctx: &mut TestCtx) {
     let station_building = ctx
         .g
         .map()

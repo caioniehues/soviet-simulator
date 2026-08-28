@@ -79,6 +79,12 @@ pub enum DispatchQueryTarget {
     Lane(LaneID),
 }
 
+/// How far from a lane of the right kind a `DispatchQueryTarget::Pos` may sit
+/// and still be served. A building whose door is further away than this can
+/// never be offered a vehicle, so anything that wants to be *delivered to*
+/// must check the same distance before promising a delivery.
+pub const DISPATCH_LANE_CUTOFF: f32 = 50.0;
+
 impl Dispatcher {
     /// Updates the dispatcher cache about the dispatachable entities to know where they are relative
     /// to the map, so that queries can be answered quickly
@@ -114,6 +120,23 @@ impl Dispatcher {
             return;
         };
         disp.reserved_by.remove(&ent);
+    }
+
+    /// Test-only: whether `ent` is still held by a reservation.
+    ///
+    /// This is the ONLY way to observe a leaked reservation for an entity that
+    /// no longer exists in the world. `DispatchOne::reserve` removes the entity
+    /// from `positions`, and `free` puts it back only via the next `update`,
+    /// which iterates LIVE vehicles — so a despawned entity is invisible to
+    /// `query` whether or not it was freed, and any assertion phrased over
+    /// queryable entities is blind to the leak.
+    #[cfg(test)]
+    pub(crate) fn is_reserved(&self, ent: impl Into<DispatchID>) -> bool {
+        let ent: DispatchID = ent.into();
+        let kind: DispatchKind = ent.into();
+        self.dispatches
+            .get(&kind)
+            .is_some_and(|disp| disp.reserved_by.contains(&ent))
     }
 
     pub fn unregister(&mut self, id: DispatchID) {
@@ -236,7 +259,7 @@ impl DispatchOne {
 
         let target_lane = match target {
             DispatchQueryTarget::Pos(pos) => {
-                let lid = map.nearest_lane(pos, kind.lane_kind(), Some(50.0))?;
+                let lid = map.nearest_lane(pos, kind.lane_kind(), Some(DISPATCH_LANE_CUTOFF))?;
                 let lane = map.lanes().get(lid)?;
                 let proj = lane.points.project(pos);
                 start_along = lane.points.length_at_proj(proj);

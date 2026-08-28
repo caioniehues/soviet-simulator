@@ -23,7 +23,7 @@ mod ecostats;
 mod government;
 mod market;
 
-use crate::map::Map;
+use crate::map::{LaneKind, Map};
 use crate::world::HumanID;
 pub use ecostats::*;
 pub use government::*;
@@ -61,9 +61,26 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
     let freights = &world.freight_stations;
 
     let map = resources.read::<Map>();
+    // A freight station is only a trading partner if a truck can actually be
+    // sent to its door: an ext-trade is a physical movement of goods now
+    // (sov-abs), not a border credit, and `Dispatcher::query` refuses a door
+    // further than `DISPATCH_LANE_CUTOFF` from a driving lane. Without this
+    // check an unreachable station (the hardcoded START_COMMANDS one is
+    // exactly that) promises deliveries that can never be made, and every
+    // import dispatch sits in `ToSource` forever.
     let trades = m.make_trades(|pos| {
         freights
             .iter()
+            .filter(|(_, b)| {
+                map.buildings.get(b.f.building).is_some_and(|b| {
+                    map.nearest_lane(
+                        b.door_pos,
+                        LaneKind::Driving,
+                        Some(crate::map_dynamic::DISPATCH_LANE_CUTOFF),
+                    )
+                    .is_some()
+                })
+            })
             .min_by_key(|(_, b)| {
                 let Some(b) = map.buildings.get(b.f.building) else {
                     return OrderedFloat(f32::INFINITY);
