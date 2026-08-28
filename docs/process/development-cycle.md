@@ -262,7 +262,7 @@ status; it never closes work in place of `bd`.
 | Agent | Does |
 |---|---|
 | `release-engineer` | Pin dependencies to commits. `egui` is currently `git = "…"` with **no branch or rev at all**, tracking upstream HEAD; `yakui` points at a personal fork's `dev` branch. The build is not reproducible |
-| `perf-engineer` | Five PROPOSED bench gates at 250k scale (`bench_services`, `bench_terrain`, `bench_chains`, `bench_rail`, `bench_save`) — **none exist yet, and the charter names none of them**; it delegates gate definition to the implementation plan (charter:55-57). `sov-1ae` is open to build the first |
+| `perf-engineer` | Five PROPOSED bench gates at 250k scale (`bench_services`, `bench_terrain`, `bench_chains`, `bench_rail`, `bench_save`) — **none exist yet, and the charter names none of them**; it delegates gate definition to the implementation plan (charter:55-57). `sov-1ae` would have built the first, but is CLOSED — cancelled 2026-08-27, WIP preserved unmerged on `wip/sov-m0q-wave1` — so the lane is dropped |
 
 Then the visual proof. Per `CLAUDE.md`, work is not done until the user has seen it running: a
 15–20s video, watched back before calling it done. A prior attempt captured the wrong monitor.

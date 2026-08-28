@@ -94,8 +94,12 @@ the charter names `bench_services`/`bench_terrain`/`bench_chains`/`bench_rail`/`
 Reality: `grep -ni bench docs/plan/charter-1.0.md` → ONE hit, saying the opposite —
 "the relevant implementation and release plans define the benchmark gates" (charter:55-57).
 No `[[bench]]` in any Cargo.toml, no `benches/` dir, no bench name anywhere in `.rs`.
-`sov-1ae` ("Build the fixed-seed 250k benchmark contract") is OPEN.
-*Fix:* say the benches do not exist yet and point at `sov-1ae`. Drop the charter attribution.
+~~`sov-1ae` ("Build the fixed-seed 250k benchmark contract") is OPEN.~~ — **SUPERSEDED
+2026-08-28.** `sov-1ae` is CLOSED: cancelled 2026-08-27, WIP preserved unmerged on `wip/sov-m0q-wave1`.
+*Fix:* say the benches do not exist yet and that the 250k lane was cancelled; do not point a
+reader at `sov-1ae` as available work. Drop the charter attribution. (Both applied 2026-08-28
+in `perf-engineer.md`, `settlement-modeller.md`, `common-implementer.md` and
+`development-cycle.md`; the frontmatter half of B3 is applied too.)
 
 **B4. `evidence-auditor.md:92-94` — wrong path (my error from earlier today)**
 Says `evid-spec-bindings.json` is in `docs/generated/evidence/`.

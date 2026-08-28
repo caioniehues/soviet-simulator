@@ -121,9 +121,10 @@ mechanism, do not rule for one.
 
 **1. A silent default on a failed read.** This project's signature defect. A read that
 cannot distinguish *absent* from *malformed* turns a typo into plausible behaviour with no
-warning anywhere. `prototypes/` has six `get_lua(..).unwrap_or(d)` sites that swallow type
-errors, so `request_multiplier = "not-a-number"` parses as `1` — and `1` means honest,
-silently deleting the dishonest-enterprise loop. The correct form already exists two files
+warning anywhere. `prototypes/` has five `get_lua(..).unwrap_or(d)` sites that swallow type
+errors (`base.rs:17`, `item.rs:24`, `recipe.rs:63`, `zone.rs:20`, `zone.rs:21`), so
+`request_multiplier = "not-a-number"` parses as `1` — and `1` means honest, silently
+deleting the dishonest-enterprise loop. The correct form already exists two files
 over at `prototypes/src/prototypes/goods_company.rs:41-42`. Same shape at the save seam
 (`simulation/src/init.rs:233-240` logs and leaves the default; `Deserialize for Simulation`
 returns `Ok` regardless) and in netcode (`networking/src/catchup.rs:39` logs "wrong input"
@@ -134,8 +135,10 @@ absolute. Found in seven of nine code lanes. The worst instance cost the most: a
 walk in `geom/src/skeleton.rs` reached 17.6 GB RSS and OOM-killed the game from an ordinary
 building placement (sov-bo3).
 
-**3. A check you have not seen fail is not evidence.** Mutation is cheap here —
-`cargo test --lib` is about half a second. `test_world_survives_serde` ran green for months
+**3. A check you have not seen fail is not evidence.** Mutation is affordable, but price
+the cycle per crate rather than assuming it is instant: `cargo test -p geom --lib` is 0.22 s
+incremental, while `cargo test -p simulation --lib` — where most mutations land — is 12.4 s
+of test runtime, about 13.5 s wall. `test_world_survives_serde` ran green for months
 with no assert in its loop (sov-myg). Three engine unit tests *asserted illegal query
 offsets* and locked a real GPU panic in as expected behaviour. A `cargo test` filter that
 matches nothing exits 0 printing `test result: ok`, and `-- --exact` matches the full module
@@ -149,7 +152,11 @@ that has other uncommitted changes.
 hit false zeros in one day. A cold rust-analyzer answers `findReferences` with "No
 references found", which reads exactly like a true negative. A graph or LSP zero means
 "unknown", never "none" — cross-check with `grep -n`, or with `ct search`, whose exit 1 is
-trustworthy because it does not go through fff. Verify graph freshness with
+trustworthy for tracked source paths because it does not go through fff. That guarantee stops
+at dot-directories: `ct search --base .` does NOT descend into `.claude/` or `.beads/`
+(proven twice on 2026-08-28 — a string live in `.claude/agents/ui-implementer.md` returned
+exit 1 from the repo root). Point `--base` at the dot-directory itself, and make a second
+tool agree before you report nothing found. Verify graph freshness with
 `head_matches_build`, never with node counts or the "Last updated" line. Better than any
 search: make the compiler prove it — a `#[must_use]` return, or deleting an `unwrap_or`
 fallback so a missing call fails the build instead of silently no-op'ing.
@@ -182,7 +189,10 @@ first chased the wrong layer, and took a 106-line fix plus a second defect found
 fix to undo (`e27a068`, sov-2c4 / sov-7pg). No commit in the last hundred ever reverted an
 abstraction for being too complex. So: if you cut a corner, name it in your report AND open
 a `bd` issue. Marker comments are retired — zero survive in the tree, and the one that
-admitted a truck leak was deleted by a later diff, taking the only record of the leak with it.
+admitted a truck leak was deleted by a later diff (`e27a068`). The leak stayed on record only
+because it was ALSO in `bd sov-2c4` and in
+`.claude/agent-memory/debugger/idle-truck-blocks-lane.md`; the comment itself left nothing
+behind. That is the argument for the ticket, not for the comment.
 
 ### Complexity is never a verdict item
 
@@ -228,8 +238,9 @@ citations across agent bodies in a single pass.
   hover only on pointer MOTION, so a second click at the same coordinates fires nothing —
   this faked a full bug reproduction on already-fixed code and nearly produced a phantom
   second defect report (sov-odw).
-- UiWorld is an Any-keyed bag: the real interface is the 34 resource types registered in
-  init.rs:35-73, and a wrong type is a runtime panic. Read a neighbouring panel first.
+- UiWorld is an Any-keyed bag: the real interface is what init.rs:35-73 registers — 37
+  registration calls, 36 of them in a default build (one is `#[cfg(feature =
+  "multiplayer")]`) — and a wrong type is a runtime panic. Read a neighbouring panel first.
 - Do not copy `native_app/src/init.rs:85-86` — it is the static-mut race already fixed in
   simulation/src/init.rs.
 
