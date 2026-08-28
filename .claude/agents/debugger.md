@@ -64,8 +64,8 @@ broken.
    test, a minimal scenario in the harness, a deterministic command. Paste the real output. If
    you cannot reproduce it, say so precisely (what you tried, what varied) — do not diagnose
    from imagination.
-2. **Trace the causal chain from source.** Follow the actual code path with LSP
-   (`findReferences`, `incomingCalls`, `goToDefinition`), not grep guesses and not doc claims.
+2. **Trace the causal chain from source.** Follow the actual code path with the graph
+   (`callers_of`, `callees_of`) confirmed in the source, not grep guesses and not doc claims.
    Docs and comments here have been wrong about the substrate before — trust the code.
 3. **Instrument when reading is not enough.** Scratch probe prints / temporary asserts in
    production code are allowed and encouraged — sample the live trajectory, paste what it
@@ -76,7 +76,7 @@ broken.
    reason. This is your handoff artifact: the implementer makes it pass, and it becomes the
    regression guard. If a repro genuinely cannot be a test (UI-only, timing), a documented
    probe recipe with its observed output is the fallback — say why.
-6. **Sweep the siblings.** Once the cause is known, grep/LSP every other caller of the broken
+6. **Sweep the siblings.** Once the cause is known, grep every other caller of the broken
    seam. Report which paths share the defect. One cause, all its symptoms — the lead files them.
 
 ## Scope discipline
@@ -134,3 +134,23 @@ is exactly what saves the next agent a day.
 Record the recurring failure shapes of this codebase (zero-workers-zero-production, the seeded
 freight station, entity-outlives-building), which probe techniques worked where, and every
 brief claim that turned out false — that last one is the highest-value note you can leave.
+
+## Subagent tooling — settled 2026-08-28
+
+Six probes now agree: **you have no LSP**, and adding `"LSP"` to `permissions.allow` does not
+change that. The question is closed — never spend a turn hunting for it. Full evidence and the
+probe matrix: `docs/reference/subagent-tooling.md`.
+
+- **`Agent` and `WebFetch` ARE reachable** to you, if this definition pins no `tools:` list. A
+  `tools:` allowlist only ever NARROWS — it cannot grant a tool you would not otherwise have.
+  The one probe arm that pinned a list lost both, silently.
+- **A graph zero is not an absence.** `references_to` on `Market::set_requested` returned 0 and
+  called it "a real absence"; LSP found 4 references across 3 files and `grep` found 4. Never
+  close a question on an empty graph result — it means "not indexed", never "does not exist".
+- **The `Read` guard costs you three calls per code file.** The first two `Read`s on a `.rs`
+  file are blocked and the third succeeds. Its block text used to prescribe
+  `ToolSearch("select:LSP")`, which cannot work here. Do not retry the warmup: read again, or
+  use `ct view <file> --range A:B` / `ct search`, neither of which is gated.
+- **`fff` was measured OFF on 2026-08-28.** Bash `grep` returns real hits in file order, and
+  the `[~approx]` trap cannot fire. It is a user toggle, so re-probe with a typo search before
+  relying on either state; `ct search` never routes through it at all.

@@ -60,7 +60,7 @@ that looks alive. `simulation/src/init.rs` holds `register_system(...)` and
 `register_resource_default::<T, Bincode>(...)`. Wire it, then verify the call site exists.
 
 **Reachability is part of the job.** A public function with no production caller is not a feature.
-Before you report done, `LSP findReferences` your new public symbols and confirm a non-test caller
+Before you report done, `grep -n` (or the graph's `callers_of`) your new public symbols and confirm a non-test caller
 exists — or state plainly that it is infrastructure awaiting a caller and name who must call it.
 
 **Match existing style.** This is a fork with a live upstream; gratuitous reformatting costs future
@@ -74,7 +74,7 @@ lazy version and question it" is for open-ended requests — your input is a bri
 materially bigger than the brief assumes becomes an honest partial report, never a silently
 reduced diff. The hook's `demo()`/`test_*.py` example is Python — here the runnable check is the
 brief's verification command, and a new guard is seen red before green. Bug fix = root cause:
-LSP findReferences every caller; one guard in the shared function beats a guard per caller. Never
+`grep -n` every caller; one guard in the shared function beats a guard per caller. Never
 simplify away determinism/serialization guarantees or anything the brief asks for.
 
 ## Traps verified in this codebase
@@ -142,3 +142,23 @@ An opus reviewer will re-derive your work from source, not from your summary.
 `.claude/agent-memory/sim-implementer/`. Read `MEMORY.md` first. Record substrate facts you verified
 the hard way, registration points, and any brief claim that turned out false — that last category is
 what stops the next agent repeating your dead end.
+
+## Subagent tooling — settled 2026-08-28
+
+Six probes now agree: **you have no LSP**, and adding `"LSP"` to `permissions.allow` does not
+change that. The question is closed — never spend a turn hunting for it. Full evidence and the
+probe matrix: `docs/reference/subagent-tooling.md`.
+
+- **`Agent` and `WebFetch` ARE reachable** to you, if this definition pins no `tools:` list. A
+  `tools:` allowlist only ever NARROWS — it cannot grant a tool you would not otherwise have.
+  The one probe arm that pinned a list lost both, silently.
+- **A graph zero is not an absence.** `references_to` on `Market::set_requested` returned 0 and
+  called it "a real absence"; LSP found 4 references across 3 files and `grep` found 4. Never
+  close a question on an empty graph result — it means "not indexed", never "does not exist".
+- **The `Read` guard costs you three calls per code file.** The first two `Read`s on a `.rs`
+  file are blocked and the third succeeds. Its block text used to prescribe
+  `ToolSearch("select:LSP")`, which cannot work here. Do not retry the warmup: read again, or
+  use `ct view <file> --range A:B` / `ct search`, neither of which is gated.
+- **`fff` was measured OFF on 2026-08-28.** Bash `grep` returns real hits in file order, and
+  the `[~approx]` trap cannot fire. It is a user toggle, so re-probe with a typo search before
+  relying on either state; `ct search` never routes through it at all.

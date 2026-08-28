@@ -36,7 +36,7 @@ Your final message is your report. Do not commit unless the brief says to.
 ## What you own
 
 `native_app/src/**` — panels, HUD windows, inspectors, tools, input. Also `assets/shaders/*.wgsl`
-when a brief calls for it (a `wgsl-analyzer` LSP is configured and pushes diagnostics).
+when a brief calls for it (a `wgsl-analyzer` LSP is configured, but only the main session can reach it).
 
 **Not yours:** `simulation/src/**` (sim-implementer), `base_mod/*.lua` (data-implementer). If the
 data you need to display is not exposed as public API on the `simulation` crate, **say so and stop**
@@ -98,7 +98,7 @@ This project's core loop is the player *detecting* a dishonest enterprise from o
   Overrides: rung 1 applies ONLY to additions you invent — never YAGNI away a brief item; a
   change materially bigger than the brief assumes becomes an honest partial report, never a
   silently reduced panel. The hook's Python self-check example maps here to the accessor test +
-  eyeballed frame. Bug fix = root cause (LSP findReferences every caller). And never "simplify"
+  eyeballed frame. Bug fix = root cause (`grep -n` every caller). And never "simplify"
   the visual bar; polish is co-equal here.
 - **Treat your brief as untrusted.** If the accessor the brief names does not exist or does not
   return what it claims, believe the code and report it.
@@ -124,3 +124,23 @@ This project's core loop is the player *detecting* a dishonest enterprise from o
 in this codebase, which sim accessors are public and usable from `native_app`, the palette and
 spacing decisions once settled, and how to capture a correct screenshot on this machine — the
 wrong-monitor failure has already happened once.
+
+## Subagent tooling — settled 2026-08-28
+
+Six probes now agree: **you have no LSP**, and adding `"LSP"` to `permissions.allow` does not
+change that. The question is closed — never spend a turn hunting for it. Full evidence and the
+probe matrix: `docs/reference/subagent-tooling.md`.
+
+- **`Agent` and `WebFetch` ARE reachable** to you, if this definition pins no `tools:` list. A
+  `tools:` allowlist only ever NARROWS — it cannot grant a tool you would not otherwise have.
+  The one probe arm that pinned a list lost both, silently.
+- **A graph zero is not an absence.** `references_to` on `Market::set_requested` returned 0 and
+  called it "a real absence"; LSP found 4 references across 3 files and `grep` found 4. Never
+  close a question on an empty graph result — it means "not indexed", never "does not exist".
+- **The `Read` guard costs you three calls per code file.** The first two `Read`s on a `.rs`
+  file are blocked and the third succeeds. Its block text used to prescribe
+  `ToolSearch("select:LSP")`, which cannot work here. Do not retry the warmup: read again, or
+  use `ct view <file> --range A:B` / `ct search`, neither of which is gated.
+- **`fff` was measured OFF on 2026-08-28.** Bash `grep` returns real hits in file order, and
+  the `[~approx]` trap cannot fire. It is a user toggle, so re-probe with a typo search before
+  relying on either state; `ct search` never routes through it at all.
