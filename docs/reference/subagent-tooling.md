@@ -149,22 +149,41 @@ minimal is insufficient; escalate to `standard`/`verbose` only for the specific 
 that need it; **never more than 3 graph calls per turn**; prefer targeted queries
 (`query_graph` on a symbol) over broad scans (`list_communities` with full members).
 
-#### The install is FINE — but a future breakage would now be silent
+#### The install is FINE. The real failure is staleness, and it is LOUD
 
 `.venv/bin/code-review-graph` exists, is executable, and answers: **Nodes 3732, Edges
-30017, Files 333**, built on `main` at `2cc7331e`. The graph hooks are not broken. Do not
-write that they are.
+30017, Files 333**. The graph hooks are not broken. Do not write that they are.
 
-What is worth knowing: the **uncommitted** `.claude/settings.json` change replaces a loud
-`SessionStart` check —
+**Correction, 2026-08-28.** An earlier revision of this section claimed the
+`.claude/settings.json` change had replaced a loud `SessionStart` "binary NOT FOUND"
+check with a silent `[ -x "$CRG" ] || exit 0` guard in `PostToolUse`, leaving a future
+breakage unannounced. **That was false, and it was the lead's error, asserted and then
+confirmed by a worker rather than checked.** Both hooks exist and always did: the
+`SessionStart` check still carries the loud warning, and the `PostToolUse` updater was
+an addition, not a replacement. Hook counts are identical between `HEAD` and the working
+tree — `CwdChanged` 1, `PostToolUse` 1, `SessionStart` 2 — so that diff is a key
+reordering with no semantic change. Method note: a claim like this is settled by parsing
+the JSON per hook event, never by eyeballing a reformatted diff.
 
-```
-code-review-graph: binary NOT FOUND at $CRG - graph hooks are DISABLED this session ...
-```
+**The failure that IS real: a stale graph refuses to answer, and the refusal is easy to
+misread as a working tool.** `get_minimal_context_tool` returns
+`status: not_ready, reason: stale_graph` whenever `head_matches_build` is false, and
+that flag compares **git SHAs, not file content**. Measured on 2026-08-28: `main`
+advanced from `2cc7331` to `345a79a` with a docs-only commit, so
+`code-review-graph update` correctly reported `0 files updated` — and left the recorded
+SHA at the old value, which kept every graph query blocked. `update` did not clear it;
+only a full `code-review-graph build` did. Note the CLI spelling: `build` is the
+subcommand, and `update --full-rebuild` is not a valid flag.
 
-— with a silent `[ -x "$CRG" ] || exit 0` guard in `PostToolUse`. The session-start
-warning is gone. So if the venv does break later, nothing says so: every agent simply
-gets stale graph answers, and finding 5's trap arrives with no warning attached.
+Consequences to carry into a brief:
+
+- A lead who checks `status` and sees plausible node counts can wrongly tell workers the
+  graph is current. That happened twice in one session, and **three separate agents
+  independently corrected the lead**, which is the only reason it was caught.
+- Verify freshness with `head_matches_build`, never with the node counts or the
+  `Last updated` timestamp.
+- A docs-only or config-only commit is enough to block the graph, because the check is
+  on the SHA and not on whether any indexed file changed.
 
 ### 6. `fff` is OFF
 
