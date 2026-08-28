@@ -8,7 +8,10 @@
         "serve"
       ],
       "cwd": "/home/caio/soviet-simulator",
-      "type": "stdio"
+      "type": "stdio",
+      "env": {
+        "CRG_EMBEDDING_MODEL": "Alibaba-NLP/gte-modernbert-base"
+      }
     }
   }
 }

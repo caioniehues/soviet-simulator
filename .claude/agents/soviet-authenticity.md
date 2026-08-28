@@ -15,10 +15,15 @@ and treat `Grep`/`Glob` as a bonus if they happen to be there. Never spend a tur
 **The knowledge graph IS available to you** (MCP tools survive the filter) and it is the only
 code-intelligence tool you can reach. Use it before grepping for structure:
 `query_graph_tool` (`callers_of`, `callees_of`, `tests_for`, `imports_of`), `get_impact_radius_tool`,
-`semantic_search_nodes_tool`. Two rules: its call edges are Tree-sitter heuristics carrying a
+`semantic_search_nodes_tool` — reach for that last one when you know what the code DOES but not
+what it is CALLED, and ask it as a behaviour sentence ("a company requests more input than its
+recipe consumes"), never as an identifier ("hoarding"); names belong to `query_graph_tool`.
+Three rules: its call edges are Tree-sitter heuristics carrying a
 confidence tier (`EXTRACTED`/`INFERRED`/`AMBIGUOUS`), so confirm anything load-bearing in the
-source; and `head_matches_build` compares git SHAs, not file content, so on a dirty tree it
-indexes the working tree while claiming to match HEAD. Full rules: `docs/reference/code-intelligence.md`.
+source; `head_matches_build` compares git SHAs, not file content, so on a dirty tree it
+indexes the working tree while claiming to match HEAD; and semantic search misses 34% of the time
+(measured, at its default `limit=20`), so an empty result is *unknown*, never *not there*.
+Full rules: `docs/reference/code-intelligence.md`.
 
 **`SendMessage` arrives deferred.** Load it with `ToolSearch("select:SendMessage")` before you
 report. Address the lead as `main` — never "team-lead".

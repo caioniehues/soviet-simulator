@@ -4,3 +4,4 @@
 - [Uncommitted docs sweep 2026-08-27](sweep-uncommitted-docs-2026-08-27.md) — pre-commit audit at HEAD ba7e8e7; what drifted, what was clean, standing traps
 - [Agent BODIES sweep 2026-08-27 (2nd)](sweep-agent-bodies-2026-08-27-b.md) — prompt bodies at HEAD 4084518: 8 confirmed-wrong claims, the verified-exact list, the duplicate-block drift map
 - [Generated artifacts and their generators](generated-artifacts-and-generators.md) — the roadmap/evidence generator map and the Generator-header drift trap
+- [Practice-blocks sweep 2026-08-28](sweep-practice-blocks-2026-08-28.md) — docs/agent-practice @ 60c5131: 12 confirmed-wrong claims, ct-search dot-dir blindness, gitignored gate-review.js, sov-1ae cancelled

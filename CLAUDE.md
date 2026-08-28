@@ -145,6 +145,13 @@ gives you structural context (callers, dependents, test coverage) that file sear
 ### When to use graph tools FIRST
 
 - **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
+- **You know what code DOES but not what it is CALLED**: `semantic_search_nodes_tool` — the one
+  question grep and LSP cannot answer, since both need a name you already have. Ask it as a
+  sentence describing behaviour ("a company requests more input than its recipe consumes"), never
+  as an identifier ("hoarding") — names are `query_graph_tool`'s job. It runs on a local GPU
+  model: no API, no cost, sub-second. **It misses 34% of the time** (measured, 32 paraphrase
+  queries, default `limit=20`), so an empty result means *unknown*, never *not there* — fall back
+  to grep or LSP before concluding. Numbers and query craft: `docs/reference/code-intelligence.md`.
 - **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
 - **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
 - **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for

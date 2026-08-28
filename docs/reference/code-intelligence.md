@@ -24,10 +24,53 @@ upstream marketing.
 | Which execution flows does this touch? | **graph** — `get_affected_flows_tool`; no LSP equivalent |
 | `base_mod/*.lua` → `prototypes/*.rs` seams | **graph** — no single LSP server spans both |
 | Anything, while rust-analyzer is still cold | **graph** — instant, no warm-up |
+| Where is the code that does X, when you do not know its name? | **graph** — `semantic_search_nodes_tool` |
 
 **LSP stays first for symbol-level intelligence.** The MCP block in `CLAUDE.md` says to start
 with the graph to narrow scope; that is about *scope*, not about *precision*. Narrow with the
 graph, then confirm in the source or with LSP before you change behaviour.
+
+## Semantic search — reach for it when you cannot name the thing
+
+`semantic_search_nodes_tool` embeds your query and ranks nodes by vector similarity. It is the
+right first move whenever you know **what the code does** but not **what it is called** — the one
+question neither LSP nor grep can answer, because both need a name or a string you already have.
+
+Ask it in a sentence describing behaviour, not in identifiers:
+
+- good — `"a company asks for more input than its recipe needs and keeps the surplus"`
+- bad — `"hoarding"` (a name; `query_graph_tool` or grep finds names better and cheaper)
+
+Local model, no API call, no per-query cost. Runs on the GPU in well under a second.
+
+### What it is measured to do, and not do
+
+Benchmarked 2026-08-28 on this repo: 32 hand-authored paraphrase queries, each deliberately
+sharing no distinctive token with its target symbol, against `Alibaba-NLP/gte-modernbert-base`
+over 3501 embedded nodes.
+
+| | Result |
+|---|---|
+| Correct symbol ranked #1 | 11 / 32 |
+| In the top 5 | 17 / 32 |
+| Found anywhere in the top 20 | 21 / 32 |
+| **Not returned at all** | **11 / 32 — a 34% miss rate** |
+
+`semantic_search_nodes_tool` defaults to `limit: int = 20`, so that last row is the failure rate
+you actually experience.
+
+**Therefore: it is a lead generator, not an oracle.** Two rules follow, and they are the same
+discipline the graph zero already demands:
+
+1. **A miss is never evidence of absence.** One in three of these queries returned nothing useful
+   for code that provably exists. "Semantic search found nothing" means *unknown*, never *not
+   there*. Fall back to `query_graph_tool`, grep, or LSP before concluding anything.
+2. **Confirm every hit in the source.** Similarity ranks by description, not by behaviour. A
+   plausible-looking top hit can be the wrong function.
+
+A larger model was tested and rejected: `Qodo-Embed-1-1.5B` cut the miss rate to 19% but tied
+exactly on recall@1 and recall@5, cost 6.17 GB of resident VRAM against 0.56 GB, and doubled
+query latency. The gain sat entirely in ranks 6–20. Not worth the VRAM alongside the running game.
 
 ## Trap 1 — never trust the FIRST LSP call
 

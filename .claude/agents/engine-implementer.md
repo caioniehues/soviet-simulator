@@ -62,9 +62,15 @@ You have no LSP. Your read path is `cat`, `sed -n`, and `grep -n` / `rg` through
 
 MCP tools and Skills ARE available to you, but **MCP schemas arrive deferred and will not appear
 in your visible tool list**. Load them once with
-`ToolSearch("select:mcp__code-review-graph__query_graph_tool,mcp__code-review-graph__get_impact_radius_tool")`.
+`ToolSearch("select:mcp__code-review-graph__query_graph_tool,mcp__code-review-graph__get_impact_radius_tool,mcp__code-review-graph__semantic_search_nodes_tool")`.
 Only a "no matching deferred tools found" result proves absence; report that as a fact and fall
 back to grep rather than retrying.
+
+Load `semantic_search_nodes_tool` and use it whenever you know what the code DOES but not what it
+is CALLED — the one question `grep` cannot answer, since it needs a string you already have. Ask
+in a behaviour sentence, not an identifier. It misses 34% of the time (measured, default
+`limit=20`), so an empty result is *unknown*, never *not there*, and every hit needs confirming
+in the source.
 
 Bash `grep` is routed through a fuzzy wrapper. `| wc -l` counts are exact. `| head -N` is a
 relevance-ranked sample and NEVER proves coverage. A line tagged `[~approx]` is a REFUTATION,
