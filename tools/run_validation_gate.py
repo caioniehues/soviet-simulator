@@ -2,6 +2,7 @@
 """Run a validation command, persist its output, and reject new message signatures."""
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -31,12 +32,35 @@ def validation_lines(stderr: str) -> list[str]:
     ]
 
 
+def validation_was_requested(path: Path) -> bool:
+    """Read `device.validation_requested` out of a capture record.
+
+    Raises `ValueError` when the record is missing, unparseable, or does not carry the flag --
+    the gate must fail loudly rather than assume validation ran.
+    """
+    try:
+        record = json.loads(path.read_text())
+    except OSError as error:
+        raise ValueError(f"cannot read capture record {path}: {error}") from error
+    except json.JSONDecodeError as error:
+        raise ValueError(f"capture record {path} is not valid JSON: {error}") from error
+    device = record.get("device")
+    if not isinstance(device, dict) or "validation_requested" not in device:
+        raise ValueError(f"capture record {path} has no device.validation_requested field")
+    return bool(device["validation_requested"])
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="capture combined output and fail on validation messages outside an allow-list"
     )
     parser.add_argument("--allowlist", required=True, type=Path)
     parser.add_argument("--artifact", required=True, type=Path)
+    parser.add_argument(
+        "--capture-record",
+        type=Path,
+        help="capture record JSON; its device.validation_requested proves validation ran",
+    )
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     if args.command[:1] == ["--"]:
@@ -72,12 +96,8 @@ def main(argv: list[str]) -> int:
     ]
     allowed_count = len(observed) - len(new_messages)
 
-    if result.returncode != 0:
-        print(
-            f"FAIL validation command exited {result.returncode}; artifact: {args.artifact}",
-            file=sys.stderr,
-        )
-        return result.returncode
+    # F12: list the new messages BEFORE returning on a nonzero child exit, so a run that both
+    # fails and emits a new hazard still reports the hazard.
     if new_messages:
         print(
             f"FAIL validation messages: {allowed_count} allowed, {len(new_messages)} new; "
@@ -86,7 +106,42 @@ def main(argv: list[str]) -> int:
         )
         for message in new_messages:
             print(f"  - {message}", file=sys.stderr)
+
+    if result.returncode != 0:
+        print(
+            f"FAIL validation command exited {result.returncode}; artifact: {args.artifact}",
+            file=sys.stderr,
+        )
+        return result.returncode
+    if new_messages:
         return 1
+
+    # B2: a gate that passes on zero input proves nothing. Forgetting `--validation`, or running
+    # where VK_LAYER_KHRONOS_validation is not installed, produces a silent, empty, "clean" run.
+    # Confirm validation actually ran before reporting success. Either confirmation suffices:
+    # the capture record's own flag, or at least one observed validation message.
+    if args.capture_record is not None:
+        try:
+            requested = validation_was_requested(args.capture_record)
+        except ValueError as error:
+            print(f"FAIL validation gate: {error}", file=sys.stderr)
+            return 2
+        if not requested:
+            print(
+                f"FAIL validation was not requested: {args.capture_record} reports "
+                f"device.validation_requested=false; the run proves nothing",
+                file=sys.stderr,
+            )
+            return 2
+    elif not observed:
+        print(
+            "FAIL validation cannot be confirmed: the command produced 0 validation messages "
+            "and no --capture-record was given. Either the validation layer did not run, or "
+            "pass --capture-record so the run can prove it did. "
+            f"Artifact: {args.artifact}",
+            file=sys.stderr,
+        )
+        return 2
 
     print(
         f"PASS validation messages: {allowed_count} allowed, 0 new; artifact: {args.artifact}"
