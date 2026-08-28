@@ -1,6 +1,7 @@
 # Memory Index
 
-- [GPU timing: two rival implementations](project_gpu-timing-two-implementations.md) — neither is on main; check your branch before assuming gpu_timing.rs exists
+- [GPU timing: two rival implementations](project_gpu-timing-two-implementations.md) — the hand-rolled path IS on main since 2026-08-28 (1d358fb), sov-abc fix included
+- [wip/sov-m0q-wave1 is superseded](project_superseded-wip-wave1-branch.md) — blob-compare a WIP branch against main before believing any brief about it
 - [wgpu query-resolve alignment](project_wgpu-query-resolve-alignment.md) — destination_offset must be a multiple of 256; for a 144-byte buffer only 0 is ever legal
 - [wgpu copy safety is the tracker](project_wgpu-copy-safety-is-the-tracker.md) — in-order execution proves nothing; the barrier comes from wgpu-core's tracker
 - [Renderer proof obligations](project_renderer-proof-obligations.md) — one hard-coded capture scene hides conditional-pass bugs; how to exercise an alternate scene

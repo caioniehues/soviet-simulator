@@ -19,6 +19,7 @@ mod inflation;
 mod ledger;
 mod recipe_provided;
 mod retail;
+mod validation;
 
 /// Harness smoke test: proves the scenario harness works end to end
 /// (roads, lot-independent building placement, multi-tick advance, and the

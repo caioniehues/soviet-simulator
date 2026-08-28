@@ -35,10 +35,23 @@ pub unsafe fn load_prototypes(base: &str) -> Result<(), PrototypeLoadError> {
     Ok(())
 }
 
+/// Runs a base_mod-shaped Lua string through the REAL parse + validate path and
+/// returns the outcome. Unlike [`test_prototypes`] it never panics on a rejected
+/// value, and never installs anything into the thread-local prototype slot, so a
+/// test can assert that a deliberately bad data value is REFUSED at load instead
+/// of being silently accepted.
+pub fn try_parse_prototypes(lua: &str) -> Result<(), PrototypeLoadError> {
+    parse_prototypes_boxed(Lua::new(), lua).map(drop)
+}
+
 unsafe fn parse_prototypes_str(
     l: Lua,
     main: &str,
 ) -> Result<&'static Prototypes, PrototypeLoadError> {
+    Ok(Box::leak(parse_prototypes_boxed(l, main)?))
+}
+
+fn parse_prototypes_boxed(l: Lua, main: &str) -> Result<Box<Prototypes>, PrototypeLoadError> {
     l.load(include_str!("prototype_init.lua")).exec()?;
 
     l.load(main).exec()?;
@@ -66,7 +79,7 @@ unsafe fn parse_prototypes_str(
     p.compute_orderings();
     p.print_stats();
 
-    Ok(Box::leak(p))
+    Ok(p)
 }
 
 #[derive(Error, Debug)]

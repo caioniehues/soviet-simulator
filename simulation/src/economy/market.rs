@@ -1221,6 +1221,18 @@ fn calculate_prices(price_multiplier: f32) -> BTreeMap<ItemID, Money> {
                 .find_map(|x| (x.id == id).then_some(x.amount))
                 .unwrap_or(0) as i64;
 
+            // `validate()` (prototypes/src/validation.rs) refuses any recipe
+            // amount below 1, so qty is >= 1 for every loaded prototype. Guard
+            // anyway: this division is the only arithmetic here that can panic,
+            // and a panic on a live path ends the game, which the pillars
+            // forbid. Skipping the recipe as a price CANDIDATE is the honest
+            // response -- `minprice` already tolerates having no candidate at
+            // all (`unwrap_or(Money::ZERO)` below) -- whereas substituting any
+            // divisor would publish a silently wrong price instead.
+            if qty <= 0 {
+                continue;
+            }
+
             let price_workers = recipe.duration.minutes()
                 * company.n_workers as f64
                 * WORKER_CONSUMPTION_PER_MINUTE;

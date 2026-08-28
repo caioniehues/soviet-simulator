@@ -56,6 +56,57 @@ pub(crate) fn validate(proto: &Prototypes) -> Result<(), MultiError<ValidationEr
                     ));
                 }
             }
+
+            // A recipe's numbers are consumed as unsigned quantities and as a
+            // divisor, so a value below 1 does not merely look wrong -- it
+            // inverts the meaning of the data. Refuse it here, at load, where
+            // the company name is still available to say WHICH entry is bad.
+            //
+            // `request_multiplier` is read by `souls/goods_company.rs`
+            // `recipe_init` as `item.amount as u32 * request_multiplier as u32`:
+            // -3 wraps to 4_294_967_293, a standing request larger than the
+            // whole economy, and 0 requests nothing at all, stalling the
+            // enterprise forever. Both are silent.
+            if r.request_multiplier < 1 {
+                errors.push(ValidationError::InvalidField(
+                    comp.name.clone(),
+                    "recipe.request_multiplier",
+                    format!("must be at least 1, got {}", r.request_multiplier),
+                ));
+            }
+
+            // A production `amount` is the divisor in `economy/market.rs`
+            // `calculate_price_inner`, so 0 is an integer divide by zero -- a
+            // panic on a live path. Consumption amounts are compared against
+            // capital and multiplied into requests; below 1 is meaningless
+            // there too.
+            for (field, items) in [
+                ("recipe.consumption", &r.consumption),
+                ("recipe.production", &r.production),
+            ] {
+                for item in items {
+                    if item.amount < 1 {
+                        // Name the item, not its hashed id: this message is
+                        // read by whoever is editing the Lua, and
+                        // `ItemID(11802632242151335080)` tells them nothing.
+                        // The id may be dangling, which the loop above already
+                        // reports separately, so fall back to the raw id.
+                        let item_name = proto
+                            .item
+                            .get(&item.id)
+                            .map(|i| i.base.name.clone())
+                            .unwrap_or_else(|| format!("{:?}", item.id));
+                        errors.push(ValidationError::InvalidField(
+                            comp.name.clone(),
+                            field,
+                            format!(
+                                "amount for {} must be at least 1, got {}",
+                                item_name, item.amount
+                            ),
+                        ));
+                    }
+                }
+            }
         }
 
         if comp.power_consumption.map_or(false, |v| v.0 < 0) {

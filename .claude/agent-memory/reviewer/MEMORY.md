@@ -15,5 +15,6 @@
 - [Silent decode to default seam](silent-decode-default-seam.md) — 16 resources cross save/load, errors swallowed into defaults, only map guarded
 - [Skeleton corrupt-LAV refusal](skeleton-corrupt-lav-refusal.md) — skeleton() returns Option since sov-bo3; the vs.len()+1 bound's `+1` is load-bearing; ONE production caller
 - [No test CI in this repo](repo-has-no-test-ci.md) — only dependency-policy.yml (cargo-deny); score coverage against a default local `cargo test`, never against CI
+- [Prototype validation seam](prototype-validation-seam.md) — validate() is the only data gate; storage_multiplier/duration still unguarded; get_lua().unwrap_or() swallows type errors
 - [Review method patterns](review-method-patterns.md) — LSP warmup, out-of-tree oracles, mutation protocol, concurrent-review fencing (ported from refactor-reviewer)
 - [Renderer evidence tooling](renderer-evidence-tooling.md) — wgpu 256-byte query-resolve alignment trap; both evidence gates pass on empty/near-miss input; capture PNG hash e547e263; graph is stale on branches

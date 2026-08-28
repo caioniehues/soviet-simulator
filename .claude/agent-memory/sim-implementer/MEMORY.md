@@ -14,4 +14,5 @@
 - [Tests passing on the teleport](tests-passing-on-the-teleport.md) — pre-sov-abs ext-trade credited instantly; two scenario tests were green for the wrong reason
 - [Export gate blocks on the teleport](export-gate-blocks-on-teleport.md) — ungating exports (sov-nun) drains sellers to the border; measured A/B; must wait for sov-20g
 - [Dead-entity leaks need reserved_by](dead-entity-leaks-need-reserved-by.md) — "every live truck is still reservable" can never detect a leak held by a despawned entity; use `Dispatcher::is_reserved`
+- [Determinism guard's real reach](determinism-guard-reach.md) — test_world_survives_serde runs an EMPTY schedule; is_equal ignores the ECS World (sov-n8v)
 - [Default city border is closed](default-city-border-is-closed.md) — no external trade and no cargo train until the player lays road; ratified, not a bug; plus three test-harness traps
