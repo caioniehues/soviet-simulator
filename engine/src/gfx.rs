@@ -11,8 +11,8 @@ use wgpu::{
     FrontFace, ImageCopyTexture, ImageDataLayout, InstanceDescriptor, MultisampleState,
     PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPassColorAttachment,
     RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, SamplerDescriptor, Surface,
-    SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView,
-    TextureViewDescriptor, VertexBufferLayout, VertexState,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexBufferLayout, VertexState,
 };
 use winit::window::{Fullscreen, Window};
 
@@ -40,8 +40,8 @@ pub struct FBOs {
 }
 
 pub struct GfxContext {
-    pub window: Arc<Window>,
-    pub surface: Surface<'static>,
+    window: Option<Arc<Window>>,
+    surface: Option<Surface<'static>>,
     pub device: Device,
     pub queue: Queue,
     pub fbos: FBOs,
@@ -279,6 +279,20 @@ impl<'a> FrameContext<'a> {
 
 impl GfxContext {
     pub async fn new(window: Arc<Window>, opts: GfxOptions) -> Self {
+        let size = window.inner_size();
+        let scale_factor = window.scale_factor();
+        Self::new_with_target(Some(window), (size.width, size.height, scale_factor), opts).await
+    }
+
+    pub async fn new_offscreen(width: u32, height: u32, opts: GfxOptions) -> Self {
+        Self::new_with_target(None, (width, height, 1.0), opts).await
+    }
+
+    async fn new_with_target(
+        window: Option<Arc<Window>>,
+        target_size: (u32, u32, f64),
+        opts: GfxOptions,
+    ) -> Self {
         let mut backends = backend_bits_from_env().unwrap_or_else(Backends::all);
         if std::env::var("RENDERDOC").is_ok() {
             backends = Backends::VULKAN;
@@ -304,12 +318,14 @@ impl GfxContext {
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
         });
 
-        let surface = instance.create_surface(window.clone()).unwrap();
+        let surface = window
+            .as_ref()
+            .map(|window| instance.create_surface(window.clone()).unwrap());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
-                compatible_surface: Some(&surface),
+                compatible_surface: surface.as_ref(),
             })
             .await
             .expect("failed to find a suitable adapter");
@@ -370,17 +386,19 @@ impl GfxContext {
             .contains(wgpu::Features::TIMESTAMP_QUERY)
             .then(|| crate::gpu_timing::GpuTimings::new(&device, &queue));
 
-        let capabilities = surface.get_capabilities(&adapter);
+        let format = surface
+            .as_ref()
+            .map(|surface| {
+                let capabilities = surface.get_capabilities(&adapter);
+                *capabilities
+                    .formats
+                    .iter()
+                    .find(|x| x.is_srgb())
+                    .unwrap_or_else(|| &capabilities.formats[0])
+            })
+            .unwrap_or(TextureFormat::Rgba8UnormSrgb);
 
-        let format = *capabilities
-            .formats
-            .iter()
-            .find(|x| x.is_srgb())
-            .unwrap_or_else(|| &capabilities.formats[0]);
-
-        let win_width = window.inner_size().width;
-        let win_height = window.inner_size().height;
-        let win_scale_factor = window.scale_factor();
+        let (win_width, win_height, win_scale_factor) = target_size;
 
         let mut usage = TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING;
         if opts.allow_capture {
@@ -402,7 +420,9 @@ impl GfxContext {
         //        let samples = if cfg!(target_arch = "wasm32") { 1 } else { 4 };
         let samples = 1;
         let fbos = Self::create_textures(&device, &sc_desc, samples);
-        surface.configure(&device, &sc_desc);
+        if let Some(surface) = &surface {
+            surface.configure(&device, &sc_desc);
+        }
 
         let screen_uv_vertices = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("screen quad vertices"),
@@ -674,11 +694,13 @@ impl GfxContext {
         }
 
         if Some(settings.fullscreen) != self.settings.map(|s| s.fullscreen) {
-            self.window.set_fullscreen(
-                settings
-                    .fullscreen
-                    .then(|| Fullscreen::Borderless(self.window.current_monitor())),
-            )
+            if let Some(window) = &self.window {
+                window.set_fullscreen(
+                    settings
+                        .fullscreen
+                        .then(|| Fullscreen::Borderless(window.current_monitor())),
+                )
+            }
         }
 
         let present_mode = if settings.vsync {
@@ -789,6 +811,30 @@ impl GfxContext {
         }
     }
 
+    pub fn window(&self) -> &Window {
+        self.window
+            .as_deref()
+            .expect("the offscreen graphics target has no window")
+    }
+
+    pub fn surface(&self) -> &Surface<'static> {
+        self.surface
+            .as_ref()
+            .expect("the offscreen graphics target has no surface")
+    }
+
+    pub fn create_offscreen_target(&self) -> Texture {
+        Texture::create_fbo(
+            &self.device,
+            (self.sc_desc.width, self.sc_desc.height),
+            self.sc_desc.format,
+            TextureUsages::RENDER_ATTACHMENT
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
+            None,
+        )
+    }
+
     pub fn set_time(&mut self, time: f32) {
         self.render_params.value_mut().time = time;
     }
@@ -800,7 +846,7 @@ impl GfxContext {
         self.frustrum = InfiniteFrustrum::from_reversez_invviewproj(cam.eye(), cam.inv_proj_cache);
     }
 
-    pub fn start_frame(&mut self, sco: &SurfaceTexture) -> (Encoders, TextureView) {
+    pub fn start_frame(&mut self, target: &wgpu::Texture) -> (Encoders, TextureView) {
         let mut before_main = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor {
@@ -837,7 +883,7 @@ impl GfxContext {
                 after_main,
                 gui: None,
             },
-            sco.texture.create_view(&TextureViewDescriptor::default()),
+            target.create_view(&TextureViewDescriptor::default()),
         )
     }
 
@@ -1180,7 +1226,9 @@ impl GfxContext {
         self.sc_desc.width = self.size.0;
         self.sc_desc.height = self.size.1;
 
-        self.surface.configure(&self.device, &self.sc_desc);
+        if let Some(surface) = &self.surface {
+            surface.configure(&self.device, &self.sc_desc);
+        }
         self.fbos = Self::create_textures(&self.device, &self.sc_desc, self.samples);
         self.update_simplelit_bg();
     }

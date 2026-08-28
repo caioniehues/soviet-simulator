@@ -8,7 +8,8 @@ use winit::window::Window;
 /// It handles the rendering of the UI
 pub struct EguiWrapper {
     pub renderer: Renderer,
-    pub platform: egui_winit::State,
+    context: egui::Context,
+    platform: Option<egui_winit::State>,
     pub last_mouse_captured: bool,
     pub last_kb_captured: bool,
     pub to_remove: Vec<TextureId>,
@@ -20,15 +21,29 @@ impl EguiWrapper {
         let egui = egui::Context::default();
 
         let viewport_id = egui.viewport_id();
-        let platform = egui_winit::State::new(egui, viewport_id, el, Some(gfx.size.2 as f32), None);
+        let platform =
+            egui_winit::State::new(egui.clone(), viewport_id, el, Some(gfx.size.2 as f32), None);
 
         let renderer = Renderer::new(&gfx.device, gfx.fbos.format, None, 1);
 
         Self {
             renderer,
+            context: egui,
             last_mouse_captured: false,
             last_kb_captured: false,
-            platform,
+            platform: Some(platform),
+            to_remove: vec![],
+            zoom_factor: 1.0,
+        }
+    }
+
+    pub fn new_headless(gfx: &GfxContext) -> Self {
+        Self {
+            renderer: Renderer::new(&gfx.device, gfx.fbos.format, None, 1),
+            context: egui::Context::default(),
+            platform: None,
+            last_mouse_captured: false,
+            last_kb_captured: false,
             to_remove: vec![],
             zoom_factor: 1.0,
         }
@@ -43,8 +58,12 @@ impl EguiWrapper {
             self.renderer.free_texture(&id);
         }
 
-        let rinput = self.platform.take_egui_input(&gfx.gfx.window);
-        let egui = self.platform.egui_ctx();
+        let rinput = self
+            .platform
+            .as_mut()
+            .map(|platform| platform.take_egui_input(gfx.gfx.window()))
+            .unwrap_or_default();
+        let egui = &self.context;
         egui.set_zoom_factor(self.zoom_factor);
 
         let output = egui.run(rinput, |ctx| {
@@ -90,11 +109,12 @@ impl EguiWrapper {
         self.renderer
             .render(&mut render_pass, &clipped_primitives, &desc);
 
-        self.platform
-            .handle_platform_output(&gfx.gfx.window, output.platform_output);
+        if let Some(platform) = &mut self.platform {
+            platform.handle_platform_output(gfx.gfx.window(), output.platform_output);
+        }
 
-        self.last_mouse_captured = self.platform.egui_ctx().wants_pointer_input();
-        self.last_kb_captured = self.platform.egui_ctx().wants_keyboard_input();
+        self.last_mouse_captured = self.context.wants_pointer_input();
+        self.last_kb_captured = self.context.wants_keyboard_input();
     }
 
     pub fn handle_event(&mut self, window: &Window, e: &winit::event::WindowEvent) {
@@ -109,6 +129,8 @@ impl EguiWrapper {
         //{
         //    return;
         //}
-        let _ = self.platform.on_window_event(window, e);
+        if let Some(platform) = &mut self.platform {
+            let _ = platform.on_window_event(window, e);
+        }
     }
 }

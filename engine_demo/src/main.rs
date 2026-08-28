@@ -298,21 +298,27 @@ impl State {
         if ctx.input.mouse.pressed.contains(&MouseButton::Left) {
             let _ = ctx
                 .gfx
-                .window
+                .window()
                 .set_cursor_grab(engine::CursorGrabMode::Confined);
-            ctx.gfx.window.set_cursor_visible(false);
+            ctx.gfx.window().set_cursor_visible(false);
             self.is_captured = true;
         }
 
         if ctx.input.cursor_left {
-            let _ = ctx.gfx.window.set_cursor_grab(engine::CursorGrabMode::None);
-            ctx.gfx.window.set_cursor_visible(true);
+            let _ = ctx
+                .gfx
+                .window()
+                .set_cursor_grab(engine::CursorGrabMode::None);
+            ctx.gfx.window().set_cursor_visible(true);
             self.is_captured = false;
         }
 
         if ctx.input.keyboard.pressed.contains(&Key::Escape) {
-            let _ = ctx.gfx.window.set_cursor_grab(engine::CursorGrabMode::None);
-            ctx.gfx.window.set_cursor_visible(true);
+            let _ = ctx
+                .gfx
+                .window()
+                .set_cursor_grab(engine::CursorGrabMode::None);
+            ctx.gfx.window().set_cursor_visible(true);
             self.is_captured = false;
         }
 

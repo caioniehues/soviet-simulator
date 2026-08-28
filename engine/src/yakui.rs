@@ -9,7 +9,7 @@ use yakui::{TextureId, Yakui};
 pub struct YakuiWrapper {
     pub yakui: Yakui,
     pub renderer: yakui_wgpu::YakuiWgpu,
-    platform: yakui_winit::YakuiWinit,
+    platform: Option<yakui_winit::YakuiWinit>,
     pub zoom_factor: f32,
     pub format: TextureFormat,
     pub blur_bg_texture: TextureId,
@@ -17,6 +17,14 @@ pub struct YakuiWrapper {
 
 impl YakuiWrapper {
     pub fn new(gfx: &GfxContext, el: &Window) -> Self {
+        Self::new_inner(gfx, Some(yakui_winit::YakuiWinit::new(el)))
+    }
+
+    pub fn new_headless(gfx: &GfxContext) -> Self {
+        Self::new_inner(gfx, None)
+    }
+
+    fn new_inner(gfx: &GfxContext, platform: Option<yakui_winit::YakuiWinit>) -> Self {
         let yakui = Yakui::new();
 
         let fonts = yakui.dom().get_global_or_init(Fonts::default);
@@ -33,8 +41,6 @@ impl YakuiWrapper {
         )
         .unwrap();
         fonts.add(font, Some("monospace"));
-
-        let platform = yakui_winit::YakuiWinit::new(el);
 
         let mut renderer = yakui_wgpu::YakuiWgpu::new(&gfx.device, &gfx.queue);
 
@@ -108,6 +114,8 @@ impl YakuiWrapper {
     }
 
     pub fn handle_event(&mut self, e: &winit::event::Event<()>) -> bool {
-        self.platform.handle_event(&mut self.yakui, e)
+        self.platform
+            .as_mut()
+            .is_some_and(|platform| platform.handle_event(&mut self.yakui, e))
     }
 }

@@ -45,6 +45,12 @@ pub struct CaptureOptions {
     pub gpu_timing_samples: Option<u32>,
 }
 
+impl FrameworkOptions {
+    pub fn requires_window(&self) -> bool {
+        self.capture.is_none()
+    }
+}
+
 #[allow(unused_variables)]
 pub trait State: 'static {
     fn new(ctx: &mut Context) -> Self;
@@ -92,7 +98,7 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
     let mut state = S::new(&mut ctx);
     ctx.gfx.defines_changed = false;
 
-    let mut scale_factor = ctx.gfx.window.scale_factor();
+    let mut scale_factor = ctx.gfx.window().scale_factor();
     log::info!("initial scale factor: {:?}", scale_factor);
     let mut last_update = Instant::now();
     let mut frame_ix: u32 = 0;
@@ -102,7 +108,7 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
 
         if let Event::WindowEvent { event, .. } = &event {
             if !opts.freeze_input {
-                ctx.egui.handle_event(&ctx.gfx.window, event);
+                ctx.egui.handle_event(ctx.gfx.window(), event);
             }
         }
 
@@ -151,11 +157,11 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
                         }
                     }
                     WindowEvent::RedrawRequested => {
-                        let sco = match ctx.gfx.surface.get_current_texture() {
+                        let sco = match ctx.gfx.surface().get_current_texture() {
                             Ok(swapchainframe) => swapchainframe,
                             Err(wgpu::SurfaceError::Timeout) => ctx
                                 .gfx
-                                .surface
+                                .surface()
                                 .get_current_texture()
                                 .expect("Failed to acquire next swap chain texture after timeout"),
                             Err(wgpu::SurfaceError::Outdated)
@@ -165,7 +171,7 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
                                 ctx.gfx.resize(size);
                                 state.resized(&mut ctx, size);
                                 ctx.gfx
-                                    .surface
+                                    .surface()
                                     .get_current_texture()
                                     .expect("Failed to acquire next swap chain texture after losing surface")
                             }
@@ -190,7 +196,7 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
 
                         state.update(&mut ctx);
 
-                        let (mut enc, view) = ctx.gfx.start_frame(&sco);
+                        let (mut enc, view) = ctx.gfx.start_frame(&sco.texture);
                         (ctx.times.render_time, ctx.times.gui_time) = ctx
                             .gfx
                             .render(&mut enc, &view, &mut state, |state, mut gctx| {
@@ -237,13 +243,13 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
 
                         let (icon, changed) = get_cursor_icon();
                         if changed {
-                            ctx.gfx.window.set_cursor_icon(icon);
+                            ctx.gfx.window().set_cursor_icon(icon);
                         }
                         ctx.input.end_frame();
                         ctx.times.total_cpu_time = last_update.elapsed().as_secs_f32();
 
                         sco.present();
-                        ctx.gfx.window.request_redraw();
+                        ctx.gfx.window().request_redraw();
                     }
                     _ => (),
                 }
@@ -252,6 +258,68 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
         }
     })
     .expect("Failed to run event loop");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn run_offscreen<S: State>(opts: FrameworkOptions) {
+    let cap = opts
+        .capture
+        .clone()
+        .expect("offscreen rendering requires capture options");
+    let (width, height) = opts
+        .fixed_size
+        .expect("offscreen capture requires a fixed size");
+    let gfx_opts = GfxOptions {
+        validation: opts.validation,
+        allow_capture: true,
+        gpu_timings: cap.gpu_timing_samples.is_some(),
+    };
+    let mut ctx = Context::new_offscreen(width, height, gfx_opts).await;
+    let mut state = S::new(&mut ctx);
+    ctx.gfx.defines_changed = false;
+    let size = (width, height, 1.0);
+    state.resized(&mut ctx, size);
+    let target = ctx.gfx.create_offscreen_target();
+
+    for frame_ix in 0..=cap.warmup_frames {
+        ctx.delta = opts.fixed_delta.unwrap_or(0.0);
+        if let (Some(samples), Some(timings)) = (cap.gpu_timing_samples, &ctx.gfx.gpu_timings) {
+            let first = cap.warmup_frames.saturating_sub(samples.saturating_sub(1));
+            timings.set_armed(frame_ix >= first && frame_ix <= cap.warmup_frames);
+        }
+
+        state.update(&mut ctx);
+        let (mut enc, view) = ctx.gfx.start_frame(&target.texture);
+        (ctx.times.render_time, ctx.times.gui_time) =
+            ctx.gfx
+                .render(&mut enc, &view, &mut state, |state, mut gctx| {
+                    #[cfg(feature = "yakui")]
+                    ctx.yakui.render(&mut gctx, || {
+                        state.render_yakui();
+                    });
+                    ctx.egui.render(gctx, |ui| {
+                        state.render_gui(ui);
+                    });
+                });
+        ctx.gfx.finish_frame(enc);
+        if let Some(timings) = &ctx.gfx.gpu_timings {
+            timings.collect_frame(&ctx.gfx.device, &ctx.gfx.queue);
+        }
+    }
+
+    let record = ctx.gfx.capture_record(
+        opts.fixed_size,
+        cap.warmup_frames,
+        opts.fixed_delta.unwrap_or(0.0),
+        opts.validation,
+    );
+    match crate::capture::capture_texture(&ctx.gfx.device, &ctx.gfx.queue, &target.texture) {
+        Ok(frame) => state.on_capture(&record, Ok(&frame)),
+        Err(error) => {
+            log::error!("capture failed: {error}");
+            state.on_capture(&record, Err(error.as_str()));
+        }
+    }
 }
 
 pub fn init() {
@@ -272,6 +340,11 @@ pub fn start<S: State>() {
 
 pub fn start_with_options<S: State>(opts: FrameworkOptions) {
     let _ = ThreadPoolBuilder::new().num_threads(8).build_global();
+    #[cfg(not(target_arch = "wasm32"))]
+    if !opts.requires_window() {
+        beul::execute(run_offscreen::<S>(opts));
+        return;
+    }
     let el = EventLoop::new().expect("Failed to create event loop");
 
     #[cfg(target_arch = "wasm32")]
@@ -379,7 +452,24 @@ impl Context {
             times: EngineTimes::default(),
             egui,
             #[cfg(feature = "yakui")]
-            yakui: crate::yakui::YakuiWrapper::new(&gfx, &gfx.window),
+            yakui: crate::yakui::YakuiWrapper::new(&gfx, gfx.window()),
+            gfx,
+        }
+    }
+
+    pub async fn new_offscreen(width: u32, height: u32, opts: GfxOptions) -> Self {
+        let gfx = GfxContext::new_offscreen(width, height, opts).await;
+        let egui = EguiWrapper::new_headless(&gfx);
+
+        Self {
+            input: InputContext::default(),
+            audio: AudioContext::empty("headless capture"),
+            delta: 0.0,
+            keybind_mode: false,
+            times: EngineTimes::default(),
+            egui,
+            #[cfg(feature = "yakui")]
+            yakui: crate::yakui::YakuiWrapper::new_headless(&gfx),
             gfx,
         }
     }

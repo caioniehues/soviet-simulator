@@ -53,6 +53,26 @@ fn default_framework_options_are_the_interactive_contract() {
     assert!(!opts.freeze_input, "interactive runs sample input");
     assert!(!opts.validation, "validation layers are opt-in");
     assert!(opts.capture.is_none(), "capture is opt-in");
+    assert!(opts.requires_window(), "interactive mode requires a window");
+}
+
+#[test]
+fn capture_framework_options_do_not_require_a_window() {
+    let opts = engine::framework::FrameworkOptions {
+        fixed_size: Some((1280, 720)),
+        fixed_delta: Some(1.0 / 60.0),
+        freeze_input: true,
+        validation: false,
+        capture: Some(engine::framework::CaptureOptions {
+            warmup_frames: 90,
+            gpu_timing_samples: None,
+        }),
+    };
+
+    assert!(
+        !opts.requires_window(),
+        "capture mode must start before winit creates an event loop or window"
+    );
 }
 
 /// The GPU-timing slot table is the thing that decides which number gets which pass name in the
