@@ -6,7 +6,7 @@
 **Owner:** project lead
 **Last verified:** 2026-08-24
 
-**Speak to the user in ASD-STE100** (Simplified Technical English): short sentences, active voice, one instruction per sentence, simple words, one name per thing. Full rule: `~/.claude/rules/ste100.md`. Code, commits, and repo docs keep their own conventions.
+**Speak to the user in ASD-STE100** (Simplified Technical English): short sentences, active voice, one instruction per sentence, simple words, one name per thing. That sentence is the whole rule; the long-form version is archived at `~/.claude/_archive/2026-08-28-debloat/rules/ste100.md` and is not loaded. Code, commits, and repo docs keep their own conventions.
 
 Rust, ECS. The fork happened 2026-08-22 and **the earlier Bevy track was discarded**. Bevy is not a
 dependency; its documents live only under `docs/archive/bevy-track/`. Trust current code for
@@ -22,10 +22,10 @@ state. Two design pillars constrain every change:
 
 Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
 
-- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 22-agent roster and what each is
+- **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 8-agent roster and what each is
   for. Every phase names the failure it exists to prevent. Read it before dispatching ANY implementation
   or gate agent — ticket work included, not just waves. The roster there decides which agent gets which
-  lane (`sim-implementer`/`ui-implementer`/`data-implementer`, plus the domain gates); global generics are
+  lane (`sim-implementer`/`ui-implementer`, plus the gates); global generics are
   fallbacks only.
 - Plan of record: `docs/plan/charter-1.0.md`. It **binds on scope**. Ratified files under
   `docs/reference/specifications/` bind mechanism inside that scope; archived legacy documents are
@@ -39,6 +39,14 @@ Clearing is by queue, substitution and going without — **never by price**. Mon
   language server reporting "No references found"; `head_matches_build` comparing SHAs rather
   than file content), and what must be installed for the graph hooks to do anything at all.
 - Keep durable project status in `README.md`: what is built, what is left, and an asset table.
+- **Documentation knowledge base: start at `docs/index.md`.** `docs/SUMMARY.md` is the curated map
+  (mdBook: `mdbook serve`); `docs/meta/document-authority.md` ranks what binds. Five statements are
+  kept apart everywhere — what the game is (`docs/product/`, `docs/simulation/`), what 1.0 requires
+  (charter), what the target architecture proposes (`docs/architecture/`), what the code implements
+  (`docs/architecture/current-substrate.md`, cited), what research suggests (`docs/research/`).
+  Inspect source before asserting implementation; update `current-substrate.md` when architecture
+  changes materially; run `python3 scripts/check_docs.py && mdbook build` before landing docs.
+  Indexes: `docs/reference/{mechanics-index,authority-index,invariants}.md`.
 - Generate visual assets with `/asset-gen`. Confirm the spend with the user before the first paid generation.
 
 Run the sim's tests as `cargo test -p simulation` — parallel runs are trustworthy since the
@@ -118,10 +126,11 @@ Judge progress from the running game, never from a clean build: verify the struc
 Decide from how the task is framed how to work. A task that invites collaboration — open-ended, exploratory, phrased as a direction rather than a spec — gets the live game early: checkpoint at decisions of taste, scope, or cost, and build freely in between. A task handed over as a finished brief to execute gets reasonable calls and steady progress, no blocking. Either way the result is proven, not claimed — if the user hasn't seen it running, finish with a 15–20s video of the game in action, and watch it back before you call the work done.
 
 
-<!-- The managed Beads block that stood here was removed 2026-08-28: the `bd prime`
-     SessionStart hook injects the same command reference and session-close protocol
-     every session, and the `## Task tracking` section above states this repo's real
-     policy, which overrides two of that block's rules. Run `bd prime` for commands. -->
+<!-- The managed Beads block that stood here was removed 2026-08-28. A SessionStart hook
+     in .claude/settings.json runs `bd prime` (added 2026-09-02; between 08-28 and 09-02 no
+     hook existed and nothing injected the reference), which supplies the command reference
+     and session-close protocol. The `## Task tracking` section above states this repo's real
+     policy and overrides two of that block's rules. Run `bd prime` for commands. -->
 
 **Git authority:** do not commit, push, or run `bd dolt push` without explicit authority
 from the user. If a required sync or push is blocked, stop and report the exact command

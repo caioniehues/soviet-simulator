@@ -28,44 +28,43 @@ never delegated.
 
 ## The roster
 
-Sixteen agents in `.claude/agents/`, invoked by name. Every one exists because something specific
-went wrong; each prompt carries that evidence, so the trap is inherited rather than rediscovered.
+Eight agents, seven in `.claude/agents/` plus the global `reviewer`, invoked by name. Every one
+has a record of catching or fixing something real; the 2026-08-28 roster audit
+(`.planning/process-overhaul-2026-08-28/06-current-roster-audit.md`) found the previous 22-agent
+roster 50% duplicated, four lanes never dispatched, and one story in seventy through the full
+cycle. Cut 2026-09-02 (`sov-1x7`). The shared tooling, practice and judging rules live once in
+`.claude/agents/SHARED.md`; each agent reads it first.
 
 | Phase | Agent | Tier | Owns |
 |---|---|---|---|
-| 0 | `substrate-cartographer` | opus | What the code, the Lua and the reference game actually do |
-| 0 / 4 | `kornai-economist` | opus | Shortage economy, queue-clearing, the dishonest enterprise |
-| 0 / 4 | `logistics-modeller` | opus | Dispatch, vehicles, routing, congestion |
-| 0 / 4 | `utilities-modeller` | opus | Power, water, sewage, heat, waste, weather |
-| 0 / 4 | `settlement-modeller` | opus | Citizens, households, needs, services |
-| 0 / — | `soviet-authenticity` | opus | The fantasy and the look; judges from frames |
-| 2 | `sim-implementer` | opus | `simulation/` — ~17,700 lines |
-| 2 | `ui-implementer` | opus | `native_app/` — ~10,100 lines |
-| 2 | `data-implementer` | opus | `base_mod/*.lua` ~950 + `prototypes/` ~2,790 — ~3,740 lines |
-| 2 | `engine-implementer` | opus | `engine/` ~12,500 + `engine_demo/` ~520 — ~13,000 lines |
-| 2 | `geom-implementer` | opus | `geom/` — ~10,500 lines |
-| 2 | `widget-implementer` | opus | `goryak/` ~5,250 + `egui-inspect*` ~1,410 + `assets_gui/` ~1,165 — ~7,800 lines |
-| 2 | `net-implementer` | opus | `networking/` — ~2,050 lines |
-| 2 | `common-implementer` | opus | `common/` ~1,290 + `headless/` ~80 — ~1,370 lines |
-| 3 | `evidence-auditor` | opus | The tests, not the code. Every guard seen failing |
-| 4 | `wiring-auditor` | opus | Is it reachable from the running game? |
-| 4 | `ledger-invariant-checker` | opus | Is quantity conserved? Economy diffs only |
-| 4 | `reviewer` *(global)* | opus | General adversarial gate |
-| — | `debugger` | opus | Root cause of a concrete misbehavior: diagnosis + minimal failing repro, never the fix. On demand, any phase |
-| 6 | `doc-reality-auditor` | opus | Docs, agents and tickets vs the code |
-| 7 | `release-engineer` | opus | Reproducible builds, pinning, licence |
-| 7 | `perf-engineer` | opus | The five bench gates at 250k |
+| 0 / 4 | `kornai-economist` | fable@medium | Shortage economy, queue-clearing, the dishonest enterprise |
+| 0 / 4 | `logistics-modeller` | fable@low | Dispatch, vehicles, routing, congestion |
+| 2 | `sim-implementer` | opus@medium | `simulation/` |
+| 2 | `ui-implementer` | opus@medium | `native_app/`, and the renderer when a story needs it |
+| 3 | `evidence-auditor` | fable@medium | The tests, not the code. Every guard seen failing |
+| 4 | `wiring-auditor` | fable@low | Is it reachable from the running game? |
+| 4 | `ledger-invariant-checker` | fable@medium | Is quantity conserved? Economy diffs only |
+| 4 | `reviewer` *(global)* | fable@medium | General adversarial gate |
 
-Tiering is now uniform opus/high across all 16 in-repo agents (user decision 2026-08-27;
-supersedes the earlier uniform-sonnet policy). The standing opus review gate (`reviewer`, global)
-remains the quality lever. The gate stays mandatory —
-a high implementer tier does not replace it; the measured result (an opus reviewer caught a bug
-an opus implementer shipped) was measured at opus tier.
+**Archived, not deleted:** the other fifteen definitions are in `docs/archive/agents-2026-09-02/`
+with their bodies intact (cartographer, debugger, doc-reality-auditor, perf, release, the three
+other advisors, seven implementer lanes). Restore one with `git mv` when a ticket needs that lane
+— after the ticket exists, never before. A restored agent must drop its duplicated blocks and
+point at `SHARED.md` like the others.
 
-A codex cross-vendor gate is **planned, not built**. `.codex/agents/` mirrors 15 roles as `.toml`
-adapters but contains no reviewer and no gate entry point (verified 2026-08-27: `ls .codex/agents`
-shows no `reviewer.toml`). Do not skip arranging the opus gate on the belief that a second one
-already exists.
+**Gate size is proportional to the diff.** Under 200 lines in one module: `wiring-auditor` then
+`reviewer`. Any economy seam: add `ledger-invariant-checker`. A new mechanism or a changed
+clearing rule: add the domain advisor and `evidence-auditor`. Give each mutating gate its own
+worktree — two gates mutating one tree produced a false red and a surviving stray mutation on
+`sov-ahw`, 2026-09-02.
+
+Tiering (user decision 2026-09-02; frontmatter is authoritative): implementers run `opus@medium`,
+reasoning gates `fable@medium`, advisors and read-only sweeps `fable@low`. Fable 5.1 bills 2x Opus
+on fresh tokens and 0.5x on cache reads, and reaches Opus cost parity only at `low`. Re-measure a
+wave before changing tiers again.
+
+A codex cross-vendor gate is **planned, not built** (`.codex/agents/` has no reviewer entry,
+verified 2026-08-27). Do not skip the review gate on the belief that a second one exists.
 
 ## Starting an iteration
 
@@ -93,7 +92,7 @@ Tracking is two-layer, and `bd` is the only surface every agent can reach — se
 
 | Who | Does |
 |---|---|
-| `substrate-cartographer` (opus) | Maps the seam across all three sources and returns a cited fact-sheet |
+| `substrate-cartographer` (fable@low) | Maps the seam across all three sources and returns a cited fact-sheet |
 | domain advisor for the cluster | Reads the iteration's stories and answers: is this mechanic model-consistent? |
 
 The cartographer answers three questions that must agree, and the whole point is that they are
@@ -161,7 +160,7 @@ repo. If a task spans two lanes, split it; two agents must never own one file.
 Each logs progress with `bd comments add <id> "…" --author <name>` as it goes, especially when it
 discovers its brief was wrong. Evidence tasks are interleaved with code tasks, never trailed.
 
-Implementers are **opus** (user decision 2026-08-27). The quality lever is still the review gate,
+Implementers are **opus@medium** (user decision 2026-09-02; see the tiering note above). The quality lever is still the review gate,
 not implementer tier — this is measured, not assumed. A high tier does not earn a gate skip; every
 non-trivial diff still runs the chain.
 
@@ -187,10 +186,10 @@ mutation-tested, and one asserted arithmetic rather than the behaviour its story
 
 | # | Agent | Tier | Asks |
 |---|---|---|---|
-| 1 | `wiring-auditor` | opus | Is every new API actually called from production code? |
-| 2 | `ledger-invariant-checker` | opus | Is quantity conserved across this economic seam? Run only when the diff touches the economy |
-| 3 | `reviewer` | opus | General adversarial gate — re-derives from source, never from a worker's summary |
-| 4 | domain advisor | opus | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
+| 1 | `wiring-auditor` | fable@low | Is every new API actually called from production code? |
+| 2 | `ledger-invariant-checker` | fable@medium | Is quantity conserved across this economic seam? Run only when the diff touches the economy |
+| 3 | `reviewer` | fable@medium | General adversarial gate — re-derives from source, never from a worker's summary |
+| 4 | domain advisor | fable@low | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
 
 **Splitting row 4 for `simulation/src/economy/market.rs`.** Three agents can each claim that file,
 and the row is singular, so name the advisor by what the diff touches rather than by cluster:
@@ -284,7 +283,7 @@ Select the advisor by the re-derived requirement cluster, not inherited iteratio
 **They never write code.** They answer whether a mechanic is consistent with the model. They
 advise on request during Phase 0, and hold a Phase 4 sign-off for their own cluster **only when
 the diff diverged from what they approved in Phase 0** — a faithful implementation of an already-
-approved design does not need the same opus mind to approve it twice.
+approved design does not need the same gate model to approve it twice.
 
 `kornai-economist` is special: the dishonest enterprise is the core loop of the whole game, so it
 is consulted wherever a contract touches allocation, shortages, or enterprise reporting.

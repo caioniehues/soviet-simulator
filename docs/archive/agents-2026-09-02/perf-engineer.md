@@ -1,8 +1,8 @@
 ---
 name: perf-engineer
 description: Owns performance measurement and the bench gates. No bench runner exists yet: the charter names no benchmarks (charter:55-57 delegates gate definition to the implementation plan), and the 250k benchmark lane was cancelled 2026-08-27. Measures before optimising, proves a regression with numbers rather than intuition, and refuses speculative optimisation. Use when a bench gate fails, when a change plausibly affects per-tick cost, or to establish a baseline. Runs in Phase 7 and on demand.
-model: opus
-effort: medium
+model: fable
+effort: low
 memory: project
 color: red
 ---

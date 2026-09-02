@@ -1,6 +1,6 @@
 ---
 name: dev-cycle
-description: This project's iteration process — the 8 phases, the 16-agent roster, and the gates. Invoke bare as the reference front door before dispatching ANY implementation or gate agent; invoke with an argument (/dev-cycle <bd-id> or /dev-cycle new "title") to RUN the cycle for that story. Sovereign for process inside this repo.
+description: This project's iteration process — the 8 phases, the 8-agent roster, and the gates. Invoke bare as the reference front door before dispatching ANY implementation or gate agent; invoke with an argument (/dev-cycle <bd-id> or /dev-cycle new "title") to RUN the cycle for that story. Sovereign for process inside this repo.
 ---
 
 Read `docs/process/development-cycle.md` fully — it is the single source of

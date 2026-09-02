@@ -400,7 +400,7 @@ on the disclosure — again, disposition.
 findings are F1 (the flag), F2 (`Market::remove` leaks `reserved`/`requested`/`dispatches`) and F3
 (`set_requested` has zero production callers). Only F1 turns on `optout_exttrade`. The "three claims"
 phrasing is now copied verbatim into `docs/process/development-cycle.md:104` and
-`.claude/agents/substrate-cartographer.md:28`.
+`docs/archive/agents-2026-09-02/substrate-cartographer.md:28`.
 
 **And #5a's durable lesson is not "check paths."** `CLAUDE.md` — the one file every agent
 auto-loads — was `.gitignore`d for the project's entire life until `5cf7953`. No version of the
@@ -864,7 +864,7 @@ Add a **for-what** field. `PARTIAL` and `PROVIDED` must state what the substrate
 
 **But the tag grammar is the wrong home for the rule, and this is where the first draft misfired
 worst.** `[SUBSTRATE: …]` exists only in `requirements/EPIC-*.md`. The string `SUBSTRATE` appears in
-exactly one file outside the corpus — `.claude/agents/substrate-cartographer.md:78`. `RESUME.md` has
+exactly one file outside the corpus — `docs/archive/agents-2026-09-02/substrate-cartographer.md:78`. `RESUME.md` has
 none. `CLAUDE.md` has none. Agent definitions have none. **The three document classes where this
 failure actually occurred are all outside the grammar the fix extends.** Failure #1's tag was in the
 corpus; failure #2 lives in `RESUME.md:84`, which has no tags at all.
@@ -1010,7 +1010,7 @@ independently useful.
 | Step | Work | Proves itself by |
 |---|---|---|
 | **0** | **Fix `RESUME.md:84` and `:117` today.** `:84` tells the next agent that `freight_station.rs` is the ONLY correct prior art, with no parking/collider warning. `:117` calls a bincode round-trip *"a real determinism check."* `CLAUDE.md` makes this the first file every agent reads | The live trap stops being armed; the false permission is withdrawn |
-| **0b** | Correct the "falsified three claims" inflation in `docs/process/development-cycle.md:104` and `.claude/agents/substrate-cartographer.md:28` (only F1 turns on the flag), and the reversed-time claim in `.claude/agents/doc-reality-auditor.md:24-25` | Two agent definitions stop teaching a false lesson |
+| **0b** | Correct the "falsified three claims" inflation in `docs/process/development-cycle.md:104` and `docs/archive/agents-2026-09-02/substrate-cartographer.md:28` (only F1 turns on the flag), and the reversed-time claim in `docs/archive/agents-2026-09-02/doc-reality-auditor.md:24-25` | Two agent definitions stop teaching a false lesson |
 | **1** | **The golden-hash determinism test.** Fixed seed, N ticks, committed hash; second run from a decoded save compared at the same tick. Also fix `roadmap.md:28`, which repeats the claim | Mutate a tick-order-dependent system; watch it go red. This is the only guard here whose absence is unbounded |
 | **2** | **~30 lines in `build_roadmap.py`** — interpolate `:192`'s two literals and its stale `sov-scope-cut-1p6` reference, `assert` computed totals, emit `RESUME.md`'s state table and corpus counts as generated blocks | Hand-edit a generated block; regeneration overwrites it. #1/#7/#8/#9 become unwritable rather than unchecked |
 | **3** | **Sentinel guard test** in `scenarios/mod.rs`, after minting `SENTINEL-NNNN` keys and reconciling `behavior-corpus.md:7` with `scenarios/mod.rs:2` | Currently fails on all six. **That failure is the deliverable** |
