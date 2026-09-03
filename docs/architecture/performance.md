@@ -4,22 +4,27 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** architecture
-**Last verified:** 2026-08-28
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03
 
 ## The contract and its gate
 
 The charter targets **250,000 citizen identities at 60 fps on the development machine** and
-delegates the benchmark gates to the implementation plan. **No benchmark exists.** The 250k
+delegates the benchmark gates to the implementation plan. **No simulation benchmark exists.** The 250k
 benchmark contract (`sov-1ae`) was cancelled 2026-08-27; its WIP is preserved unmerged on
-`wip/sov-m0q-wave1`; `sov-bo3` (an OOM at 17.6 GB RSS in `LAV::iter_keys`) blocks even
-constructing a 250k-building city. `perf-engineer.md` says so. A green test suite or a save
-round-trip proves nothing about this target.
+`wip/sov-m0q-wave1`. `sov-bo3` (an OOM in `LAV::iter_keys`) is fixed, not a live blocker:
+iteration is bounded to `vs.len() + 1` and a corrupt cycle is flagged instead of collected forever
+(`geom/src/skeleton.rs:738-754`); `skeleton` then refuses the corrupt polygon
+(`geom/src/skeleton.rs:910-912`). The remaining scale gate is unbuilt, not blocked by that defect.
+A green test suite or a save round-trip proves nothing about this target.
 
 ## Current substrate
 
 Test cities have ~50–100 humans. Every system runs every tick; every human is drawn; routing is a
 fresh A* per request; stock is a `BTreeMap` per item; `PersonalInfo` allocates a `String` per
-citizen. No profiling baseline is recorded in the repository.
+citizen. No simulation CPU or whole-world profiling baseline is recorded in the repository; the
+only committed baseline is renderer GPU timing
+(`engine_demo/gpu_timing_baselines/radv-navi3x/baseline.json`, adapter-scoped, render passes only).
 
 ## The hierarchy — optimise in this order
 
@@ -49,7 +54,11 @@ become an accepted decision ([memory budget standard](../engineering/performance
 
 ## Benchmarks to build (none exist)
 
-250k whole-world headless benchmark (the final gate); routing; citizen daily-event; material
+250k whole-world finite simulation benchmark — a fixed-seed, fixed-tick CPU runner, not the
+`headless` lockstep server loop (`headless/src/main.rs:64-71`), which ticks merged server inputs
+unboundedly and contains no replay loader. Replay advancement lives in the native app
+(`native_app/src/network.rs:82-95`) and `SimulationReplayLoader` (`simulation/src/lib.rs:155-171`).
+Further gates: routing; citizen daily-event; material
 allocation; logistics transfer; snapshot publication; utility solvers; render-instance
 preparation. Instruction-level benchmarks (`iai-callgrind`, needs valgrind) for hot kernels only
 after the whole-world bottlenecks are known; Criterion for wall-clock. The `.planning/` tooling

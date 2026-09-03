@@ -4,8 +4,8 @@
 **Authority:** observational — true for the cited paths at the verified commit; not a target, not a completion tracker
 **Status:** active
 **Owner:** architecture
-**Verified-at:** `4e9e930b2a73` (committed tree; an uncommitted `sov-ahw` change to `market.rs` was in the working copy and is not described here)
-**Last verified:** 2026-08-28
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03
 
 Every statement here was source-inspected on the verified commit, by the ten mining lanes on
 2026-08-28 and re-checked by the lead. Symbols are named; line numbers appear only where they
@@ -18,7 +18,7 @@ stale — update it ([documentation standard](../engineering/documentation.md)).
 
 Thirteen crates (`Cargo.toml` members): `simulation` (the sim), `native_app` (the game binary,
 default member), `engine` (wgpu renderer, terrain, PBR, LOD), `engine_demo`, `geom`, `common`,
-`prototypes` (Lua-driven data), `headless` (server/replay runner), `networking` (lockstep
+`prototypes` (Lua-driven data), `headless` (lockstep server runner), `networking` (lockstep
 multiplayer), `goryak`, `egui-inspect`, `egui-inspect-derive`, `assets_gui`. Data lives in
 `base_mod/*.lua` (`items`, `companies`, `rollingstock`, `roadvehicles`, `leisure`, `colors`, `data`).
 
@@ -32,7 +32,7 @@ lockfile packages come from these two sources. `deny.toml` allows exactly these 
 - **Provides:** 50 ticks/second nominal (`prototypes/src/types/time.rs`). `Simulation::tick` applies `WorldCommand`s first, increments time, then runs a serial schedule. `ParCommandBuffer::apply` runs after every system, so later systems see earlier structural changes.
 - **Order:** 18 systems in `init.rs`, executed in registration order: `electricity_flow_system` → `dispatch_system` → `update_decision_system` → `company_system` → `pedestrian_decision_system` → `transport_grid_synchronize` → `locomotive_system` → `vehicle_decision_system` → `vehicle_state_update_system` → `routing_changed_system` → `routing_update_system` → `itinerary_update` → `market_update` → `train_reservations_update` → `freight_station` → `random_vehicles` → `update_map` → `add_souls_to_empty_buildings` (via `register_system_sim`, takes `&mut Simulation`). Electricity runs *first*; map update is second-last.
 - **Does not provide:** named phases, phase barriers, cadence bands (every system every tick), an event calendar, any parallel execution (`rayon` is used once, in `map/terrain.rs`).
-- **Conflicts with target:** [simulation phases](simulation-phases.md), [time and events](time-and-events.md). Four instant commands bypass ticking (fact-sheet: Foundation / Tick).
+- **Conflicts with target:** [simulation phases](simulation-phases.md), [time and events](time-and-events.md). Four instant commands (`MapBuildHouse`, `MapUpdateIntersectionPolicy`, `UpdateZone`, `SetGameTime` — `simulation/src/world_command.rs:213-220`) bypass ticking via the native fast path, which applies all-instant queues directly with no schedule pass (`native_app/src/network.rs:51-57`); other commands force one tick while paused (`native_app/src/network.rs:67-70`). Full command-seam contract: [simulation phases](simulation-phases.md) (fact-sheet: Foundation / Tick).
 - **Initialization:** `static REGISTRY: OnceLock<Registry>` (`init.rs`) since 2026-08-26; the fact-sheets' "unsynchronised `static mut`" rows are stale. The same `static mut` shape still exists in `native_app/src/init.rs` (UI crate, not in the test binary).
 
 ## Entities and identity
@@ -74,7 +74,7 @@ lockfile packages come from these two sources. `deny.toml` allows exactly these 
 
 ## Utilities
 
-- **Files:** `map/electricity_cache.rs` (`ElectricityCache`, `NetworkObjectID`, union-find over buildings, roads, intersections), `map_dynamic/electricity.rs` (`electricity_flow_system`, `ElectricityFlow { produced_power, consumed_power, blackout }`).
+- **Files:** `map/electricity_cache.rs` (`ElectricityCache`, `NetworkObjectID`, `BTreeMap` graph over buildings, roads, intersections with BFS reachability — `graph` at `simulation/src/map/electricity_cache.rs:62`, `path_exists` at `:179-186`), `map_dynamic/electricity.rs` (`electricity_flow_system`, `ElectricityFlow { produced_power, consumed_power, blackout }`).
 - **Provides:** connectivity by road adjacency (a building on a road is on the grid); per-network sums of produced and consumed power (houses 100 W fixed; companies per prototype × productivity); a binary `blackout` when consumed > produced; blackout halts production.
 - **Does not provide:** wire topology (`SPEC-ELECTRICITY-001` forbids road-as-wire); storage; priority shedding; brownout; ramp rates; water, sewage, heating, gas, waste, weather, hydrology — no building kind, no system, no data structure for any of them.
 - **Spec:** electricity, water, sewage, heating, waste — all target.
@@ -113,8 +113,8 @@ lockfile packages come from these two sources. `deny.toml` allows exactly these 
 
 ## Tests
 
-`cargo test -p simulation` — parallel-safe since 2026-08-26. 43 scenario tests across
-`tests/scenarios/{hoarding,inflation,ledger,recipe_provided,retail,validation,mod}.rs`, plus
+`cargo test -p simulation` — parallel-safe since 2026-08-26. 42 scenario-test fns across
+`tests/scenarios/{hoarding,inflation,ledger,recipe_provided,retail,validation,mod}.rs` (count includes the non-corpus `scenario_harness_smoke`; the `#[test]` mention in `mod.rs` docs is not a test), plus
 `test_iso.rs` and `vehicles.rs`. **None of the 107 `evid_*` tests named in the specifications
 exists** (`grep -r 'fn evid_' simulation/src` is empty), which matches the generated roadmap's "0
 implemented". Mutation testing with cargo-mutants is adopted for eligible changes

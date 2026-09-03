@@ -4,8 +4,9 @@
 **Authority:** reference
 **Status:** active
 **Owner:** architecture
-**Last verified:** 2026-08-28 (drift notes added; the per-subsystem narrative now lives in
-[`docs/architecture/current-substrate.md`](../../architecture/current-substrate.md), verified at `4e9e930b2a73`)
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03 (drift notes added; the per-subsystem narrative now lives in
+[`docs/architecture/current-substrate.md`](../../architecture/current-substrate.md), verified at `266f7b2`)
 
 This is the current Rust/Egregoria substrate map, not a target design. A classification of
 **provided** means the cited behavior has a reachable production path; **partial** means only a
@@ -61,7 +62,7 @@ observed source. No row promotes an observed behavior into a desired contract.
 | Delivery completion has no return-to-depot behavior, and failed dispatch has no recovery policy. | Absent | `LOG-SUB-008`, `LOG-SUB-009` |
 | One delivery authority controls all company and market fulfillment. | Conflicting | `LOG-SUB-007`; also `ECO-SUB-006` |
 | Domestic matching is price-free but lacks partial multi-seller fill, request age, and plan priority. | Partial | `ECO-SUB-003` |
-| Imports credit stock immediately and exports can debit stock before a border endpoint exists. | Conflicting; economy violation — **import half fixed** (`sov-abs`: imports are a physical truck from the freight station); **export half still live** (the ext-trade block of `make_trades` debits seller capital at match time, no dispatch) | `ECO-SUB-002` and its 2026-08-28 drift note |
+| Imports arrive by physical truck but export stock still debits at match; money clears at match for both halves. | Conflicting; economy violation — goods movement is SPLIT (import stock settles at physical endpoints since `sov-abs`; export stock still debits at match with no dispatch), but `trade.money_delta` is applied to `Government.money` at match time for both halves (`simulation/src/economy/mod.rs:104`, before `advance_dispatches` at `:128`) | `ECO-SUB-002` and its 2026-08-28 drift note |
 | Dishonest-enterprise request inflation is reachable in production but unobservable by the Planner. | Partial — `recipe_init` calls `set_requested` (since `0caee71`); nothing in `native_app/` reads `Market::requested()` | `ECO-SUB-005` and its 2026-08-28 drift note |
 | Unmatched demand can be removed instead of persisting as a shortage queue. | Conflicting; economy violation | `ECO-SUB-001` |
 

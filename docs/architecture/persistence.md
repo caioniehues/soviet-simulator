@@ -4,7 +4,8 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** architecture
-**Last verified:** 2026-08-28
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03
 
 ## Current substrate
 

@@ -4,15 +4,18 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** architecture
-**Last verified:** 2026-08-28
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03
 
 > Shared topology concepts ≠ shared physical solver.
 
 ## Current substrate
 
-The only network is electricity: `ElectricityCache` (`map/electricity_cache.rs`) is a union-find
-over `NetworkObjectID` (buildings, roads, intersections) whose edges are building→road and
-road→intersection adjacency. Two buildings share a network iff a road path joins them. There is
+The only network is electricity: `ElectricityCache` (`map/electricity_cache.rs`) is a `BTreeMap`
+graph over `NetworkObjectID` (buildings, roads, intersections) — `graph: BTreeMap<NetworkObjectID,
+Vec<NetworkObjectID>>` (`simulation/src/map/electricity_cache.rs:62`) with BFS reachability via
+`pathfinding::directed::bfs::bfs_reach` in `path_exists` (`simulation/src/map/electricity_cache.rs:179-186`).
+Two buildings share a network iff a road path joins them. There is
 no wire object; `SPEC-ELECTRICITY-001` forbids exactly this. Water, sewage, heating and gas have
 no topology at all. The road graph itself is the only shared infrastructure.
 

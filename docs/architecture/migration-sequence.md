@@ -4,7 +4,8 @@
 **Authority:** advisory — architectural milestones, not a backlog; `bd` holds actionable work
 **Status:** draft
 **Owner:** architecture
-**Last verified:** 2026-08-28
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03
 
 The order in which the target architecture can be reached without breaking determinism, saves or
 the pillars. Reconciled from the design thread's Phases 0–10, Lane C2's dependency DAG, Lane E's
@@ -31,14 +32,18 @@ market decomposition, hierarchical routing, network kernel ─→ independent
 
 ### 0 · Foundation
 Pin `egui`/`yakui` to revisions. Save envelope and migration seam. Keyed randomness. Repeat-run
-determinism test and a portable digest. Phase labels without reorder. Ratify the missing 1.0
+determinism test and a portable digest. Inert phase metadata/labels without reorder (no access
+semantics, no barriers — replay hashes unchanged; the schedule can then report time per phase).
+Typed phase contexts with access barriers arrive later, as a prerequisite to deterministic
+parallelism — not in this milestone. Ratify the missing 1.0
 specifications (agriculture, terrain/geology, weather, hydrology, pollution, Plan/Quota/Tranche,
 authored plans, notifications, shell/save/crash, presentation/audio); settle resource units and
 handling classes.
 
 ### 1 · Scale proof
 Dense `CitizenRecord` with append-only IDs; event calendar; cadence field; snapshots skeleton;
-headless 250k benchmark; state the active-fraction target. Before any rich citizen mechanic.
+finite 250k simulation benchmark — a fixed-seed, fixed-tick CPU runner that replaces the cancelled
+`sov-1ae` contract, not a run of the `headless` lockstep server binary; state the active-fraction target. Before any rich citizen mechanic.
 
 ### 2 · One physical chain
 The truck leg exists and is tested. Make exports physical (the `make_trades` ext-trade block);
@@ -64,7 +69,8 @@ resolution; render culling and LOD.
 
 ### 7 · Utilities
 Network kernel; electricity re-expressed over wire with priority shedding; water; sewage;
-heating; waste; reservoir/hydro.
+heating; waste; reservoir/hydro. Phase 7 is part of the 1.0 migration sequence, not Post-1.0 —
+only gas is Post-1.0 (see [network kernel](network-kernel.md)).
 
 ### 8 · Social systems
 Employment and qualification; education; healthcare; death and demography; richer time effects if
