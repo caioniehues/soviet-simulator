@@ -16,7 +16,7 @@ page says which documents may establish what. Every other page defers to it.
 | 1 | [`docs/plan/charter-1.0.md`](../plan/charter-1.0.md) | Product scope: what 1.0 includes, the Post-1.0 cuts, the Never list, the 250k target | Mechanism, implementation status |
 | 2 | [`docs/reference/glossary.md`](../reference/glossary.md) | Terminology: the one name for each thing and the words to avoid | Behaviour, acceptance criteria |
 | 3 | [`docs/reference/specifications/`](../reference/specifications/README.md) with `Status: active` | Subsystem mechanism inside charter scope: `SPEC-*` claims, authoritative module, acceptance evidence | Scope; completion. **Every specification is currently `Status: draft`** — a draft records the proposed contract for review and binds nothing yet |
-| 4 | [`docs/decisions/`](../decisions/README.md) with `Status: accepted` | Architectural and engineering decisions | Scope or mechanism outside the decision's stated question. **No accepted decision exists yet** |
+| 4 | [`docs/decisions/`](../decisions/README.md) with `Status: accepted` | Architectural and engineering decisions | Scope or mechanism outside the decision's stated question. Accepted records live in the register (ADR-0001, ADR-0002); everything else there is draft, superseded, or archived |
 | 5 | Source code and tests | What is implemented; what is tested | What is intended, in scope, or complete |
 | 6 | `bd` (beads) | Task state: what is open, claimed, closed, blocked | Anything about design |
 | 7 | Research and fact-sheets (`docs/research/`, and the substrate evidence cited below) | Observed evidence, cited to `path:line` or an external source at a stated date | Scope, mechanism, or completion — evidence is an input to those, never a substitute |
