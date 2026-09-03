@@ -6,6 +6,7 @@ use crate::init::{gsystems, init_funcs, saveload_funcs};
 use crate::map::{BuildingKind, Map};
 use crate::map_dynamic::{Itinerary, ItineraryLeader};
 use crate::souls::add_souls_to_empty_buildings;
+use crate::transportation::{transport_grid_equal, TransportGrid};
 use crate::utils::resources::{Ref, RefMut, Resources};
 use crate::utils::scheduler::RunnableSystem;
 use crate::world_command::WorldCommand;
@@ -221,12 +222,30 @@ impl Simulation {
             let b = (l.save)(other);
 
             if a != b {
+                // The transport grid keeps its cells in a hashmap, so a decode permutes their
+                // iteration order and the bytes differ even when the contents are identical.
+                if l.name == "transport_grid"
+                    && transport_grid_equal(
+                        &self.read::<TransportGrid>(),
+                        &other.read::<TransportGrid>(),
+                    )
+                {
+                    continue;
+                }
                 std::fs::write(format!("{}_a.json", l.name), &*String::from_utf8_lossy(&a))
                     .unwrap();
                 std::fs::write(format!("{}_b.json", l.name), &*String::from_utf8_lossy(&b))
                     .unwrap();
                 return false;
             }
+        }
+
+        let world_a = common::saveload::Bincode::encode(&self.world).unwrap();
+        let world_b = common::saveload::Bincode::encode(&other.world).unwrap();
+        if world_a != world_b {
+            std::fs::write("world_a.json", &*String::from_utf8_lossy(&world_a)).unwrap();
+            std::fs::write("world_b.json", &*String::from_utf8_lossy(&world_b)).unwrap();
+            return false;
         }
 
         true

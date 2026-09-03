@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 
 use flat_spatial::grid::GridHandle;
+use flat_spatial::storage::CellIdx;
 use serde::{Deserialize, Serialize};
 
 use egui_inspect::InspectVec2Rotation;
@@ -70,6 +72,64 @@ impl Default for TransportState {
 }
 
 pub type TransportGrid = flat_spatial::Grid<TransportState, Vec2>;
+
+/// Canonical form of one grid object: handle, then every f32 field as its bit pattern
+/// (so that NaN or -0.0 cannot claim equality where the bytes differ), then the plain fields.
+type CanonObject = (GridHandle, [u32; 7], TransportationGroup, u64);
+/// Canonical form of the sparse cell map: ordered cells, each with its objects ordered.
+type CanonCells = BTreeMap<CellIdx, (Vec<(GridHandle, [u32; 2])>, bool)>;
+
+/// Order-insensitive equality for a `TransportGrid`: the sparse cell map is an `FnvHashMap` whose
+/// iteration (and therefore bincode) order is not preserved across a decode.
+pub fn transport_grid_equal(a: &TransportGrid, b: &TransportGrid) -> bool {
+    fn objects(g: &TransportGrid) -> Vec<CanonObject> {
+        let mut objs: Vec<CanonObject> = g
+            .handles()
+            .filter_map(|h| {
+                let (pos, s) = g.get(h)?;
+                Some((
+                    h,
+                    [
+                        pos.x.to_bits(),
+                        pos.y.to_bits(),
+                        s.dir.x.to_bits(),
+                        s.dir.y.to_bits(),
+                        s.speed.to_bits(),
+                        s.radius.to_bits(),
+                        s.height.to_bits(),
+                    ],
+                    s.group,
+                    s.flag,
+                ))
+            })
+            .collect();
+        objs.sort_unstable_by_key(|o| o.0);
+        objs
+    }
+
+    fn cells(g: &TransportGrid) -> CanonCells {
+        let storage = g.storage();
+        #[allow(clippy::iter_over_hash_type)] // collected into a BTreeMap, so order is irrelevant
+        storage
+            .cells
+            .iter()
+            .map(|(idx, cell)| {
+                let mut objs: Vec<(GridHandle, [u32; 2])> = cell
+                    .objs
+                    .iter()
+                    .map(|&(h, pos)| (h, [pos.x.to_bits(), pos.y.to_bits()]))
+                    .collect();
+                objs.sort_unstable();
+                (*idx, (objs, cell.dirty))
+            })
+            .collect()
+    }
+
+    a.len() == b.len()
+        && a.storage().cell_size == b.storage().cell_size
+        && objects(a) == objects(b)
+        && cells(a) == cells(b)
+}
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Transporter(pub GridHandle);

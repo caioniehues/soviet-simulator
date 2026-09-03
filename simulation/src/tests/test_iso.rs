@@ -1,6 +1,5 @@
 use crate::init::init;
 use crate::map::{LanePatternBuilder, Map, MapProject, ProjectKind};
-use crate::utils::scheduler::SeqSchedule;
 use crate::World;
 use crate::{Replay, Simulation};
 use common::saveload::{Bincode, Encoder, JSONPretty};
@@ -244,7 +243,7 @@ fn test_world_survives_serde() {
     //common::logger::MyLog::init();
 
     let replay: Replay = JSONPretty::decode(REPLAY).unwrap();
-    let mut s = SeqSchedule::default();
+    let mut s = Simulation::schedule();
 
     let mut check_size = 1024;
     let mut check_start = 3;

@@ -12,6 +12,7 @@ use geom::{Vec2, Vec3, OBB};
 use prototypes::BuildingGen;
 use std::sync::Once;
 
+mod determinism_gate;
 mod scenarios;
 mod test_iso;
 mod vehicles;
