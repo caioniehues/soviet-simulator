@@ -17,6 +17,11 @@
 > `docs-review-2026-09-03`) plus one lead decision (`sov-m7r`). Handoff:
 > [`HANDOFF-2026-09-03-docs-review.md`](HANDOFF-2026-09-03-docs-review.md). Read it before taking
 > any documentation task.
+> **2026-09-04 — border settlement wave 1 built; `sov-5ut` ready.** Doc-sweep wave,
+> process reconciliation, checker widening, border grill (ADR-0003), spec `sov-o1w`,
+> and the four-bead settlement build all landed. Handoff:
+> [`HANDOFF-2026-09-04-border-settlement.md`](HANDOFF-2026-09-04-border-settlement.md).
+> Read it before taking any economy, process, or documentation task.
 
 ## Verified state
 
