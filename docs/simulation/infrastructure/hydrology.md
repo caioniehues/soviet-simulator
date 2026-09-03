@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** infrastructure
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 candidate (charter breadth exception) |
+| Scope | 1.0 — charter row *Terrain and environment* |
 
 ## What this is
 

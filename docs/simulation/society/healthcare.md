@@ -4,20 +4,22 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Healthcare service chain | 1.0 binding |
-| Medicine as import-only resource | 1.0 binding |
+| Healthcare service chain | 1.0 — charter row *Agriculture and services* |
+| Medicine as import-only resource | 1.0 — charter row *Resources and production* |
 | Alcohol as health/time/productivity sink | Post-1.0, data-justified |
 
 ## What this is
 
 Health is not a generic welfare bonus. It is the production of future labour capacity. A
-healthy worker contributes more hours over a longer career. A sick worker misses shifts,
-reduces productivity, and may die. Healthcare investment is a labour-force investment — every
-rouble of imported Medicine that cures a worker returns future production hours.
+healthy worker contributes more hours over a longer career. A sick worker misses shifts and
+reduces productivity; in the target design, severe illness may contribute to a future
+Citizens-owned death outcome (see [Demography](demography.md)). Healthcare investment is a
+labour-force investment — every rouble of imported Medicine that cures a worker returns
+future production hours.
 
 ## 1.0 requirement
 
@@ -39,8 +41,9 @@ The charter commits to "healthcare." The draft healthcare specification
 ### Health as future capacity — CONFIRMED (B1-32; B2-17)
 
 The design proposes that health outcomes affect citizen participation: illness reduces work
-hours, extends recovery time, and in severe cases causes death. The healthcare service chain
-restores capacity.
+hours, extends recovery time, and in severe cases contributes to a Citizens-owned death
+outcome (target design; Healthcare never performs lifecycle mutation). The healthcare
+service chain restores capacity.
 
 CIA tracked Soviet health decline as an economic problem: male life expectancy fell from 67
 (1964) to 62 (1980); death rate rose 49 % from 6.9/1,000 (1964) to 10.3/1,000 (1981). The
@@ -95,9 +98,11 @@ No healthcare type, capacity queue, or health decision exists. `BuildingKind`
 (`simulation/src/souls/human.rs:127-230`) enumerate only Home, Work, and Food. Medicine is a
 target import-only resource; no healthcare service consumes it.
 
-The existing food flow (`simulation/src/souls/desire/buyfood.rs:70-90`) updates `last_ate` on
-arrival without authoritative inventory consumption — a violation the healthcare spec's
-physical chain would not repeat.
+The existing food flow settles the live retail claim at eat-time — seller debited,
+reservation released, `last_ate` advanced only on success
+(`simulation/src/souls/desire/buyfood.rs:157-168`;
+`simulation/src/economy/market.rs:480-491`). The healthcare physical chain is greenfield:
+no facility, queue, or Medicine consumption exists to repeat or violate anything yet.
 
 ## Open questions
 

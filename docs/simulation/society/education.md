@@ -4,12 +4,12 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| School and Technical Institute | 1.0 binding |
-| Qualification → assignment → relocation | 1.0 candidate |
+| School and Technical Institute | 1.0 — charter row *Agriculture and services* |
+| Qualification → assignment → relocation | Post-1.0 hook |
 | Two-shift schools | Post-1.0 |
 
 ## What this is

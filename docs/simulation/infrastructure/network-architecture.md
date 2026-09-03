@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** infrastructure
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | architecture hook |
+| Scope | Post-1.0 hook |
 
 ## What this is
 
@@ -56,11 +56,10 @@ No weather spec exists (SYNTHESIS §7).
 ## Current substrate
 
 The only network topology is `ElectricityCache`
-(`simulation/src/map/electricity_cache.rs:52-62`), a union-find over `NetworkObjectID`
-that includes roads, intersections, and buildings. It does not use explicit wires.
-
-No shared topology abstraction exists for other utilities. The only infrastructure code
-is the electricity union-find and the binary blackout flow system.
+(`simulation/src/map/electricity_cache.rs:52-62`): a `BTreeMap` adjacency graph over
+`NetworkObjectID` (roads, intersections, buildings) with BFS connectivity, not explicit
+wires. No shared topology abstraction exists for other utilities. The only infrastructure
+code is that road-derived electricity graph and the binary blackout flow system.
 
 The target kernel link: `../../architecture/network-kernel.md` (lead writes).
 

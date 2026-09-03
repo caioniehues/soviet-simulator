@@ -4,14 +4,14 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
 | Enterprise welfare provision | Post-1.0 |
 | Settlement multiplier | Post-1.0 |
-| Shift waves | 1.0 candidate |
-| Storming and fatigue | architecture hook |
+| Shift waves | Post-1.0 hook |
+| Storming and fatigue | Post-1.0 hook |
 | Canteen vs kitchen | Post-1.0 |
 
 ## What this is
@@ -58,7 +58,7 @@ The exact ratio depends on household size, age structure, and the extent of ente
 This ratio makes every industrial project a settlement project. The Planner who places a
 factory is committing to housing, services, and infrastructure for 2–3× the workforce.
 
-### Shift waves — 1.0 candidate
+### Shift waves — Post-1.0 hook
 
 Large workplaces pulse commute demand at shift changes. The design proposes that staggering
 shifts (07–15 / 08–16 / 09–17) lowers peak load with the same infrastructure.
@@ -91,10 +91,13 @@ service that connects [enterprise welfare](workplaces.md) to the
 
 ## Current substrate
 
-Companies have workers and a recipe. `GoodsCompanyState`
-(`simulation/src/souls/goods_company.rs`) stores `workers: WorkerHolder`, `max_workers: u32`,
-`comp: CompanyState` (progress, production). No welfare provision, no childcare, no canteen,
-no clinic, no dormitory, no cultural facility, no enterprise transport.
+Companies have workers and a recipe. `CompanyEnt`
+(`simulation/src/world.rs:185-191`) holds `comp: GoodsCompanyState`, `workers: Workers`,
+`sold`, and `bought` alongside `trans`. `GoodsCompanyState`
+(`simulation/src/souls/goods_company.rs:70-78`) stores `proto`, `building`, `max_workers`,
+`progress`, `driver`, and `trucks` — no workers field, no welfare provision, no childcare,
+no canteen, no clinic, no dormitory, no cultural facility, no enterprise transport. The
+worker type is `Workers(Vec<HumanID>)` (`simulation/src/economy/mod.rs:42`).
 
 The work desire (`simulation/src/souls/desire/work.rs`) assigns workers with a time interval
 (approximately 08:00–18:00 with random offsets). No shift pattern, no overtime, no fatigue.
@@ -110,8 +113,8 @@ The work desire (`simulation/src/souls/desire/work.rs`) assigns workers with a t
 
 ## Open questions
 
-- Which enterprise welfare facilities should 1.0 model as hooks (data fields, no mechanic)
-  versus Post-1.0 features?
+- Which enterprise welfare facilities should exist as Post-1.0 hooks (data fields, no mechanic)
+  versus later Post-1.0 features?
 - Should the Planner directly assign welfare facilities to enterprises, or should enterprises
   build them autonomously?
 - How does enterprise closure propagate through the settlement's social infrastructure?

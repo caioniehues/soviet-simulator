@@ -4,7 +4,7 @@
 **Authority:** advisory — Post-1.0 direction; the charter mentions none of these
 **Status:** draft
 **Owner:** simulation
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 A **National Project** is a temporary nationwide material and labour distortion: explicit
 phases, reserved materials, project cargo, construction sites and priority rules that stress the

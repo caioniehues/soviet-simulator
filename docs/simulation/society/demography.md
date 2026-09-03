@@ -4,19 +4,20 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Death | 1.0 binding |
-| Births | open question |
-| Fertility echo | research |
+| Death | 1.0 — charter row *Agriculture and services* |
+| Births | Post-1.0 (open question) |
+| Fertility echo | Post-1.0 hook |
 
 ## What this is
 
-The game's population changes through death and potentially through births and migration.
-Death is a 1.0 charter commitment. Births remain an open question. The long-wave consequence
-of demographic change — fewer workers a generation later — is the fertility echo.
+The 1.0 target population model includes death; current code does not yet change population
+through lifecycle, births, or migration (see Current substrate below). Death is a 1.0 charter
+commitment. Births remain an open question. The long-wave consequence of demographic change —
+fewer workers a generation later — is the fertility echo.
 
 ## 1.0 requirement
 

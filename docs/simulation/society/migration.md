@@ -4,7 +4,7 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
@@ -12,9 +12,9 @@
 | Limitchiki | Post-1.0 |
 | Komandirovki | Post-1.0 |
 | Regional supply tiers | Post-1.0 |
-| Graduate assignment | 1.0 candidate (via education) |
+| Graduate assignment | Post-1.0 hook (via education) |
 
-All subsections here are Post-1.0 or candidate. The charter says nothing about migration;
+All subsections here are Post-1.0. The charter says nothing about migration;
 propiska is absent from all draft specifications.
 
 ## What this is
@@ -89,7 +89,7 @@ A city's tier determines baseline supply quality. A closed city (science city, n
 has paradoxically superior supply because it serves strategic programmes — but at the cost of
 restricted population and secrecy.
 
-### Graduate assignment — 1.0 candidate (B1-28; B2-13; CONFIRMED)
+### Graduate assignment — Post-1.0 hook (B1-28; B2-13)
 
 Raspredelenie: mandatory job placement for graduates, established 1933. Graduates were
 assigned by commission to positions anywhere in the USSR for 3–4 years. This created forced

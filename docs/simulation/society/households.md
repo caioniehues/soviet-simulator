@@ -4,13 +4,13 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Household as first-class actor | 1.0 binding |
-| Shared Food/Meat pantry | 1.0 binding |
-| Household reviews and adaptation | architecture hook |
+| Household as first-class actor | 1.0 — charter row *Households and citizens* |
+| Shared Food/Meat pantry | 1.0 — charter row *Households and citizens* |
+| Household reviews and adaptation | Post-1.0 hook |
 
 ## What this is
 

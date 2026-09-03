@@ -4,7 +4,7 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
@@ -67,6 +67,11 @@ Self-management is not a variant of Soviet planning. It is a fundamentally diffe
 institutional structure. The game should present it as a separate ruleset, not as a Soviet
 reform — though historically it influenced Yugoslav-model socialism in Hungary, Poland, and
 later Soviet reform debates.
+
+## Current substrate
+
+Nothing. No alternate-ruleset mode, no enterprise self-direction, no game-mode switch
+exists in code. This page is entirely target design for a Post-1.0 game mode.
 
 ## Research basis
 

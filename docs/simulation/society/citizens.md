@@ -4,13 +4,13 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Persistent identity | 1.0 binding |
-| L0–L4 materialisation levels | architecture hook |
-| Biographies | architecture hook |
+| Persistent identity | 1.0 — charter row *Households and citizens* |
+| L0–L4 materialisation levels | Post-1.0 hook |
+| Biographies | Post-1.0 hook |
 
 ## What this is
 

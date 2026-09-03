@@ -4,14 +4,14 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Differentiated labour | 1.0 candidate |
-| Tenure ramp | 1.0 candidate |
-| Labour hoarding | architecture hook |
-| Labour shortage as the socialist condition | 1.0 candidate |
+| Differentiated labour | Post-1.0 hook |
+| Tenure ramp | Post-1.0 hook |
+| Labour hoarding | Post-1.0 hook |
+| Labour shortage as the socialist condition | Post-1.0 |
 
 ## What this is
 

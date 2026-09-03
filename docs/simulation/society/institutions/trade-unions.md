@@ -4,7 +4,7 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
@@ -80,6 +80,12 @@ Access to sanatoria was a valued welfare benefit and a union-mediated allocation
 the game, this would be a rest/recovery mechanism that reduces worker fatigue and illness — a
 welfare investment with measurable returns in reduced absenteeism.
 
+## Current substrate
+
+No union institution exists in code. Companies have workers and a recipe
+(`simulation/src/world.rs:185-191`); there is no committee, no voucher, no welfare
+allocation. This page is entirely target design.
+
 ## Research basis
 
 - Deutscher (1950), *Soviet Trade Unions*: the foundational English-language study. Documents
@@ -94,8 +100,8 @@ welfare investment with measurable returns in reduced absenteeism.
 
 - How does the union's housing-list role interact with the enterprise housing channel in the
   [housing queue](../housing.md)?
-- Should the putyovka system exist as a 1.0 hook (a data field on workers) or only as a
-  Post-1.0 mechanic?
+- Should the putyovka system exist as a Post-1.0 hook (a data field on workers) or only as a
+  later Post-1.0 mechanic?
 - What is the institutional memory's retention class — does the union "remember" past
   management refusals?
 

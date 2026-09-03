@@ -4,13 +4,13 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Household time budget | 1.0 candidate |
-| Social-reproduction balance | architecture hook |
-| Gendered time | research |
+| Household time budget | Post-1.0 hook |
+| Social-reproduction balance | Post-1.0 hook |
+| Gendered time | Post-1.0 |
 
 ## What this is
 

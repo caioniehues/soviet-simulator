@@ -4,17 +4,18 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** infrastructure
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 binding |
+| Scope | 1.0 — charter row *Utilities* |
 
 ## What this is
 
-Electricity is a finite, continuously delivered utility. Generation plus storage discharge
-equals served energy plus storage charge plus named loss: `G + D = V + C + L`. Under
-shortage, the Planner sets explicit non-price load priorities: hospitals before factories
-before houses. The result is brownout, not blackout — partial service with visible
-curtailment reasons.
+Electricity is a finite, continuously delivered utility in the target design. Generation plus
+storage discharge equals served energy plus storage charge plus named loss:
+`G + D = V + C + L`. Under shortage, the Planner sets explicit non-price load priorities:
+hospitals before factories before houses. The result is brownout, not blackout — partial
+service with visible curtailment reasons. (Target — the current substrate below is a binary
+blackout with none of this.)
 
 Electricity's inertia is near-instant: a generator trip propagates to loads within seconds.
 The player sees immediate consequences and must maintain reserve capacity.
@@ -49,21 +50,20 @@ in the game — the model is an energy balance, not a power-flow solver.
 
 ## Current substrate
 
-`ElectricityCache` (`simulation/src/map/electricity_cache.rs:52-62`) is a union-find over
-`NetworkObjectID`, which includes `Building`, `Intersection`, and `Road`. Edges are derived
+`ElectricityCache` (`simulation/src/map/electricity_cache.rs:52-62`) keeps one
+`BTreeMap<NetworkObjectID, Vec<NetworkObjectID>>` adjacency graph plus a
+`BTreeMap<NetworkObjectID, ElectricityNetworkID>` object-to-network index. Edges are derived
 from building→road and road→intersection adjacency
-(`electricity_cache.rs:244-279`). Every building connected to a road is automatically on
+(`electricity_cache.rs:244-279`); connectivity queries run BFS over that graph
+(`electricity_cache.rs:181-187`). Every building connected to a road is automatically on
 the electrical grid. There is no wire object.
-
-`SPEC-ELECTRICITY-001` directly contradicts this: "A road, intersection, or building road
-link MUST NOT itself be an electrical connection." Replacing the union-find is a **full
-replacement** of the connectivity model, not an incremental improvement.
 
 `electricity_flow_system` (`simulation/src/map_dynamic/electricity.rs:43-93`):
 1. For each network, sum consumed/produced power across buildings
-2. Houses consume a fixed 100 W
-3. Companies consume/produce based on prototype fields and productivity
-4. If consumed > produced, set `blackout = true`
+2. Houses consume a fixed 100 W (`electricity.rs:63-65`)
+3. Companies consume/produce based on prototype fields scaled by `raw_productivity`
+(`electricity.rs:66-76`)
+4. If consumed > produced, the whole network gets `blackout = true` (`electricity.rs:89`)
 
 This is:
 - No explicit wire — connectivity follows road topology

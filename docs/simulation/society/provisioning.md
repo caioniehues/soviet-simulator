@@ -4,13 +4,13 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** society
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 | Scope | Label |
 |---|---|
-| Food and Meat as separate needs | 1.0 binding |
-| Adaptive sequence | 1.0 binding |
-| Citizen knowledge and search | architecture hook |
+| Food and Meat as separate needs | 1.0 — charter row *Resources and production* |
+| Adaptive sequence | 1.0 — charter row *Households and citizens* |
+| Citizen knowledge and search | Post-1.0 hook |
 | Deficit-goods list | Post-1.0 |
 | Household plots | Post-1.0 |
 
@@ -38,7 +38,7 @@ defines the contract:
 
 ## Target design
 
-### The adaptive sequence — 1.0 binding (SPEC-NEEDS-003/004 extended; bible §7.6)
+### The adaptive sequence — 1.0, charter row *Households and citizens* (SPEC-NEEDS-003/004 extended; bible §7.6)
 
 When a household needs food or meat, the design proposes a stepped sequence:
 
@@ -121,8 +121,12 @@ citizen has perfect knowledge of the matched seller's location. There is no sear
 queueing time, no multi-store search, no household pantry, no Meat, no substitution sequence,
 no citizen knowledge model.
 
-`last_ate` tracks time since eating but updates on arrival without consuming inventory
-(`buyfood.rs:70-90`), which violates the target spec.
+On arrival the citizen verifies the live retail claim and settles it at eat-time:
+`Market::settle_retail` removes the claim, debits seller capital, and releases the
+reservation (`simulation/src/souls/desire/buyfood.rs:157-168`;
+`simulation/src/economy/market.rs:480-491`). `last_ate` advances only on successful
+settlement; if the claim expired during the walk, the citizen goes without and `last_ate`
+does not advance.
 
 ## Research basis
 
