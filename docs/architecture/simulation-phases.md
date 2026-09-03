@@ -4,7 +4,8 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** architecture
-**Last verified:** 2026-08-28
+**Verified-at:** `266f7b2`
+**Last verified:** 2026-09-03
 
 ## Current substrate
 
@@ -35,8 +36,12 @@ add_souls_to_empty_buildings   ARRIVAL/SPAWNING (takes &mut Simulation; runs las
 
 There are no phase names, no barriers, no multi-pass structure. `COMMAND` is real — it is
 `WorldCommand::apply` before the schedule. Reordering any two systems changes when entities
-interact within a tick and therefore changes replay hashes; `test_world_survives_serde` will
-detect it and cannot say which reorder caused it.
+interact within a tick and therefore changes replay hashes; `test_world_survives_serde` runs the
+real `Simulation::schedule()` and compares registered resources plus the bincode-encoded ECS
+World (closed `sov-n8v` / `sov-y66`), so it detects the divergence but cannot say which reorder
+caused it — there are no per-phase digests yet ([determinism](determinism.md)).
+
+The `COMMAND` step above is the `Simulation::tick` seam only. The native single-player loop applies a fast path first: when every queued command reports `WorldCommand::is_instant`, each is applied directly via `WorldCommand::apply` and the queue is cleared with no schedule pass (`native_app/src/network.rs:51-57`). The four instant variants are `MapBuildHouse`, `MapUpdateIntersectionPolicy`, `UpdateZone`, and `SetGameTime` (`simulation/src/world_command.rs:213-220`). Any other queued command forces one `Simulation::tick` while paused (`native_app/src/network.rs:67-70`).
 
 ## Target design
 
@@ -68,7 +73,8 @@ the target order is a behavioural change, not a relabelling.
    argued explicitly.
 
 Prerequisites: keyed randomness ([randomness](randomness.md)) — otherwise every reorder also
-reshuffles the global RNG stream — and the repeat-run determinism test.
+reshuffles the global `RandProvider` draw stream — and the replay-based repeat-run gate
+(`test_world_survives_serde`, [determinism](determinism.md)).
 
 ## Open decisions
 

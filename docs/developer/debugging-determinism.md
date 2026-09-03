@@ -12,12 +12,25 @@
 - `TestCtx::check_determinism` failing means **serialisation is lossy**: encode → decode changed a
   resource's hash. The message names the resource key and tick. Look for a field that is not
   serialised, a `HashMap` whose order leaks into the hash, or a non-registered resource.
-- `test_world_survives_serde` (`tests/test_iso.rs`) failing means **the replay diverged**: two
-  replays of `world_replay.json` produced different state. Its `check_size`/`check_start` loop
-  bisects to the first divergent tick.
+- `test_world_survives_serde` (`simulation/src/tests/test_iso.rs:239`) failing means one of three
+  things, and the printed message says which: `sim` vs `sim2` differ (replay-path divergence —
+  two simulations running the real `Simulation::schedule()` over the same 67-command / 200k-tick
+  replay reached different state), or bincode-decoded `deser` differs from `sim` or `sim2`
+  (serialisation/equality mismatch). `is_equal` (`simulation/src/lib.rs:239`) compares every
+  registered resource **and** the bincode-encoded ECS World, with `transport_grid` compared
+  order-insensitively (`transport_grid_equal`); resources outside `saveload_funcs()` are invisible
+  to it. The `check_size` / `check_start` loop narrows the window around the divergent checkpoint
+  — only ticks with `tick % check_size == 0` are compared, the `.max(3)` floor is load-bearing —
+  then panics, leaving `world` / `world2` dumps. Guards: the fixture-world census and the
+  environment round-trip guard (`simulation/src/tests/determinism_gate.rs`,
+  `simulation/src/tests/fixture_builder.rs`). Debug runtime is ~165 s.
 
-Neither proves repeat-run determinism (same seed and commands → same state). Until the repeat-run
-test exists, the procedure below is manual.
+The gate is a genuine two-simulation repeat-run comparison (closed `sov-n8v` / `sov-y66`), but it
+replays one committed command log from the default seed 123 — it is not a from-scratch same-seed
+proof, it cannot attribute a divergence to a system (no per-phase digests yet), and `RandProvider`
+draws stay sequential (`common::rand::RandGen` is a stateful LCG, not a stateless hash;
+`Instant::now` in `Simulation::tick` and serialisation is profiling-only and never feeds state).
+The procedure below is still how a failure is localised.
 
 ## Procedure
 
