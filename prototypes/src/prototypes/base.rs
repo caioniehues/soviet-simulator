@@ -11,10 +11,10 @@ impl crate::Prototype for PrototypeBase {
     const NAME: &'static str = "base";
 
     fn from_lua(table: &mlua::Table) -> mlua::Result<Self> {
-        use crate::get_lua;
+        use crate::{get_lua, get_lua_opt};
         Ok(Self {
             name: get_lua(table, "name")?,
-            order: get_lua(table, "order").unwrap_or(String::new()),
+            order: get_lua_opt(table, "order")?.unwrap_or(String::new()),
             label: get_lua(table, "label")?,
         })
     }

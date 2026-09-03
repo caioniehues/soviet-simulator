@@ -1,4 +1,4 @@
-use crate::{get_lua, GameDuration, ItemID};
+use crate::{get_lua, get_lua_opt, GameDuration, ItemID};
 use egui_inspect::Inspect;
 use mlua::{FromLua, Lua, Table, Value};
 
@@ -60,7 +60,7 @@ impl<'lua> FromLua<'lua> for Recipe {
             production: get_lua(&table, "production")?,
             duration: get_lua(&table, "duration")?,
             storage_multiplier: get_lua(&table, "storage_multiplier")?,
-            request_multiplier: get_lua(&table, "request_multiplier").unwrap_or(1),
+            request_multiplier: get_lua_opt(&table, "request_multiplier")?.unwrap_or(1),
         })
     }
 }

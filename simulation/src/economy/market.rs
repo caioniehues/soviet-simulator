@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use geom::{Vec2, Vec3};
 use prototypes::{
     prototypes_iter, GoodsCompanyID, GoodsCompanyPrototype, ItemPrototype, Money, Tick,
-    TICKS_PER_HOUR,
+    TICKS_PER_HOUR, TICKS_PER_MINUTE,
 };
 
 use crate::economy::{ItemID, WORKER_CONSUMPTION_PER_MINUTE};
@@ -147,6 +147,36 @@ const DISPATCH_DWELL_TICKS: u32 = 3;
 /// reach the buyer is not worth re-granting to reach the seller.
 const MAX_RETURN_ROUTE_RETRIES: u32 = 20;
 
+/// How many consecutive ticks a `ToSource` dispatch may sit with NO truck
+/// assigned before it is given up on and the buyer's demand handed back to the
+/// market. Unlike `MAX_RETURN_ROUTE_RETRIES` this bounds a condition that is
+/// perfectly ordinary — every truck in the city being busy — so it is
+/// deliberately generous (one game-minute); the point is only that the wait
+/// can never be infinite.
+///
+/// It has to exist because `ToSource` is otherwise a terminal state for the
+/// ENTERPRISE, not just for the dispatch (sov-ahw). `make_trades` removes the
+/// buy order at match time, and `Market::buy_until` is only ever called again
+/// from `souls::goods_company::recipe_act`, which needs
+/// `recipe_should_produce` — which needs the capital the undelivered import
+/// was going to provide. So a dispatch that waits forever leaves its buyer
+/// with no standing order, no capital and no way to ever ask again, even after
+/// the player lays the road that would have fixed it. That is a "never game
+/// over" violation, which is why the timeout below re-posts the buy order
+/// rather than only cleaning the dispatch up.
+///
+/// No money moves in the rollback: since sov-7f7 (ADR-0003 §1) the border
+/// commitment settles at delivery (the `Loading`/`ToDestination` arrivals),
+/// never at match, so a dispatch that never left `ToSource` settled nothing
+/// and refunds nothing.
+///
+/// Reached in an ordinary city: `market_update`'s `find_external` offers any
+/// freight station whose door is within `DISPATCH_LANE_CUTOFF` of a driving
+/// lane, while `DispatchOne::query` runs a real backward BFS over the lane
+/// graph, so a station on a road island of its own passes the first test and
+/// fails the second every tick.
+const MAX_SOURCE_WAIT_TICKS: u32 = TICKS_PER_MINUTE as u32;
+
 /// How long a human's retail claim (a matched-but-uncollected store purchase,
 /// e.g. bread) waits before it's released. Retail has no dispatch/truck to
 /// time out on the road, so this is the only backstop: without it, a human
@@ -222,6 +252,21 @@ pub struct Dispatch {
     /// A severed road can make either fail forever, so it's bounded rather
     /// than retried indefinitely — that would just reintroduce the wedge shape.
     return_route_retries: u32,
+    /// Ticks spent in `ToSource` with no truck assigned, bounded by
+    /// `MAX_SOURCE_WAIT_TICKS`. Never reset: a dispatch that keeps being
+    /// offered a truck and keeps losing it again (the deferred-`unpark`
+    /// refusal path, `release_tosource_truck`) is just as stuck as one that is
+    /// never offered anything, and must be bounded too.
+    source_wait_ticks: u32,
+    /// The seller's `SellOrder` shape (`pos`, `stock`) as it stood just before
+    /// `make_trades` consumed part of it for this dispatch. `None` for an
+    /// ext-trade import, whose border seller posts no sell order at all.
+    /// Kept so the `MAX_SOURCE_WAIT_TICKS` rollback can put the offer back on
+    /// the market: the match removes the order once `qty` reaches 0, and
+    /// releasing the reservation without restoring the offer leaves the stock
+    /// physically present but invisible, so the re-posted buy order can never
+    /// be served by the very seller that was about to serve it.
+    sell_order: Option<(Vec2, u32)>,
 }
 
 impl Dispatch {
@@ -601,6 +646,15 @@ impl Market {
                 ..
             } = market;
 
+            // The shape (`pos`, `stock`) of each seller's `SellOrder` as it
+            // was BEFORE this pass consumed part of it. A match decrements
+            // `sorder.qty` and removes the order outright when that hits 0,
+            // so a dispatch that later gives up in `ToSource` has nothing to
+            // rebuild the offer from -- and the goods, which never moved,
+            // would sit at the seller unadvertised forever. Captured here
+            // because this is the only place the pre-match order is in hand.
+            let mut sold_from: BTreeMap<SoulID, (Vec2, u32)> = BTreeMap::new();
+
             let dispatch_start = self.all_trades.len();
 
             self.all_trades
@@ -631,6 +685,8 @@ impl Market {
                     if sorder.qty < trade.qty as u32 {
                         return None;
                     }
+
+                    sold_from.insert(trade.seller.0, (sorder.pos, sorder.stock));
 
                     sorder.qty -= trade.qty as u32;
 
@@ -678,6 +734,17 @@ impl Market {
                     let qty_buy = order.qty as i32;
 
                     let Some(ext) = find_external(order.pos) else {
+                        // The border cannot serve this buyer (no freight
+                        // station in range, or none at all). That is not a
+                        // reason to DESTROY its demand: `extract_if` above
+                        // already took the order out of `buy_orders`, and
+                        // dropping it here is what killed enterprises in a
+                        // city with a closed border -- `recipe_init`'s very
+                        // first order is eaten exactly this way, and so was
+                        // every order the `MAX_SOURCE_WAIT_TICKS` rollback in
+                        // `advance_dispatches` re-posts. Put it back so the
+                        // next domestic match can still see it.
+                        buy_orders.insert(buyer, order);
                         continue;
                     };
 
@@ -792,6 +859,8 @@ impl Market {
                         state: DispatchState::ToSource,
                         ticks_left: 0,
                         truck: None,
+                        source_wait_ticks: 0,
+                        sell_order: sold_from.get(&trade.seller.0).copied(),
                         return_route_retries: 0,
                     });
                 }
@@ -805,14 +874,6 @@ impl Market {
         &self.markets
     }
 
-    /// Advances every in-flight dispatch by one tick, sequencing it through
-    /// ToSource -> Loading -> ToDestination -> Unloading, driven by a real truck
-    /// reserved from the `Dispatcher` and physically driven over the road network.
-    /// The seller's capital is debited exactly when the truck arrives and enters
-    /// `Loading`, and the buyer's capital is credited exactly when it arrives and
-    /// enters `Unloading`; must be called once per tick for dispatches to ever
-    /// complete. With no truck available, a dispatch simply waits in `ToSource` —
-    /// no capital moves.
     /// Rolls back the truck reservation `advance_dispatches` recorded for a
     /// `ToSource` dispatch, putting it back to "waiting for a truck" so the
     /// next tick retries. Returns whether a dispatch was actually rolled back.
@@ -820,9 +881,11 @@ impl Market {
     /// Needed because the truck is assigned here but `unpark` runs deferred
     /// through `ParCommandBuffer<VehicleEnt>`: if the truck stopped being
     /// `Parked` in between, `unpark` refuses (sov-6qx) and the truck never
-    /// moves. `ToSource` has no tick countdown, so a dispatch left holding a
-    /// motionless truck waits forever and freezes the seller's reservation
-    /// with it. Identified by the truck rather than by index because
+    /// moves. `MAX_SOURCE_WAIT_TICKS` would eventually tear such a dispatch
+    /// down, but tearing it down throws the match away; releasing the truck
+    /// here keeps the dispatch alive to retry on the very next tick, which is
+    /// the cheaper and more accurate outcome. Identified by the truck rather
+    /// than by index because
     /// `dispatches` is `swap_remove`d and indices do not survive a tick; a
     /// truck is reserved by at most one dispatch at a time.
     pub(crate) fn release_tosource_truck(&mut self, v: crate::world::VehicleID) -> bool {
@@ -835,7 +898,15 @@ impl Market {
         false
     }
 
-    /// Drives every in-flight dispatch one tick (see the state machine below).
+    /// Drives every in-flight dispatch one tick (see the state machine below),
+    /// sequencing each ToSource -> Loading -> ToDestination -> Unloading: the
+    /// seller's capital is debited exactly when the truck arrives and enters
+    /// `Loading`, the buyer's credited exactly when it arrives and enters
+    /// `Unloading`; must be called once per tick for dispatches to ever
+    /// complete. With no truck available, a dispatch waits in `ToSource` — no
+    /// capital moves — but only for `MAX_SOURCE_WAIT_TICKS`, after which the
+    /// whole match is rolled back onto the market (see that arm).
+    ///
     /// Returns the border money that settled on arrivals this tick (sov-7f7,
     /// ADR-0003 §1): each dispatch carries its commitment's `money_delta`
     /// (ZERO for domestic legs), applied on the `Loading` arrival for imports
@@ -864,6 +935,8 @@ impl Market {
                 ticks_left,
                 truck,
                 return_route_retries,
+                source_wait_ticks,
+                sell_order,
             ) = {
                 let d = &self.dispatches[i];
                 (
@@ -876,6 +949,8 @@ impl Market {
                     d.ticks_left,
                     d.truck,
                     d.return_route_retries,
+                    d.source_wait_ticks,
+                    d.sell_order,
                 )
             };
 
@@ -930,11 +1005,13 @@ impl Market {
                                         // and a `Parked` vehicle has no
                                         // collider, so `vehicle_decision_system`
                                         // skips it and its itinerary never
-                                        // ends. `ToSource` has no timeout, so
-                                        // logging the refusal and keeping
-                                        // `truck = Some(v)` would freeze this
-                                        // dispatch, the truck and the
-                                        // seller's reserved quantity forever.
+                                        // ends. `MAX_SOURCE_WAIT_TICKS` only
+                                        // counts down on the `truck: None`
+                                        // arm, so logging the refusal and
+                                        // keeping `truck = Some(v)` would
+                                        // freeze this dispatch, the truck and
+                                        // the seller's reserved quantity
+                                        // forever, with no bound at all.
                                         // Undo our own bookkeeping instead:
                                         // release the truck and drop back to
                                         // "no truck yet" so the next tick
@@ -959,8 +1036,98 @@ impl Market {
                                 }
                             }
                         }
-                        // No truck available (or no route found): stay in
-                        // ToSource and retry next tick. Nothing is debited.
+                        // No truck available (or no route found, or the
+                        // seller's building is gone): stay in ToSource and
+                        // retry next tick. Nothing is debited.
+                        //
+                        // But not forever (sov-ahw). This arm used to have no
+                        // counter and no `else` at all, so a seller the
+                        // `Dispatcher`'s BFS can never reach — the ordinary
+                        // case of a freight station the player has not
+                        // connected by road yet — left the dispatch immortal.
+                        // Immortal here does not just wedge the dispatch: the
+                        // buy order was consumed by the match, and its only
+                        // re-post path (`recipe_act` -> `buy_until`) is gated
+                        // on capital this import was supposed to deliver, so
+                        // the ENTERPRISE dies permanently. Undo our own
+                        // bookkeeping in full instead — reservation, sell
+                        // order, and the buy order — so both halves of
+                        // the match go back on the market and the city can
+                        // serve it the moment a route exists.
+                        //
+                        // No money moves here: since sov-7f7 the border
+                        // commitment settles at delivery, never at match, so
+                        // a dispatch that never left `ToSource` settled
+                        // nothing. (Under match-time settlement this arm also
+                        // refunded `money_delta`; that would now pay back
+                        // money that was never taken.)
+                        if self.dispatches[i].truck.is_none() {
+                            if source_wait_ticks + 1 < MAX_SOURCE_WAIT_TICKS {
+                                self.dispatches[i].source_wait_ticks = source_wait_ticks + 1;
+                            } else {
+                                // Nothing was ever debited from the seller in
+                                // `ToSource`, so releasing the reservation is
+                                // the whole physical rollback: the goods never
+                                // left, and no quantity is created or
+                                // destroyed here.
+                                if let Some(r) = self.m(kind).reserved.get_mut(&seller) {
+                                    *r = r.saturating_sub(qty);
+                                }
+                                // The other half of what the match consumed:
+                                // `make_trades` took `qty` off the seller's
+                                // `SellOrder` and deleted it outright at 0.
+                                // Releasing the reservation alone leaves that
+                                // stock present but unoffered, so the buy
+                                // order re-posted below finds no domestic
+                                // seller and the goods never move again.
+                                // Clamped to the seller's capital because
+                                // `sell_all` may have re-posted the order off
+                                // the full (still-undebited) capital in the
+                                // meantime, and `make_trades` skips any seller
+                                // whose order asks for more than it holds.
+                                let m = self.m(kind);
+                                let cap = m.capital(seller).unwrap_or(0).max(0) as u32;
+                                match m.sell_orders.entry(seller) {
+                                    Entry::Occupied(mut o) => {
+                                        let order = o.get_mut();
+                                        order.qty = (order.qty + qty).min(cap);
+                                    }
+                                    Entry::Vacant(v) => {
+                                        if let Some((pos, stock)) = sell_order {
+                                            v.insert(SellOrder {
+                                                pos,
+                                                qty: qty.min(cap),
+                                                stock,
+                                            });
+                                        }
+                                    }
+                                }
+                                // The half a bare countdown would miss: put
+                                // the demand back. `buy_until` is the same
+                                // entry point `recipe_init`/`recipe_act` use,
+                                // and posts the CURRENT shortfall against the
+                                // buyer's standing request, so a buyer that
+                                // has since been supplied re-posts nothing.
+                                // (sov-5yc's clamp inside `buy_until` stays:
+                                // a buyer with negative capital re-posts its
+                                // full shortfall, never a wrapped u32.)
+                                if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
+                                    let want = self.requested(buyer, kind).unwrap_or(qty).max(qty);
+                                    self.buy_until(buyer, buyer_pos.xy(), kind, want);
+                                }
+                                log::warn!(
+                                    "dispatch {:?} {:?} ({:?} -> {:?}) gave up waiting for a \
+                                     truck after {} ticks; reservation released and the buy \
+                                     order re-posted",
+                                    qty,
+                                    kind,
+                                    seller,
+                                    buyer,
+                                    MAX_SOURCE_WAIT_TICKS
+                                );
+                                remove = true;
+                            }
+                        }
                     }
                     Some(v) => {
                         if world.vehicles.get(v).is_none() {
@@ -1325,6 +1492,8 @@ impl Market {
             ticks_left: 0,
             truck: None,
             return_route_retries: 0,
+            source_wait_ticks: 0,
+            sell_order: None,
         });
     }
 }

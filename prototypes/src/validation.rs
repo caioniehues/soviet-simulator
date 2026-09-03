@@ -217,4 +217,17 @@ mod tests {
             "the error must name the company, the field and the offending value, got: {msg}"
         );
     }
+
+    #[test]
+    fn sov_0vz_wrong_typed_request_multiplier_is_refused() {
+        let lua =
+            mill_fixture("10m", 1).replace("request_multiplier = 1", "request_multiplier = \"four\"");
+        let err = try_parse_prototypes(&lua)
+            .expect_err("request_multiplier = \"four\" must be REFUSED at load, not defaulted to honest-1");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("request_multiplier"),
+            "the error must name the offending field, got: {msg}"
+        );
+    }
 }

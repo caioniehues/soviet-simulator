@@ -37,5 +37,6 @@ fn scenario_harness_smoke() {
 
 mod sov_20g_exports;
 mod sov_7f7_settlement;
+mod sov_ahw;
 mod sov_bub_loss_sink;
 mod sov_uo5_border_stock;

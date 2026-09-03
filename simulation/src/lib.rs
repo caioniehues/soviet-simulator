@@ -135,6 +135,15 @@ impl Default for SimulationOptions {
     }
 }
 
+/// Writes an `is_equal` mismatch dump into the gitignored `simulation/world/`
+/// directory (the `world` basename rule in `.gitignore` covers it), so a
+/// deliberate red run leaves `git status --porcelain` clean of new files.
+fn dump_debug_json(file_name: &str, bytes: &[u8]) {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("world");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(file_name), &*String::from_utf8_lossy(bytes)).unwrap();
+}
+
 impl Simulation {
     pub fn schedule() -> SeqSchedule {
         let mut schedule = SeqSchedule::default();
@@ -256,10 +265,8 @@ impl Simulation {
                 {
                     continue;
                 }
-                std::fs::write(format!("{}_a.json", l.name), &*String::from_utf8_lossy(&a))
-                    .unwrap();
-                std::fs::write(format!("{}_b.json", l.name), &*String::from_utf8_lossy(&b))
-                    .unwrap();
+                dump_debug_json(&format!("{}_a.json", l.name), &a);
+                dump_debug_json(&format!("{}_b.json", l.name), &b);
                 return false;
             }
         }
@@ -267,8 +274,8 @@ impl Simulation {
         let world_a = common::saveload::Bincode::encode(&self.world).unwrap();
         let world_b = common::saveload::Bincode::encode(&other.world).unwrap();
         if world_a != world_b {
-            std::fs::write("world_a.json", &*String::from_utf8_lossy(&world_a)).unwrap();
-            std::fs::write("world_b.json", &*String::from_utf8_lossy(&world_b)).unwrap();
+            dump_debug_json("world_a.json", &world_a);
+            dump_debug_json("world_b.json", &world_b);
             return false;
         }
 
@@ -359,19 +366,19 @@ impl Simulation {
         self.world.contains(id)
     }
 
-    pub fn write_or_default<T: Any + Send + Sync + Default>(&mut self) -> RefMut<T> {
+    pub fn write_or_default<T: Any + Send + Sync + Default>(&mut self) -> RefMut<'_, T> {
         self.resources.write_or_default::<T>()
     }
 
-    pub fn try_write<T: Any + Send + Sync>(&self) -> Option<RefMut<T>> {
+    pub fn try_write<T: Any + Send + Sync>(&self) -> Option<RefMut<'_, T>> {
         self.resources.try_write().ok()
     }
 
-    pub fn write<T: Any + Send + Sync>(&self) -> RefMut<T> {
+    pub fn write<T: Any + Send + Sync>(&self) -> RefMut<'_, T> {
         self.resources.write()
     }
 
-    pub fn read<T: Any + Send + Sync>(&self) -> Ref<T> {
+    pub fn read<T: Any + Send + Sync>(&self) -> Ref<'_, T> {
         self.resources.read()
     }
 
