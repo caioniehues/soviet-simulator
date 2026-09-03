@@ -5,9 +5,10 @@ use std::time::{Duration, Instant};
 
 use crate::rendering::immediate::{ImmediateDraw, ImmediateSound};
 use common::history::History;
+use common::saveload::Encoder;
 use engine::{Context, FrameContext, MeshBuilder};
 use geom::{vec2, vec3, Camera, LinearColor};
-use simulation::Simulation;
+use simulation::{Replay, Simulation};
 
 use crate::audio::GameAudio;
 use crate::debug_gui::debug_window::DebugObjs;
@@ -50,8 +51,20 @@ impl engine::framework::State for State {
 
         log::info!("loaded egui_render");
 
-        let sim: Simulation =
-            Simulation::load_from_disk("world").unwrap_or_else(|| Simulation::new(true));
+        let sim: Simulation = Simulation::load_from_disk("world").unwrap_or_else(|| {
+            log::info!("no loadable world/world.zip; materialising the fixture world from the committed replay (ADR-0002)");
+            match common::saveload::JSON::decode::<Replay>(Simulation::FIXTURE_REPLAY.as_bytes()) {
+                Ok(replay) => {
+                    let sim = Simulation::materialise_replay(replay);
+                    sim.save_to_disk("world");
+                    sim
+                }
+                Err(e) => {
+                    log::error!("fixture replay unreadable: {e}; starting an empty world");
+                    Simulation::new(true)
+                }
+            }
+        });
         let game_schedule = Simulation::schedule();
         let mut uiworld = UiWorld::init();
 

@@ -5,7 +5,6 @@ use goryak::{
     button_primary, error, minrow, on_primary, on_secondary_container, primary, textc, ProgressBar,
     Window,
 };
-use simulation::utils::scheduler::SeqSchedule;
 use simulation::Simulation;
 use std::path::PathBuf;
 use yakui::widgets::Pad;
@@ -45,7 +44,7 @@ pub fn load(uiw: &UiWorld, _: &Simulation, opened: &mut bool) {
         }
 
         if state.has_save {
-            if button_primary("Load world/world_replay.json")
+            if button_primary("Load fixture world (world/world_replay.json)")
                 .show()
                 .clicked
             {
@@ -53,7 +52,7 @@ pub fn load(uiw: &UiWorld, _: &Simulation, opened: &mut bool) {
 
                 if let Some(replay) = replay {
                     let (mut sim, mut loader) = Simulation::from_replay(replay);
-                    let mut s = SeqSchedule::default();
+                    let mut s = Simulation::schedule();
                     loader.advance_tick(&mut sim, &mut s); // advance by one tick to get the initial state (like map size info)
 
                     uiw.write::<SaveLoadState>().please_load = Some(loader);
