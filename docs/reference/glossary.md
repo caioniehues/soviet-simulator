@@ -198,6 +198,16 @@ Conceptual neighbours are noted as "see" references, not definitions.
 :: The physical haulage job and its stage: `ToSource`, `Loading`, `ToDestination`, `Unloading`,
   `Returning` (`simulation/src/economy/market.rs:173-204`). See Custody, Dispatcher.
 
+**Border custody**
+:: The freight station's bounded stock ledger: imported goods the border holds after train
+  arrival, drawn down by import dispatches. The import seller sells from this stock, never
+  from nothing. See Custody, Dispatch.
+
+**Lost**
+:: The named account for cargo deleted by bounded route failure after the seller was
+  debited. Honest loss, recorded and inspectable — never a teleport, never silent.
+  See Dispatch.
+
 **RetailClaim**
 :: A store-to-consumer purchase matched but not yet collected on foot; it never moves a truck
   (`simulation/src/economy/market.rs:160-165`).
