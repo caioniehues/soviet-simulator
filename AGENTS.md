@@ -48,8 +48,8 @@ cargo run --release
 # Run the parallel-safe simulation suite.
 cargo test -p simulation
 
-# Run a named evidence filter and show its output.
-cargo test -p simulation evid_logistics -- --nocapture
+# Run a named scenario filter and show its output (verified 2026-09-03: 1 test).
+cargo test -p simulation scenario_0151 -- --nocapture
 
 # Check documentation and build the mdBook view.
 python3 scripts/check_docs.py && mdbook build
@@ -58,7 +58,7 @@ python3 scripts/check_docs.py && mdbook build
 cargo-deny check
 ```
 
-Use `cargo test -p simulation sentinel` only for the sentinel set. Confirm that every filtered command runs at least one test.
+Use `cargo test -p simulation scenario_ -- --nocapture` for the scenario set (verified 2026-09-03: 30 tests). The `sentinel` tag is planned, not implemented — no `fn` contains `sentinel` today, so that filter runs zero tests. Confirm that every filtered command runs at least one test.
 
 ## Code Conventions & Common Patterns
 

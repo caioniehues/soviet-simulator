@@ -56,10 +56,13 @@ determinism baseline moved deliberately.
 cargo test -p simulation     # parallel-safe since 2026-08-26
 ```
 
-43 scenario tests plus the serialisation round-trip test. Confirm a filter runs at least one test:
+42 tests in `tests/scenarios/` (30 `scenario_*` + 12 `sov_*`), plus the `test_iso` serialisation
+round-trip test, the active vehicle test, determinism-gate, fixture-builder and module-unit tests
+(65 `cargo test -p simulation -- --list` entries total; verified 2026-09-03). Confirm a filter runs
+at least one test:
 
 ```bash
-cargo test -p simulation scenario_0151 -- --nocapture
+cargo test -p simulation scenario_0151 -- --nocapture   # verified 2026-09-03: 1 test
 ```
 
 ## Run headless

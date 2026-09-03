@@ -2,14 +2,13 @@
 //! each as a `#[test]` fn whose name carries its stable corpus ID
 //! (`scenario_0082_...`, `journey_0001_...`).
 //!
-//! Sentinel set: a fixed group of six corpus IDs re-run for regression
-//! detection across iterations (JOURNEY-0001, SCENARIO-0009, SCENARIO-0015,
-//! SCENARIO-0090, SCENARIO-0115, SCENARIO-0118). Each sentinel test's fn name
-//! must contain `sentinel` so the whole set can be run with:
-//!
-//!   cargo test -p simulation sentinel
-//!
-//! e.g. `fn sentinel_journey_0001_...()`. Individual scenarios/journeys not in
+//! Sentinel set (planned, not yet implemented): six corpus IDs are nominated
+//! for regression re-runs across iterations (JOURNEY-0001, SCENARIO-0009,
+//! SCENARIO-0015, SCENARIO-0090, SCENARIO-0115, SCENARIO-0118), but no active
+//! test fn name contains `sentinel` today (verified 2026-09-03), so
+//! `cargo test -p simulation sentinel` matches zero tests. Until sentinel
+//! tests land, run `cargo test -p simulation scenario_`
+//! (verified 2026-09-03: 30 tests) for the scenario set. Scenarios not in
 //! the sentinel set omit that tag.
 
 use super::*;
