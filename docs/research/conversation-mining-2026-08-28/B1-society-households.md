@@ -1,5 +1,12 @@
 # B1 — Society, households, time, housing, migration, informal networks
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (top-ten findings)
 
 1. **B1-01** The social reproduction loop is the conversation's strongest original contribution — it closes an economic circuit through citizens that no existing city-builder models. CONFIRMED by Soviet demographic and economic literature.
@@ -513,4 +520,4 @@ The deficit list varied by city (Moscow better supplied than provinces) and peri
 - `docs/reference/specifications/buildings.md:1-80` — Buildings spec
 - `docs/reference/specifications/zoning.md:1-80` — Zoning spec
 - `docs/reference/glossary.md` — Project glossary
-- `docs/archive/agents-2026-09-02/settlement-modeller.md` — Settlement modeller agent definition (households as shared-pantry units)
+- `docs/agents/domain.md` — current agent domain definitions (households as shared-pantry units; the archived settlement-modeller definition under `docs/archive/` is historical, not an authority)

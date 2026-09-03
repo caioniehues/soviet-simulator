@@ -1,5 +1,12 @@
 # C1 — Rust Crates and Libraries: Verification Report
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 **Lane:** C1  
 **Source lines:** 522–693 (Rust architecture research), 1102–1116 (Rust implementation model)  
 **Date:** 2026-08-28  

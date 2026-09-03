@@ -1,5 +1,12 @@
 # G — Adversarial review: what GPT got wrong, glossed, invented, or contradicted
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (ten most important findings)
 
 1. **G-01** — The ten-phase deterministic schedule (`COMMAND → TOPOLOGY → … → ACCOUNTING`) does not exist in the code; the actual schedule is flat registration-order serial systems. Presenting it as an "architecture conclusion" implies existing infrastructure that does not exist.

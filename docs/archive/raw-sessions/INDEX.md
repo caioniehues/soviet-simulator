@@ -18,5 +18,5 @@ provenance only and must not be cited as project authority.
 | `gpt-master-bible-2026-08-28.md` | GPT's later consolidated "bible" of the same thread (26 sections). Better labelled than the export but still overstates spec ratification and cites unverified CIA links. | Same as above |
 | `claude-mining-session-2026-08-28.txt` | Claude Code session log: ten Opus lanes mining the export, their headline reports, and the lead's verification greps | [Lane reports](../../research/conversation-mining-2026-08-28/) |
 
-Nothing here establishes scope or mechanism. The charter, glossary, ratified specifications, and
+Nothing here establishes scope or mechanism. The charter, glossary, draft specifications (all `Status: draft`, none ratified), and
 current substrate fact-sheets do.

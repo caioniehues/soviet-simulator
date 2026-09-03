@@ -1,5 +1,12 @@
 # Lane E — Claim-by-claim code gap audit
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (ten most important findings)
 
 1. **E-007**: The dishonest enterprise is now wired end-to-end — `request_multiplier` in `recipe_init` calls `set_requested`, so enterprises over-request in the running game. Two companies use it today (flour mill: 4x, butcher: 3x). **But the Planner still cannot see it** — no UI exposes requested-vs-consumed. STATUS: **PARTIAL**.

@@ -1,5 +1,12 @@
 # B2 -- CIA-Source Verification
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary
 
 The conversation export (lines 894--1173) claimed a CIA-only research pass but contained zero citations -- only twenty derived observations. This report verifies each against the declassified record. The ten most important findings:

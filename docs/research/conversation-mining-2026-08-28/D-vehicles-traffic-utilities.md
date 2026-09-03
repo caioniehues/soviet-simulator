@@ -1,5 +1,12 @@
 # Lane D — Vehicles, Traffic, and Utilities
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary
 
 The conversation's deep-dive on vehicles, traffic, and utilities (lines 696–892) proposes an

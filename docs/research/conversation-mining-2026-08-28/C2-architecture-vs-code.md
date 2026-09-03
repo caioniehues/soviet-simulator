@@ -1,5 +1,12 @@
 # C2 — Rust architecture proposals versus the real codebase
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (top ten findings)
 
 1. **C2-01** The ten-phase deterministic order (COMMAND->ACCOUNTING) does NOT match the codebase. Egregoria runs 18 systems in a flat registration order with no phase boundaries; reordering changes replay hashes.
@@ -234,7 +241,7 @@ C2-12 Shared topology ──> (independent, unlocks Water/Sewage/Heat/Gas)
 
 ### 3.2 Per-proposal migration sketch
 
-#### C2-09 Keyed randomness (MUST-DO-FIRST for parallelism)
+#### C2-09 Keyed randomness (recommended first step for parallelism)
 
 **What exists:** Single `RandProvider` in `Resources`, drawn sequentially.
 **Seam:** Replace `sim.write::<RandProvider>().next_u32()` calls with `keyed_rand(seed, entity_id, event_index)`. A pure function, no mutable state.

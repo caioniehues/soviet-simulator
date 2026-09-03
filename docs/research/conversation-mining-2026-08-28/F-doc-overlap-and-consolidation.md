@@ -1,5 +1,12 @@
 # Lane F — Overlap, contradiction and consolidation audit
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (top ten findings)
 
 1. **F-CONTRADICTS-01**: The export's "250,000 persistent citizen identities at 60 fps" as a "binding 1.0 ambition" (line 34) vs the cancelled `sov-1ae` 250k benchmark lane (2026-08-27; `.beads/issues.jsonl`). The charter *does* state 250k at 60 fps (charter:56-57) but names no benchmarks; the benchmark lane that would have proven it was cancelled and its WIP branch never merged. The export treats 250k as an established contract; the repo treats it as a target with no bench gate.

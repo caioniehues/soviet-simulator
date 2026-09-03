@@ -1,5 +1,12 @@
 # Repository Guidelines
 
+**Kind:** operational
+**Authority:** operational
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** `docs/meta/document-authority.md` operational-entry-point rule (2026-08-28); content verified 2026-09-03
+
 ## Project Overview
 
 Soviet Simulator is a GPL-3.0 Rust city-builder and a hard fork of Egregoria. The player is **the Planner**. The simulation models physical goods, shortages, queues, and observable enterprise hoarding.

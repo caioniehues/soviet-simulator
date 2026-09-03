@@ -241,6 +241,7 @@
     - [G — adversarial review](research/conversation-mining-2026-08-28/G-adversarial-review.md)
     - [H — game modes and progression](research/conversation-mining-2026-08-28/H-game-modes-and-progression.md)
     - [Draft bd issues](research/conversation-mining-2026-08-28/bd-drafts.md)
+  - [Beads and Oh My Pi integration (2026-08-30)](explanation/research/beads-oh-my-pi-integration-2026-08-30.md)
   - [Technical stack, upstream (2026-08-24)](explanation/research/technical-stack-upstream-2026-08-24.md)
   - [Documentation architecture (superseded)](explanation/research/documentation-architecture.md)
   - [Agent frameworks: study brief](explanation/research/agent-frameworks/study-brief.md)

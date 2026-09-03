@@ -1,5 +1,12 @@
 # Lane H — Game modes, campaigns, national projects, progression and the player loop
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (top ten findings)
 
 1. **H-01** The fifteen named game modes are really organizational-parameter presets over one physical simulation, not separate games. Each changes ~4–8 institutional parameters (quota regime, reserve rules, priority classes, information quality, housing allocator). This is architecturally cheap once the parameters exist — but none of those parameters exist in today's code.

@@ -4,7 +4,11 @@
 **Authority:** operational
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-24
+**Last verified:** 2026-09-03
+
+**Generator:** unknown — no generator script exists yet (scripts/ owned by sibling task sov-rut; header written by hand in the md, 2026-09-03)
+**Authoritative inputs:** legacy STORY corpus, `docs/plan/charter-1.0.md`, stable SPEC anchors
+**Regeneration command:** none yet — hand-maintained at `docs/plan/traceability/story-migration.md` until a generator lands (candidate: `docs/generated/`)
 
 This ledger accounts for every legacy STORY identity. It does not make the legacy corpus authoritative: scope comes from the charter and mechanisms from the stable SPEC anchors. `deferred` rows are Post-1.0 direction and intentionally have no 1.0 acceptance criteria; `retired` rows have no replacement requirement. The two `split` rows preserve their named in-scope contract while recording the cut acceptance criterion only as direction.
 

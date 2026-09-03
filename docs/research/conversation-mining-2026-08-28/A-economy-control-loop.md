@@ -1,5 +1,12 @@
 # Lane A — The planned economy as a control system
 
+**Kind:** research
+**Authority:** research
+**Status:** active
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** GPT conversation export `gpt-vision-export-2026-08-28.md` (2026-08-28), validated against code paths cited inline; synthesis 2026-08-28
+
 ## 0. Summary (top ten findings)
 
 1. **A-01 Causal-distinctness rule**: CONFIRMED as the correct design heuristic. Splits only where

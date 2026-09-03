@@ -1,5 +1,12 @@
 # Common brief — conversation mining 2026-08-28
 
+**Kind:** research
+**Authority:** research
+**Status:** historical
+**Owner:** project lead
+**Last verified:** 2026-09-03
+**Source:** mining-brief inputs for the 2026-08-28 conversation-mining pass (brief frozen 2026-08-28)
+
 You are one of ten Opus miners working in parallel on the same source. Read this file fully, then your lane brief, then the source.
 
 ## The source
@@ -18,8 +25,8 @@ You are one of ten Opus miners working in parallel on the same source. Read this
 - Charter: `docs/plan/charter-1.0.md`. **For this pass the charter does NOT filter ideas.** The user chose to ignore 1.0 scope. Do not reject or downgrade an idea because it is Post-1.0. You may note overlap with existing documents for deduplication only.
 - Prior research you must not duplicate: `docs/research/architecture-review-2026-08-27.md`, `docs/research/agent-roster-review-2026-08-27.md`, `docs/research/research-synthesis-2026-08-27.html`, `docs/research/awesome-rust-project-fit.md`, `docs/plan/proposals/gosplan.md`, `docs/reference/glossary.md`, `docs/vision/`.
 - Tests: `cargo test -p simulation` (parallel-safe).
-- Knowledge graph MCP tools (`mcp__code-review-graph__*`) are available: `semantic_search_nodes_tool` for behaviour-described searches (misses ~34% — empty means unknown), `query_graph_tool` for callers/callees. You have no LSP; cite `file:line` from what you actually read.
-- Workers & Resources: Soviet Republic is installed locally as a reference implementation; `docs/archive/agents-2026-09-02/substrate-cartographer.md` line 74 onward says where and how to read it. Use it when your lane compares mechanics to W&R.
+- Knowledge graph MCP tools are available for behaviour-described searches (an empty result means unknown, not absent). You have no LSP; cite `file:line` from what you actually read. Current agent definitions live under `docs/agents/`; `docs/archive/` is historical and not an authority.
+- Workers & Resources: Soviet Republic is installed locally as a reference implementation; consult the local install directly when your lane compares mechanics to W&R. (A historical pointer to an archived agent definition was removed: the archive is not an authority.)
 
 ## Design pillars that are not negotiable (from CLAUDE.md)
 
