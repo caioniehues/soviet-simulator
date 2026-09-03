@@ -162,3 +162,89 @@ evidence.
 **Player control**
 : A presentation or pacing control, such as simulation speed, that is not a policy unless the
   simulation reads and persists it as one.
+
+## Implementation identifiers (reading guide, non-binding)
+
+The names below are code identifiers, not binding terms: they say where a concept lives in the
+substrate so a reader can find it. Binding meaning, where it exists, is in the entries above.
+Conceptual neighbours are noted as "see" references, not definitions.
+
+**Market**
+:: The per-item markets plus in-flight dispatches and outstanding retail claims
+  (`simulation/src/economy/market.rs:93-109`).
+
+**SingleMarket**
+:: One item's ledger: on-hand stock, buy/sell orders, matched-not-yet-picked-up stock, and
+  per-cycle want (`simulation/src/economy/market.rs:39-53`). See Request, Custody.
+
+**BuyOrder**, **SellOrder**
+:: Position-plus-quantity trade intents held by a `SingleMarket`
+  (`simulation/src/economy/market.rs:25-36`). See Request.
+
+**Trade**
+:: A matched buyer, seller, kind, and quantity, plus the government-side `money_delta`
+  (`simulation/src/economy/market.rs:117-123`).
+
+**money_delta**
+:: The government rouble effect of a trade, applied at match time
+  (`simulation/src/economy/mod.rs:104`). See Rouble, Border.
+
+**capital**, **reserved**, **requested**
+:: The three `SingleMarket` quantity maps: on-hand stock, matched but not yet picked up by a
+  dispatch, and the per-cycle quantity a soul wants (`simulation/src/economy/market.rs:41-50`).
+  See Request, Custody.
+
+**Dispatch**, **DispatchState**
+:: The physical haulage job and its stage: `ToSource`, `Loading`, `ToDestination`, `Unloading`,
+  `Returning` (`simulation/src/economy/market.rs:173-204`). See Custody, Dispatcher.
+
+**RetailClaim**
+:: A store-to-consumer purchase matched but not yet collected on foot; it never moves a truck
+  (`simulation/src/economy/market.rs:160-165`).
+
+**EcoStats**
+:: Match-time export, import, and internal-trade histories per item
+  (`simulation/src/economy/ecostats.rs:48-52,79-93`).
+
+**Recipe**, **RecipeItem**
+:: An enterprise prototype's consumption/production lists with `storage_multiplier` and
+  `request_multiplier` (`prototypes/src/types/recipe.rs:6-52`).
+
+**GoodsCompanyState**
+:: A company's live progress, driver, and truck list
+  (`simulation/src/souls/goods_company.rs:70-78`).
+
+**WorkKind**
+:: A citizen's work assignment: `Driver` (with deliver order and truck) or `Worker`
+  (`simulation/src/souls/desire/work.rs:11-15`).
+
+**BuyFoodState**
+:: A citizen's food errand stage: `Empty`, `WaitingForTrade`, or `BoughtAt`
+  (`simulation/src/souls/desire/buyfood.rs:16-20`). See Going without.
+
+**VehicleState**, **VehicleKind**
+:: A vehicle's stage (`Parked`, `Driving`, `Panicking`, `RoadToPark`) and class (`Car`, `Truck`,
+  `Bus`) (`simulation/src/transportation/vehicle.rs:16-31`). See Dispatcher.
+
+**Itinerary**
+:: A vehicle's followed path and its kind (wait, simple target, route, wait-for-reroute)
+  (`simulation/src/map_dynamic/itinerary.rs:26-43`).
+
+**TrainReservations**, **FreightTrainState**, **RailWagon**
+:: Rail intersection reservations (`simulation/src/transportation/train.rs:20-23`); a freight
+  train's stage (`Arriving`, `Loading`, `Moving`,
+  `simulation/src/souls/freight_station.rs:16-22`); one consist unit
+  (`simulation/src/transportation/train.rs:53-56`).
+
+**ParkingManagement**
+:: The reserved parking-spot set vehicles park into on delivery
+  (`simulation/src/map_dynamic/parking.rs:13-15`).
+
+**ExternalTrading**
+:: The border building kind: the domestic endpoint of external trade
+  (`simulation/src/map/objects/building.rs:17-23`). See Border.
+
+**job-opening**
+:: The non-physical labour token, declared as an item with external trading disabled; hiring
+  resolves synchronously at match and never creates a dispatch (`base_mod/items.lua:1-7`,
+  `simulation/src/economy/market.rs:657-660`).
