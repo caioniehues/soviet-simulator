@@ -4,10 +4,10 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 candidate** — the logistics specification commits to deficit-first dispatch
-([`SPEC-LOGISTICS-005`](../../reference/specifications/logistics.md#spec-logistics-005));
+Scope: 1.0 — charter row Transport and border — the logistics specification commits to
+deficit-first dispatch ([`SPEC-LOGISTICS-005`](../../reference/specifications/logistics.md#spec-logistics-005));
 priority classes and inflation are design proposals.
 
 ## What this is
@@ -49,11 +49,11 @@ No "national project penalty" modifier is needed; the physical displacement is t
 
 ## Current substrate
 
-`make_trades` in `simulation/src/economy/market.rs:551-591` sorts potential trades by distance
-(`sorder.pos.distance2(border.pos)`) using `OrderedFloat`. No plan priority, no request age,
-no deficit-first ordering exists. The dispatch priority rule in SPEC-LOGISTICS-005
-(deficit then distance then stable ID) is the target; the current implementation uses distance
-only.
+`make_trades` (`simulation/src/economy/market.rs:511-551`) sorts potential trades by distance
+(`sorder.pos.distance2(border.pos)`, `market.rs:537`) using `OrderedFloat`. No plan priority,
+no request age, no deficit-first ordering exists. The dispatch priority rule in
+SPEC-LOGISTICS-005 (deficit then distance then stable ID) is the target; the current
+implementation uses distance only.
 
 ## Research basis
 

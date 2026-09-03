@@ -6,7 +6,7 @@
 **Owner:** simulation
 **Last verified:** 2026-08-28
 
-Scope: **1.0 binding** — the no-teleport pillar and its consequences are charter commitments
+Scope: **1.0 — charter row Transport and border** — the no-teleport pillar and its consequences
 (charter §Identity, lines 29–30; design laws 1–6).
 
 ## What this is

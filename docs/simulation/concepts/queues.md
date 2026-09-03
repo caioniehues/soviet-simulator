@@ -6,7 +6,7 @@
 **Owner:** simulation
 **Last verified:** 2026-08-28
 
-Scope: **1.0 binding** — the charter commits to failure that "becomes queues, shortages,
+Scope: **1.0 — charter row Households and citizens** — the charter commits to failure that
 substitution, colder homes, and going without" (charter §Identity).
 
 ## What this is

@@ -6,7 +6,7 @@
 **Owner:** simulation
 **Last verified:** 2026-08-28
 
-Scope: **1.0 candidate** — the charter commits to inspectable discrepancies; the four-realities
+Scope: **1.0 — charter row Planner interaction** (inspect-depth feedback); the four-realities
 model and representation error are design proposals.
 
 ## What this is

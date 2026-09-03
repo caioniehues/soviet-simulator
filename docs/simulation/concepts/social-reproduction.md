@@ -6,7 +6,7 @@
 **Owner:** society
 **Last verified:** 2026-08-28
 
-Scope: **1.0 binding** — the charter commits to demographics including death, two education
+Scope: **1.0 — charter rows Agriculture and services plus Households and citizens** — the
 tiers, healthcare, housing, and Food and Meat as separate dwelling needs. The full
 social-reproduction loop is a design principle.
 

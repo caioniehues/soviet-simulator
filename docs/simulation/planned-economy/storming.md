@@ -4,10 +4,10 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 candidate** — storming is a charter-scope temporal mechanic (production with
-plan periods); no specification commits to it yet.
+Scope: 1.0 — charter row Resources and production — storming is a charter-scope temporal
+mechanic (production with plan periods); no specification commits to it yet.
 
 ## What this is
 

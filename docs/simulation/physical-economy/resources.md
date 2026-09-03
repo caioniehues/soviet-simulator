@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 binding |
+| Scope | 1.0 — charter row Resources and production |
 
 ## What this is
 
@@ -56,6 +56,12 @@ cloth, oil, coal, polyester.
 The charter names fifteen domestic resources. The current 21 includes items not in the
 charter scope (gold, high-tech-product, flower, wool, cloth, polyester) and one non-physical
 item (job-opening). The catalogue must be reconciled.
+
+Medicine is ABSENT: the charter requires it as a sixteenth, import-only resource
+(`docs/plan/charter-1.0.md:44`), but no `medicine` entry exists in `base_mod/items.lua:1-108`
+and the item prototype carries only name/label/id/`optout_exttrade`
+(`prototypes/src/prototypes/item.rs:7-14`). Until it is declared, the 1.0 catalogue gap is
+open — no recipe, storage, or haul can reference it.
 
 ## Open questions
 

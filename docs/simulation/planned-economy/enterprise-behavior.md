@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 binding** — the dishonest enterprise is the game's core loop. The charter commits
+Scope: 1.0 — charter row Resources and production — the dishonest enterprise is the game's core loop. The charter commits
 to inspectable discrepancies and persistent observable state.
 
 ## What this is
@@ -96,7 +96,8 @@ The dishonest enterprise has forms beyond simple request inflation:
 
 The seed exists and is wired end-to-end. `request_multiplier` is a static `i32` on the `Recipe`
 prototype (`prototypes/src/types/recipe.rs:52`), set to 4 for `flour-factory` and 3 for
-`slaughterhouse` (`base_mod/companies.lua:40,582`), defaulting to 1 for all others.
+`meat-facility` (`base_mod/companies.lua:40,582`), defaulting to 1 for all others
+(`slaughterhouse` declares no multiplier, `base_mod/companies.lua:526-543`).
 
 `recipe_init` (`simulation/src/souls/goods_company.rs:22-26`) calls
 `market.set_requested(soul, item.id, qty)` where `qty = item.amount * request_multiplier`.
@@ -106,7 +107,7 @@ The multiplier is static: no `reliability_memory`, `fulfillment_rate`, or equiva
 exists in `GoodsCompanyState` (`simulation/src/souls/goods_company.rs:69-78`). The enterprise
 cannot learn or adapt.
 
-**The Planner cannot see it.** `Market::requested()` (`market.rs:77-78`) is a public accessor.
+**The Planner cannot see it.** `Market::requested()` (`simulation/src/economy/market.rs:460-462`) is a public accessor.
 No code in `native_app/` calls it. The building inspector (`inspect_building.rs:244-267`)
 shows `capital` per item only — not `requested`, `consumed`, `reserved`, or `surplus`.
 

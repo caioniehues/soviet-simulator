@@ -4,13 +4,16 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** simulation
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 Representative cross-system feedback loops. Each names its status: **implemented** (the code
 closes the loop), **partial** (a link exists), **target** (specified or designed), **research**
-(evidence only). Today exactly one link is implemented: electricity blackout stops production
-(`simulation/src/souls/goods_company.rs`, `CompanyEnt::productivity`). Everything else is target or
-research. The general principle — every important system participates in other systems — is
+(evidence only). Today exactly one catalogue loop is fully implemented: electricity blackout
+stops production (`CompanyEnt::productivity` returns zero under blackout,
+`simulation/src/souls/goods_company.rs:94-112`). Several target loops already have partial
+links, including the storage-capacity floor on hoarding (`recipe_should_produce`,
+`goods_company.rs:32-50`). Everything else is target or research. The general principle —
+every important system participates in other systems — is
 [coupling](concepts/index.md).
 
 ## Reliability spiral — target (CONFIRMED historically: Kornai 1980)

@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** transport
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 binding |
+| Scope | 1.0 — charter row Transport and border |
 
 ## What this is
 
@@ -84,6 +84,12 @@ Soviet freight locomotive would be roughly 30 m/s (108 km/h). The EMU at 360.0 m
 
 Freight station cargo is a counter (`simulation/src/souls/freight_station.rs:34`,
 `FreightStation.waiting_cargo: u32`, `wanted_cargo: u32`). No embodied cargo per wagon.
+
+Known gap: when a freight train finishes loading, `freight_station_system` unwraps the
+first external station (`freight_station.rs:109`, `.first().unwrap()`), but
+`Map::remove_building` allows removing an `ExternalTrading` building
+(`simulation/src/map/map.rs:128-135`). If the last external station is removed while a
+train is loading, the unwrap panics instead of leaving an observable waiting state.
 
 ## Open questions
 

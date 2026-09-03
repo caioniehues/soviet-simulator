@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 binding |
+| Scope | 1.0 — charter row Resources and production |
 
 ## What this is
 
@@ -32,16 +32,13 @@ reassignment, or delivery.
 
 ## Current substrate
 
-`SingleMarket.reserved` (`simulation/src/economy/market.rs`) is a
+`SingleMarket.reserved` (`simulation/src/economy/market.rs:46-55`) is a
 `BTreeMap<SoulID, u32>` that tracks reserved quantities per seller. When `make_trades`
-matches a buyer to a seller, it increments the seller's reserved count:
-
-```rust
-*reserved.entry(trade.seller.0).or_default() += trade.qty as u32;
-```
+matches a buyer to a seller, it increments the seller's reserved count
+(`market.rs:604-609`; `job-opening` matches debit immediately instead, `market.rs:599-603`):
 
 The reservation is released (decremented) when:
-- The dispatch reaches `Loading` state and debits the seller's capital
+- The dispatch reaches `Loading` state and debits the seller's capital (`market.rs:912-917`)
 - A retail claim expires (TTL) or the buyer despawns
 - A pre-pickup cancellation occurs (scenario tests confirm this:
   `scenario_dead_buyer_tosource_releases_reservation`,

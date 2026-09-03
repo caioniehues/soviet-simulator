@@ -6,7 +6,7 @@
 **Owner:** simulation
 **Last verified:** 2026-08-28
 
-Scope: **1.0 candidate** — the charter commits to persistent citizen identities with observable
+Scope: **1.0 — charter row Households and citizens** (persistent identities with observable
 state; adaptive enterprise behaviour drives the dishonest-enterprise loop. The computational
 pattern (stable things sleep) is a HYPOTHESIS.
 

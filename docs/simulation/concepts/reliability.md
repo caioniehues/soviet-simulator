@@ -6,7 +6,7 @@
 **Owner:** simulation
 **Last verified:** 2026-08-28
 
-Scope: **1.0 binding** — the shortage spiral is the game's core mechanic. The charter commits
+Scope: **1.0 — charter row Resources and production** — the shortage spiral is the game's core
 to the dishonest-enterprise loop, which is the most visible instance of this concept.
 
 ## What this is

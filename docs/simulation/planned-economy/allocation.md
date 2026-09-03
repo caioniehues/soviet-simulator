@@ -4,9 +4,10 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 binding** — the logistics specification commits to non-price dispatch ordering
+Scope: 1.0 — charter row Transport and border — the logistics specification commits to
+non-price dispatch ordering
 ([`SPEC-LOGISTICS-005`](../../reference/specifications/logistics.md#spec-logistics-005)).
 
 ## What this is
@@ -67,16 +68,16 @@ applied to allocation.
 
 ## Current substrate
 
-`make_trades` (`simulation/src/economy/market.rs:551-591`) matches supply and demand by
-distance only. The scoring function is `sorder.pos.distance2(border.pos)` — squared Euclidean
-distance between seller and buyer positions. Potential trades are sorted by this score using
-`sort_unstable_by_key` with `OrderedFloat`.
+`make_trades` (`simulation/src/economy/market.rs:511-551`) matches supply and demand by
+distance only. The scoring function is `sorder.pos.distance2(border.pos)` (`market.rs:537`) —
+squared Euclidean distance between seller and buyer positions. Potential trades are sorted by
+this score using `sort_unstable_by_key` with `OrderedFloat` (`market.rs:550-551`).
 
 No target-stock policy, no deficit-first ordering, no request age, no plan priority, and no
 substitution exists. Matching has no partial multi-seller fill: one seller must cover the
 buyer's full quantity.
 
-The domestic `money_delta` is `Money::ZERO` (`market.rs:584`), which is consistent with
+The domestic `money_delta` is `Money::ZERO` (`market.rs:544`), which is consistent with
 non-price clearing. But `Government.money` debits for construction and wages elsewhere,
 conflicting with SPEC-PRODUCTION-004.
 

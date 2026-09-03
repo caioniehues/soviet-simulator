@@ -4,10 +4,10 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 candidate** — the identity is a physical invariant the ledger must preserve;
-the UI layout and drill-down are design proposals.
+Scope: 1.0 — charter row Resources and production — the identity is a physical invariant the
+ledger must preserve; the UI layout and drill-down are design proposals.
 
 ## What this is
 

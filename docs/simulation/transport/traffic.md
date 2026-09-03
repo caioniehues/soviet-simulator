@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** transport
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 binding |
+| Scope | 1.0 — charter row Transport and border |
 
 ## What this is
 
@@ -50,9 +50,12 @@ a planning mechanic the Planner can use.
 
 `MAP-SUB-004`: traffic is purely microscopic. The `calc_decision` function in
 `simulation/src/transportation/road.rs:186-407` computes a geometric cone-based avoidance
-check — braking distance, spatial-grid neighbour query, ray intersection. This is not IDM
-(Intelligent Driver Model). There is no continuous acceleration response, only a binary
-stop/go from distance thresholds.
+check — braking distance, spatial-grid neighbour query, ray intersection — and supplies
+either zero or a desired lane speed. That decision is thresholded, but the motion is not
+binary: `physics` (`road.rs:141-184`) integrates speed continuously with a clamped
+acceleration/deceleration step toward the desired speed. This is not IDM
+(Intelligent Driver Model): thresholded stop/desired-speed decisions over a continuous
+kinematic integrator.
 
 The gridlock detector (`road.rs:217-225`): when `speed < 0.2` and `front_dist < 1.5`,
 the vehicle enters `Panicking` state and waits up to 200 seconds with a randomized wait time.

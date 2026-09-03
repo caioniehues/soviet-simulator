@@ -6,7 +6,7 @@
 **Owner:** simulation
 **Last verified:** 2026-08-28
 
-Scope: **1.0 candidate** — the charter requires physical stock and inspectable surplus;
+Scope: **1.0 — charter row Resources and production** (physical stock and inspectable surplus);
 the five-class taxonomy is a PLAUSIBLE design proposal (Lane A §3e).
 
 ## What this is

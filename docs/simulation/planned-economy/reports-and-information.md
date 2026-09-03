@@ -4,10 +4,10 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 candidate** — the charter commits to inspectable discrepancies
-([`SPEC-PRODUCTION-009`](../../reference/specifications/production.md#spec-production-009));
+Scope: 1.0 — charter row Resources and production — the charter commits to inspectable
+discrepancies ([`SPEC-PRODUCTION-009`](../../reference/specifications/production.md#spec-production-009));
 the discrepancy inspector and provenance columns are design proposals.
 
 ## What this is
@@ -17,15 +17,16 @@ Planner inspects a warehouse). Some are reported by enterprises (the enterprise 
 output). Some are computed from other values. The provenance determines how much the Planner
 should trust the number.
 
-The key distinctions:
+The key distinctions (target vocabulary — the current substrate records matched volume only,
+see Current substrate below):
 
 | Quantity | What it means | Provenance |
 |---|---|---|
 | **Technical forecast** | What the recipe consumes per cycle | Known (recipe definition) |
 | **Reported requirement** | What the enterprise says it needs | Reported (may be inflated) |
 | **Allocated** | What the allocation system promised | Computed (allocation records) |
-| **Received** | What was physically delivered | Measured (delivery records) |
-| **Consumed** | What the recipe actually used | Measured (production records) |
+| **Received** | What was physically delivered | Measured (delivery records) — target; today only matched volume exists |
+| **Consumed** | What the recipe actually used | Measured (production records) — target; today only matched volume exists |
 | **On-hand** | What is physically in stock | Measured (physical inspection) |
 | **Request age** | How long the request has been outstanding | Computed (queue records) |
 
@@ -70,10 +71,14 @@ The building inspector (`native_app/src/gui/inspect/inspect_building.rs:150-267`
 workers, productivity, power, progress, and storage capital per item. It does not show
 requested, consumed, reserved, in-transit, surplus, request age, or provenance.
 
-`Market::requested()` (`simulation/src/economy/market.rs:77-78, 500-501`) is a public accessor
+`Market::requested()` (`simulation/src/economy/market.rs:460-462`) is a public accessor
 returning the requested quantity per soul per item. No code in `native_app/` calls it. Wiring
 it into `inspect_building.rs` is approximately 30 lines — the single cheapest high-value change
-in the project (Lane E, section 3).
+in the project (Lane E, section 3). `EcoStats` records matched volume only: `handle_trade`
+(`simulation/src/economy/ecostats.rs:79-93`) accumulates each trade's quantity and money delta,
+and `market_update` calls `EcoStats::advance` on the match slice before any dispatch moves
+(`simulation/src/economy/mod.rs:93`, `advance_dispatches` after). Nothing the Planner sees
+today is a delivery or consumption measurement.
 
 No `PlannerSnapshot` exists. The UI reads `Simulation` state directly.
 

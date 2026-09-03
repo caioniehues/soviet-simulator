@@ -4,9 +4,9 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-| Scope | 1.0 binding |
+| Scope | 1.0 — charter row Resources and production |
 
 ## What this is
 
@@ -44,10 +44,12 @@ signal: long-standing unmet demand points to structural shortage (PLAUSIBLE, bib
 
 ## Current substrate
 
-`SingleMarket.buy_orders` (`simulation/src/economy/market.rs`) stores buy orders as
-`BTreeMap<SoulID, BuyOrder>`. An unmatched buy order is removed by `make_trades` when
-the external fallback takes it (`ECO-SUB-001`): without a freight station, the order
-disappears. This is a live violation of `SPEC-RESOURCES-005`.
+`SingleMarket.buy_orders` (`simulation/src/economy/market.rs:46-55`) stores buy orders as
+`BTreeMap<SoulID, BuyOrder>`. An unmatched non-human buy order is removed by `make_trades`
+when the external fallback takes it (`market.rs:629-640`, `buy_orders.extract_if(..)`):
+without a freight station (`find_external` returns `None`) the extracted order is dropped,
+not re-posted (`ECO-SUB-001`). This is a live violation of `SPEC-RESOURCES-005`. (Human
+retail orders are explicitly preserved for the next tick's match.)
 
 `SingleMarket.requested` stores the per-soul requested quantity.
 `Market::set_requested` is called from `recipe_init` in

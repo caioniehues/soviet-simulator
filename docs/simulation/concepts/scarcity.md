@@ -6,7 +6,7 @@
 **Owner:** economy
 **Last verified:** 2026-08-28
 
-Scope: **1.0 binding** — non-price domestic clearing is a charter pillar
+Scope: **1.0 — charter row Households and citizens** — non-price domestic clearing is a charter
 (charter §Identity, lines 31–33).
 
 ## What this is

@@ -97,9 +97,10 @@ physical consequence is represented (design bible section 5.11).
 ## Current substrate
 
 The spiral seed exists. `request_multiplier` is a static `i32` on the `Recipe` prototype
-(`prototypes/src/types/recipe.rs:52`), set to 4 for `flour-factory` and 3 for `slaughterhouse`
-(`base_mod/companies.lua:40,582`). It is wired end-to-end in `recipe_init`
-(`simulation/src/souls/goods_company.rs:22-26`).
+(`prototypes/src/types/recipe.rs:52`), set to 4 for `flour-factory` and 3 for `meat-facility`
+(`base_mod/companies.lua:40,582`), defaulting to 1 for all others
+(`slaughterhouse` declares no multiplier, `base_mod/companies.lua:526-543`). It is wired
+end-to-end in `recipe_init` (`simulation/src/souls/goods_company.rs:22-26`).
 
 No `reliability_memory`, `fulfillment_rate`, credibility record, quota, or ratchet state exists
 in the simulation. `Government` holds only `money: Money`

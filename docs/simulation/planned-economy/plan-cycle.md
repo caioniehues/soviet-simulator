@@ -4,10 +4,10 @@
 **Authority:** advisory
 **Status:** draft
 **Owner:** economy
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
-Scope: **1.0 binding** — the charter commits to quotas, Plans, and authored plan periods. The
-full control loop is the game's thesis.
+Scope: 1.0 — charter row Plans and onboarding — the charter commits to quotas, Plans, and
+authored plan periods. The full control loop is the game's thesis.
 
 ## What this is
 
@@ -90,7 +90,7 @@ Production is continuous: `company_system` advances `progress` by `productivity 
 recipe.duration.seconds()` every tick (`simulation/src/souls/goods_company.rs:204-205`). There
 is no period boundary, no deadline, no quota target, no performance tracking.
 
-The allocation system (`make_trades` in `simulation/src/economy/market.rs:551-789`) matches
+The allocation system (`make_trades` in `simulation/src/economy/market.rs:511-551`) matches
 supply and demand by distance only. No plan priority, no request age, no deficit-first
 ordering exists.
 

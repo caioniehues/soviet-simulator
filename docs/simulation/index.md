@@ -4,7 +4,7 @@
 **Authority:** advisory — design explanation; specifications bind, this tree explains
 **Status:** active
 **Owner:** simulation
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 Why each mechanic exists, how it behaves in the design, what 1.0 requires of it, what the code does
 today, and what the evidence says. Every page keeps those five states apart under labelled
