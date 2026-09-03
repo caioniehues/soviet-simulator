@@ -100,6 +100,9 @@ pub struct Market {
     /// outstanding retail purchase at a time (`buyfood` never issues a
     /// second buy order before the first resolves).
     retail_claims: BTreeMap<SoulID, RetailClaim>,
+    /// Named honest-loss sink (sov-bub): one row per deleted dispatch
+    /// (`LostEntry`), written by every deletion site alongside its warning.
+    lost: Vec<LostEntry>,
     // reuse the trade vec to avoid allocations
     #[serde(skip)]
     all_trades: Vec<Trade>,
@@ -164,6 +167,18 @@ pub struct RetailClaim {
     ticks_left: u32,
 }
 
+/// Named honest-loss sink (glossary: Lost, ADR-0003 §4, sov-bub).
+///
+/// Every dispatch deletion site records the destroyed goods here (item +
+/// qty) in addition to its `log::warn`. Purely observational: recording
+/// never changes deletion outcomes, bounds, or retry counts — the goods
+/// stay gone, the Planner just finally sees where they went.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct LostEntry {
+    pub kind: ItemID,
+    pub qty: u32,
+}
+
 /// The stage of a goods dispatch. A trade match doesn't move stock immediately:
 /// the quantity is only debited from the seller when the truck arrives and
 /// enters `Loading`, and only credited to the buyer when it arrives and enters
@@ -189,6 +204,12 @@ pub struct Dispatch {
     pub seller: SoulID,
     pub kind: ItemID,
     pub qty: u32,
+    /// The border commitment's money movement (ADR-0003 §1, sov-7f7): ZERO
+    /// for domestic/retail/job legs by construction, nonzero only for border
+    /// legs. It settles at delivery — on the `Loading` arrival when the
+    /// seller is the border (import), on the `ToDestination` arrival when
+    /// the buyer is (export) — never at match.
+    pub money_delta: Money,
     pub state: DispatchState,
     ticks_left: u32,
     /// The truck carrying this dispatch. `None` while waiting for the
@@ -220,6 +241,7 @@ impl Default for Market {
                 .collect(),
             dispatches: Default::default(),
             retail_claims: Default::default(),
+            lost: Default::default(),
             all_trades: Default::default(),
             potential: Default::default(),
         }
@@ -361,6 +383,7 @@ impl Market {
                                 kind,
                                 seller
                             );
+                            self.record_lost(kind, qty);
                             if let Some(v) = truck {
                                 dispatcher.free(DispatchID::SmallTruck(v));
                             }
@@ -375,6 +398,7 @@ impl Market {
                             qty,
                             kind
                         );
+                        self.record_lost(kind, qty);
                         if let Some(v) = truck {
                             dispatcher.free(DispatchID::SmallTruck(v));
                         }
@@ -394,6 +418,7 @@ impl Market {
                         qty,
                         kind
                     );
+                    self.record_lost(kind, qty);
                     if let Some(v) = truck {
                         dispatcher.free(DispatchID::SmallTruck(v));
                     }
@@ -463,6 +488,19 @@ impl Market {
 
     pub fn dispatches(&self) -> &[Dispatch] {
         &self.dispatches
+    }
+
+    /// The named honest-loss sink (sov-bub): one row per dispatch deletion,
+    /// in deletion order. Purely observational — nothing reads this back
+    /// into the simulation.
+    pub fn lost(&self) -> &[LostEntry] {
+        &self.lost
+    }
+
+    /// Records destroyed goods in `Lost`. Called by every deletion site
+    /// next to its `log::warn`; must not change any other state.
+    fn record_lost(&mut self, kind: ItemID, qty: u32) {
+        self.lost.push(LostEntry { kind, qty });
     }
 
     /// The buyer's outstanding retail claim (a matched-but-uncollected store
@@ -653,6 +691,54 @@ impl Market {
                 }
             }
 
+            // External trading, sell side. Pushed BEFORE the dispatch loop
+            // below, so an export lands in `all_trades[dispatch_start..]`
+            // and gets a `Dispatch` to the border door like any other
+            // physical delivery (sov-20g). It used to be pushed after
+            // that loop, with `capital[seller]` debited right here: goods
+            // left the seller's building and reached the border in the
+            // same tick, having moved nowhere.
+            if !*optout_exttrade {
+                // Seller surplus goes to external trading. Stock already
+                // reserved for a domestic buyer (matched but not yet picked
+                // up by a dispatch) isn't free to export: `sell_all` re-posts
+                // the order off the seller's full capital and forgets any
+                // outstanding reservation, so the surplus here must be
+                // computed against what's actually unreserved.
+                for (&seller, order) in sell_orders.iter_mut() {
+                    let already_reserved = reserved.get(&seller).copied().unwrap_or(0);
+                    let free_qty = order.qty.saturating_sub(already_reserved);
+                    let qty_sell = free_qty as i32 - order.stock as i32;
+                    if qty_sell <= 0 {
+                        continue;
+                    }
+                    let cap = capital.entry(seller).or_default();
+                    if *cap - (already_reserved as i32) < qty_sell {
+                        log::warn!("{:?} is selling more than it has: {:?}", &seller, qty_sell);
+                        continue;
+                    }
+
+                    let Some(ext) = find_external(order.pos) else {
+                        continue;
+                    };
+
+                    // No capital moves here. The seller is debited when the
+                    // truck loads at their door and the border is credited
+                    // when it unloads at the freight station, exactly like
+                    // a domestic trade (`Market::advance_dispatches`).
+                    *reserved.entry(seller).or_default() += qty_sell as u32;
+                    order.qty -= qty_sell as u32;
+
+                    self.all_trades.push(Trade {
+                        buyer: TradeTarget(ext),
+                        seller: TradeTarget(seller),
+                        qty: qty_sell,
+                        kind,
+                        money_delta: *ext_value * qty_sell as i64,
+                    });
+                }
+            }
+
             // Labor isn't cargo: hiring already happens synchronously off
             // `trades` in `economy::market_update` the moment a match is
             // made, so a "job-opening" match never needs a truck to
@@ -696,48 +782,13 @@ impl Market {
                         seller: trade.seller.0,
                         kind,
                         qty: trade.qty as u32,
+                        // The commitment's settlement travels with the goods
+                        // (sov-7f7): the arrival hooks below apply it.
+                        money_delta: trade.money_delta,
                         state: DispatchState::ToSource,
                         ticks_left: 0,
                         truck: None,
                         return_route_retries: 0,
-                    });
-                }
-            }
-
-            // External trading
-            if !*optout_exttrade {
-                // Seller surplus goes to external trading. Stock already
-                // reserved for a domestic buyer (matched but not yet picked
-                // up by a dispatch) isn't free to export: `sell_all` re-posts
-                // the order off the seller's full capital and forgets any
-                // outstanding reservation, so the surplus here must be
-                // computed against what's actually unreserved.
-                for (&seller, order) in sell_orders.iter_mut() {
-                    let already_reserved = reserved.get(&seller).copied().unwrap_or(0);
-                    let free_qty = order.qty.saturating_sub(already_reserved);
-                    let qty_sell = free_qty as i32 - order.stock as i32;
-                    if qty_sell <= 0 {
-                        continue;
-                    }
-                    let cap = capital.entry(seller).or_default();
-                    if *cap - (already_reserved as i32) < qty_sell {
-                        log::warn!("{:?} is selling more than it has: {:?}", &seller, qty_sell);
-                        continue;
-                    }
-
-                    let Some(ext) = find_external(order.pos) else {
-                        continue;
-                    };
-
-                    *cap -= qty_sell;
-                    order.qty -= qty_sell as u32;
-
-                    self.all_trades.push(Trade {
-                        buyer: TradeTarget(ext),
-                        seller: TradeTarget(seller),
-                        qty: qty_sell,
-                        kind,
-                        money_delta: *ext_value * qty_sell as i64,
                     });
                 }
             }
@@ -780,6 +831,12 @@ impl Market {
         false
     }
 
+    /// Drives every in-flight dispatch one tick (see the state machine below).
+    /// Returns the border money that settled on arrivals this tick (sov-7f7,
+    /// ADR-0003 §1): each dispatch carries its commitment's `money_delta`
+    /// (ZERO for domestic legs), applied on the `Loading` arrival for imports
+    /// and the `ToDestination` arrival for exports. The caller adds it to
+    /// `Government.money`.
     pub fn advance_dispatches(
         &mut self,
         world: &mut World,
@@ -789,16 +846,28 @@ impl Market {
         cbuf_vehicle: &ParCommandBuffer<VehicleEnt>,
         parking: &mut ParkingManagement,
         tick: Tick,
-    ) {
+    ) -> Money {
+        let mut settled = Money::ZERO;
         let mut i = 0;
         while i < self.dispatches.len() {
-            let (seller, buyer, kind, qty, state, ticks_left, truck, return_route_retries) = {
+            let (
+                seller,
+                buyer,
+                kind,
+                qty,
+                money_delta,
+                state,
+                ticks_left,
+                truck,
+                return_route_retries,
+            ) = {
                 let d = &self.dispatches[i];
                 (
                     d.seller,
                     d.buyer,
                     d.kind,
                     d.qty,
+                    d.money_delta,
                     d.state,
                     d.ticks_left,
                     d.truck,
@@ -908,14 +977,51 @@ impl Market {
                                 .map(|ve| ve.it.has_ended(0.0))
                                 .unwrap_or(false);
                             if arrived {
-                                let m = self.m(kind);
-                                *m.capital.entry(seller).or_default() -= qty as i32;
-                                if let Some(r) = m.reserved.get_mut(&seller) {
-                                    *r = r.saturating_sub(qty);
+                                // sov-uo5 Border custody: a FreightStation
+                                // seller draws from its bounded stock ledger,
+                                // not from capital and not from nothing. On
+                                // empty stock the dispatch waits visibly in
+                                // ToSource (going-without at the border):
+                                // no debit, no settlement, no transition.
+                                // Domestic sellers keep the capital debit.
+                                // Money flow untouched by the branch itself.
+                                let drew = match seller {
+                                    SoulID::FreightStation(fid) => world
+                                        .freight_stations
+                                        .get_mut(fid)
+                                        .is_some_and(|e| e.f.try_draw_border_stock(qty)),
+                                    _ => true,
+                                };
+                                if !drew {
+                                    log::warn!(
+                                        "import dispatch waiting: border stock empty \
+                                         at {:?} for {:?} x{} to {:?}",
+                                        seller,
+                                        kind,
+                                        qty,
+                                        buyer
+                                    );
+                                } else {
+                                    if !matches!(seller, SoulID::FreightStation(_)) {
+                                        let m = self.m(kind);
+                                        *m.capital.entry(seller).or_default() -= qty as i32;
+                                    }
+                                    let m = self.m(kind);
+                                    if let Some(r) = m.reserved.get_mut(&seller) {
+                                        *r = r.saturating_sub(qty);
+                                    }
+                                    // sov-7f7 (ADR-0003 §1): the truck is loaded,
+                                    // so an import's border commitment settles
+                                    // now — not at the match, thousands of ticks
+                                    // ago. Domestic legs carry a ZERO delta, so
+                                    // this only ever moves border money.
+                                    if matches!(seller, SoulID::FreightStation(_)) {
+                                        settled += money_delta;
+                                    }
+                                    let d = &mut self.dispatches[i];
+                                    d.state = DispatchState::Loading;
+                                    d.ticks_left = DISPATCH_DWELL_TICKS;
                                 }
-                                let d = &mut self.dispatches[i];
-                                d.state = DispatchState::Loading;
-                                d.ticks_left = DISPATCH_DWELL_TICKS;
                             }
                         }
                     }
@@ -935,6 +1041,7 @@ impl Market {
                                     "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished while loading",
                                     qty, kind, seller, buyer
                                 );
+                                self.record_lost(kind, qty);
                                 dispatcher.free(DispatchID::SmallTruck(v));
                                 remove = true;
                             } else if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
@@ -968,6 +1075,7 @@ impl Market {
                                         buyer,
                                         MAX_RETURN_ROUTE_RETRIES
                                     );
+                                    self.record_lost(kind, qty);
                                     dispatcher.free(DispatchID::SmallTruck(v));
                                     remove = true;
                                 } else {
@@ -1009,6 +1117,7 @@ impl Market {
                                             kind,
                                             MAX_RETURN_ROUTE_RETRIES
                                         );
+                                        self.record_lost(kind, qty);
                                         dispatcher.free(DispatchID::SmallTruck(v));
                                         remove = true;
                                     } else {
@@ -1026,6 +1135,7 @@ impl Market {
                                         qty,
                                         kind
                                     );
+                                    self.record_lost(kind, qty);
                                     dispatcher.free(DispatchID::SmallTruck(v));
                                     remove = true;
                                 }
@@ -1046,6 +1156,7 @@ impl Market {
                             seller,
                             buyer
                         );
+                        self.record_lost(kind, qty);
                         if let Some(v) = truck {
                             dispatcher.free(DispatchID::SmallTruck(v));
                         }
@@ -1058,6 +1169,13 @@ impl Market {
                         if arrived {
                             let m = self.m(kind);
                             *m.capital.entry(buyer).or_default() += qty as i32;
+                            // sov-7f7 (ADR-0003 §1): the truck unloaded at
+                            // the border door, so an export's commitment
+                            // settles now — mirror of the Loading hook above.
+                            // Domestic legs carry a ZERO delta.
+                            if matches!(buyer, SoulID::FreightStation(_)) {
+                                settled += money_delta;
+                            }
                             let d = &mut self.dispatches[i];
                             d.state = DispatchState::Unloading;
                             d.ticks_left = DISPATCH_DWELL_TICKS;
@@ -1076,6 +1194,7 @@ impl Market {
                             seller,
                             buyer
                         );
+                        self.record_lost(kind, qty);
                         if let Some(v) = truck {
                             dispatcher.free(DispatchID::SmallTruck(v));
                         }
@@ -1172,6 +1291,36 @@ impl Market {
             }
             claim.ticks_left -= 1;
             true
+        });
+        settled
+    }
+}
+
+/// Test seam (sov-7f7): push a fully-formed dispatch without running a match.
+/// The export leg needs it because exports get no dispatch of their own until
+/// sov-20g lands the export dispatch loop; the settlement suite drives the
+/// `ToDestination` hook through it. Zero behavior impact: compiled out of
+/// every non-test build.
+#[cfg(test)]
+impl Market {
+    pub(crate) fn test_push_dispatch(
+        &mut self,
+        buyer: SoulID,
+        seller: SoulID,
+        kind: ItemID,
+        qty: u32,
+        money_delta: Money,
+    ) {
+        self.dispatches.push(Dispatch {
+            buyer,
+            seller,
+            kind,
+            qty,
+            money_delta,
+            state: DispatchState::ToSource,
+            ticks_left: 0,
+            truck: None,
+            return_route_retries: 0,
         });
     }
 }

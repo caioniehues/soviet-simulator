@@ -24,6 +24,17 @@ pub enum FreightTrainState {
 
 const MAX_TRAINS_PER_STATION: usize = 2;
 
+/// Units of Border custody one train arrival unloads at the station.
+/// Matches the `waiting_cargo`/`wanted_cargo` counter consumption below, so
+/// today's counter event becomes a real restock of the same size.
+pub const TRAIN_RESTOCK_QTY: u32 = 100;
+
+/// Upper bound of the Border custody ledger. The ledger is an accountable
+/// buffer for the outside world, not a full economy: it caps instead of
+/// growing without limit, and stations start full so pre-ledger import paths
+/// (which never saw a train) keep working until draws bring them down.
+pub const MAX_BORDER_STOCK: u32 = 10_000;
+
 /// A freight train station
 /// A component that identifies freight station souls, managing freight station logic
 /// and the freight trains that are associated with them.
@@ -34,6 +45,35 @@ pub struct FreightStation {
     pub trains: Vec<(TrainID, FreightTrainState)>,
     pub waiting_cargo: u32,
     pub wanted_cargo: u32,
+    /// Border custody (ADR-0003 §3): bounded stock of external goods held at
+    /// the border. Import dispatches draw from it when their truck loads
+    /// (`Market::advance_dispatches`); train arrivals replenish it
+    /// (`on_train_arrived`). Empty means going-without at the border.
+    pub border_stock: u32,
+}
+
+impl FreightStation {
+    /// Settles one train arrival: consumes the waiting/wanted counters (the
+    /// pre-ledger restock event) and replenishes the Border custody ledger,
+    /// saturating at `MAX_BORDER_STOCK`.
+    pub fn on_train_arrived(&mut self) {
+        self.waiting_cargo = self.waiting_cargo.saturating_sub(100);
+        self.wanted_cargo = self.wanted_cargo.saturating_sub(100);
+        self.border_stock = self
+            .border_stock
+            .saturating_add(TRAIN_RESTOCK_QTY)
+            .min(MAX_BORDER_STOCK);
+    }
+
+    /// Draws `qty` units of Border custody for one import shipment. Returns
+    /// false — drawing nothing — when the ledger holds less than `qty`.
+    pub fn try_draw_border_stock(&mut self, qty: u32) -> bool {
+        if self.border_stock < qty {
+            return false;
+        }
+        self.border_stock -= qty;
+        true
+    }
 }
 
 pub fn freight_station_soul(
@@ -49,6 +89,7 @@ pub fn freight_station_soul(
         trains: Vec::with_capacity(MAX_TRAINS_PER_STATION),
         waiting_cargo: 0,
         wanted_cargo: 0,
+        border_stock: MAX_BORDER_STOCK,
     };
     let b = map.buildings.get(building)?;
 
@@ -88,6 +129,7 @@ pub fn freight_station_system(world: &mut World, resources: &mut Resources) {
 
         // update our trains, and remove the ones that are done
         let mut to_clean = vec![];
+        let mut arrivals = 0u32;
         for (trainid, state) in &mut station.trains {
             let Some(train) = world.trains.get_mut(*trainid) else {
                 to_clean.push(*trainid);
@@ -99,8 +141,7 @@ pub fn freight_station_system(world: &mut World, resources: &mut Resources) {
                 FreightTrainState::Arriving => {
                     if itin.has_ended(0.0) {
                         *state = FreightTrainState::Loading;
-                        station.waiting_cargo = station.waiting_cargo.saturating_sub(100);
-                        station.wanted_cargo = station.wanted_cargo.saturating_sub(100);
+                        arrivals += 1;
                         *itin = Itinerary::wait_until(time.timestamp + 10.0);
                     }
                 }
@@ -126,6 +167,12 @@ pub fn freight_station_system(world: &mut World, resources: &mut Resources) {
                     }
                 }
             }
+        }
+        // sov-uo5: each arrival's counter consumption becomes a real Border
+        // custody restock event, settled here (same tick) once the `trains`
+        // borrow above has ended.
+        for _ in 0..arrivals {
+            station.on_train_arrived();
         }
         for v in to_clean {
             station.trains.retain(|x| x.0 != v);

@@ -101,7 +101,6 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
                 comp.workers.0.push(trade.buyer.0.try_into().unwrap())
             }
         }
-        gvt.money += trade.money_delta;
 
         if let SoulID::GoodsCompany(id) = trade.seller.0 {
             if trade.kind != job_opening {
@@ -125,7 +124,10 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
     }
 
     let mut parking = resources.write::<ParkingManagement>();
-    m.advance_dispatches(
+    // sov-7f7 (ADR-0003 §1): border money settles at delivery, not at match.
+    // The loop above only records the commitment (sold/bought); each arrival
+    // below returns its leg's committed delta, applied here.
+    gvt.money += m.advance_dispatches(
         world,
         &map,
         &binfos,

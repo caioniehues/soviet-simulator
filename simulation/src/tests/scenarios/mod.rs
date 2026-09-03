@@ -34,3 +34,8 @@ fn scenario_harness_smoke() {
 
     assert!(ctx.g.map().buildings().contains_key(b));
 }
+
+mod sov_20g_exports;
+mod sov_7f7_settlement;
+mod sov_bub_loss_sink;
+mod sov_uo5_border_stock;

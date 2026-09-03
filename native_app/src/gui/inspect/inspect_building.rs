@@ -145,6 +145,16 @@ fn render_freightstation(uiworld: &UiWorld, sim: &Simulation, b: &Building) {
             }
         });
     }
+
+    // sov-bub: the named honest-loss sink — one row per deleted dispatch.
+    let market = sim.read::<Market>();
+    if !market.lost().is_empty() {
+        fixed_spacer((0.0, 10.0));
+        label("Lost in transit:");
+        for e in market.lost() {
+            item_icon_yakui(uiworld, e.kind, e.qty as i32);
+        }
+    }
 }
 
 fn render_goodscompany(uiworld: &UiWorld, sim: &Simulation, b: &Building) {
