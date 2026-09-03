@@ -136,6 +136,20 @@ Decide from how the task is framed how to work. A task that invites collaboratio
 from the user. If a required sync or push is blocked, stop and report the exact command
 and the error — never work around it.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in `bd` (beads 1.2.2, prefix `sov`), not GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) applied as `bd` labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the root redirects to the glossary; decisions live in `docs/decisions/`, not `docs/adr/`. See `docs/agents/domain.md`.
+
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
 

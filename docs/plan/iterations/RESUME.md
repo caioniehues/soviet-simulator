@@ -12,6 +12,12 @@
 > [`HANDOFF-2026-08-27-tooling-wave.md`](HANDOFF-2026-08-27-tooling-wave.md). Read that before
 > taking any tooling, CI, benchmark or renderer work.
 
+> **2026-09-03 — documentation review complete; 16 follow-up beads filed.** Seven-slice review of
+> the docs rewrite against code, decomposed into parallel-safe `bd` tasks (label
+> `docs-review-2026-09-03`) plus one lead decision (`sov-m7r`). Handoff:
+> [`HANDOFF-2026-09-03-docs-review.md`](HANDOFF-2026-09-03-docs-review.md). Read it before taking
+> any documentation task.
+
 ## Verified state
 
 Read this after the charter and development cycle, then confirm live state with `bd` before taking

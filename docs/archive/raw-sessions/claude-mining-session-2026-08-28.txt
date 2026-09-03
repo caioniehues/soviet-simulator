@@ -1,0 +1,738 @@
+ ▐▛███▛█   Claude Code v2.1.250
+▝▜██████▀  Fable 5 · Claude Max
+  ▝▝ ▝▝    ~/soviet-simulator
+
+
+❯ use some many parallel opus agents to deep mine this conversation; review it, 
+  validate it against github/crates/codebase as well as reviewing its ideas     
+  and mechanics by going deep into their workings, and finding things that were 
+  originally missed or not apparent. then you fable be the synthetizer/final    
+  review, that must be of course very very complete and long just as gpt did    
+  many times in the conversation, then plan out the consolidation of all this   
+  info into the best formats and organization.                                  
+  /home/caio/Downloads/soviet_simulator_conversation_export.md                  
+
+● I will look at the file first, then ask you a short batch of questions before
+  I spend agents.
+
+  Searched for 1 pattern, read 2 files, listed 2 directories (ctrl+o to expand)
+
+● User answered Claude's questions:
+  ⎿  · How many Opus miners? My proposed lanes: (A) planned-economy control loop
+     / storming / ratchet / credibility, (B) society, households, time, blat + 
+     verify the CIA-source claims, (C) Rust crates & architecture — verify each 
+     named crate on crates.io/GitHub, (D) vehicles, traffic, utilities physics 
+     vs the real substrate, (E) claim-by-claim gap audit against current code, 
+     (F) conflict audit vs charter, ratified specs, GOSPLAN proposal and the 
+     2026-08-27 research syntheses, (G) adversarial 'what did GPT miss or get 
+     wrong'. → 10 agents on Opus
+     · How should the agents treat the 1.0 charter? Much of the conversation is 
+     Post-1.0 or beyond (space programme, mobilization, gas linepack, passenger 
+     transit, kindergarten, 250k citizens). → Ignore the charter for this pass
+     · Where do the agent reports and my synthesis go? → 
+     docs/research/conversation-mining-2026-08-28/ (Recommended)
+     · 'Plan out the consolidation' — do you want the plan only, or the plan 
+     executed in the same run? → Plan and execute
+
+● 10 agents on Opus, roughly 1.6–2.5M tokens, plus my synthesis. Gathering
+  pointers for the briefs first.
+
+  Listed 1 directory (ctrl+o to expand)
+
+● Write(docs/research/conversation-mining-2026-08-28/_brief-common.md)
+  ⎿  Wrote 57 lines to
+     docs/research/conversation-mining-2026-08-28/_brief-common.md
+      1 # Common brief — conversation mining 2026-08-28
+      3 You are one of ten Opus miners working in parallel on the same so
+        .
+      5 ## The source
+      7 `/home/caio/Downloads/soviet_simulator_conversation_export.md` — 
+        1,210 lines. A GPT conversation export about this project. Sectio
+        x deep-dive passes (economy control loop, society/citizens, Rust 
+         the closing thesis. Read all of it. It is the object of study, n
+        date it.
+      9 ## The project
+     … +106 lines (ctrl+o to expand)
+
+● 10 background agents launched (↓ to manage)
+   ├ @lane-A-economy
+   ├ @lane-B1-society
+   ├ @lane-B2-cia
+   ├ @lane-C1-crates
+   ├ @lane-C2-architecture
+   ├ @lane-D-physics
+   ├ @lane-E-code-audit
+   ├ @lane-F-doc-overlap
+   ├ @lane-G-adversarial
+   └ @lane-H-game-modes
+
+● Ten Opus miners are running. Each writes its own report into
+  docs/research/conversation-mining-2026-08-28/ and returns a short summary to
+  me. I will synthesise once all ten have reported, then write the consolidated
+  documents. Nothing will be committed.
+
+
+@ lane-A-economy❯ Lane A report complete
+  Lane A report written to
+  docs/research/conversation-mining-2026-08-28/A-economy-control-loop.md (~700
+  lines).
+
+  Ten headline findings by id:
+
+  1. A-01 Causal-distinctness rule — CONFIRMED, sound design heuristic aligned
+     with Kornai and Gosplan practice.
+  2. A-02 Self-generated shortage spiral — CONFIRMED by Kornai (1980). Code has
+     static request_multiplier seed but not the adaptive spiral; no
+     reliability_memory exists in GoodsCompanyState.
+  3. A-05 Ratchet effect — CONFIRMED by Weitzman (1980). No code substrate; no
+     quota system, no Government state beyond money.
+  4. A-06 Planning credibility stats (61%/67%/82%/91%) — concept CONFIRMED
+     (Gregory & Harrison), specific numbers are UNSUPPORTED (invented
+     illustrations, not sourced).
+  5. A-07 Five reserve classes — PLAUSIBLE as game design; no code substrate.
+     Soviet reserves existed but this exact taxonomy is the conversation's
+     invention.
+  6. A-08 Freight numbers (72%/141%/24%/18%) — UNSUPPORTED. Fabricated
+     illustrations with no citation found in the literature.
+  7. A-10 Material-balance identity — CONFIRMED; the conversation's restatement
+     is equivalent to the standard Gosplan equation.
+  8. A-12 Priority cannot solve scarcity — CONFIRMED, first-principles truth of
+     finite resources under Kornai/Nove.
+  9. A-15 Tolkachi/expediters MISSED — the conversation never mentions this
+     central Soviet institution. Significant gap: tolkachi create a second
+     allocation topology alongside the planned one.
+  10. A-16 Ministry as intermediate aggregator MISSED — the conversation treats
+      planning as two-level (Planner→enterprise); real Soviet planning had
+      ministries that themselves inflated.
+
+  What the lead must know not in the report:
+  - The request_multiplier is wired end-to-end (proven by sov-lpj and
+    SCENARIO-0151) but is a static prototype constant, not a dynamic function of
+    experienced reliability. The spiral is seeded but not adaptive.
+  - Government holds only money: Money. No quota, no period, no credibility, no
+    reserve classes. Every mechanism in section 3 (deeper mechanics) is a
+    greenfield build.
+  - The gosplan.md proposal (the GOSPLAN process document) has zero overlap with
+    the economy control-loop mechanics — it is purely about development
+    process, not game economy. No namespace collision.
+  - Nine missed mechanisms documented in section 4, of which tolkachi (M-01),
+    soft-budget-constraint physical analogue (M-02), and plan-fulfilment
+    falsification (M-03) are the most consequential for gameplay.
+
+● Lane A is in (1 of 10). Waiting for the other nine before I synthesise.
+
+
+● Teammate @lane-A-economy finished
+
+● Still waiting on nine lanes.
+
+› Message from lane-G-adversarial
+  Lane G adversarial review complete. Report: `/home/caio/soviet-simulator/docs/
+  research/conversation-mining-2026-08-28/G-adversarial-review.md`
+
+  Ten headline findings:
+
+  1. **G-01** — Ten-phase deterministic schedule (`COMMAND→…→ACCOUNTING`) does
+  not exist in code; actual schedule is flat serial registration-order.
+  Presented as "architecture conclusion" — it is an aspiration.
+  2. **G-02** — Every proposed typed newtype (`Currency`, `OnHandQty`,
+  `ReservedQty`, `CustodyQty`, `HaulId`, `ConsumptionId`, `PlannerSnapshot`) is
+  absent from the codebase.
+  3. **G-03** — `CitizenRecord`/`CitizenBody` split does not exist. Actual
+  citizen is monolithic `HumanEnt` with physics, routing, and identity fused.
+  4. **G-04/G-05** — Freight utilization numbers (72%/141%/24%/18%) and planning
+  credibility numbers (61%/67%/82%/91%) are unsourced fabrications. Not from
+  CIA, Kornai, or any named reference.
+  5. **G-09** — "No hidden dishonest flag" contradicts the need for
+  per-enterprise intent state. `ECO-SUB-005` confirms dishonest enterprise is
+  test-only and unobservable in gameplay. The observable-discrepancy approach
+  has no implementation path described.
+  6. **G-06** — 250k citizens with proposed state (~320+ bytes/citizen minimum)
+  never gets arithmetic. Requires SoA, cadence sleeping, and <10% active
+  fraction — none exist.
+  7. **G-07** — Salsa and Differential Dataflow named as architecture options
+  with no fit analysis. Neither is in the codebase; Salsa's immutable-input
+  model does not map to mutable physical simulation.
+  8. **G-28** — The `networking/` multiplayer crate (~1,100 LOC,
+  client/server/auth/catchup) is never mentioned in the 1,210-line export.
+  9. **G-11** — Shortage spiral has no equilibrium or floor described. As
+  designed, it is a death spiral with no recovery mechanism.
+  10. **G-10** — Bootstrap problem: most proposed mechanisms are interdependent.
+  No staging plan, no vertical slice, no minimum viable loop.
+
+  Section 3 ranks the 12 most misleading claims with corrected wording. Section
+  4 identifies six things the export gets right that the repo docs miss
+  (four-reality model, enterprise-as-welfare, housing-as-labor-infra,
+  time-as-resource, the player fantasy statement, and cross-domain plan
+  pressure).
+
+  Key thing the lead must know: the export's confident architectural language
+  ("conclusions," "recommended direction") masks that nearly every technical
+  claim describes a target, not existing infrastructure. The consolidation must
+  label every such item or it will read as a status report rather than a design
+  document.
+
+● Lanes A and G are in (2 of 10). Waiting on the remaining eight.
+
+
+● Teammate @lane-G-adversarial finished
+
+● Waiting on eight lanes.
+
+
+@ lane-C2-architecture❯ C2 lane report complete
+  Lane C2 report written to
+  docs/research/conversation-mining-2026-08-28/C2-architecture-vs-code.md (~650
+  lines).
+
+  Ten headline findings:
+
+  1. C2-01 Ten-phase order is WRONG vs code. Egregoria runs 17 systems flat;
+     electricity is FIRST not ninth, map-update is LAST not second. Reordering
+     breaks replay hashes.
+  2. C2-06 PlannerSnapshot ABSENT. UI holds Arc<RwLock<Simulation>>, ~40 call
+     sites read arbitrary resources directly.
+  3. C2-04 Market has six responsibilities but NOT the six the conversation
+     named. Actual: order book, trade matching, dispatch lifecycle, retail
+     claims, external trade, price calculation.
+  4. C2-03 CitizenRecord/Body split ABSENT. HumanEnt is one monolithic struct
+     (identity + spatial + economic + routing).
+  5. C2-09 Keyed randomness ABSENT. Single global Xorshift128 drawn sequentially
+     — any entity-order change breaks all downstream random state.
+  6. C2-05 Cadence bands ABSENT. Every system runs every tick (50 Hz).
+  7. C2-11 Change Journal / Observatory ABSENT. rerun.rs is dead code. EcoStats
+     is ring-buffer history only.
+  8. C2-13 "No hidden dishonest flag" CONFIRMED. request_multiplier is a
+     per-prototype Lua data field (flour: 4, meat: 3), not a per-entity runtime
+     boolean. The Planner infers dishonesty from the observable
+     requested-vs-consumed discrepancy.
+  9. C2-14 Multiplayer assumes lockstep determinism (Frame-numbered inputs,
+     assert_eq! on tick). Any non-deterministic parallelism breaks it.
+  10. C2-07 Typed entity IDs exist (slotmapd) but NO unit newtypes for Mass,
+      Volume, Energy — only Money and Power.
+
+  What the lead must know that is not in the report:
+  - The ParCommandBuffer::exec_ent closure pattern (FnOnce(&mut Simulation)) is
+    the primary cross-system mutation channel and cannot be narrowed by typed
+    contexts without deep redesign. This is the single biggest blocker to the
+    conversation's typed-context and parallelism proposals.
+  - Save format has NO migration mechanism. Every structural proposal
+    (CitizenRecord split, SoA, fixed arrays) invalidates saves with no upgrade
+    path. A migration system should be built first.
+  - The dependency order for proposals is: keyed randomness -> typed contexts ->
+    phase ordering -> parallelism. The PlannerSnapshot is independent but has
+    the largest migration surface (~40 UI call sites).
+
+● Three of ten in (A, G, C2). Waiting on seven.
+
+
+● Teammate @lane-C2-architecture finished
+
+● Waiting on seven lanes.
+
+› Message from lane-B1-society
+  Lane B1 report written to `/home/caio/soviet-simulator/docs/research/conversat
+  ion-mining-2026-08-28/B1-society-households.md` (~850 lines). No subagents
+  spawned; all research done directly via WebSearch/WebFetch.
+
+  **Ten headline findings by ID:**
+
+  1. **B1-01** CONFIRMED — Social reproduction loop is the strongest original
+  contribution; validated against Zaslavskaya and Soviet economic sociology.
+  2. **B1-05** CONFIRMED — Housing as persistent non-price queue is historically
+  accurate (12–36% of families on lists, 10+ year waits in Moscow). Code has
+  NOTHING: `Home` is a bare `BuildingID` with score 0.2.
+  3. **B1-07** CONFIRMED — Time as citizen resource supported by hard numbers:
+  women spent 28h/week domestic work vs 12h for men; shopping alone ~6h/week
+  (Gordon & Klopov, Szalai).
+  4. **B1-10** CONFIRMED — Blat validated against Ledeneva (1998): zero-sum
+  redistribution of real stock, sparse reciprocal networks, displaces formal
+  queue access. Section 3 works out degree-bounded graph (MAX_TIES=5-8, 24MB at
+  250k citizens).
+  5. **B1-14** CODE GAP — No household entity exists. `HumanEnt` is individual;
+  `spawn_human` creates one person per house. Every household mechanic is
+  green-field.
+  6. **B1-21** PLAUSIBLE — Social Reproduction Balance derived as conservation
+  law: TotalAdultHours = sum(committed categories) + discretionary. Section 3
+  has the exact accounting identity.
+  7. **B1-MISSED-01** Propiska (residence permits) entirely absent from
+  conversation — it was THE eligibility gate for housing and employment in
+  Soviet cities. Natural Planner policy lever.
+  8. **B1-MISSED-05** Alcohol entirely absent — quantitatively the largest
+  single cause of Soviet male mortality (35% mortality risk at 35-54 for heavy
+  drinkers), major barter medium, and a Planner policy lever (Gorbachev
+  campaign).
+  9. **B1-MISSED-06** Kommunalka→separate flat transition missing — up to 80% of
+  Moscow in communal housing until mid-1960s. The housing queue needs at least
+  two tiers.
+  10. **B1-MISSED-08** Pensioners as queue-standing labour missing — a real
+  Soviet household scheduling strategy that directly connects household
+  composition to queue time costs.
+
+  **What the lead must know that is not in the report:** The conversation's
+  proposals are overwhelmingly historically sound. The gap is between the
+  conversation (rich ideas) and the code (almost nothing — HumanEnt has 3
+  desires, no household, no queue, no lifecycle). The seven "deeper mechanics"
+  in section 3 are implementable at 250k scale with the data structures
+  proposed. The eleven "missed" items in section 4 are genuine omissions, not
+  marginal additions — propiska, alcohol, kommunalki, and pensioner queue labour
+  are central features of Soviet daily life that would each produce distinct
+  gameplay.
+
+● Four of ten in (A, G, C2, B1). Waiting on six.
+
+● Teammate @lane-B1-society finished
+
+● Waiting on six lanes.
+
+
+@ lane-D-physics❯ Lane D report complete
+  Lane D report complete:
+  docs/research/conversation-mining-2026-08-28/D-vehicles-traffic-utilities.md
+
+  Ten headline findings:
+
+  1. D-01 Inertia thesis is sound — each network's delay signature gives the
+     player a distinct failure mode and planning instrument.
+  2. D-05 Current vehicle model has NO mass, grade, cargo, owner, or capacity.
+     Physics is purely kinematic (flat accel/decel constants per kind).
+     vehicle.rs:26-45.
+  3. D-06 Collision avoidance is a spatial-grid cone check, NOT IDM. Gridlock
+     detector exists (Panicking state, road.rs:217-225) — recovery is a random
+     wait, not real resolution.
+  4. D-08 Pathfinding cost is length/speed_limit + noise — zero BPR, zero
+     Gawron, zero congestion signal. Specs prescribe both but are UNIMPLEMENTED.
+     pathfinding.rs:234-239.
+  5. D-10 Electricity is a union-find over road adjacency
+     (electricity_cache.rs:244-279). Binary blackout. No wire, no priority
+     shedding, no storage, no ramp rates. Spec CONTRADICTS this directly.
+  6. D-14/15/16/17 Water, sewage, heating, gas have ZERO substrate — no building
+     kind, no system, no data structure. All greenfield.
+  7. D-03 Rail is the most developed: consist mass/length/power/braking from
+     prototypes, intersection reservation, look-ahead braking. Missing: siding
+     compatibility, wagon cargo capacity, signal blocks, empty-wagon
+     repositioning.
+  8. D-09 CTM/LTM for meso spillback is correctly identified but is a major new
+     system.
+  9. D-18 "Network reserves" table is a powerful unifying Planner concept.
+  10. D-20 Missed items: junction deadlock resolution (random-wait hack, not
+      real fix), rail signalling as true capacity constraint, loading/unloading
+      as the real bottleneck, rolling stock speeds are placeholder (locomotive
+      200 m/s = 720 km/h), 60-second stuck-train creep hack, freeze-up of water
+      mains, coal quality, weather driving correlated stress across all
+      networks.
+
+  Section 3 delivers cheapest-adequate solver designs for each network:
+  tree-based head for water, gravity DAG with buffers for sewage, pipe FIFO +
+  thermal ODE for heating, linepack integrator for gas, priority-ordered load
+  shedding for electricity, CTM cells for meso traffic, IDM parameters for
+  vehicle following, BPR+Gawron integration sketch for pathfinding.
+
+  W&R reference verified: heating plants consume coal and produce heat, power
+  plants produce eletric, water wells produce water with electric consumption,
+  sewage treatment consumes usagewater + chemicals and produces water with
+  quality cap. W&R does NOT model pressure — binary connectivity only.
+
+  Six open questions for the user in Section 6, notably: grade physics priority
+  for 1.0, IDM vs incremental improvement, meso traffic scope, gas network
+  scope.
+
+● Five of ten in (A, G, C2, B1, D). Waiting on B2, C1, E, F, H.
+
+
+● Teammate @lane-D-physics finished
+
+● Waiting on five lanes.
+
+› Message from lane-F-doc-overlap
+  Lane F report written to `docs/research/conversation-mining-2026-08-28/F-doc-o
+  verlap-and-consolidation.md`.
+
+  **Top ten findings:**
+
+  1. **F-CONTRADICTS-01**: Export's "250k persistent citizens at 60 fps" as
+  binding ambition vs cancelled `sov-1ae` benchmark lane (2026-08-27). Charter
+  states target; bench gate does not exist.
+  2. **F-CONTRADICTS-02**: Export uses "border roubles" (plural) and nal/beznal
+  language vs charter/glossary "single rouble". STORYs 0040-0044 explicitly
+  retired dual-circuit money.
+  3. **F-CONTRADICTS-03**: "Buildings do not auto-spawn from zones" is the
+  design target (SPEC-ZONING-003), not current reality. Architecture review
+  confirms auto-lots still exist with zero production consumers.
+  4. **F-CONTRADICTS-04**: Ten-phase sim-tick order
+  (COMMAND→TOPOLOGY→…→ACCOUNTING) exists nowhere in codebase or documentation.
+  It is an unanchored design proposal.
+  5. **F-CONTRADICTS-05**: "Do not store hidden dishonest flag" is
+  ALREADY-EXISTS — verbatim in SPEC-PRODUCTION-009 (production.md:54).
+  6. **F-NEW-01**: The entire social reproduction thesis (~250 lines of export)
+  is substantially new. Citizens/households/needs/education/healthcare specs
+  cover fragments; the connecting loop is absent.
+  7. **F-NEW-02**: Planned economy as endogenous gameplay (control loop,
+  shortage spiral, ratchet, credibility) has no existing document.
+  8. **F-OVERLAP-01**: Causal inspector (STATUS/CAUSE/TREND/POLICY/PHYSICAL
+  CHAIN) is entirely new — no spec exists.
+  9. **F-CHARTER-SCOPE**: ~35 of ~90 ideas are 1.0 scope, ~25 are Post-1.0, ~15
+  are architecture proposals, ~15 are vision theses. The docs/vision/ directory
+  is empty.
+  10. **F-STALE**: development-cycle.md:57 still says "five bench gates at 250k"
+  for perf-engineer; the agent-roster-review flagged this as wrong and sov-1ae
+  is cancelled.
+
+  **What the lead must know not in the report:**
+  - The SUMMARY.md and brief reference
+  `docs/research/architecture-review-2026-08-27.md` and siblings, but those
+  files actually live under `.planning/`. Four other lanes may be reading from
+  non-existent paths.
+  - The `docs/vision/` directory is empty — the consolidation has no existing
+  vision document to extend. I propose three new files there.
+  - GOSPLAN proposal (gosplan.md) proposes moving fact-sheets from
+  `docs/research/fact-sheets/` to `docs/reference/fact-sheets/` and adding a
+  wiki under `docs/wiki/`. The consolidation layout should not conflict with
+  those moves if GOSPLAN is ratified.
+
+● Six of ten in (A, G, C2, B1, D, F). Waiting on B2, C1, E, H.
+
+  One correction from lane F: the 2026-08-27 review files live under .planning/,
+  not docs/research/ — my brief pointed at the wrong path. The remaining lanes
+  only used them as do-not-duplicate pointers, so no rerun needed; I will read
+  them from .planning/ for the synthesis.
+
+› Message from lane-C1-crates
+  C1 Rust crates report complete. Written to
+  `docs/research/conversation-mining-2026-08-28/C1-rust-crates.md` (~550 lines).
+
+  **Top ten findings:**
+
+  1. **C1-01** — `egui` tracks git HEAD with NO rev/tag/branch pin. This is THE
+  unpinned git dep the release-engineer warned about. `cargo update` will
+  silently advance it. egui 0.29+ has breaking API changes from the pinned
+  0.27.2.
+  2. **C1-02** — `yakui` also unpinned (Uriopass's fork, branch `dev`). Second
+  git source with same risk. Only 2 unique git sources total, but 13 packages
+  come from them.
+  3. **C1-07** — `slotmapd` is Uriopass's own fork of slotmap for
+  serialization-cycle determinism. It IS the ECS backbone (HopSlotMap with typed
+  keys). The conversation's suggestion of hecs/legion/bevy_ecs is WRONG for
+  this codebase — the world is hand-rolled, deeply coupled.
+  4. **C1-10** — `FxHasher` used for ALL hash maps. It is NOT
+  portable-deterministic across platforms. The conversation's "canonical
+  deterministic hashing" requires `xxhash-rust` or similar, not FxHasher.
+  5. **C1-14** — Cross-platform float determinism is UNADDRESSED. geom/ calls
+  `.sin()`, `.cos()`, `.sqrt()` as platform intrinsics. No `libm` dep. Breaks
+  any deterministic replay/networking claim.
+  6. **C1-16** — Salsa (v0.28.2) is viable for per-tick derived Planner layer
+  but unproven at game scale. Its memo overhead (~200μs for 1000 inputs + 100
+  queries) fits 16ms budget. Hand-rolled dirty-flags are cheaper to start.
+  7. **C1-17** — Differential Dataflow: NO shipped game uses it. Integration
+  requires the timely runtime and expressing all data as DD collections. Too
+  expensive for near-term.
+  8. **C1-20** — LP/MILP maps to `good_lp` + `microlp` (both pure Rust, both
+  active 2026). `minilp` is abandoned (2020). `microlp` now supports integer
+  variables.
+  9. **C1-29** — `rayon` is barely used: one `into_par_iter()` in terrain.rs,
+  one commented-out `par_bridge()`. ParCommandBuffer exists as intent buffer but
+  systems run sequentially.
+  10. **C1-26** — Rerun has a commented-out dep + dead module. Active crate
+  (v0.36.3). Could serve as causal-journal visualization if revived.
+
+  **Key things not in the report title but the lead should know:**
+  - `enum-map` is already a transitive dep via egui_extras — highest-impact new
+  use for fixed resource arrays (replaces HashMap<Resource, f32> with dense
+  array).
+  - `bytemuck` is already a transitive dep — needed for any SoA work.
+  - `fast-float` in common is float PARSING, not fast-math. Irrelevant to float
+  determinism.
+  - The prior survey (awesome-rust-project-fit.md) already covered cargo-deny,
+  Criterion, cargo-mutants — I did not duplicate those. I extended with the
+  conversation's specific architectural crates and found the disagreements
+  (e.g., prior survey said "no new framework" for testing; conversation proposes
+  proptest — quickcheck already exists as dev-dep, proptest would duplicate).
+
+
+● Seven of ten in. Waiting on B2, E, H.
+
+
+● Teammate @lane-F-doc-overlap finished
+
+● Waiting on B2, E, H.
+
+
+● Teammate @lane-C1-crates finished
+
+● Waiting on B2, E, H.
+
+› Message from lane-B2-cia
+  Lane B2 (CIA-source verification) complete. Report: `/home/caio/soviet-simulat
+  or/docs/research/conversation-mining-2026-08-28/B2-cia-sources.md`
+
+  **Ten headline findings:**
+
+  1. **B2-01** DOCUMENTED -- "Consumer Frustrations and the Soviet Regime"
+  (1979, CIA-RDP08S01350R000602150001-3) describes the "shopping rat race"; 6h
+  waits for a hat, 10h for rail tickets.
+  2. **B2-02** DOCUMENTED -- 33.65 hours/week for a basic food basket (1954
+  Moscow, CIA-RDP79T01149A000400090004-0). "Soviet Society in the 1980s" (1982)
+  calls shopping a "deadening chore."
+  3. **B2-07** DOCUMENTED -- "USSR: Private Agriculture on Center Stage"
+  (DOC_0000496622): private plots on ~3% of land produced 64% of potatoes, 43%
+  of vegetables, 40% of meat.
+  4. **B2-17** DOCUMENTED -- "Gorbachev's Campaign Against Alcohol" (1986): 60%
+  of managers reported chronic alcoholism problems; cost ~10% of national
+  income; 37% of male workforce chronically drunk.
+  5. **B2-14/16** DOCUMENTED -- Two CIA reports specifically on "Soviet
+  Statistical Falsification." CIA found grain output claims inflated up to 53%.
+  6. **B2-18** DOCUMENTED -- "Strains in the Soviet Labor Force" (1987):
+  European USSR working-age population declining through 1995; growth only from
+  Central Asia.
+  7. **B2-05** DOCUMENTED -- Six CIA housing reports link housing shortage to
+  turnover/recruitment. Per capita space: 6 sq m (1950s) to 13 sq m (1980).
+  8. **B2-09/10/11** PLAUSIBLE-NO-DOC-FOUND -- Second economy / informal
+  networks: CIA funded the SIP ($7.5M) whose data documents this, but the
+  definitive analyses are academic (Grossman), not CIA reports per se.
+  9. **B2-14** PLAUSIBLE-NO-DOC-FOUND -- The ratchet effect: well-documented
+  academically (Weitzman 1980) but not located as a standalone CIA intelligence
+  product.
+  10. **Section 4 finding** -- CIA-only reading systematically misses:
+  rural/provincial life (emigre bias toward Moscow/Leningrad), what actually
+  worked (transit, literacy, basic healthcare), the "normal" non-crisis
+  experience, and non-Russian nationalities.
+
+  **Overall tally:** 16/20 DOCUMENTED with specific CIA document IDs, 4
+  PLAUSIBLE-NO-DOC-FOUND (claims are true but supported by CIA-funded academic
+  work rather than CIA reports proper). 0 CONTRADICTED.
+
+  **Calibration table** (Section 3): 27 quantitative parameters with sources and
+  game mechanisms. Key numbers: shopping time 33.65h/week, housing 13 sq
+  m/capita, turnover ~17%/yr, female participation 88%, alcohol cost 10% GDP,
+  life expectancy drop 67->62 for men.
+
+  **Additional CIA documents found** (Section 5): consumer savings overhang
+  (296.7B rubles by 1989), regional supply differentiation, wage differentials
+  (19:1 ratio), enterprise-as-social-institution, grain import dependency (55
+  MMT by 1985), labor safety, frictional unemployment.
+
+  **Lead must know:** The conversation claimed a "CIA-only pass" but contained
+  zero actual citations. The CIA record is rich -- I identified 48 specific
+  CIA/DI reports and 86 JEC compendium papers. However, CIA PDFs on cia.gov are
+  blocked by 403 (anti-bot), so verification relied on FOIA metadata pages,
+  secondary analyses, and the FAS DI index. The document IDs and titles are
+  confirmed; verbatim quotations come from secondary sources that cite them.
+
+● Eight of ten in. Waiting on E and H.
+
+
+● Teammate @lane-B2-cia finished
+
+● Waiting on E and H.
+
+› Message from lane-E-code-audit
+  Lane E report written to
+  `docs/research/conversation-mining-2026-08-28/E-code-gap-matrix.md`.
+
+  136 rows audited across all five export passes plus 19 specific audit items
+  from the brief.
+
+  **Ten headline findings:**
+
+  1. **E-007** — Dishonest enterprise is wired end-to-end (`request_multiplier`
+  in `recipe_init` at `goods_company.rs:24`), but the Planner CANNOT observe it:
+  no UI exposes requested-vs-consumed. PARTIAL.
+  2. **E-121** — Export sell side is still a teleport: `market.rs:774` debits
+  seller capital at match time, no truck. Import buy side was fixed (sov-abs).
+  CONTRADICTED.
+  3. **E-122/E-114** — Domestic money still gates actions: `Government.money`
+  debits for roads, buildings, trains, worker wages. Contradicts "no domestic
+  money" pillar. CONTRADICTED.
+  4. **E-041** — No household entity exists. Home is a bare BuildingID. ABSENT.
+  5. **E-049/E-125** — Only one need (bread via BuyFood). No housing quality,
+  heating, healthcare, education, leisure. ABSENT.
+  6. **E-129** — No utilities beyond electricity. No water, sewage, heating,
+  gas. Electricity is binary blackout on road-adjacency union-find. PARTIAL.
+  7. **E-030/E-072** — No citizen lifecycle. Age never increments. No birth,
+  death, education, migration. ABSENT.
+  8. **E-105** — No STATUS/CAUSE/TREND inspector. UI shows storage, workers,
+  productivity, progress — no causal chain. ABSENT.
+  9. **E-088** — Determinism test is serialize-roundtrip hash comparison, not
+  repeat-run. PARTIAL.
+  10. **E-003** — 21 items (not charter's 15), no
+  mass/volume/storage-class/transport-class metadata. PARTIAL.
+
+  **Totals:** 16 EXISTS, 26 PARTIAL, 89 ABSENT, 5 CONTRADICTED.
+
+  **Fact-sheet drift:** ECO-SUB-005 ("set_requested has no production caller")
+  is stale — fixed at commit `0caee71`. The `static mut` initialization claim is
+  stale — `OnceLock` now. Import teleport partially stale (buy side fixed, sell
+  side remains).
+
+  **Five CONTRADICTED rows that block further work:** export teleport, domestic
+  money (2 rows), auto-lot generation, domestic treasury debiting workers.
+
+  **Not in the report:** The lead should know that the 89 ABSENT rows are not
+  surprising — the export describes a target vision, not current code. The
+  code's actual strength is the dispatch/logistics plumbing (12 ledger tests, 14
+  retail tests) which is much more robust than the fact-sheets give it credit
+  for post-sov-abs/sov-6qx fixes.
+
+● Nine of ten in. Waiting on H (game modes).
+
+
+● Teammate @lane-E-code-audit finished
+
+● Waiting on H.
+
+› Message from lane-H-game-modes
+  Lane H report complete:
+  `docs/research/conversation-mining-2026-08-28/H-game-modes-and-progression.md`
+  (~750 lines).
+
+  **Ten headline findings:**
+
+  1. **H-01** The fifteen modes are organizational-parameter presets over one
+  simulation (~4-8 institutional parameters each). Architecturally cheap once
+  parameters exist — but none exist in code today.
+  2. **H-09** Enterprise Director inverts the core loop and requires an AI
+  Planner. Structurally a different game; risk that building it teaches nothing
+  reusable.
+  3. **H-14** The progression ladder (fragile -> national project) has zero code
+  substrate. `Government` holds only `money: Money`. No quota periods, no plan
+  periods, no institutional memory.
+  4. **H-03** National Projects (housing, space, mobilization) are historically
+  grounded but all three require systems that do not exist: construction
+  competition, priority freight, factory conversion.
+  5. **H-06** Sovnarkhoz is the most historically interesting mode variant:
+  reverses information topology (local improves, cross-regional degrades). Clean
+  parameter change if territorial allocation exists.
+  6. **H-10** Scenario vs. mode is an unresolved architectural question the
+  conversation conflates. W&R uses scenarios over one rule set. This game should
+  separate scenario (starting state) from mode (rule variant).
+  7. **H-07** Cheapest three modes to ship first: (a) Taut Plan (quota targets +
+  existing `request_multiplier`), (b) Frontier Corridor (scenario on linear map
+  with existing rail), (c) Everyday Socialism (scenario using existing
+  `BuyFood`/`Home`/`Work` desires).
+  8. **H-12** Frostpunk DOES have game over. The "never game over" pillar is
+  this project's own decision, not borrowed. Pressure must come from visible
+  degradation, not termination threat.
+  9. **H-15** The `networking/` crate is structurally complete
+  (client/server/auth/frame-sync). A Gosplan-vs-Ministry multiplayer mode is
+  technically feasible but `WorldCommand` has no role filtering.
+  10. **H-16** The conversation missed the tutorial problem entirely. The
+  charter's First Plan requirement is a mode design problem — the tutorial must
+  teach the dishonest enterprise loop through play.
+
+  **What the lead must know beyond the report:** The full Section 3 contains
+  mode cards for all fifteen modes plus Enterprise Director and the three
+  National Projects — premise, starting state, rule changes, pressure source,
+  win-less success condition, 10-min loop, 10-hour arc, what it teaches, and
+  base-system dependencies. Section 3.2 has the dependency graph of modes over
+  base systems. Section 4 covers six missed items including scenario-vs-mode
+  separation, mode transitions within a save, multiplayer-as-mode, chronicle
+  mode (DF Legends), the tutorial problem, and unlocking vs. all-available.
+
+● All ten lanes are in. Reading the reports now for the synthesis.
+
+● Bash(cd
+      /home/caio/soviet-simulator/docs/research/conversation-mining-2026-08-28
+      && wc -l *.md)
+  ⎿     562 A-economy-control-loop.md
+        516 B1-society-households.md
+        505 B2-cia-sources.md
+     … +9 lines (ctrl+o to expand)
+  Read 10 files (ctrl+o to expand)
+
+● All ten reports are read. Before I write the synthesis I am checking the five
+  load-bearing code claims the lanes disagree on.
+
+● Bash(cd /home/caio/soviet-simulator && echo "--- market.rs export sell side
+      (760-790)"; sed -n 757,790p simulation/src/economy/market.rs; echo "---
+      version in lib.rs…)
+  ⎿  --- market.rs export sell side (760-790)
+                     for (&seller, order) in sell_orders.iter_mut() {
+                         let already_reserved = reserved.get(&seller).copie
+     … +78 lines (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+
+● Teammate @lane-H-game-modes finished
+
+● Status: all ten lane reports are in and read. My verification greps confirmed
+  the disputed claims:
+
+  - Export sell side still teleports (market.rs:774 debits seller capital with
+    no dispatch) — lane E is right.
+  - set_requested has a production caller (goods_company.rs:24) — lane G's
+    "test-only" claim is stale; lanes E/C2 are right.
+  - Save format does carry a version string (lib.rs:378-412, warn-only) — lane
+    C1's "no envelope" is wrong.
+  - Government.money is debited for workers, buildings, roads
+    (economy/mod.rs:54, world_command.rs:225) — domestic money gate confirmed.
+  - 20 registered systems, flat order; no dishonest flag anywhere.
+
+  You interrupted before I started the synthesis. Next step is writing
+  SYNTHESIS.md (long) plus the consolidation plan, then the consolidation
+  documents. Say "go" to continue, or tell me what to change.
+
+❯ /exit                                                                         
+  ⎿  Goodbye!
+
+❯ continue now with thinking enabled                                            
+
+  Thought for 14s (ctrl+o to expand)
+
+● Three decisions remain before I write, all about what lands outside the mining
+  folder.
+
+● User answered Claude's questions:
+  ⎿  · Lane F proposes the consolidation land in the repo's own taxonomy, not 
+     only in the mining folder: three new files in the empty docs/vision/ 
+     (design pillars, planned-economy loop, social reproduction), three 
+     proposals in docs/plan/proposals/ (causal inspector, sim-tick phases, 
+     citizen architecture), one research file (rust architecture), a game-modes 
+     vision file, six glossary terms, and the raw export archived under 
+     docs/archive/raw-sessions/. Approve that layout? → Yes, full layout 
+     (Recommended)
+     · Should I create bd issues for the actionable findings (the three 
+     CONTRADICTED code paths: export teleport, domestic money gate, auto-lot; 
+     plus spec gaps like the causal inspector and the unpinned egui/yakui git 
+     deps)? → Draft only (Recommended)
+     · The lanes found stale documentation outside the export's scope: 
+     substrate.md still says set_requested has no production caller 
+     (ECO-SUB-005), development-cycle.md:57 still names five 250k bench gates, 
+     SUMMARY.md points at docs/research/ for files that live in .planning/. Fix 
+     these now? → Fix now
+
+  Thought for 11s (ctrl+o to expand)
+
+● Bash(echo "--- glossary head + a few entries"; sed -n 1,40p
+      docs/reference/glossary.md; echo; grep -n '^\*\*\|^- \*\*\|^### \|^## '
+      docs/reference/glossary.md | head…)
+  ⎿  --- glossary head + a few entries
+     # Soviet Simulator glossary
+     … +178 lines (ctrl+o to expand)
+
+  Thought for 10s (ctrl+o to expand)
+
+● Bash(grep -rn 'architecture-review\|research-synthesis\|agent-roster-review'
+      docs/SUMMARY.md docs/README.md docs/process/development-cycle.md CLAUDE.md
+      2>/dev/null;…)
+  ⎿  --- substrate dishonest/set_requested
+     --- substrate header
+     # Egregoria substrate architecture
+     … +52 lines (ctrl+o to expand)
+
+  Thought for 36s (ctrl+o to expand)
+
+● Bash(sed -n 55,66p docs/research/fact-sheets/wave1-economy.md; echo ---; sed
+      -n 1,10p docs/research/fact-sheets/wave1-economy.md; echo ---; sed -n
+      30,37p docs/refere…)
+  ⎿  `world_command.rs:223-225`). Commands can drive it negative, so it is
+     not a hard gate.
+     … +36 lines (ctrl+o to expand)
+
+  Thought for 4s (ctrl+o to expand)
+
+● Everything needed is in hand. Writing the synthesis now, then the
+  consolidation files.
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ /config 
+  ⎿  Config dialog dismissed

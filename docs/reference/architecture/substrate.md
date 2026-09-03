@@ -4,7 +4,8 @@
 **Authority:** reference
 **Status:** active
 **Owner:** architecture
-**Last verified:** 2026-08-24
+**Last verified:** 2026-08-28 (drift notes added; the per-subsystem narrative now lives in
+[`docs/architecture/current-substrate.md`](../../architecture/current-substrate.md), verified at `4e9e930b2a73`)
 
 This is the current Rust/Egregoria substrate map, not a target design. A classification of
 **provided** means the cited behavior has a reachable production path; **partial** means only a
@@ -32,7 +33,7 @@ tick while paused. [Foundation fact-sheet](../../research/fact-sheets/wave1-subs
 |---|---|---|
 | Nominal time is 50 ticks/second and command handling precedes the serial schedule. | Partial | Foundation contract / Tick; `prototypes/src/types/time.rs:10`; `simulation/src/lib.rs:244-270` |
 | Systems run in registration order and commit command buffers between systems. | Provided | Foundation contract / Schedule; `simulation/src/init.rs:52-109` |
-| Initialization uses unsynchronised `static mut` registries and is unsafe for parallel test initialization. | Conflicting | Foundation contract / Initialization; `simulation/src/init.rs:111-130` |
+| Initialization uses unsynchronised `static mut` registries and is unsafe for parallel test initialization. | **Stale — fixed 2026-08-26** (`sov-test-race-initfuncs-qt6`): `simulation/src/init.rs` now uses `static REGISTRY: OnceLock<Registry>`; `cargo test -p simulation` is parallel-safe. The same shape survives in `native_app/src/init.rs` (UI crate) | Foundation contract / Initialization (historical); `simulation/src/init.rs` `REGISTRY` |
 | Version mismatch only warns, and failed resource decoding can leave a loaded world with fresh default resources. | Partial/conflicting | Foundation contract / Save-load; `simulation/src/lib.rs:359-448` |
 | No cited check proves repeat-run determinism; the current helper proves serialization round-trip stability only. | Absent | Foundation contract / Determinism |
 
@@ -60,7 +61,8 @@ observed source. No row promotes an observed behavior into a desired contract.
 | Delivery completion has no return-to-depot behavior, and failed dispatch has no recovery policy. | Absent | `LOG-SUB-008`, `LOG-SUB-009` |
 | One delivery authority controls all company and market fulfillment. | Conflicting | `LOG-SUB-007`; also `ECO-SUB-006` |
 | Domestic matching is price-free but lacks partial multi-seller fill, request age, and plan priority. | Partial | `ECO-SUB-003` |
-| Imports credit stock immediately and exports can debit stock before a border endpoint exists. | Conflicting; economy violation | `ECO-SUB-002` |
+| Imports credit stock immediately and exports can debit stock before a border endpoint exists. | Conflicting; economy violation — **import half fixed** (`sov-abs`: imports are a physical truck from the freight station); **export half still live** (the ext-trade block of `make_trades` debits seller capital at match time, no dispatch) | `ECO-SUB-002` and its 2026-08-28 drift note |
+| Dishonest-enterprise request inflation is reachable in production but unobservable by the Planner. | Partial — `recipe_init` calls `set_requested` (since `0caee71`); nothing in `native_app/` reads `Market::requested()` | `ECO-SUB-005` and its 2026-08-28 drift note |
 | Unmatched demand can be removed instead of persisting as a shortage queue. | Conflicting; economy violation | `ECO-SUB-001` |
 
 **A default city has no external trade, by design.** `START_COMMANDS`

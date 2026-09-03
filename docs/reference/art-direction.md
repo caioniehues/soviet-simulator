@@ -72,7 +72,7 @@ authority as a future implementation decision, not an existing contract.
 
 ## Related documents
 
-- [`README.md`](../README.md) is the documentation authority map.
+- [Documentation authority](../meta/document-authority.md) is the documentation authority map.
 - [`../plan/charter-1.0.md`](../plan/charter-1.0.md) sets product scope; it does not make a
   renderer mechanism current.
 - [`../archive/bevy-track/`](../archive/bevy-track/) retains the discarded track's visual claims

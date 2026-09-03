@@ -4,7 +4,7 @@
 **Authority:** operational
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-24
+**Last verified:** 2026-09-03
 
 This directory contains decisions ratified for the Rust/Egregoria fork. A decision is binding only
 when its status is **accepted** and it records its context, decision, consequences, and
@@ -30,3 +30,9 @@ state.
 
 Use [the decision template](../templates/decision.md). Do not use an ADR to document a task,
 generated status, or an unverified code observation.
+
+## Accepted decisions
+
+| Id | Title | Date |
+|---|---|---|
+| [ADR-0001](0001-households-and-utilities-are-1.0-scope.md) | Households and Utilities are 1.0 charter rows | 2026-09-03 |

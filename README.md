@@ -67,4 +67,5 @@ The `--release` flag is not optional — a debug build is unplayably slow.
 | `headless/`, `networking/` | Headless runner and multiplayer |
 | `docs/` | Canonical charter, glossary, specifications, architecture, process, plans, generated status, and archive |
 
-Start with [`docs/README.md`](docs/README.md) for the documentation authority map.
+Start with [`docs/index.md`](docs/index.md). See the
+[documentation authority map](docs/meta/document-authority.md) before relying on a document.

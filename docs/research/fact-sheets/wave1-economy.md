@@ -40,6 +40,11 @@ Imports credit buyer capital immediately (`market.rs:399-416`). Exports debit se
 
 Classification: **VIOLATION** of physical causality and border-only settlement.
 
+> **Drift note (2026-08-28):** partially stale. The import side is physical since `sov-abs` — an
+> external buy creates a `Dispatch` from the freight station. The export side is unchanged:
+> the ext-trade block of `make_trades` still debits seller `capital` at match time and creates no
+> `Dispatch`. The violation now applies to exports only.
+
 ### ECO-SUB-003 — Domestic matching is price-free but not queue-clearing
 
 Domestic `money_delta` is zero, which is consistent with no internal money. Matching sorts by
@@ -64,6 +69,14 @@ manually configures request inflation (`economy/market.rs:240-249`,
 in-transit, or surplus state (`native_app/src/gui/inspect/inspect_building.rs:244-299`).
 
 Classification: **UNREACHABLE AND UNOBSERVABLE** in gameplay.
+
+> **Drift note (2026-08-28, tree `4e9e930b2a73`):** the reachability half is stale. Since commit
+> `0caee71` (`sov-lpj`), `recipe_init` in `simulation/src/souls/goods_company.rs` calls
+> `market.set_requested(soul, item.id, amount × request_multiplier)` in production;
+> `flour-factory` (4) and `slaughterhouse` (3) are dishonest in `base_mod/companies.lua`, proven by
+> `scenario_0151_inflated_request_hoards_honest_does_not` and `sov_lpj_*`. Reclassify as
+> **REACHABLE, UNOBSERVABLE**: the observability half still holds — nothing in `native_app/` reads
+> `Market::requested()`. See `docs/architecture/current-substrate.md`.
 
 ### ECO-SUB-006 — Fulfillment has competing timestamps and authorities
 

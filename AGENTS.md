@@ -1,192 +1,109 @@
-# Soviet Simulator agent guide
+# Repository Guidelines
 
-**Kind:** process entrypoint
-**Authority:** operational
-**Status:** active
-**Owner:** project lead
-**Last verified:** 2026-08-24
+## Project Overview
 
-**Speak to the user in ASD-STE100** (Simplified Technical English): short sentences, active voice, one instruction per sentence, simple words, one name per thing. Code, commits, and repo docs keep their own conventions.
+Soviet Simulator is a GPL-3.0 Rust city-builder and a hard fork of Egregoria. The player is **the Planner**. The simulation models physical goods, shortages, queues, and observable enterprise hoarding.
 
-## Start here
+Keep these model rules intact:
 
-1. Read `CLAUDE.md` before any work. It contains the fork reality, domain pillars, task ledger, verification command, and delivery bar.
-2. Read `docs/reference/glossary.md` before naming domain concepts or changing the simulation model.
-3. Read `docs/process/development-cycle.md` before planning or running a multi-agent wave.
-4. Read `docs/plan/iterations/RESUME.md` before resuming an iteration.
-5. Treat `docs/plan/charter-1.0.md` as scope authority, `docs/reference/specifications/` as mechanism authority after each specification is ratified, `bd` as task-state authority, and current code as substrate authority. Archived legacy specifications are rewrite provenance, not current authority.
+- Goods move physically. Never transfer stock at matching or clearing time.
+- Domestic clearing uses queues, substitution, and going without. It is never price-based.
+- Failure degrades the settlement. It never ends the game.
+- Roubles clear only at the border.
 
-`docs/archive/bevy-track/ROADMAP.md` preserves the discarded Bevy-era history. It is not the plan of record.
+Read `CLAUDE.md` before work. Read `docs/reference/glossary.md` before naming a domain concept. For substantive work, follow `docs/process/development-cycle.md` and track it in `bd`.
 
-## Non-negotiable model
+## Architecture & Data Flow
 
-- This is a Rust/Egregoria hard fork. Bevy guidance and Bevy memories are stale for this tree.
-- Goods move physically; matching, payment, or allocation never teleports stock.
-- Failure degrades into queues, shortages, substitution, and going without. It never ends the game.
-- Domestic clearing is never price-based. Roubles exist only at the border.
-- The player is the Planner; presentation reads authoritative simulation state.
+The workspace has 13 crates. `native_app` is the default desktop application. `simulation` is the authoritative game state. `engine` owns the framework and rendering layer.
 
-## Orchestration
+- Startup: `native_app/src/main.rs` initializes the engine and starts `game_loop::State`.
+- Frame loop: `native_app/src/game_loop.rs` reads input and UI state, updates the map, audio, camera, and renderer, and reads simulation state through `Arc<RwLock<Simulation>>`.
+- Simulation tick: `simulation/src/lib.rs` applies `WorldCommand`s, advances game time, runs the ordered schedule, then records replay state.
+- System setup: `simulation/src/init.rs` registers systems and resources in their execution order.
+- Headless mode: `headless/src/main.rs` initializes the same simulation behind the networking server loop.
 
-- Delegate Phase 0 mapping to `substrate-cartographer` plus the relevant domain advisor before a brief asserts substrate behavior.
-- Keep Phase 1 planning and Phase 5 finding disposition in the lead thread.
-- In Phase 2, use `sim-implementer`, `ui-implementer`, and `data-implementer` only on disjoint ownership; serialize shared files and write contracts before parallel consumers.
-- Run Phase 3 `evidence-auditor`, then Phase 4 in order: `wiring-auditor`, conditional `ledger-invariant-checker`, `reviewer`, relevant domain sign-off.
-- Finish substantive waves with `doc-reality-auditor`; use release and performance roles only at their documented gates.
+Keep simulation mutation inside command application and scheduled systems. Preserve the separation between `World` and typed `Resources`. Do not add a second state path around this schedule.
 
-Use two or three subagents for normal waves and up to five for genuinely independent read-only work. Run at most two writing agents concurrently, with disjoint ownership. Every subagent receives a bounded brief, owned files, acceptance criteria, a `bd` issue when applicable, and the exact verification command.
+## Key Directories
 
-## Verification and delivery
+- `native_app/src/` — desktop game loop, panels, input, audio, map rendering, and network integration.
+- `simulation/src/` — deterministic game state, economy, map, map dynamics, souls, transport, commands, and scheduling.
+- `engine/src/` — framework, GPU rendering, assets, input, audio, and graphics infrastructure.
+- `common/`, `geom/`, `prototypes/` — shared simulation support, geometry, and prototypes.
+- `goryak/`, `assets_gui/`, `egui-inspect*/` — widget and UI support.
+- `networking/` — network protocol and replication.
+- `base_mod/` — Lua game declarations; map a feature across Rust and Lua before changing it.
+- `docs/` — canonical Markdown documentation. `book/` is generated output.
+- `scripts/` — repository maintenance and documentation checks.
 
-- Run simulation tests as `cargo test -p simulation`; parallel runs are trustworthy since the `static mut` race fix (`sov-test-race-initfuncs-qt6`, 2026-08-26).
-- Name what each check proves and confirm test filters execute at least one test.
-- Preserve unrelated changes and never stage with `git add -A` or `git add .`.
-- Stage only the four documented `.beads` files when task-ledger state changes.
-- Player-facing work finishes with an inspected screenshot or 15–20 second video when `CLAUDE.md` requires visual proof.
+## Development Commands
 
-For generated visual assets, use Codex's `imagegen` skill and confirm paid generation with the user before the first spend.
-
-## Task tracking — `bd` (beads)
-
-The old `br`/`bv` fork tooling is retired (2026-08-26); upstream `bd` replaced it, same
-`.beads/` workspace, prefix `sov`, all historical slug ids preserved. The canonical policy —
-worker commands, conventions, what to version, and two repo-level overrides of the managed
-Beads blocks below (built-in task list stays the lead's dashboard; MEMORY.md files stay the
-memory system, `bd remember` is not used) — lives in **CLAUDE.md § Task tracking**. Follow it.
-
-`bd` never commits or pushes. This repository's git instructions override any generic
-workflow advice in the managed blocks.
-
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
-## Beads Issue Tracker
-
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
-
-### Quick Reference
+Run commands from the repository root.
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
+# Run the playable desktop application in release mode.
+cargo run --release
+
+# Run the parallel-safe simulation suite.
+cargo test -p simulation
+
+# Run a named evidence filter and show its output.
+cargo test -p simulation evid_logistics -- --nocapture
+
+# Check documentation and build the mdBook view.
+python3 scripts/check_docs.py && mdbook build
+
+# Audit dependency policy.
+cargo-deny check
 ```
 
-### Rules
+Use `cargo test -p simulation sentinel` only for the sentinel set. Confirm that every filtered command runs at least one test.
 
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+## Code Conventions & Common Patterns
 
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+- Use Rust 2021. Format with the checked-in `rustfmt.toml` settings.
+- Follow existing module facades and selective re-exports. Keep crate boundaries clear.
+- Prefer explicit domain names from `docs/reference/glossary.md`, such as `Request`, `Custody`, `Dispatcher`, and `Policy`.
+- Put authoritative simulation state in `simulation`. Presentation reads it; it must not create a competing truth.
+- Preserve deterministic order. For scheduling, randomization, or ordering changes, add repeat-run determinism coverage.
+- Use synchronization only at the application boundary. Do not spread `Arc<RwLock<_>>` into simulation internals.
+- Keep new dependencies compatible with `deny.toml`: crates.io or the two allowed Git sources only; no wildcard dependencies.
+- Use an existing error and ownership pattern in the target crate. Do not introduce a new dependency-injection or async framework without a documented need.
 
-## Agent Context Profiles
+## Important Files
 
-The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
+- `CLAUDE.md` — operational rules, domain pillars, task tracking, and delivery requirements.
+- `Cargo.toml` — workspace crates, default member, shared dependencies, and development profiles.
+- `native_app/src/main.rs` — desktop entry point.
+- `native_app/src/game_loop.rs` — interactive application state and frame integration.
+- `simulation/src/lib.rs` — simulation ownership, tick semantics, commands, and schedule.
+- `simulation/src/init.rs` — system and resource registration order.
+- `docs/reference/architecture/substrate.md` — cited map of current implementation.
+- `docs/meta/document-authority.md` — authority order for documentation.
+- `docs/engineering/testing.md` — active testing standard.
+- `docs/plan/iterations/RESUME.md` — iteration handoff; verify live work with `bd ready`.
 
-- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
-- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
-- **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
+## Runtime/Tooling Preferences
 
-## Session Completion
+- Use Cargo. `native_app` is the workspace default member.
+- Use release mode for playable runs.
+- The workspace has no checked-in `rust-toolchain` or minimum `rust-version`; do not claim one.
+- `native_app` supports optional `multiplayer` and `profile` features. `engine` keeps Yakui behind its `yakui` feature.
+- Documentation uses mdBook with `mdbook-pagetoc` and `mdbook-mermaid`. Edit canonical files under `docs/`, never generated `book/` output.
+- Do not commit, push, or run `bd dolt push` without direct user approval.
 
-This protocol applies when ending a Beads implementation workflow. It is subordinate to explicit user, repository, and orchestrator instructions.
+## Testing & QA
 
-1. **File issues for remaining work** - Create beads for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **Handle git/sync by active profile**:
-   ```bash
-   # Conservative/minimal/default: report status and proposed commands; wait for approval.
-   git status
+Simulation tests use Rust's built-in test harness under `simulation/src/tests/`. `TestCtx` is the standard fixture for scenario tests.
 
-   # Team-maintainer opt-in only, unless current instructions forbid it:
-   git pull --rebase
-   bd dolt push
-   git push
-   git status
-   ```
-5. **Hand off** - Summarize changes, validation, issue status, and any blocked sync/commit/push step
+- Register every new scenario file in `simulation/src/tests/scenarios/mod.rs` with `mod <file>;`.
+- Name evidence tests `evid_<subsystem>_<claim>`.
+- Name story scenarios `scenario_<nnnn>_<behaviour>`.
+- Name bead-fix tests `sov_<id>_<behaviour>`.
+- Test observable behavior, not incidental arithmetic.
+- Test conservation for ledger changes, idempotency for replayable transitions, and determinism for scheduling or random changes.
+- Make a new guard fail before restoring the implementation. Record evidence from a non-zero test filter.
+- For UI or renderer changes, inspect the running surface and provide visual evidence when `CLAUDE.md` requires it.
 
-**Critical rules:**
-- Explicit user or orchestrator instructions override this Beads block.
-- Do not commit or push without clear authority from the active profile or the current user request.
-- If a required sync or push is blocked, stop and report the exact command and error.
-<!-- END BEADS INTEGRATION -->
-
-<!-- BEGIN BEADS CODEX SETUP: generated by bd setup codex -->
-## Beads Issue Tracker
-
-Use Beads (`bd`) for durable task tracking in repositories that include it. Use the `beads` skill at `.agents/skills/beads/SKILL.md` (project install) or `~/.agents/skills/beads/SKILL.md` (global install) for Beads workflow guidance, then use the `bd` CLI for issue operations.
-
-### Quick Reference
-
-```bash
-bd ready                # Find available work
-bd show <id>            # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>           # Complete work
-bd prime                # Refresh Beads context
-```
-
-### Rules
-
-- Use `bd` for all task tracking; do not create markdown TODO lists.
-- Run `bd prime` when Beads context is missing or stale. Codex 0.129.0+ can load Beads context automatically through native hooks; use `/hooks` to inspect or toggle them.
-- Keep persistent project memory in Beads via `bd remember`; do not create ad hoc memory files.
-
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
-<!-- END BEADS CODEX SETUP -->
-
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
-
-**This project has a knowledge graph. Start with the code-review-graph
-MCP tools to narrow scope, then read the source.**
-
-> **Precedence, repo rule:** narrow scope with the graph, but **LSP stays first for
-> symbol-level intelligence** — who calls what, types, rename safety, compiler warnings. The
-> graph's call edges are AST heuristics carrying a confidence tier; LSP is compiler truth.
-> Warm the language server with one `documentSymbol` call before your first load-bearing
-> query: a cold server answers `findReferences` with "No references found", which reads
-> exactly like a true negative. Full rules and the measured evidence:
-> `docs/reference/code-intelligence.md`. The graph is cheaper than scanning files and
-gives you structural context (callers, dependents, test coverage) that file search cannot.
-
-### When to use graph tools FIRST
-
-- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
-- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
-- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
-- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
-
-### Verify in the source
-
-- Narrow scope with the graph, then read the source. Do not change code from graph output alone.
-- For any non-trivial change, read the implementation and the relevant tests before concluding.
-- Verify the exact source when touching behavior, database logic, migrations, retries, fallbacks,
-  recovery, or compatibility code.
-- When the graph and the source disagree, the source wins. The graph may be stale or may not
-  model that relationship.
-- An empty graph result can mean "not indexed" or "not statically visible", not "does not exist".
-
-### Key Tools
-
-| Tool | Use when |
-| ------ | ---------- |
-| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context_tool` | Need source snippets for review — token-efficient |
-| `get_impact_radius_tool` | Understanding blast radius of a change |
-| `get_affected_flows_tool` | Finding which execution paths are impacted |
-| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
-| `get_architecture_overview_tool` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
-
-### Workflow
-
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes_tool` for code review.
-3. Use `get_affected_flows_tool` to understand impact.
-4. Use `query_graph_tool` pattern="tests_for" to check coverage.
-<!-- /code-review-graph MCP tools -->
+For documentation changes, run `python3 scripts/check_docs.py && mdbook build`. The check validates active-document links, `SUMMARY.md` targets, titles, and required metadata. Preserve archived documents; they are historical and non-authoritative.

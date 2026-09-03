@@ -1,5 +1,31 @@
 [book]
-title = "Soviet Simulator Docs"
+title = "Soviet Simulator"
+description = "Design wiki, architecture handbook, engineering standards, specifications, research and developer guide for the Soviet Simulator repository. The Markdown under docs/ is canonical; this book is a view."
+authors = ["Soviet Simulator project"]
+language = "en"
 src = "docs"
 
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/caioniehues/soviet-simulator"
+edit-url-template = "https://github.com/caioniehues/soviet-simulator/edit/main/{path}"
+no-section-label = true
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.search]
+limit-results = 20
+use-boolean-and = true
+
 [preprocessor.pagetoc]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"

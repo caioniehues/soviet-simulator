@@ -1,0 +1,65 @@
+# Documentation checks: relative links, SUMMARY targets, orphans, metadata, and an mdBook build.
+#
+# Scope is deliberately documentation only. Do NOT add build, test or packaging steps here;
+# the dependency policy has its own workflow. Local equivalent:
+#   python3 scripts/check_docs.py && mdbook build
+name: docs
+
+on:
+  push:
+    paths:
+      - "docs/**"
+      - "book.toml"
+      - "mermaid.min.js"
+      - "mermaid-init.js"
+      - "scripts/check_docs.py"
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "book.toml"
+      - "mermaid.min.js"
+      - "mermaid-init.js"
+      - "scripts/check_docs.py"
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MDBOOK_VERSION: 0.5.4
+  MDBOOK_PAGETOC_VERSION: 0.2.3
+  MDBOOK_MERMAID_VERSION: 0.17.1
+
+jobs:
+  check:
+    name: check_docs.py + mdbook build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Documentation checks
+        run: python3 scripts/check_docs.py
+
+      - name: Install mdbook preprocessors
+        run: |
+          cargo install mdbook --version "${MDBOOK_VERSION}" --locked
+          cargo install mdbook-pagetoc --version "${MDBOOK_PAGETOC_VERSION}" --locked
+          cargo install mdbook-mermaid --version "${MDBOOK_MERMAID_VERSION}" --locked
+
+      - name: mdbook build
+        run: mdbook build

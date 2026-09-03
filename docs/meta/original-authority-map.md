@@ -1,4 +1,4 @@
-# Soviet Simulator documentation
+# Original authority map
 
 **Kind:** reference
 **Authority:** operational
@@ -6,21 +6,25 @@
 **Owner:** project lead
 **Last verified:** 2026-08-24
 
-This directory is the canonical home for human project documentation. It does not make a
-claim true merely by containing it. Use the authority map below before relying on a document.
+This retained map describes the documentation authority model. Start at the
+[documentation home](../index.md) and navigate with [SUMMARY.md](../SUMMARY.md).
+The full hierarchy, page types, and five states of knowledge are in
+[Documentation authority](document-authority.md) and
+[Documentation model](documentation-model.md).
 
 ## Authority map
 
 | Question | Canonical source | What it may establish |
 |---|---|---|
-| What 1.0 includes or excludes | [1.0 charter](plan/charter-1.0.md) | Binding scope and cut line |
-| What project words mean | [Glossary](reference/glossary.md) | Terminology only |
-| What the current fork actually provides | [Substrate architecture](reference/architecture/substrate.md) and its cited fact-sheets | Observed implementation reality |
+| What 1.0 includes or excludes | [1.0 charter](../plan/charter-1.0.md) | Binding scope and cut line |
+| What project words mean | [Glossary](../reference/glossary.md) | Terminology only |
+| What the current fork actually provides | Source code and tests; use [Current substrate](../architecture/current-substrate.md) as a cited guide | Implementation and test reality |
 | How an in-scope system must behave | `reference/specifications/` | Binding mechanisms after ratification |
 | What is being worked on now | `bd` | Task state only |
 
-Authority flows downward: charter, glossary, and observed substrate constrain specifications;
-specifications constrain requirements; requirements constrain scenarios and generated status.
+The charter constrains scope. The glossary constrains terminology. Active specifications constrain
+mechanism within scope. Source and tests establish implementation reality. Research and fact-sheets
+provide evidence but do not establish scope or mechanism.
 Generated files, handoffs, archived material, and pre-fork ADRs cannot establish upstream scope or
 mechanism.
 
@@ -40,4 +44,4 @@ verified** date. `CONFIRMED`, `OBSERVED`, `INFERRED`, `SPECULATIVE`, and `OURS` 
 evidence labels inside a document; they do not replace the metadata above.
 
 The canonical paths above are the only active discovery paths. The legacy corpus is retained under
-[`archive/iterations/legacy/`](archive/iterations/legacy/) for provenance and is not a second plan.
+[`archive/iterations/legacy/`](../archive/iterations/legacy/) for provenance and is not a second plan.

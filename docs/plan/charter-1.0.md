@@ -4,7 +4,7 @@
 **Authority:** binding
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-24
+**Last verified:** 2026-09-03
 
 ## Purpose and authority
 
@@ -50,6 +50,8 @@ ratified specification and evidence; this table does not claim that any are curr
 | Shell and comfort | Main menu; named manual saves plus three rotating period-end autosaves; pause, date, and speed controls; minimal settings; action-needed notifications and event log; camera polish; an in-HUD onboarding strip; local panic log and autosave-on-crash. |
 | Presentation and audio | Zero-spend art and audio; grounded palette-controlled presentation; bounded visible citizens; day/night and visible seasons; legible state feedback and refusal feedback; UI feedback, ambience, and optional menu-only music. |
 | Distribution and audience | English-only, fixed keybindings, no separate accessibility line item, no telemetry, and CI-built Linux and Windows binaries shipped as an unlisted itch build. The shell may be friends-grade; visuals and game feel must pass a stranger-grade finish bar. |
+| Households and citizens | Persistent citizen identities grouped into households; residence assignment with a housing queue and an observable housing shortage; household consumption with explicit going without. Housing tiers (kommunalka to separate flat), propiska and household time budgets are Post-1.0. |
+| Utilities | Electricity, water, heating and waste as connected finite-rate networks with distinct inertia; Water is a utility, never cargo, and includes static head and tank storage. Sewage is Post-1.0. |
 
 The implementation posture is lean systems, maximal polish, and opportunistic breadth only where
 reuse makes it cheap. Terrain, water, and hydro are the deliberate breadth exception. Performance
@@ -62,6 +64,9 @@ candidate onward, released saves remain compatible. Every completed product rung
 implementation evidence and an inspected capture or played-session acceptance appropriate to the
 work; prose, task state, or inherited completion markings cannot substitute for that evidence.
 
+**Revision:** revised 2026-09-03 by [ADR-0001](../decisions/0001-households-and-utilities-are-1.0-scope.md),
+which added the Households and citizens row and the Utilities row and cut sewage.
+
 ## Explicit cuts
 
 The following are committed Post-1.0 direction and cannot receive 1.0 acceptance criteria:
@@ -69,7 +74,7 @@ The following are committed Post-1.0 direction and cannot receive 1.0 acceptance
 - loyalty, legitimacy, broadcast, monuments, crime, vehicle manufacture, and vehicle fuel lifecycle;
 - voltage tiers and grid-depth features including transformers, treatment tiers, and combined heat
   and power; electric-heating fallback; passenger rail, signals, and electrification; ships, docks,
-  pipelines, cableways, containers, aircraft, and petrochemicals;
+  pipelines, sewage, cableways, containers, aircraft, and petrochemicals;
 - era calendar, dual currency, free terraform, cell-level water, kindergarten, deathcare,
   epidemics, perishables, refrigerated transport, Steam, and marketing.
 
@@ -82,6 +87,12 @@ An in-scope system cannot be marked implemented from a legacy document, a genera
 task handoff, or an old ADR. Completion requires current implementation evidence plus the
 acceptance evidence required by its specification. A proposed feature outside this charter belongs
 in Post-1.0 direction or a future charter revision, never in a 1.0 requirement by implication.
+
+A page's scope line uses exactly one of two labels: **1.0**, which must name the charter row it
+derives from, or **Post-1.0**, which may carry a *hook* note meaning "avoid an architectural dead
+end; build nothing". "1.0 candidate" and "1.0 binding" are retired as labels; "never in scope"
+remains for the permanent exclusions above
+([ADR-0001](../decisions/0001-households-and-utilities-are-1.0-scope.md)).
 
 ## Current-reality boundary
 

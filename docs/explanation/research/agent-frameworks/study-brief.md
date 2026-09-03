@@ -158,7 +158,7 @@ Write `docs/framework-design.md`. It must contain:
 2. **What each does better than the others**, with the specific mechanism named — not a vibe.
 3. **The design**: phases or flows, the artifacts each produces, the gates, and where human approval
    is required.
-4. **Provenance for every element** — which framework it came from, or "new, because <evidence>".
+4. **Provenance for every element** — which framework it came from, or "new, because [evidence]".
 5. **What you deliberately rejected** from each, and why. This section is as important as the rest;
    a design that takes everything is not a design.
 6. **A migration path** from the current state — 130 stories mid-flight, an existing corpus, an
