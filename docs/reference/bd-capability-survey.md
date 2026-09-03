@@ -4,7 +4,7 @@
 **Authority:** advisory — recommends, changes nothing; task-tracking conventions in CLAUDE.md remain operative
 **Status:** delivered; recommendations adopted 2026-08-26 (`sov-xie`) — see CLAUDE.md § Adopted conventions
 **Owner:** project lead
-**Last verified:** 2026-08-26 (bd 1.2.2, embedded Dolt, workspace `sov`)
+**Last verified:** 2026-09-03 (bd 1.2.2, §§2–3, 6 reconciled against live state; §§0–1, 4–5 unchanged)
 
 Sources: live CLI exploration of the installed binary and this workspace (lead), plus upstream
 docs/releases at `github.com/gastownhall/beads` (sonnet researcher, citations noted inline).
@@ -92,10 +92,18 @@ status`, **`epic close-eligible`** (epics do NOT auto-close when the last child 
 - `bd sql` — raw SQL escape hatch against the Dolt DB.
 
 ### Agent coordination & provenance
+
+(Superseded in part 2026-08-27 — see §5. The `--actor` / `$BEADS_ACTOR` and
+`Executed-By:` trailer bullets below describe the pre-adoption hypothesis, kept for
+provenance. Operative convention: attribution is `--author <roster-name>` on
+`bd comments add`; do not set `BEADS_ACTOR`.)
 - **`--actor` / `$BEADS_ACTOR`** on every command — audit-trail identity (defaults to git
-  user.name). Workers currently pass `--author` on comments only.
+  user.name). [SUPERSEDED by §5: the `BEADS_ACTOR`/`Executed-By:` convention was deleted
+  2026-08-27 — bd 1.2.2's `prepare-commit-msg` hook is inert. Workers pass `--author`
+  on comments only.]
 - **`prepare-commit-msg` hook adds an `Executed-By:` trailer** when `BD_ACTOR` is set —
-  free per-commit agent provenance (hook already installed).
+  free per-commit agent provenance (hook already installed). [SUPERSEDED by §5: verified
+  inert — 0 of 60 commits carry the trailer. Do not cite `Executed-By:` trailers.]
 - `bd audit record|label` — append-only `.beads/interactions.jsonl` for interaction logging
   / dataset generation. Niche; not needed.
 - `set-state` / `state` — labeled state dimensions (`health:failing`) + event beads. Built
@@ -153,16 +161,18 @@ reclamation — irrelevant at 36 issues), `backup`, `restore`.
    drift `bd stale` surfaces.
 2. **`bd batch` for wave setup** — one transaction for N creates + deps instead of N×2 CLI
    calls; also faster and atomically rollback-safe.
-3. **`BEADS_ACTOR=<agent-name>` in every worker brief** — comments, events, and the
-   `Executed-By:` commit trailer all pick it up; per-agent provenance for free.
+3. ~~**`BEADS_ACTOR=<agent-name>` in every worker brief**~~ — **SUPERSEDED 2026-08-27
+   by §5 (adopted conventions).** The hook this relied on is inert; attribution is
+   `--author <roster-name>` on `bd comments add`. Do not set `BEADS_ACTOR`.
 4. **`bd q` and `bd dep <blocker> --blocks <blocked>`** as the house idioms in briefs (the
    latter already is).
 
 **Adopt with one config decision (user call):**
 5. **`bd config set validation.on-create warn`** — mechanizes the existing
    "--acceptance always" convention; `warn`, not `error`, so it never blocks a worker.
-6. **Telemetry**: `bd config set metrics.disabled true` if you don't want usage pings to
-   `gastownhall-eventsapi.com`. Currently ON.
+6. **Telemetry**: decided — telemetry is **disabled** (`metrics.disabled=true`,
+   user-level config; see §5). The "Currently ON" state recorded here at survey time
+   (2026-08-26) is historical. No action remains.
 7. **`bd defer --until`** to replace informal "not now" issues (the roadmap already has a
    deferred cohort; ❄ status renders in `bd ready`/`list`).
 
@@ -251,11 +261,20 @@ Payloads are the same content, 5,573 vs 5,574 chars (one trailing newline). The 
 `bd prime` alone, and it covers **both** `SessionStart` and `PreCompact` (the plugin registers
 both; the project settings registered only SessionStart, so PreCompact recovery is a net gain).
 Verified: `bd prime` in a directory with no bd workspace prints nothing and exits 0, so the
-user-scope plugin hook is harmless in repos that do not use bd.
+**Addendum 2026-09-03 — the duplication is back.** The installed beads plugin
+(1.2.2, `beads-marketplace`) still registers its own user-scope `SessionStart`
+`bd prime` (plus `PreCompact`), verified in its
+`.claude-plugin/plugin.json` today — and this repo's `.claude/settings.json`
+`SessionStart` again carries a project-scope `bd prime` entry (line 9). Both fire
+every session, so the ~1,390-token duplicate cost measured above applies again;
+the 2026-08-28 fix has regressed. One truthful state: **two `bd prime` hooks are
+currently registered, not one.** This survey is advisory and changes no hook
+config: either re-delete the project entry (restoring the §6 fix and re-accepting
+its no-plugin-clone consequence) or keep it deliberately for self-containment and
+record the duplicate cost as accepted. Lead's call.
 
-**Known consequence:** this repo is no longer self-contained for `bd prime`. A clone without the
-beads plugin installed gets no bd context at session start. `CLAUDE.md` and `bd prime` itself
-still document the workflow, so the loss is the automatic injection, not the knowledge.
+**Known consequence (of the 2026-08-28 plugin-only state; not current while the
+project entry above exists):** this repo is no longer self-contained for `bd prime`. A clone without the
 
 **Trap for whoever audits hooks next — this is why it went unnoticed for so long.** A plugin's
 `hooks` key takes **two different shapes**: an inline object (beads) or a string path to a hooks

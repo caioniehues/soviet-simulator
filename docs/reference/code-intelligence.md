@@ -4,7 +4,7 @@
 **Authority:** operational
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-27
+**Last verified:** 2026-09-03
 
 This repo has two code-intelligence tools. They are complements, not rivals, and the
 `CLAUDE.md` MCP block on its own does not say which wins where. This document does.
@@ -77,7 +77,8 @@ query latency. The gain sat entirely in ranks 6–20. Not worth the VRAM alongsi
 A cold language server answers `findReferences` with **"No references found."** That is not an
 error. It reads exactly like a true negative.
 
-Measured on `Market::set_requested` (`simulation/src/economy/market.rs:441`):
+Measured on `Market::set_requested` (`simulation/src/economy/market.rs:484`; line 441
+at the time of the 2026-08-27 measurement — the symbol has since moved):
 
 | | Result |
 |---|---|
@@ -113,8 +114,12 @@ ToolSearch("select:LSP,ListAgents")  ->  No matching deferred tools found
 Not recoverable from inside. A second agent hit the same wall independently the same hour.
 The message is misleading — LSP kept working in the main session minutes later.
 
-Measured subagent toolset: `Read`, `Bash`, `ToolSearch`, `Skill`, `Write`, `Edit`, and
-`SendMessage` (deferred). Absent: `LSP`, `ListAgents`, `Grep`, `Glob`, `Agent`, `WebFetch`.
+Measured subagent toolset: `Read`, `Bash`, `ToolSearch`, `Skill`, `Write`, `Edit`,
+`Agent`, `WebFetch`, and `SendMessage` (deferred). Absent: `LSP`, `ListAgents`,
+`Grep`, `Glob`. (`Agent` and `WebFetch` reachability was settled by the 2026-08-28
+probe in `docs/reference/subagent-tooling.md` — present in any subagent that does not
+pin a `tools:` allowlist — which supersedes the earlier absence claim. That document
+is the authority on the subagent tool surface; this section defers to it.)
 
 Two mechanisms stack. Background subagents — the default — keep only a fixed built-in list
 that excludes `LSP` and `ListAgents`, and the removal reports no error. Auto mode

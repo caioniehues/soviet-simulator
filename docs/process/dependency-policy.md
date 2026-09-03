@@ -4,7 +4,7 @@
 **Authority:** operational  
 **Status:** active  
 **Owner:** project lead  
-**Last verified:** 2026-08-27
+**Last verified:** 2026-09-03
 
 Tracker: `sov-f1v` (this baseline), `sov-ztg` (CI enforcement).
 
@@ -32,15 +32,12 @@ cargo-deny check
 `licenses`, `sources`. Duplicate-version detection is part of the `bans` check.
 
 The evidence recorded in this document was produced with the same 0.20.2 binary
-installed to a session-local root, invoked by absolute path:
-
-```sh
-/tmp/sov-f1v-tools/bin/cargo-deny check
-```
-
-Only the invocation path differs. The binary, the version, the sub-command, the
-argument list, the working directory and `deny.toml` are the same. `/tmp` is
-ephemeral; do not treat that path as durable.
+installed to a session-local root and invoked by absolute path
+(`/tmp/sov-f1v-tools/bin/cargo-deny check`) from the repository root. That absolute
+path was the evidence-generation setup for one session, not the durable command:
+the canonical local invocation is `cargo-deny check` from the repository root with
+the pinned 0.20.2 binary on `PATH`, which is what CI runs. `/tmp` is ephemeral;
+do not treat that path as durable or reproduce it.
 
 ## Baseline rules
 
@@ -246,10 +243,11 @@ Verified locally on 2026-08-27:
 - `cargo-deny check` exits non-zero under a policy mutation (1 for the advisory
   mutation, 8 for the sources mutation), and prints which check failed.
 - The version assertion passes for 0.20.2 and fails for any other pin.
-- Running the two `run:` step bodies in sequence under GitHub's default Linux
+- Running the three `run:` step bodies in sequence under GitHub's default Linux
   shell for `run:` steps, `bash -e -o pipefail`, gives exit 0 on the clean tree,
   exit 8 with the sources mutation applied, and exit 0 again after restoring
-  `deny.toml`.
+  `deny.toml`. (The workflow has four steps total: one `uses:` checkout plus the
+  three `run:` steps — install, confirm version, check.)
 
 Verified on GitHub Actions on 2026-08-27 (see "After the first real run"): the
 job runs, the pinned install succeeds on `ubuntu-latest`, a violation renders as

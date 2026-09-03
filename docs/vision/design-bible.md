@@ -16,65 +16,15 @@
 
 The subject of this game is **coordination under physical scarcity**. The player is THE PLANNER. The Planner does not buy domestic goods through a price-clearing market; the Planner sets quotas, priorities, allocation policies, construction programmes, reserves and institutional rules, and then real physical and institutional actors must produce, store, load, move, unload, deliver and consume.
 
-```text
-PLAN
-  ↓ quotas / priorities / policies
-enterprises and institutions adapt
-  ↓ requests / buffers / labour decisions / dispatch pressure
-physical production and logistics
-  ↓ queues / shortages / surplus / delay / quality / congestion
-household and workplace experience
-  ↓ reports / complaints / institutional information
-PLANNER KNOWLEDGE
-  ↓
-next PLAN
-```
-
-The planned economy generates its own gameplay. No crisis dice are needed: a taut plan, a bad reserve policy, an overconfident rail programme, a housing lag, a storming cycle or an unreliable allocation system is enough.
-
-Two rules govern everything below.
+The full statement — plan cycle, player fantasy, success as coordination quality, the long arc — lives in [vision](../product/vision.md); this section keeps only the two rules that govern everything below.
 
 > **Use the cheapest representation that preserves every causal distinction the game cares about.**
 
 > **Every important macroeconomic number must eventually resolve into physical or institutional state.**
 
-The player fantasy (the clearest statement in any project document, per Lane G):
-
-> Turn a fragile, shortage-prone, buffer-hoarding industrial system into a calm, predictable, sophisticated republic capable of executing immense national projects without tearing ordinary society apart.
-
-Success is **coordination quality**, not gigantism: smaller emergency reserves, fewer emergency dispatches, shorter queues, lower plan-period variance, more reliable deliveries, lower turnover, less overtime, more accurate reports, more household discretionary time.
-
 ## 2. Design laws
 
-Laws 1–3, 5 and the never-game-over rule are charter pillars (`charter-1.0.md:24-35`). The rest are new to the corpus from the design thread and are recorded as principles, not binding scope.
-
-### Physical causality
-1. **Goods move physically or do not move.** Allocation, matching, payment, route creation and reservation never teleport stock. *(charter)*
-2. **Request, allocation, reservation, pickup, custody, delivery, on-hand and consumption are separate states.** *(SPEC-PRODUCTION-003; glossary "Request")*
-3. **Failure persists.** A missing stock, vehicle, route, dock, worker, watt, litre, dwelling, school place or clinic slot creates a visible waiting, partial, stalled, substitution or going-without state. It never ends the game. *(charter)*
-4. **No silent deletion.** Goods, demand, citizens, vehicles, queues and sites do not vanish because a transaction failed. *(new; the code violates it — see §4 of the synthesis: `ECO-SUB-001`)*
-5. **No domestic price clearing.** Scarcity resolves by policy, queue, priority, substitution, rationing, reserve, adaptation or going without. The rouble is border foreign currency only. *(charter:32-33)*
-6. **Physical opportunity cost must be visible.** Prioritising one use removes actual capacity, materials, labour, transport, housing or service access from another. *(new)*
-
-### Information causality
-7. **Reports are not truth.** Reported demand, plan fulfilment, institutional reports and citizen knowledge are distinct from physical state. *(new; the four-realities model, §4)*
-8. **Information is a resource.** Better reporting, monitoring, representation and reliable institutions improve planning quality without magically improving supply. *(new)*
-9. **No omniscient player UI.** Player-facing data comes through Planner-visible snapshots and institutional observation, never unrestricted access to `Simulation`. *(new; CODE: the UI holds `Arc<RwLock<Simulation>>` and reads ~40 resources directly — `native_app/src/game_loop.rs:33`)*
-10. **No hidden honesty flag.** Strategic behaviour is inferred from discrepancies: request, receipt, consumption, on-hand, surplus, queue age, declared capacity, physical output. *(SPEC-PRODUCTION-009 verbatim; CODE: no `dishonest` identifier exists.)* **Clarification from Lane G:** "no hidden *verdict*" is not "no hidden *state*". An enterprise that inflates needs reasons — remembered reliability, reserve targets, bargaining history — and those live in the simulation, hidden from the Planner's view, not absent. The Planner sees the discrepancy, never the reason.
-
-### Social causality
-11. **Citizens persist as identities.** Embodiment may be bounded; the record is not disposable. *(SPEC-CITIZENS-001)*
-12. **Households are first-class actors.** Residence, pantry, care obligations, housing queues, adaptation, family history. *(SPEC-HOUSEHOLDS-004; ABSENT in code — `grep -r Household simulation/` is empty)*
-13. **Social reproduction is physical.** Workers must be housed, fed, heated, educated, transported, kept healthy and given time. *(CONFIRMED — Zaslavskaya; Lane B1)*
-14. **Citizens adapt.** They search, queue, substitute, buffer, reschedule, use plots, use contacts, relocate, change jobs or go without. *(CONFIRMED — CIA 1979, 1982; Lane B2)*
-15. **No single happiness scalar.** Preserve causes: queue burden, crowding, warmth, health, time pressure, access, commute, career, household reliability. *(new)*
-
-### Technical causality
-16. **Stable things sleep; pressure wakes them.** *(HYPOTHESIS; the architecture path to 250k)*
-17. **Compute → deterministic merge → commit.** Parallel workers calculate intents; only ordered commits mutate truth. *(HYPOTHESIS; CODE: `ParCommandBuffer` is an intent buffer but systems run serially)*
-18. **One authority per state transition.** Cross-domain code references IDs and results; it does not mutate another domain's ledger. *(pattern already in the utility specs)*
-19. **Every replayable transaction is idempotent** under an immutable ID. *(SPEC-WATER-006, SPEC-ELECTRICITY-002 already require this)*
-20. **No generalised abstraction before shared invariants are proven.** Share topology, scheduling, IDs, journals; do not force water, power, traffic, sewage, heat and gas through one solver. *(new)*
+Laws 1–3, 5 and the never-game-over rule are charter pillars (`charter-1.0.md:24-35`). The rest are new to the corpus from the design thread and are recorded as principles, not binding scope. The twenty laws — physical, information, social and technical causality, each with its status — live in [design laws](../product/design-laws.md); this page keeps no second copy.
 
 ## 3. Evidence standard
 
@@ -126,7 +76,7 @@ Late inputs, taut quotas or delayed effort concentrate output near period end. S
 Two plans with equal annual tonnage need different fleets if one is smooth and one is pulsed. Track mean corridor load, peak load, period variance, emergency-dispatch share, empty repositioning, dock waiting, missed loading windows — as metrics, without invented values. The right fix may be the Plan, not more track.
 
 ### 5.7 Reserves — PLAUSIBLE taxonomy (the five classes are the thread's invention; Soviet practice had state reserve, enterprise buffer stock, operational inventory)
-Operating · safety · enterprise (hidden surplus) · state · project. Rules (A §3e): the five sum to physical stock; consumption draws operating then safety (with a recorded event); enterprise reserve is never drawn automatically — it *is* the hoard; state reserve moves only by Planner action; project reserve only by a national-project system. The Planner can *compute* the hidden reserve from physical stock minus the four declared classes if they inspect closely; the enterprise's report omits it. That is `SPEC-PRODUCTION-009` made concrete. Open: five classes may be too many for the player; two or three may carry the loop.
+Operating · safety · enterprise (hidden surplus) · state · project. Rules (A §3e): the five sum to physical stock; consumption draws operating then safety (with a recorded event); enterprise reserve is never drawn automatically — it *is* the hoard; state reserve moves only by Planner action; project reserve only by a national-project system. The Planner never sees the hidden reserve directly — no omniscient access ([law 9](../product/design-laws.md#information-causality); [the Planner](../product/player-role.md#what-the-planner-does-not-do)). They infer *suspected* surplus from inspectable discrepancies only: physical stock found on inspection versus the four declared classes and the enterprise's own report. A gap is suspicion, never a verdict ([law 10](../product/design-laws.md#information-causality); `SPEC-PRODUCTION-009`). Open: five classes may be too many for the player; two or three may carry the loop.
 
 ### 5.8 Priority does not solve scarcity — CONFIRMED (Kornai; Nove)
 Priority decides **where** scarcity appears. Copper to the Space Programme is copper not in radios, machine tools or construction. The Planner must see the displaced use. **Priority inflation (HYPOTHESIS):** if everyone may label a request critical, priority means nothing; constrain who assigns classes and expose the share of activity running under emergency status.
@@ -164,9 +114,9 @@ Per resource: physical stock (producer, operating, safety/reserve, state/project
 
 - **Granularity rule** (CONFIRMED heuristic — Gosplan balanced ~1,943 categories, not SKUs): split only when handling, storage, carrier compatibility, substitution, priority, routing, quality/acceptance, a physical bottleneck or a strategic decision changes. The 1.0 catalogue is fifteen domestic resources plus import-only Medicine; Water is a utility, never cargo (charter). **CODE:** 21 items with `id`, `label`, `optout_exttrade` only — no mass, volume, storage or transport class (`prototypes/src/prototypes/item.rs:6-25`, `base_mod/items.lua`).
 - **Stock semantics:** on hand · reserved (an encumbrance, not additive) · in custody · embedded in construction · consumed. **CODE:** `capital`, `reserved`, `requested` in `SingleMarket`; no custody quantity on vehicles (`LOG-SUB-005`); no embedding — construction is instant.
-- **One logistics authority** owns the haul: demand referenced → allocated → vehicle reserved → route to source → pickup → custody → route to destination → delivery → release/recovery. Consumption stays outside the haul. **CODE:** the truck leg is real and well-tested (`DispatchState` ToSource → Loading → ToDestination → Unloading; 13 ledger tests, 14 retail tests — the code's actual strength). Bounded return recovery is implemented. Source-wait recovery is worktree-only and requires committed verification. Missing custody on the vehicle and the **export side** (`market.rs:774` still debits at match time — a pillar violation).
+- **One logistics authority** owns the haul: demand referenced → allocated → vehicle reserved → route to source → pickup → custody → route to destination → delivery → release/recovery. Consumption stays outside the haul. **CODE:** the truck leg is real and well-tested (`DispatchState` ToSource → Loading → ToDestination → Unloading; 12 ledger tests, 14 retail tests — the code's actual strength). Bounded return recovery is implemented. Source-wait recovery is worktree-only and requires committed verification. Missing custody on the vehicle. Match reserves without moving stock and pickup debits the seller (`Market::make_trades` → `Market::advance_dispatches`); only the `job-opening` pseudo-trade settles immediately with no dispatch.
 - **Custody conservation:** pickup of `x` is `H_source −= x; R_source −= x; C_haul += x`. Post-pickup cancellation cannot "release"; cargo stays in custody until return, reassignment or delivery.
-- **Finite loading/unloading** (SPEC-LOGISTICS-011; Lane D: "the real Soviet bottleneck"): docks have compatibility, occupancy, rate, power and space. A 12 t truck at a 2 t/min dock takes six minutes; partial transfer moves custody by the transferred amount only. **CODE:** cargo is a counter (`freight_station.rs:139`); no transfer time.
+- **Finite loading/unloading** (SPEC-LOGISTICS-011; Lane D: "the real Soviet bottleneck"): docks have compatibility, occupancy, rate, power and space. A 12 t truck at a 2 t/min dock takes six minutes; partial transfer moves custody by the transferred amount only. **CODE:** cargo is a counter (`RailFreightStation`'s `waiting_cargo`/`wanted_cargo` in `simulation/src/souls/freight_station.rs`); no transfer time.
 - **Target-stock dispatch priority** (SPEC-LOGISTICS-005): largest normalised deficit → meaningful route distance → stable ID tie-break. No domestic price participates. **CODE:** `make_trades` sorts by distance only.
 - **Deadhead metrics:** loaded distance, empty distance, loading wait, unloading wait, road/rail wait, recovery time, utilisation — fleet planning becomes logistics rather than vehicle count.
 - **Handling classes (HYPOTHESIS):** bulk mineral, aggregate, grain/food bulk, pallet/general, machinery/project, medicine/special, waste. Affects storage, dock, wagon/truck compatibility, transfer rate, visuals — without exploding the catalogue. Needs the item metadata the code lacks.
@@ -239,7 +189,7 @@ Permanent: birth, education milestones, qualification, major employment changes,
 - **Safety inspection** (PLAUSIBLE — ILO/Semenov 1983; CIA "Labor Safety in Soviet Industry" 1965): inputs are maintenance backlog, fatigue, overtime, machine condition, minor incidents; choices are stop the line, defer, reallocate maintenance, ease quota pressure; consequences stay physical. Storming and alcohol both raise accident rates.
 - **Local Soviets and elections** (CONFIRMED form — single-candidate, party-nominated; the useful mechanic is **nakazy**, electors' mandates a deputy is bound to pursue, and standing commissions on planning, women's working conditions, mother-and-child welfare) — **Post-1.0.** Model representation and information, never multiparty competition.
 - **Institutional confidence** (HYPOTHESIS): complaint submitted → action taken or not; effective channels encourage reporting, ineffective ones encourage exit, absenteeism, informal adaptation. Institutional reliability, not mind-reading. Never loyalty in 1.0.
-- **Alternative rulesets** as concrete questions (HYPOTHESIS; Lane H reached the same conclusion): who proposes quotas, sets reserves, selects management, allocates surplus, controls housing/welfare, approves overtime/norms, coordinates inputs. Never government-type bonuses. See `docs/vision/game-modes-post-1p0.md`.
+- **Alternative rulesets** as concrete questions (HYPOTHESIS; Lane H reached the same conclusion): who proposes quotas, sets reserves, selects management, allocates surplus, controls housing/welfare, approves overtime/norms, coordinates inputs. Never government-type bonuses. See [game modes](../product/game-modes.md).
 
 ## 9. Vehicles, road traffic, transit, rail
 
@@ -289,11 +239,11 @@ All CONFIRMED as constructions from validated mechanisms; **none is wired in cod
 
 ## 12. National projects and scenarios
 
-Post-1.0 direction. Sixteen mode cards, the scenario-vs-mode distinction, mid-save transitions, chronicle, the tutorial problem and multiplayer-as-mode are in `docs/vision/game-modes-post-1p0.md`. Two rules from that document bind here: a National Project is a temporary nationwide material and labour distortion with phases, reserved materials, project cargo and priority rules — it stresses the ordinary economy, never lives in a separate tech tree; and the Space Programme is an industrial/logistics project, not a flight simulator.
+Post-1.0 direction. Sixteen mode cards, the scenario-vs-mode distinction, mid-save transitions, chronicle, the tutorial problem and multiplayer-as-mode are in [game modes](../product/game-modes.md). Two rules from that document bind here: a National Project is a temporary nationwide material and labour distortion with phases, reserved materials, project cargo and priority rules — it stresses the ordinary economy, never lives in a separate tech tree; and the Space Programme is an industrial/logistics project, not a flight simulator.
 
 ## 13. Simulation architecture — principles
 
-Design detail is in three proposals (`docs/plan/proposals/sim-tick-phases.md`, `citizen-architecture.md`, `causal-inspector.md`) and the crate-level research note (`docs/research/rust-architecture-proposals-2026-08-28.md`). The principles, with their code status:
+Design detail is in three proposals (`docs/plan/proposals/sim-tick-phases.md`, `citizen-architecture.md`, `causal-inspector.md`) and the crate-level research note ([rust architecture crates](../research/engineering/rust-architecture-crates.md)). The principles, with their code status:
 
 - **The centre is not ECS.** Identity, time, authority, transactions, change propagation, determinism, information boundaries. **CODE:** the world is a hand-rolled typed store of `HopSlotMap`s over `slotmapd` (Uriopass's determinism fork of `slotmap`) — not an ECS, and not to be replaced by one (C1-07).
 - **Module shape** (modules inside `simulation`, not new crates): core (time, ids, units, scheduler, random, transition, change_journal) · stores · physical · society · institutions · observatory · forecast · snapshot.
@@ -324,11 +274,11 @@ Authority: one owning module per mutable field. Transactions: immutable ID, name
 
 ## 15. Validation strategy
 
-Conservation property: `source + destination + custody + embedded + declared sinks = initial + declared sources` over request → reserve → pickup → cancel → reroute → return → deliver → consume (the `ledger-invariant-checker`'s question; 13 ledger tests cover the truck leg today). Idempotency: apply every replayable transition twice. Mutation tests: every acceptance test names the wrong implementation that must fail (the `evidence-auditor` method; cargo-mutants ADOPTED, `sov-mwy`). **Repeat-run determinism** — same initial state and commands → identical digests — is **absent**: `TestCtx::check_determinism` proves serialize→deserialize round-trip only (`tests/mod.rs:106-121`). Per-phase digests make divergence bisectable. Reference oracles: EPANET, SWMM, HEC, IDM, CTM. Benchmarks: none exist; the 250k contract has no gate (`sov-1ae` cancelled). Optimise in order: representation → cadence → locality → incremental → hierarchy → parallelism → SIMD.
+Conservation property: `source + destination + custody + embedded + declared sinks = initial + declared sources` over request → reserve → pickup → cancel → reroute → return → deliver → consume (the `ledger-invariant-checker`'s question; 12 ledger tests cover the truck leg today). Idempotency: apply every replayable transition twice. Mutation tests: every acceptance test names the wrong implementation that must fail (the `evidence-auditor` method; cargo-mutants ADOPTED, `sov-mwy`). **Repeat-run determinism** — same initial state and commands → identical digests — is **absent**: `TestCtx::check_determinism` proves serialize→deserialize round-trip only (`tests/mod.rs:106-121`). Per-phase digests make divergence bisectable. Reference oracles: EPANET, SWMM, HEC, IDM, CTM. Benchmarks: none exist; the 250k contract has no gate (`sov-1ae` cancelled). Optimise in order: representation → cadence → locality → incremental → hierarchy → parallelism → SIMD.
 
 ## 16. Observability
 
-Every significant object answers STATUS / CAUSE / TREND / POLICY / PHYSICAL CHAIN, with a **provenance column per line** (measured / reported / aggregated / observed / estimated / unknown). Worked examples, pressure maps, reserves in natural units and causal notifications are in `docs/plan/proposals/causal-inspector.md`. **CODE:** the building inspector shows workers, productivity, power, progress, storage (`inspect_building.rs:150-267`); nothing causal; `Market::requested()` unread.
+Every significant object answers STATUS / CAUSE / TREND / POLICY / PHYSICAL CHAIN, with a **provenance column per line** (measured / reported / aggregated / observed / estimated / unknown). Worked examples, pressure maps, reserves in natural units and causal notifications are in `docs/plan/proposals/causal-inspector.md`. The Planner's instruments — material balance, inspector, pressure maps, reserves in natural units, causal notifications — are listed under [the Planner](../product/player-role.md#the-planners-instruments-design). **CODE:** the building inspector shows workers, productivity, power, progress, storage (`inspect_building.rs:150-267`); nothing causal; `Market::requested()` unread.
 
 ## 17. Scope discipline
 
@@ -366,9 +316,9 @@ Causal facts emitted · Computational representation · Benchmark/test · Open q
 ## 21. Related documents
 
 - Reconciliation and evidence: `docs/research/conversation-mining-2026-08-28/SYNTHESIS.md` and lane reports A–H
-- Game modes: `docs/vision/game-modes-post-1p0.md`
+- Game modes: [game modes](../product/game-modes.md)
 - Proposals: `docs/plan/proposals/{causal-inspector,sim-tick-phases,citizen-architecture}.md`
-- Crates and architecture research: `docs/research/rust-architecture-proposals-2026-08-28.md`
+- Crates and architecture research: [rust architecture crates](../research/engineering/rust-architecture-crates.md)
 - Binding: `docs/plan/charter-1.0.md`, `docs/reference/glossary.md`, `docs/reference/specifications/`
 - Current reality: `docs/reference/architecture/substrate.md`, `docs/research/fact-sheets/`
 - Raw provenance: `docs/archive/raw-sessions/INDEX.md`

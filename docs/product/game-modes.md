@@ -5,7 +5,7 @@
 **Status:** draft
 **Owner:** project lead
 **Last verified:** 2026-08-28
-**Provenance:** Lane H (`docs/research/conversation-mining-2026-08-28/H-game-modes-and-progression.md`) validated the design thread's fifteen modes against history and code; the "who decides" questions come from the design bible §8.14.
+**Provenance:** Lane H (`docs/research/conversation-mining-2026-08-28/H-game-modes-and-progression.md`) validated the design thread's fifteen modes against history and code; the "who decides" questions come from the design bible's Alternative-rulesets bullet under [§8 Labour, workplace, unions, representation](../vision/design-bible.md#8-labour-workplace-unions-representation--lead-audited-synthesis-35).
 
 ## The finding that organises everything
 

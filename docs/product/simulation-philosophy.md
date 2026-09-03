@@ -44,9 +44,7 @@ player a distinct failure mode and a distinct instrument ([infrastructure](../si
 
 Not `kindergarten +5 % workforce`, `bad housing −10 % productivity`, `snow −20 % traffic`. Instead:
 a childcare place releases specific care hours, so an adult can attend a shift; snow changes safe
-braking distance, so headway rises, so capacity falls. Modifiers hide causes; chains expose them
-to the inspector and to the player ([design laws](design-laws.md) §22 of the design thread lists
-this as the first anti-pattern).
+braking distance, so headway rises, so capacity falls. Modifiers hide causes; chains expose them to the inspector and to the player ([design laws](design-laws.md#two-rules-above-the-laws) states it as a rule above the laws; the bible's [anti-pattern list](../vision/design-bible.md#19-anti-patterns) names it first).
 
 ## The republic must be allowed to work
 
