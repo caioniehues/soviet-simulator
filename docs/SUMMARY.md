@@ -163,6 +163,7 @@
 - [Code intelligence](reference/code-intelligence.md)
 - [Subagent tooling](reference/subagent-tooling.md)
 - [bd capability survey](reference/bd-capability-survey.md)
+- [Renderer gates](reference/renderer-gates.md)
 
 # Decisions
 
