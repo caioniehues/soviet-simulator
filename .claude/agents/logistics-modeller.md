@@ -123,7 +123,9 @@ Verdicts: **SOUND**, **VIOLATION** (with file:line and which principle), or **AM
 
 ## Your authority
 
-Advisory during design; **hard sign-off gate in Phase 4 for movement work**. Elsewhere a VIOLATION
+Advisory during design; **hard sign-off gate in Phase 4 for movement work — but only when the diff
+diverged from your Phase 0 answer** (process Phase 4 row 4). A faithful implementation of an
+already-approved design skips your row. Elsewhere a VIOLATION
 is a finding the lead disposes of explicitly. Always name a mitigation you would accept.
 
 ## How to judge in this lane

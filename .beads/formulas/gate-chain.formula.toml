@@ -2,8 +2,8 @@
 # Usage:  bd mol pour gate-chain --var story=sov-abc --var scope="<commit range>"
 # Preview: bd cook gate-chain --var story=sov-abc --var scope=HEAD~1..HEAD --dry-run
 formula = "gate-chain"
-description = "Phase-4 gates for one story: wiring audit, ledger invariants (economy diffs), domain sign-off, adversarial review"
-version = 1
+description = "Phase-4 gates for one story: wiring audit, ledger invariants (economy diffs), adversarial review, domain sign-off"
+version = 2
 type = "workflow"
 
 [vars.story]
@@ -26,13 +26,13 @@ type = "task"
 needs = ["wiring"]
 
 [[steps]]
-id = "domain"
-title = "Domain gate sign-off for {{story}} — only when the diff diverged from the Phase 0 answer; close as skipped otherwise"
+id = "review"
+title = "Adversarial review (fable@medium) of {{story}} ({{scope}})"
 type = "task"
 needs = ["ledger"]
 
 [[steps]]
-id = "review"
-title = "Adversarial review (opus) of {{story}} ({{scope}})"
+id = "domain"
+title = "Domain gate sign-off for {{story}} — only when the diff diverged from the Phase 0 answer; close as skipped otherwise"
 type = "task"
-needs = ["domain"]
+needs = ["review"]

@@ -21,7 +21,7 @@ Your final message is your report. Do not commit unless the brief says to.
 `native_app/src/**` — panels, HUD windows, inspectors, tools, input. Also `assets/shaders/*.wgsl`
 when a brief calls for it (a `wgsl-analyzer` LSP is configured, but only the main session can reach it).
 
-**Not yours:** `simulation/src/**` (sim-implementer), `base_mod/*.lua` (data-implementer). If the
+**Not yours:** `simulation/src/**` (sim-implementer), `base_mod/*.lua` (data lane, archived — flag it so the lead can restore it). If the
 data you need to display is not exposed as public API on the `simulation` crate, **say so and stop**
 — do not reach into the sim to add it yourself.
 
@@ -61,7 +61,7 @@ mayor, not a tycoon, not a god.
 - **Never list, absolute:** no tourism, hotels or attractions; no fires or disasters. Not even as
   flavour text.
 
-For a judgement call on any of this, the `soviet-authenticity` advisor exists — ask rather than guess.
+For a judgement call on any of this, flag the `soviet-authenticity` advisor in your report so the lead can restore it (archived) — ask rather than guess.
 
 ## Legibility is the gameplay
 

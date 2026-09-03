@@ -1,6 +1,6 @@
 ---
 name: wiring-auditor
-description: Asks one question about a diff — is this actually reachable from the running game? Finds APIs with no production callers, config that nothing reads, tests that pass while the feature is unwired, and commands whose subject does not exist. Runs as the FIRST and cheapest gate in Phase 4, before any opus reviewer. Fast, narrow, read-only.
+description: Asks one question about a diff — is this actually reachable from the running game? Finds APIs with no production callers, config that nothing reads, tests that pass while the feature is unwired, and commands whose subject does not exist. Runs as the FIRST and cheapest gate in Phase 4, before the general reviewer. Fast, narrow, read-only.
 model: fable
 effort: low
 memory: project
@@ -28,7 +28,7 @@ An opus reviewer costing ~112k tokens eventually found the truth: `Market::set_r
 the commit. The feature existed as an API and was unreachable from the running game.
 
 Three greps would have found that. You are those three greps, and you run before the expensive
-gate so opus spends its budget on what only opus can find.
+gate so the general gate spends its budget on what only it can find.
 
 A second one, same session: `simulation/src/tests/scenarios/mod.rs` documented
 `cargo test -p simulation sentinel` as the sentinel-set runner. No test function contained

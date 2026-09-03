@@ -4,7 +4,7 @@
 **Authority:** operational
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-26
+**Last verified:** 2026-09-03
 
 How one iteration of this project gets built, who does each part, and what each phase exists to
 prevent. **Every phase here was added because something specific went wrong** — the failure is
@@ -33,14 +33,16 @@ has a record of catching or fixing something real; the 2026-08-28 roster audit
 (`.planning/process-overhaul-2026-08-28/06-current-roster-audit.md`) found the previous 22-agent
 roster 50% duplicated, four lanes never dispatched, and one story in seventy through the full
 cycle. Cut 2026-09-02 (`sov-1x7`). The shared tooling, practice and judging rules live once in
-`.claude/agents/SHARED.md`; each agent reads it first.
+`.claude/agents/SHARED.md`; each agent under `.claude/agents/` reads it first. The global
+`reviewer` lives outside this repo and does not include it — carry the repo conventions it
+needs in its brief instead.
 
 | Phase | Agent | Tier | Owns |
 |---|---|---|---|
 | 0 / 4 | `kornai-economist` | fable@medium | Shortage economy, queue-clearing, the dishonest enterprise |
 | 0 / 4 | `logistics-modeller` | fable@low | Dispatch, vehicles, routing, congestion |
 | 2 | `sim-implementer` | opus@medium | `simulation/` |
-| 2 | `ui-implementer` | opus@medium | `native_app/`, and the renderer when a story needs it |
+| 2 | `ui-implementer` | opus@medium | `native_app/` surfaces plus the shaders they bind — `engine/` + `engine_demo/` render-path work restores `engine-implementer` first |
 | 3 | `evidence-auditor` | fable@medium | The tests, not the code. Every guard seen failing |
 | 4 | `wiring-auditor` | fable@low | Is it reachable from the running game? |
 | 4 | `ledger-invariant-checker` | fable@medium | Is quantity conserved? Economy diffs only |
@@ -59,7 +61,8 @@ worktree — two gates mutating one tree produced a false red and a surviving st
 `sov-ahw`, 2026-09-02.
 
 Tiering (user decision 2026-09-02; frontmatter is authoritative): implementers run `opus@medium`,
-reasoning gates `fable@medium`, advisors and read-only sweeps `fable@low`. Fable 5.1 bills 2x Opus
+reasoning gates `fable@medium`, advisors and read-only sweeps `fable@low` (`kornai-economist`
+is `fable@medium` — a shortage-economy ruling is a reasoning gate). Fable 5.1 bills 2x Opus
 on fresh tokens and 0.5x on cache reads, and reaches Opus cost parity only at `low`. Re-measure a
 wave before changing tiers again.
 
@@ -71,10 +74,14 @@ verified 2026-08-27). Do not skip the review gate on the belief that a second on
 ```bash
 bd ready                                    # what is unblocked, ranked
 cat docs/plan/iterations/RESUME.md          # where the last session stopped
+bd show <id>                                # description AND comments — the story's whole state
 ```
 
-Then Phase 0: dispatch `substrate-cartographer` on every seam the iteration touches, and the domain
-advisor for its cluster. **No brief gets written until the fact-sheet exists.**
+Then Phase 0: ground every seam the iteration touches — the domain advisor for its cluster,
+and the full three-source fact-sheet wherever a brief is about to assert a substrate fact.
+The cartographer lane is archived: `git mv docs/archive/agents-2026-09-02/substrate-cartographer.md
+.claude/agents/` after the ticket exists, never before, then dispatch it. **No brief gets
+written until the fact-sheet exists.**
 
 Tracking is two-layer, and `bd` is the only surface every agent can reach — see `CLAUDE.md`:
 
@@ -92,8 +99,8 @@ Tracking is two-layer, and `bd` is the only surface every agent can reach — se
 
 | Who | Does |
 |---|---|
-| `substrate-cartographer` (fable@low) | Maps the seam across all three sources and returns a cited fact-sheet |
-| domain advisor for the cluster | Reads the iteration's stories and answers: is this mechanic model-consistent? |
+| `substrate-cartographer` (fable@low, archived — restore first, see above) | Maps the seam across all three sources and returns a cited fact-sheet |
+| domain advisor for the cluster (archived clusters restore first — see Domain advisors) | Reads the iteration's stories and answers: is this mechanic model-consistent? |
 
 The cartographer answers three questions that must agree, and the whole point is that they are
 only meaningful **together**:
@@ -117,7 +124,7 @@ only meaningful **together**:
 
 **Exit gate:** a fact-sheet exists, with file:line citations, for every seam the iteration touches.
 
-Fact-sheets persist in the cartographer's memory. The second brief on the same seam is nearly free.
+Fact-sheets persist in `.claude/agent-memory/substrate-cartographer/` — kept with the archived definition, so the memory restores with the lane. The second brief on the same seam is nearly free.
 
 ---
 
@@ -141,20 +148,24 @@ See `CLAUDE.md` for the two-layer protocol.
 
 Parallel implementers on disjoint files:
 
-| Agent | Owns |
-|---|---|
-| `sim-implementer` | `simulation/src/**` — ECS, economy, souls, map_dynamic |
-| `ui-implementer` | `native_app/src/**` — panels, readouts, tools |
-| `data-implementer` | `base_mod/*.lua`, `prototypes/src/**` |
-| `engine-implementer` | `engine/src/**`, `engine_demo/**` — wgpu pipelines, passes, drawables, shaders, GPU timing, frame capture, input |
-| `geom-implementer` | `geom/src/**` — vectors, matrices, quaternions, splines, volumes, frustum culling. Determinism-critical |
-| `widget-implementer` | `goryak/src/**`, `egui-inspect*/**`, `assets_gui/src/**` — reusable yakui/egui widgets, theme, asset viewer |
-| `net-implementer` | `networking/src/**` — connections, authentication, packets, world-send, catch-up replication |
-| `common-implementer` | `common/src/**`, `headless/src/**` — timestep, saveload, rand, hashing. Tiny surface, enormous blast radius |
+| Agent | Owns | Status |
+|---|---|---|
+| `sim-implementer` | `simulation/src/**` — ECS, economy, souls, map_dynamic | active |
+| `ui-implementer` | `native_app/src/**` — panels, readouts, tools | active |
+| `data-implementer` | `base_mod/*.lua`, `prototypes/src/**` | archived — restore first |
+| `engine-implementer` | `engine/src/**`, `engine_demo/**` — wgpu pipelines, passes, drawables, shaders, GPU timing, frame capture, input | archived — restore first |
+| `geom-implementer` | `geom/src/**` — vectors, matrices, quaternions, splines, volumes, frustum culling. Determinism-critical | archived — restore first |
+| `widget-implementer` | `goryak/src/**`, `egui-inspect*/**`, `assets_gui/src/**` — reusable yakui/egui widgets, theme, asset viewer | archived — restore first |
+| `net-implementer` | `networking/src/**` — connections, authentication, packets, world-send, catch-up replication | archived — restore first |
+| `common-implementer` | `common/src/**`, `headless/src/**` — timestep, saveload, rand, hashing. Tiny surface, enormous blast radius | archived — restore first |
 
-**Every workspace crate now has an owner** (measured 2026-08-27: 34,762 lines were previously
+**Every workspace crate has a defined lane** (measured 2026-08-27: 34,762 lines were previously
 unowned, not the ~26,000 this table used to claim — it omitted `goryak/`, `assets_gui/` and the
-`egui-inspect` pair). The global `implementer` is no longer the fallback for any crate in this
+`egui-inspect` pair). Only `sim-implementer` and `ui-implementer` are active; an archived lane
+restores with `git mv docs/archive/agents-2026-09-02/<lane>.md .claude/agents/` after the ticket
+exists, never before — a restored lane drops its duplicated blocks and points at `SHARED.md`.
+Until a lane is restored its crates have no active owner: split the ticket, or restore the lane.
+The global `implementer` is no longer the fallback for any crate in this
 repo. If a task spans two lanes, split it; two agents must never own one file.
 
 Each logs progress with `bd comments add <id> "…" --author <name>` as it goes, especially when it
@@ -168,7 +179,7 @@ non-trivial diff still runs the chain.
 
 ## Phase 3 — PROVE
 
-`evidence-auditor` (sonnet). One rule: **every new guard must be seen failing.**
+`evidence-auditor` (fable@medium). One rule: **every new guard must be seen failing.**
 
 Mutate the thing it protects, watch the test go red, paste the real output, revert. An assertion
 never observed failing proves nothing.
@@ -184,12 +195,15 @@ mutation-tested, and one asserted arithmetic rather than the behaviour its story
 
 **Ordered cheap to expensive. This ordering is the point.**
 
+Pour the chain once per story — `bd mol pour gate-chain --var story=<id> --var scope=<range>`
+(skip pouring if the molecule already exists) — then run its steps in order.
+
 | # | Agent | Tier | Asks |
 |---|---|---|---|
 | 1 | `wiring-auditor` | fable@low | Is every new API actually called from production code? |
 | 2 | `ledger-invariant-checker` | fable@medium | Is quantity conserved across this economic seam? Run only when the diff touches the economy |
 | 3 | `reviewer` | fable@medium | General adversarial gate — re-derives from source, never from a worker's summary |
-| 4 | domain advisor | fable@low | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
+| 4 | domain advisor (archived clusters restore first — see Domain advisors) | fable@low (`kornai-economist` fable@medium) | Sign-off, their cluster only — and only when the diff diverged from their Phase 0 answer (new mechanic, changed clearing rule, contradicted fact-sheet). A diff that lands exactly what Phase 0 approved skips this row |
 
 **Splitting row 4 for `simulation/src/economy/market.rs`.** Three agents can each claim that file,
 and the row is singular, so name the advisor by what the diff touches rather than by cluster:
@@ -215,8 +229,8 @@ observable state" is unmet outside `cargo test`.
 Every gate re-derives from primary sources. A verifier that reads the producer's summary is
 grading its own work.
 
-See also: [process-layer drift review](review-2026-08-26-vs-swarmforge.md) for unresolved findings
-against this roster and gate chain.
+Historical context, not a live finding list: the [process-layer drift review](review-2026-08-26-vs-swarmforge.md)
+audits the pre-cut 15-agent roster (2026-08-26) — its findings against that roster are superseded by the `sov-1x7` cut. Its authority line still holds: this document remains sovereign.
 
 ---
 
@@ -230,10 +244,8 @@ filing three findings and the lead reading them; all three had to be re-checked 
 code. Two survived. Acting on a stale finding is as bad as missing a live one.
 
 ---
-
-## Phase 6 — WRAP
-
-`doc-reality-auditor` (sonnet) sweeps every doc, agent definition and open ticket against the
+Restore `doc-reality-auditor` first (`git mv docs/archive/agents-2026-09-02/doc-reality-auditor.md
+.claude/agents/`, fable@low), then it sweeps every doc, agent definition and open ticket against the
 code, and reports what is stale.
 
 **What this prevents, all found in a single session:**
@@ -252,11 +264,18 @@ commands, regenerate [`the roadmap`](../generated/roadmap.md) with
 and confirm every promoted scenario runs a non-zero test filter. A generated roadmap reports
 status; it never closes work in place of `bd`.
 
+End of run, lead-written: synthesis first (outcome, one fact once, every caveat kept), `bd close`
+with evidence (sha + the check output), a stale/orphan sweep, and `bd export -o .beads/issues.jsonl`
+before any commit the user approves.
+
 (The scribe transcript-mining pass was retired 2026-08-26; durable learnings are recorded directly as they land.)
 
 ---
 
 ## Phase 7 — SHIP (per release, not per iteration)
+
+Both lanes are archived — restore with `git mv docs/archive/agents-2026-09-02/<lane>.md
+.claude/agents/` (fable@low) after the release ticket exists, never before, then dispatch:
 
 | Agent | Does |
 |---|---|
@@ -272,13 +291,13 @@ Then the visual proof. Per `CLAUDE.md`, work is not done until the user has seen
 
 Select the advisor by the re-derived requirement cluster, not inherited iteration numbering:
 
-| Advisor | Cluster |
-|---|---|
-| `utilities-modeller` | power, water, sewage, heating, waste, weather |
-| `logistics-modeller` | dispatch, finite vehicles, routing, congestion |
-| `settlement-modeller` | citizens, households, needs, services |
-| `kornai-economist` | shortage economy and the dishonest enterprise |
-| `soviet-authenticity` | presentation and player-facing visual proof |
+| Advisor | Cluster | Status |
+|---|---|---|
+| `utilities-modeller` | power, water, sewage, heating, waste, weather | archived — restore first |
+| `logistics-modeller` | dispatch, finite vehicles, routing, congestion | active |
+| `settlement-modeller` | citizens, households, needs, services | archived — restore first |
+| `kornai-economist` | shortage economy and the dishonest enterprise | active |
+| `soviet-authenticity` | presentation and player-facing visual proof | archived — restore first |
 
 **They never write code.** They answer whether a mechanic is consistent with the model. They
 advise on request during Phase 0, and hold a Phase 4 sign-off for their own cluster **only when
@@ -298,24 +317,25 @@ worse answer — `wiring-auditor`'s first run went well past its designed target
 is exactly what surfaced a finding the more expensive general gate had missed. Narrow the scope of
 a role; never narrow its depth.
 
-Measured from real dispatches, not estimated:
+Measured from real dispatches under the pre-cut roster, not estimated — re-measure before
+planning against the current tiers:
 
 | | tokens |
 |---|---|
-| miner / extraction | 65–85k |
-| sonnet implementer | 110–155k |
-| opus reviewer | 105–113k |
-| narrow sonnet auditor | 15–30k |
+| fable@low extraction sweep (pre-cut miner) | 65–85k |
+| opus@medium implementer (pre-cut sonnet lane) | 110–155k |
+| fable@medium general review (pre-cut opus gate) | 105–113k |
+| narrow fable@medium auditor | 15–30k |
 
-Which puts one full iteration at roughly:
+Which put one full iteration at roughly, under that pre-cut mix:
 
 ```
 Ground ~80k · Build ~360k · Prove ~40k · Gate ~165k · Wrap ~30k   ≈ 675k
 ```
 
 The active requirement schedule and its target-evidence counts are generated, so do not copy
-iteration totals into this process document. Cheap-filter ordering in Phase 4 and persistent
-cartographer memory remain load-bearing, not polish.
+iteration totals into this process document. Cheap-filter ordering in Phase 4 and the restorable
+cartographer lane with its memory remain load-bearing, not polish.
 
 ---
 
@@ -331,6 +351,7 @@ cartographer memory remain load-bearing, not polish.
   confirmed one.
 - Name the verification command, and require real output rather than a claim.
 - Tell it what NOT to touch, and who owns the files it must not write.
+- **Announce scale before any multi-agent phase.** Who runs, on which files, in what order — stated up front, so a lane left unwaved is a decision, not an accident.
 
 ## The skill layer, and which owns what
 
@@ -341,7 +362,7 @@ plugin on 2026-08-24 and are disabled; only their *artifacts* survive.
 | Layer | Owner | Use it for |
 |---|---|---|
 | Verbs + role playbooks | `compass` plugin | `/compass` routes one hop at a time; `/grill`, `/spec`, `/implement`, `/review`, `/debug`, `/lead`, `/tickets` are its verbs; the role playbooks preload into the generic agents |
-| How much to build | the agent bodies themselves | The `ponytail` plugin was **retired 2026-08-27** and no ladder arrives at runtime. Every agent in `.claude/agents/` now carries an `## Engineering practice — all lanes` block, plus a lane block (`## Engineering practice in this lane` for the nine code writers, `## How to judge — all gates` + `## How to judge in this lane` for the judges and advisors) |
+| How much to build | the agent bodies themselves | The `ponytail` plugin was **retired 2026-08-27** and no ladder arrives at runtime. Every agent in `.claude/agents/` now carries an `## Engineering practice — all lanes` block, plus a lane block (`## Engineering practice in this lane` for the two active implementers, `## How to judge — all gates` + `## How to judge in this lane` for the five gates and advisors; a restored lane adds its lane block under the restore rule) |
 | The iteration | **this document** | Who does each part, and what gates it. Sovereign inside this repo: where a generic verb and this document conflict, this document wins, then fix whichever artifact drifted |
 | Outer loop | `docs/plan/iterations/` + `build_roadmap.py` | Requirements, evidence, the generated roadmap. The corpus and the Phase 6 regeneration command outlived the retired `iterative-development` skill and remain canonical |
 

@@ -113,7 +113,9 @@ the file:line where it happens), or **AMBIGUOUS** (say what would settle it).
 ## Your authority
 
 You **advise** freely during design. You hold a **hard sign-off gate** in Phase 4 for economy work
-and for any change to the hoarding loop.
+and for any change to the hoarding loop — but only when the diff diverged from your Phase 0 answer
+(new mechanic, changed clearing rule, contradicted fact-sheet). A faithful implementation of an
+already-approved design skips your row (process Phase 4 row 4).
 
 Outside those, a VIOLATION from you is a strong finding the lead must dispose of explicitly —
 fixed, accepted, or filed — but it is not a veto. Say what you would accept as a mitigation.

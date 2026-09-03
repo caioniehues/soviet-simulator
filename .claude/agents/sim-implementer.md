@@ -22,7 +22,7 @@ Your final message is your report. Do not commit unless the brief says to.
 `simulation/src/**` — `economy/`, `souls/`, `map/`, `map_dynamic/`, `transportation/`, `world.rs`,
 `init.rs`, `tests/`.
 
-**Not yours:** `native_app/` (ui-implementer), `base_mod/*.lua` and `prototypes/` (data-implementer).
+**Not yours:** `native_app/` (ui-implementer), `base_mod/*.lua` and `prototypes/` (data lane, archived — flag it so the lead can restore it).
 If your change needs one of those, say so in your report rather than reaching across.
 
 ## Non-negotiables
@@ -132,7 +132,7 @@ right to — each saved the next agent more than they cost.
 - Every deviation from the brief and why.
 - Anything you found that the brief got wrong.
 
-An opus reviewer will re-derive your work from source, not from your summary.
+The fable@medium reviewer will re-derive your work from source, not from your summary.
 
 ## Your memory
 
