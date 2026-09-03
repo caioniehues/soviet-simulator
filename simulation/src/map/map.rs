@@ -193,25 +193,38 @@ impl Map {
         self.invalidate(from_id);
         self.invalidate(to_id);
 
-        let mut maybe_merge = |inter_id| {
-            let inter = &self.intersections[inter_id];
+        // `merge_road` removes both input roads and creates a new one, so the
+        // `RoadID` returned by `connect` above may be dead after a merge.
+        // Track the surviving id so callers never dereference a stale key.
+        let mut merged_road = r;
+        let mut maybe_merge = |inter_id: IntersectionID, cur: RoadID| -> RoadID {
+            let Some(inter) = self.intersections.get(inter_id) else {
+                return cur;
+            };
             if let [r1_id, r2_id] = *inter.roads {
-                let r1 = &self.roads[r1_id];
-                let r2 = &self.roads[r2_id];
+                let (Some(r1), Some(r2)) = (self.roads.get(r1_id), self.roads.get(r2_id))
+                else {
+                    return cur;
+                };
                 // only merge if angle is shallow
                 if r1.dir_from(inter_id).dot(r2.dir_from(inter_id)) < -0.9 {
-                    self.merge_road(r1_id, r2_id);
+                    if let Some(new_id) = self.merge_road(r1_id, r2_id) {
+                        if r1_id == cur || r2_id == cur {
+                            return new_id;
+                        }
+                    }
                 }
             }
+            cur
         };
-        maybe_merge(from_id);
-        maybe_merge(to_id);
+        merged_road = maybe_merge(from_id, merged_road);
+        merged_road = maybe_merge(to_id, merged_road);
 
-        info!("connected {:?} {:?}: {:?}", from_id, to_id, r);
+        info!("connected {:?} {:?}: {:?}", from_id, to_id, merged_road);
 
         self.check_invariants();
 
-        Some((to_id, r))
+        Some((to_id, merged_road))
     }
 
     pub fn update_zone(&mut self, id: BuildingID, f: impl FnOnce(&mut Zone)) {

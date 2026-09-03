@@ -75,10 +75,128 @@ impl<E: SimDrop> ParCommandBuffer<E> {
                 .unwrap(),
         );
 
-        exec_ent.sort_unstable_by_key(|(id, _)| *id);
-
-        for (_, exec) in exec_ent {
-            exec(sim);
+        // sov-7l1: defined same-tick kill+exec behaviour is SKIP. Kills
+        // drain above before execs run, but that ordering alone never made
+        // deferred work safe: the old loop discarded the entity id
+        // (`for (_, exec)`) and ran every closure, including closures queued
+        // for entities killed earlier in this same drain. Never cite "kills
+        // drain first" as a safety argument for an unwrap inside an exec
+        // closure; the liveness check below is the actual guarantee, so
+        // callers MUST NOT add their own per-closure liveness checks.
+        //
+        // Caller audit (why skipping is the safe outcome for each kind):
+        // - `unpark` closures (economy/market.rs ToSource rollback,
+        //   map_dynamic/router.rs Unpark step): `unpark` already refuses
+        //   unknown entities, so a skip matches the old no-op outcome. The
+        //   market rollback's Market/Dispatcher release is re-performed next
+        //   tick by the designed wedge-(b) path for a gone reserved truck
+        //   (economy/market.rs `DispatchState::ToSource`, `Some(v)` arm with
+        //   `world.vehicles.get(v).is_none()`).
+        // - `get_mut`-guarded closures (router.rs walk_outside,
+        //   souls/goods_company.rs driver/worker assigns, souls/human.rs
+        //   freight wait): they early-return on a missing entity, so the
+        //   skip only takes their no-op branch earlier.
+        // - `exec_on` Market closures (souls/desire/buyfood.rs buy and
+        //   settle_retail, souls/goods_company.rs recipe_act): they write
+        //   Market rows keyed by a soul whose `sim_drop` already ran
+        //   `Market::remove`. Running them would resurrect ledger rows for
+        //   a dead soul (recipe_act even unwraps the erased `requested`
+        //   row); skipping is the fix.
+        // - `Transporter::destroy` closures (router.rs walk_inside,
+        //   transportation/road.rs parking-complete): these free a grid
+        //   handle already detached from the component, so they never needed
+        //   the entity alive -- but the skip DOES strand that handle if a
+        //   kill lands in the same drain after the detach. No HumanEnt kill
+        //   path exists through any buffer, so walk_inside is unaffected;
+        //   the road case needs a company-teardown kill of a truck in the
+        //   same drain it finishes parking. Rare, accepted, and owned by a
+        //   follow-up if it ever fires, not by per-closure checks here.
+        for (id, exec) in exec_ent {
+            if E::storage(&sim.world).contains_key(id) {
+                exec(sim);
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ParCommandBuffer;
+    use crate::transportation::{Speed, Vehicle, VehicleKind, VehicleState};
+    use crate::world::VehicleEnt;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Once};
+
+    static INIT: Once = Once::new();
+
+    fn test_sim() -> crate::Simulation {
+        INIT.call_once(crate::init::init);
+        crate::Simulation::new_with_options(crate::SimulationOptions {
+            terrain_size: 1,
+            save_replay: false,
+            ..Default::default()
+        })
+    }
+
+    /// A `VehicleEnt` whose `sim_drop` touches no resource: no collider, not
+    /// parked, not a truck. Killing it needs only the world itself.
+    fn test_vehicle() -> VehicleEnt {
+        VehicleEnt {
+            trans: geom::Transform {
+                pos: geom::vec3(0.0, 0.0, 0.0),
+                dir: geom::vec3(1.0, 0.0, 0.0),
+            },
+            speed: Speed(0.0),
+            vehicle: Vehicle {
+                ang_velocity: 0.0,
+                wait_time: 0.0,
+                max_speed_multiplier: 1.0,
+                state: VehicleState::Driving,
+                kind: VehicleKind::Car,
+                tint: geom::Color::default(),
+                flag: 0,
+            },
+            it: Default::default(),
+            collider: None,
+        }
+    }
+
+    #[test]
+    fn same_tick_kill_skips_exec() {
+        let mut sim = test_sim();
+        let id = sim.world.vehicles.insert(test_vehicle());
+        let ran = Arc::new(AtomicBool::new(false));
+        let probe = Arc::clone(&ran);
+        sim.write::<ParCommandBuffer<VehicleEnt>>().kill(id);
+        sim.write::<ParCommandBuffer<VehicleEnt>>()
+            .exec_ent(id, move |_| probe.store(true, Ordering::SeqCst));
+        ParCommandBuffer::<VehicleEnt>::apply(&mut sim);
+        assert!(
+            sim.world.vehicles.get(id).is_none(),
+            "kill must still apply in the same drain"
+        );
+        assert!(
+            !ran.load(Ordering::SeqCst),
+            "sov-7l1: exec for an entity killed in the same drain must be skipped"
+        );
+    }
+
+    #[test]
+    fn live_entity_exec_still_runs() {
+        let mut sim = test_sim();
+        let id = sim.world.vehicles.insert(test_vehicle());
+        let ran = Arc::new(AtomicBool::new(false));
+        let probe = Arc::clone(&ran);
+        sim.write::<ParCommandBuffer<VehicleEnt>>()
+            .exec_ent(id, move |_| probe.store(true, Ordering::SeqCst));
+        ParCommandBuffer::<VehicleEnt>::apply(&mut sim);
+        assert!(
+            sim.world.vehicles.get(id).is_some(),
+            "live entity must survive an exec-only drain"
+        );
+        assert!(
+            ran.load(Ordering::SeqCst),
+            "exec for a live entity must still run"
+        );
     }
 }

@@ -264,11 +264,17 @@ impl WorldCommand {
                     }
 
                     if let Some((_, r)) = map.make_connection(fromproj, toproj, *interpoint, pat) {
+                        // `make_connection` returns the surviving road after any
+                        // collinear merge; `get` keeps this panic-free even if a
+                        // future merge path ever returns a dead id again.
+                        let Some(road) = map.roads.get(r) else {
+                            continue;
+                        };
                         if fromproj.kind.is_ground() {
-                            inters.insert(*from, map.roads[r].src);
+                            inters.insert(*from, road.src);
                         }
                         if toproj.kind.is_ground() {
-                            inters.insert(*to, map.roads[r].dst);
+                            inters.insert(*to, road.dst);
                         }
                     }
                 }
@@ -443,5 +449,43 @@ impl From<Vec<WorldCommand>> for WorldCommands {
 impl From<&WorldCommands> for Vec<WorldCommand> {
     fn from(x: &WorldCommands) -> Self {
         x.commands.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    #[test]
+    fn multiple_connections_collinear_no_panic() {
+        INIT.call_once(crate::init::init);
+        let mut sim = Simulation::new_with_options(SimulationOptions {
+            terrain_size: 1,
+            save_replay: false,
+            ..Default::default()
+        });
+
+        let projects = vec![
+            MapProject::ground(vec3(0.0, 0.0, 0.0)),
+            MapProject::ground(vec3(100.0, 0.0, 0.0)),
+            MapProject::ground(vec3(200.0, 0.0, 0.0)),
+        ];
+        let links = vec![
+            (0, 1, None, LanePatternBuilder::default().build()),
+            (1, 2, None, LanePatternBuilder::default().build()),
+        ];
+
+        let roads_before = sim.map().roads.len();
+        let inters_before = sim.map().intersections.len();
+
+        WorldCommand::MapMakeMultipleConnections(projects, links).apply(&mut sim);
+
+        // The two collinear segments merge into a single road: no panic, one
+        // net new road, two net new intersections (middle one merged away).
+        assert_eq!(sim.map().roads.len(), roads_before + 1);
+        assert_eq!(sim.map().intersections.len(), inters_before + 2);
     }
 }

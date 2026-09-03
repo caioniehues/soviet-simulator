@@ -457,7 +457,11 @@ impl Market {
         if c >= qty as i32 {
             return;
         }
-        self.buy(soul, near, kind, qty - c as u32);
+        // Capital can go negative (FreightStation routinely does): clamp to
+        // zero before the u32 cast, otherwise `c as u32` wraps to ~4.29e9
+        // and `qty - huge` underflows/panics.
+        let have = c.max(0) as u32;
+        self.buy(soul, near, kind, qty.saturating_sub(have));
     }
 
     /// Get the capital that this agent owns
@@ -1538,6 +1542,42 @@ mod tests {
         assert_eq!(
             prices[&wheat],
             (price_cereal * 2 + 5 * WORKER_CONSUMPTION_PER_MINUTE * 10) / 2
+        );
+    }
+
+    #[test]
+    fn buy_until_negative_capital_orders_sane_qty() {
+        test_prototypes(
+            r#"
+        data:extend {
+          {
+            type = "item",
+            name = "cereal",
+            label = "Cereal"
+          }
+        }
+        "#,
+        );
+
+        let mut m = Market::default();
+        let cereal = ItemID::new("cereal");
+        let soul = SoulID::GoodsCompany(mk_ent((1 << 32) | 5));
+
+        // Negative capital is routine (e.g. FreightStation after sov-abs).
+        m.produce(soul, cereal, -5);
+        assert!(m.capital(soul, cereal) < 0);
+
+        // Must not panic/wrap to ~4.29e9: raw `qty - c as u32` underflows
+        // in debug and wraps to qty + 5 in release, both caught below.
+        m.buy_until(soul, Vec2::ZERO, cereal, 10);
+        let ordered = m
+            .m(cereal)
+            .buy_order(soul)
+            .expect("buy_until places a buy order")
+            .qty;
+        assert!(
+            ordered > 0 && ordered <= 10,
+            "sane order quantity, got {ordered}"
         );
     }
 }
