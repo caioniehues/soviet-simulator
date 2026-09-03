@@ -4,7 +4,7 @@
 **Authority:** operational
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 ## Prerequisites
 
@@ -23,6 +23,32 @@ cargo run --release          # default member is native_app
 
 `--release` is not optional — a debug build is unplayably slow. Never build inside `/tmp`: it is
 a 16 GB tmpfs and a build there has filled it and killed a session. Use a worktree under `~/`.
+
+## The fixture world
+
+The **fixture world** is the populated city every contributor develops against: it is *derived*
+from a committed replay (`simulation/src/tests/world_replay.json`), never authored by hand
+([ADR-0002](../decisions/0002-fixture-world-is-a-materialised-replay.md)). The same replay feeds
+the determinism gate, so there is exactly one canonical city.
+
+Load it:
+
+```bash
+rm -rf world/ && cargo run --release
+```
+
+With no save present the game materialises the replay through the real schedule and writes the
+result to `world/world.zip`. That file is a **local cache only** — it is git-ignored, it is not the
+source of truth, and deleting it is always safe.
+
+To regenerate the replay, run the scenario builder — the only sanctioned way to re-record it:
+
+```bash
+cargo test -p simulation regenerate_fixture_replay -- --ignored --nocapture
+```
+
+Then commit `simulation/src/tests/world_replay.json` and say in the commit message that the
+determinism baseline moved deliberately.
 
 ## Run the simulation tests
 

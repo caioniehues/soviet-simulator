@@ -168,6 +168,7 @@
 
 - [Decision register](decisions/README.md)
   - [ADR-0001: Households and Utilities are 1.0 charter rows](decisions/0001-households-and-utilities-are-1.0-scope.md)
+  - [ADR-0002: The fixture world is a materialised replay](decisions/0002-fixture-world-is-a-materialised-replay.md)
 
 # Proposals (advisory, awaiting the Planner)
 

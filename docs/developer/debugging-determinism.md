@@ -5,7 +5,7 @@
 **Status:** active
 **Owner:** project lead
 **Verified-at:** `4e9e930b2a73`
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 ## What the tests tell you today
 
@@ -33,7 +33,11 @@ test exists, the procedure below is manual.
    - **`f32` accumulation order** changed by a refactor.
    - **A `ParCommandBuffer` fed from more than one thread** (should not happen today).
 5. Fix, then regenerate `world_replay.json` **only if the change was intended** to alter behaviour,
-   and say so in the commit.
+   and only through the scenario builder
+   (`cargo test -p simulation regenerate_fixture_replay -- --ignored --nocapture`), which is the
+   sole sanctioned way to re-record it
+   ([ADR-0002](../decisions/0002-fixture-world-is-a-materialised-replay.md)); the determinism
+   baseline then moves once, deliberately, and the commit message says so.
 
 ## When phase digests exist (target)
 

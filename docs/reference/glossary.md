@@ -119,6 +119,11 @@ evidence.
   water, heating, and waste in 1.0. A utility is never vehicle custody or freight-station stock.
   _Avoid:_ service, resource (for water), infrastructure (as a synonym)
 
+**Fixture world**
+: A populated world derived by materialising the committed replay through the real schedule; it
+  is never authored directly and never committed as a save.
+  _Avoid:_ test save, sample city, demo world
+
 **Mikrorayon**
 : A residential district designed as a complete unit: housing plus schools, shops, clinics,
   childcare, heating and transit. Completeness, not dwelling count, is the measure.

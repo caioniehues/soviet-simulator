@@ -36,3 +36,4 @@ generated status, or an unverified code observation.
 | Id | Title | Date |
 |---|---|---|
 | [ADR-0001](0001-households-and-utilities-are-1.0-scope.md) | Households and Utilities are 1.0 charter rows | 2026-09-03 |
+| [ADR-0002](0002-fixture-world-is-a-materialised-replay.md) | The fixture world is a materialised replay, never an authored save | 2026-09-03 |
