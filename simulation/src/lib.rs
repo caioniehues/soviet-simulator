@@ -176,6 +176,30 @@ impl Simulation {
         )
     }
 
+    /// The committed replay that defines the fixture world (ADR-0002).
+    ///
+    /// It is the only replay in the repository: the determinism gate
+    /// (`tests::test_iso::test_world_survives_serde`, plus the census guard
+    /// `tests::determinism_gate::sov_rvu_fixture_world_census`) and the
+    /// `native_app` startup fallback both materialise this exact byte string.
+    pub const FIXTURE_REPLAY: &'static str = include_str!("tests/world_replay.json");
+
+    /// Materialises a replay through the real schedule up to its last recorded
+    /// tick, returning the populated simulation (ADR-0002).
+    ///
+    /// This is the only sanctioned way to derive a world from a replay: it uses
+    /// `Simulation::schedule()`, never `SeqSchedule::default()`, so souls,
+    /// economy and transportation actually run.
+    pub fn materialise_replay(replay: Replay) -> Simulation {
+        let (mut sim, mut loader) = Self::from_replay(replay);
+        // The loader defaults to one tick per `advance_tick` call; a large batch
+        // keeps ~35k ticks to a few hundred calls instead of 35k.
+        loader.speed = 512;
+        let mut schedule = Self::schedule();
+        while !loader.advance_tick(&mut sim, &mut schedule) {}
+        sim
+    }
+
     pub fn new_with_options(opts: SimulationOptions) -> Simulation {
         let mut sim = Simulation {
             world: Default::default(),

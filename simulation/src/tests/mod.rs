@@ -13,6 +13,7 @@ use prototypes::BuildingGen;
 use std::sync::Once;
 
 mod determinism_gate;
+mod fixture_builder;
 mod scenarios;
 mod test_iso;
 mod vehicles;

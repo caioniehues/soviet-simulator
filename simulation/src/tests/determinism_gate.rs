@@ -3,7 +3,8 @@ use crate::souls::human::spawn_human;
 use crate::transportation::{
     transport_grid_equal, TransportGrid, TransportState, TransportationGroup,
 };
-use common::saveload::Bincode;
+use crate::Replay;
+use common::saveload::{Bincode, JSON};
 
 /// A simulation built exactly like `TestCtx::new`'s, but owned bare so the test
 /// can choose which schedule ticks it.
@@ -190,5 +191,52 @@ fn sov_n8v_replay_fixture_populates_world() {
     assert!(
         !sim.world().humans.is_empty(),
         "200 ticks of Simulation::schedule() must spawn souls into the built house"
+    );
+}
+
+/// sov-rvu / ADR-0002 §4: the determinism gate proves the replay round-trips
+/// identically, not that it builds anything. A hollow replay -- every
+/// `MapBuildHouse` silently no-oping once auto-lots are gone, say -- round-trips
+/// deterministically *while empty*, so the gate stays green over a dead city and
+/// every UI ticket that needs live state is unprovable. This census is the loud
+/// failure: the committed replay is also the UI fixture world, so it must end
+/// with a populated city, and with at least one non-rail road so trucks, parking
+/// and the road router are exercised at all (the pre-`sov-rvu` replay was rail
+/// only).
+#[test]
+fn sov_rvu_fixture_world_census() {
+    MyLog::init();
+    INIT.call_once(crate::init::init);
+
+    let replay: Replay = JSON::decode(Simulation::FIXTURE_REPLAY.as_bytes())
+        .expect("Simulation::FIXTURE_REPLAY must decode as a Replay");
+    let sim = Simulation::materialise_replay(replay);
+
+    let (humans, vehicles, companies) = (
+        sim.world().humans.len(),
+        sim.world().vehicles.len(),
+        sim.world().companies.len(),
+    );
+
+    assert!(
+        humans >= 20,
+        "fixture world must be populated: {humans} humans, expected >= 20"
+    );
+    assert!(
+        vehicles >= 10,
+        "fixture world must move: {vehicles} vehicles, expected >= 10"
+    );
+    assert!(
+        companies >= 10,
+        "fixture world must trade: {companies} companies, expected >= 10"
+    );
+
+    assert!(
+        sim.map()
+            .roads
+            .values()
+            .any(|r| r.lanes_iter().any(|(_, kind)| !kind.is_rail())),
+        "fixture world must contain at least one non-rail road, otherwise trucks, \
+         parking and the road router are never exercised"
     );
 }

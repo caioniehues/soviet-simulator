@@ -387,6 +387,14 @@ impl From<&Environment> for SerializedEnvironment {
 
         for cell_id in keys {
             let chunk = &tree_cells[&cell_id];
+            // An emptied cell (every tree cleared by `remove_trees_near`, which
+            // uses `remove_maintain` and leaves the cell allocated) must not be
+            // written: `From<SerializedEnvironment>` only ever creates cells by
+            // inserting a tree, so a cell with no trees cannot be rebuilt and
+            // the map would stop surviving a save/load round trip.
+            if chunk.objs.is_empty() {
+                continue;
+            }
             let mut smoltrees = Vec::with_capacity(chunk.objs.len());
             for (_, tree_pos) in chunk.objs.iter() {
                 let smol = encode_pos(*tree_pos, cell_id);

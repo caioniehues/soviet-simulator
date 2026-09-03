@@ -6,8 +6,6 @@ use common::saveload::{Bincode, Encoder, JSONPretty};
 use geom::vec3;
 use quickcheck::{Arbitrary, Gen, TestResult};
 
-static REPLAY: &[u8] = include_bytes!("world_replay.json");
-
 fn check_coherent(map: &Map, proj: MapProject) {
     match proj.kind {
         ProjectKind::Intersection(i) => {
@@ -242,7 +240,7 @@ fn test_world_survives_serde() {
     init();
     //common::logger::MyLog::init();
 
-    let replay: Replay = JSONPretty::decode(REPLAY).unwrap();
+    let replay: Replay = JSONPretty::decode(Simulation::FIXTURE_REPLAY.as_bytes()).unwrap();
     let mut s = Simulation::schedule();
 
     let mut check_size = 1024;
