@@ -1,7 +1,7 @@
 # [Research question]
 
-**Kind:** explanation
-**Authority:** explanatory
+**Kind:** research
+**Authority:** research
 **Status:** draft
 **Owner:** [research owner]
 **Last verified:** YYYY-MM-DD

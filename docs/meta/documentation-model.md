@@ -4,7 +4,7 @@
 **Authority:** binding for documentation practice
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 The Markdown files are canonical. `mdBook` renders them (`book.toml` at the repository root,
 source tree `docs/`); GitHub and any editor render them equally well. No generator, site or
@@ -54,11 +54,11 @@ One page, one type. Split a page that grows a second purpose.
 | `research` | What does the evidence say, with confidence? | lane reports, fact-sheets |
 | `plan` | What is the sequence or the scope? | charter, migration sequence |
 | `index` | What belongs in this section and how do I read it? | every `index.md` |
+| `process` | How is work done here? | `process/*.md`, `CLAUDE.md` |
+| `generated` | What did the generator derive, and from which inputs? | `generated/roadmap.md`, `generated/evidence/*` |
 
 Four reader intents stay separate: explanation, reference, how-to, tutorial. A `concept` page
 does not carry a how-to; a `guide` does not re-explain the design.
-
-## Metadata header
 
 Directly under the H1:
 
@@ -69,6 +69,10 @@ Directly under the H1:
 **Owner:** <code area, process, or role>
 **Last verified:** YYYY-MM-DD
 ```
+
+`Kind` is one of the page types above; `Authority` is one of the authority labels
+(`binding`, `operational`, `advisory`, `reference`, `observational`, `research`,
+`historical`, `derived`) defined on the [authority page](document-authority.md#authority-labels-on-pages).
 
 Add `**Verified-at:** <commit>` on any page with implementation claims. Add `**Scope:**` only
 when it says something the section does not already say. Do not invent owners.

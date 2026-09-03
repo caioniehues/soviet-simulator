@@ -4,7 +4,7 @@
 **Authority:** binding for documentation practice
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-03
 
 A page's presence in this knowledge base does not make it true, binding, or implemented. This
 page says which documents may establish what. Every other page defers to it.
@@ -19,8 +19,12 @@ page says which documents may establish what. Every other page defers to it.
 | 4 | [`docs/decisions/`](../decisions/README.md) with `Status: accepted` | Architectural and engineering decisions | Scope or mechanism outside the decision's stated question. **No accepted decision exists yet** |
 | 5 | Source code and tests | What is implemented; what is tested | What is intended, in scope, or complete |
 | 6 | `bd` (beads) | Task state: what is open, claimed, closed, blocked | Anything about design |
-| 7 | Research and fact-sheets (`docs/research/`, `docs/reference/architecture/substrate.md`) | Observed evidence, cited to `path:line` or an external source at a stated date | Scope, mechanism, or completion — evidence is an input to those, never a substitute |
+| 7 | Research and fact-sheets (`docs/research/`, and the substrate evidence cited below) | Observed evidence, cited to `path:line` or an external source at a stated date | Scope, mechanism, or completion — evidence is an input to those, never a substitute |
 | 8 | Synthesis and design guidance (`docs/product/`, `docs/simulation/`, `docs/architecture/target-architecture.md` and its siblings) | Consolidated design direction and target architecture, labelled by evidence class | Anything binding. These pages are `Authority: advisory` |
+
+Exactly one canonical substrate map exists: [`docs/architecture/current-substrate.md`](../architecture/current-substrate.md).
+[`docs/reference/architecture/substrate.md`](../reference/architecture/substrate.md) is its cited
+derivative — anchored evidence rows for the canonical page, never an independent authority.
 
 A page never silently outranks a source above it. When a wiki page and a higher source disagree,
 the higher source wins and the wiki page is wrong; fix the page.

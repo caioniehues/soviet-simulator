@@ -14,6 +14,11 @@
 
 **Regeneration command:** `<exact command>`
 
+`Kind` is always `generated` and `Authority` is always `derived` (the [authority
+labels](../meta/document-authority.md#authority-labels-on-pages)). Status distinguishes
+the generation boundary (e.g. `draft` for planned target evidence, `informational`
+for current-substrate reporting).
+
 ## Generation boundary
 
 [What the generator derives and what it cannot establish.]
