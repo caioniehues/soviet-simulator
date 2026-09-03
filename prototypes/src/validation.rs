@@ -89,6 +89,18 @@ pub(crate) fn validate(proto: &Prototypes) -> Result<(), MultiError<ValidationEr
                 ));
             }
 
+            // `duration` is the divisor in `souls/goods_company.rs:205`
+            // (float division), so 0 does not panic -- it yields infinite
+            // production, silently wrong. Refuse it here, at load, like its
+            // siblings above.
+            if r.duration.0.0 == 0 {
+                errors.push(ValidationError::InvalidField(
+                    comp.name.clone(),
+                    "recipe.duration",
+                    format!("must be positive, got {}", r.duration),
+                ));
+            }
+
             // A production `amount` is the divisor in `economy/market.rs`
             // `calculate_price_inner`, so 0 is an integer divide by zero -- a
             // panic on a live path. Consumption amounts are compared against
@@ -151,9 +163,9 @@ mod tests {
     use crate::try_parse_prototypes;
 
     /// A minimal but base_mod-shaped mill: consumes cereal, produces flour.
-    /// `storage_multiplier` is the knob this module turns to a bad value;
-    /// every other number stays in range so a refusal names this field.
-    fn mill_fixture(storage_multiplier: i64) -> String {
+    /// `duration` and `storage_multiplier` are the knobs tests turn to bad
+    /// values; every other number stays in range so a refusal names the knob.
+    fn mill_fixture(duration: &str, storage_multiplier: i64) -> String {
         r#"
         data:extend {
           { type = "item", name = "cereal", label = "Cereal" },
@@ -169,7 +181,7 @@ mod tests {
             recipe = {
                 production = {{"flour", 1}},
                 consumption = {{"cereal", 1}},
-                duration = "10m",
+                duration = "{DUR}",
                 storage_multiplier = {SM},
                 request_multiplier = 1,
             },
@@ -180,16 +192,28 @@ mod tests {
             price = 0,
         }}
         "#
+        .replace("{DUR}", duration)
         .replace("{SM}", &storage_multiplier.to_string())
     }
 
     #[test]
     fn sov_snw_negative_storage_multiplier_is_refused() {
-        let err = try_parse_prototypes(&mill_fixture(-1))
+        let err = try_parse_prototypes(&mill_fixture("10m", -1))
             .expect_err("storage_multiplier = -1 must be REFUSED at load, not wrapped to 4294967295");
         let msg = err.to_string();
         assert!(
             msg.contains("test-mill") && msg.contains("storage_multiplier") && msg.contains("-1"),
+            "the error must name the company, the field and the offending value, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn sov_0o0_zero_duration_is_refused() {
+        let err = try_parse_prototypes(&mill_fixture("0s", 1))
+            .expect_err("duration = \"0s\" must be REFUSED at load, not divide by zero downstream");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("test-mill") && msg.contains("duration") && msg.contains("0s"),
             "the error must name the company, the field and the offending value, got: {msg}"
         );
     }
