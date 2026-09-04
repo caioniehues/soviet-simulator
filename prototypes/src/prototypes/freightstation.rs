@@ -1,4 +1,4 @@
-use crate::{get_lua, Money, NoParent, Prototype, PrototypeBase, RenderAsset, Size2D};
+use crate::{get_lua, get_lua_opt, Money, NoParent, Prototype, PrototypeBase, RenderAsset, Size2D};
 use mlua::Table;
 use std::ops::Deref;
 
@@ -12,6 +12,11 @@ pub struct FreightStationPrototype {
     pub asset: RenderAsset,
     pub price: Money,
     pub size: Size2D,
+    /// Station-owned road fleet (sov-2uv): trucks spawned parked at the
+    /// station door by `freight_station_soul`, mirroring `GoodsCompanyPrototype`
+    /// `n_trucks` for factories. Absent in older data: defaults to 0, which
+    /// keeps the station train-only.
+    pub n_trucks: u32,
 }
 
 impl Prototype for FreightStationPrototype {
@@ -27,6 +32,7 @@ impl Prototype for FreightStationPrototype {
             asset: get_lua(table, "asset")?,
             price: get_lua(table, "price")?,
             size: get_lua(table, "size")?,
+            n_trucks: get_lua_opt(table, "n_trucks")?.unwrap_or(0),
         })
     }
 

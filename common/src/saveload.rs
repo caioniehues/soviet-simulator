@@ -193,3 +193,50 @@ pub fn load_raw(p: impl AsRef<Path>) -> Result<Vec<u8>> {
 pub fn load_string(p: impl AsRef<Path>) -> Result<String> {
     std::fs::read_to_string(p)
 }
+
+#[cfg(test)]
+mod bincode_guard_tests {
+    // sov-bdr: bincode 1.3 free functions (`bincode::serialize` /
+    // `bincode::deserialize`) use FIXED-int + AllowTrailing, while the
+    // `DefaultOptions` config used by `Bincode` here is VARINT +
+    // RejectTrailing. The two streams cannot read each other, so any direct
+    // `bincode::` use outside this file risks a corrupt save. All bincode
+    // access MUST go through the `Encoder` impls in this file.
+    #[test]
+    fn no_direct_bincode_use_outside_saveload() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace = root.parent().unwrap_or(root);
+        let mut offenders = Vec::new();
+        let mut stack = vec![workspace.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path
+                    .components()
+                    .any(|c| c.as_os_str() == "target" || c.as_os_str() == ".git")
+                {
+                    continue;
+                }
+                if path.is_dir() {
+                    stack.push(path);
+                } else if path.extension().is_some_and(|e| e == "rs")
+                    && !path.ends_with("common/src/saveload.rs")
+                {
+                    let Ok(src) = std::fs::read_to_string(&path) else {
+                        continue;
+                    };
+                    if src.contains("bincode::") {
+                        offenders.push(path);
+                    }
+                }
+            }
+        }
+        assert!(
+            offenders.is_empty(),
+            "sov-bdr: direct `bincode::` use outside common/src/saveload.rs: {offenders:?}"
+        );
+    }
+}

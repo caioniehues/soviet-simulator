@@ -5,7 +5,7 @@
 **Status:** active
 **Owner:** architecture
 **Verified-at:** `266f7b2`
-**Last verified:** 2026-09-03 (drift notes added; the per-subsystem narrative now lives in
+**Last verified:** 2026-09-04 (drift notes added; border-cluster, determinism-gate and palette rows re-derived against current code — sov-z9x/sov-jwl/sov-o1w; the per-subsystem narrative now lives in
 [`docs/architecture/current-substrate.md`](../../architecture/current-substrate.md), verified at `266f7b2`)
 
 This is the current Rust/Egregoria substrate map, not a target design. A classification of
@@ -36,7 +36,7 @@ tick while paused. [Foundation fact-sheet](../../research/fact-sheets/wave1-subs
 | Systems run in registration order and commit command buffers between systems. | Provided | Foundation contract / Schedule; `simulation/src/init.rs:52-109` |
 | Initialization uses unsynchronised `static mut` registries and is unsafe for parallel test initialization. | **Stale — fixed 2026-08-26** (`sov-test-race-initfuncs-qt6`): `simulation/src/init.rs` now uses `static REGISTRY: OnceLock<Registry>`; `cargo test -p simulation` is parallel-safe. The same shape survives in `native_app/src/init.rs` (UI crate) | Foundation contract / Initialization (historical); `simulation/src/init.rs` `REGISTRY` |
 | Version mismatch only warns, and failed resource decoding can leave a loaded world with fresh default resources. | Partial/conflicting | Foundation contract / Save-load; `simulation/src/lib.rs:359-448` |
-| No cited check proves repeat-run determinism; the current helper proves serialization round-trip stability only. | Absent | Foundation contract / Determinism |
+| Repeat-run determinism is guarded same-machine (resource + World comparison with a failing terminal assertion); no cited check covers cross-platform determinism. | Partial | `test_world_survives_serde` fails at `simulation/src/tests/test_iso.rs:308-309` (armed post-`7fa08e8`/`eed5ead`); World compared since `7e771ce` (real schedule, `is_equal` over the bincode `World`, order-insensitive `transport_grid_equal` per sov-qi8/sov-ijo); per-tick `check_determinism` at `simulation/src/tests/mod.rs:109`; cross-platform float/`FxHasher` gap stays open | Foundation contract / Determinism |
 
 The foundation-contract headings and the `MAP-SUB-*` identifiers are evidence anchors in
 [wave1-substrate](../../research/fact-sheets/wave1-substrate.md); file:line citations identify the
@@ -56,15 +56,15 @@ observed source. No row promotes an observed behavior into a desired contract.
 
 | Claim | Classification | Evidence claim |
 |---|---|---|
-| A truck can gate source and destination inventory transfers through routed movement. | Provided | `LOG-SUB-002` |
+| A truck can gate source and destination inventory transfers through routed movement. | Provided | `LOG-SUB-002`; seller debited at `ToSource` arrival (`simulation/src/economy/market.rs:1574-1593`), buyer credited at `ToDestination` arrival (`:1772-1784`), both legs routed via `Itinerary::route` |
 | Vehicles carry no authoritative cargo or capacity state. | Absent | `LOG-SUB-005` |
 | Companies retain truck IDs, but global dispatch ignores that ownership. | Conflicting | `LOG-SUB-006` |
-| Delivery completion has no return-to-depot behavior, and failed dispatch has no recovery policy. | Absent | `LOG-SUB-008`, `LOG-SUB-009` |
+| Delivery completion returns the truck to depot duty and failed dispatch has a bounded recovery policy. | Provided | `LOG-SUB-008`, `LOG-SUB-009` (claim inverted since `7e4b82f`): `DispatchState::Returning` re-credits the seller on arrival (`simulation/src/economy/market.rs:1818-1835`); retries bounded by `MAX_RETURN_ROUTE_RETRIES` (`:168`) and `MAX_SOURCE_WAIT_TICKS` (`:213`); every exit runs the shared `terminate_dispatch` re-post/refund/restore helper (`:455`) |
 | One delivery authority controls all company and market fulfillment. | Conflicting | `LOG-SUB-007`; also `ECO-SUB-006` |
 | Domestic matching is price-free but lacks partial multi-seller fill, request age, and plan priority. | Partial | `ECO-SUB-003` |
-| Imports arrive by physical truck but export stock still debits at match; money clears at match for both halves. | Conflicting; economy violation — goods movement is SPLIT (import stock settles at physical endpoints since `sov-abs`; export stock still debits at match with no dispatch), but `trade.money_delta` is applied to `Government.money` at match time for both halves (`simulation/src/economy/mod.rs:104`, before `advance_dispatches` at `:128`) | `ECO-SUB-002` and its 2026-08-28 drift note |
+| Imports and exports both move by physical truck with money settling at delivery. | Provided (border cluster `c252bb7`, ADR-0003: both halves physical, both legs settle at arrival) | `ECO-SUB-002` and its 2026-08-28 drift note, superseded 2026-09-04: the export branch pushes before the dispatch loop so every export gets a border-door `Dispatch` (`simulation/src/economy/market.rs:1134-1140`); import money settles on the `Loading` arrival (`:1587-1589`), export money on the `ToDestination` arrival (`:1779-1781`), applied to `Government.money` via the `advance_dispatches` return in `simulation/src/economy/mod.rs:153-161`; the border holds a bounded custody ledger (`simulation/src/souls/freight_station.rs:49-53`, `MAX_BORDER_STOCK` at `:37`, restock `:60-67`, draw `:71-77`) |
 | Dishonest-enterprise request inflation is reachable in production but unobservable by the Planner. | Partial — `recipe_init` calls `set_requested` (since `0caee71`); nothing in `native_app/` reads `Market::requested()` | `ECO-SUB-005` and its 2026-08-28 drift note |
-| Unmatched demand can be removed instead of persisting as a shortage queue. | Conflicting; economy violation | `ECO-SUB-001` |
+| Unmatched demand persists on the market; residual removals are intended going-without or recorded honest loss. | Partial | `ECO-SUB-001` (violation shape gone on market paths): humans never route externally and their orders survive untouched (`simulation/src/economy/market.rs:1061-1077`); non-human orders the border cannot serve are re-inserted for the next domestic match (`:1081-1117`); retail-claim expiry releases the reservation while hunger keeps rising (`:1886-1905`); debited-but-undelivered goods are recorded in `Lost` (`:524-527`) |
 
 **A default city has no external trade, by design.** `START_COMMANDS`
 (`simulation/src/lib.rs:443+`) seeds ten `MapMakeConnection` commands carrying 13 lane patterns —

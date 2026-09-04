@@ -7,6 +7,7 @@ use crate::map::{BuildingID, Map, PathKind};
 use crate::map_dynamic::{
     BuildingInfos, DispatchID, DispatchKind, DispatchQueryTarget, Dispatcher, Itinerary,
 };
+use crate::transportation::{spawn_parked_vehicle, VehicleKind};
 use crate::utils::resources::Resources;
 use crate::world::{FreightStationEnt, FreightStationID, TrainID};
 use crate::World;
@@ -83,14 +84,34 @@ pub fn freight_station_soul(
 ) -> Option<FreightStationID> {
     let map = sim.map();
 
-    let f = FreightStation {
-        proto,
-        building,
-        trains: Vec::with_capacity(MAX_TRAINS_PER_STATION),
-        waiting_cargo: 0,
-        wanted_cargo: 0,
-        border_stock: MAX_BORDER_STOCK,
-    };
+    let n_trucks = proto.prototype().n_trucks;
+    let b = map.buildings.get(building)?;
+
+    let _height = b.height;
+    let obb = b.obb;
+    let door = b.door_pos;
+    let _pos = obb.center();
+    let _axis = obb.axis();
+
+    drop(map);
+
+    // Station-owned road fleet (sov-2uv, $VEHICLE_STATION precedent):
+    // imports draw from the city-wide pool today, so every long border haul
+    // borrows a factory truck and crowds out domestic short hops. Spawn the
+    // base_mod-declared trucks parked at the station door; `dispatch_system`
+    // picks them up like any other truck. Degrade, never refuse: without
+    // nearby parking the station still opens for trains.
+    for _ in 0..n_trucks {
+        if spawn_parked_vehicle(sim, VehicleKind::Truck, door).is_none() {
+            log::warn!(
+                "freight station at {:?} could not park a declared truck; \
+                 station opens train-only for this truck",
+                door
+            );
+        }
+    }
+
+    let map = sim.map();
     let b = map.buildings.get(building)?;
 
     let height = b.height;
@@ -100,6 +121,14 @@ pub fn freight_station_soul(
 
     drop(map);
 
+    let f = FreightStation {
+        proto,
+        building,
+        trains: Vec::with_capacity(MAX_TRAINS_PER_STATION),
+        waiting_cargo: 0,
+        wanted_cargo: 0,
+        border_stock: MAX_BORDER_STOCK,
+    };
     let id = sim.world.insert(FreightStationEnt {
         f,
         trans: Transform::new_dir(pos.z(height), axis[1].z(0.0).normalize()),
@@ -147,7 +176,15 @@ pub fn freight_station_system(world: &mut World, resources: &mut Resources) {
                 }
                 FreightTrainState::Loading => {
                     if itin.has_ended(time.timestamp) {
-                        let ext = *map.external_train_stations.first().unwrap();
+                        let Some(&ext) = map.external_train_stations.first() else {
+                            // sov-33c: the external trading station was demolished
+                            // while this train was Loading. Never game over: keep
+                            // waiting for the border to come back instead of
+                            // panicking on the now-empty vec (same degrade shape
+                            // as the unroutable case below).
+                            *itin = Itinerary::wait_until(time.timestamp + 10.0);
+                            continue;
+                        };
                         let bpos = map.buildings[ext].obb.center().z(0.0);
 
                         *itin = if let Some(r) =
@@ -271,5 +308,104 @@ mod tests {
         }
 
         panic!("should have delivered to freight station")
+    }
+
+    /// sov-33c: demolishing the external trading station while a train is
+    /// Loading must degrade to waiting (never-game-over), never panic on the
+    /// now-empty `external_train_stations` vec. The START train is unattached
+    /// (no cargo demand yet), so it is claimed here as a Loading train with
+    /// an already-expired wait: the very next system pass takes the Loading
+    /// branch with the border gone. Pre-fix this tick panics at
+    /// `first().unwrap()`.
+    #[test]
+    fn sov_33c_demolished_external_station_loading_train_waits() {
+        let mut test = TestCtx::new();
+        test.tick(); // souls (freight station, train) spawn on the first tick
+
+        let station = test
+            .g
+            .world()
+            .freight_stations
+            .iter()
+            .next()
+            .map(|(id, _)| id)
+            .expect("START_COMMANDS must seed a freight station soul");
+        // Spawn a real train on a short rail spur: the Loading branch needs a
+        // live `world.trains` entry, and no system spawns freight trains on
+        // its own (`AddTrain` is a no-op in `WorldCommand::apply`).
+        let lane = {
+            let mut map = test.g.map_mut();
+            let (_, road) = map
+                .make_connection(
+                    crate::map::MapProject::ground(vec3(0.0, 0.0, 0.0)),
+                    crate::map::MapProject::ground(vec3(100.0, 0.0, 0.0)),
+                    None,
+                    &crate::map::LanePatternBuilder::new().rail(true).build(),
+                )
+                .expect("rail spur must build on test terrain");
+            let lanes: Vec<_> = map.roads[road]
+                .lanes_iter()
+                .map(|(id, _)| id)
+                .collect();
+            lanes
+                .into_iter()
+                .next()
+                .expect("rail spur must have a lane")
+        };
+        test.apply(&[WorldCommand::SpawnTrain {
+            wagons: vec![
+                prototypes::RollingStockID::new("locomotive"),
+                prototypes::RollingStockID::new("freight-wagon"),
+            ],
+            lane,
+            dist: 10.0,
+        }]);
+        let train = test
+            .g
+            .world()
+            .trains
+            .iter()
+            .next()
+            .map(|(id, _)| id)
+            .expect("SpawnTrain must insert a train");
+
+        // Expired wait: the Loading branch below sees it as ended.
+        let now = test.g.read::<prototypes::GameTime>().timestamp;
+        test.g.world_mut_unchecked().trains.get_mut(train).unwrap().it =
+            crate::Itinerary::wait_until(now - 1.0);
+        test.g
+            .world_mut_unchecked()
+            .freight_stations
+            .get_mut(station)
+            .unwrap()
+            .f
+            .trains
+            .push((train, super::FreightTrainState::Loading));
+
+        // Demolish the border out from under the Loading train.
+        let ext = test
+            .g
+            .map()
+            .buildings()
+            .iter()
+            .find(|(_, b)| b.kind == BuildingKind::ExternalTrading)
+            .map(|(id, _)| id)
+            .expect("terrain gen must seed an external trading station");
+        test.g.map_mut().remove_building(ext);
+        assert!(
+            test.g.map().external_train_stations.is_empty(),
+            "the demolish must leave no external train station behind"
+        );
+
+        test.tick();
+
+        let st = test.g.world().freight_stations.get(station).unwrap();
+        assert!(
+            st.f.trains
+                .iter()
+                .any(|(id, s)| *id == train && matches!(s, super::FreightTrainState::Loading)),
+            "a Loading train whose border station was demolished must degrade to \
+             waiting (still Loading), not panic or vanish"
+        );
     }
 }

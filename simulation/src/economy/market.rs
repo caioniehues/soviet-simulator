@@ -932,6 +932,11 @@ impl Market {
         // below, in units (sov-eix). Reset every pass: this is a per-tick
         // capacity, not a budget that accumulates.
         let mut border_used: BTreeMap<SoulID, u32> = BTreeMap::new();
+        // sov-64b: displaced retail claims whose kind differs from the loop's
+        // kind cannot release inside the loop (the loop holds that market's
+        // borrow); they queue here and release against their OWN kind's
+        // market after the pass.
+        let mut retail_releases: Vec<RetailClaim> = Vec::new();
         for (&kind, market) in &mut self.markets {
             // Naive O(n²) alg
             // We don't immediatly apply the trades, because we want to find the nearest-positioned trades
@@ -1223,13 +1228,21 @@ impl Market {
                                  outstanding; releasing the orphaned reservation",
                                 trade.buyer.0
                             );
-                            // `RetailClaim`s are only ever created for the
-                            // market's own `kind` (this loop iterates one
-                            // kind at a time), so the old claim's reservation
-                            // always lives in this same `reserved` map.
-                            debug_assert_eq!(old.kind, kind);
-                            if let Some(r) = reserved.get_mut(&old.seller) {
-                                *r = r.saturating_sub(old.qty);
+                            if old.kind == kind {
+                                // Same-kind overwrite (the only shape `buyfood`
+                                // produces today: it hardcodes bread): the
+                                // displaced reservation lives in this loop's
+                                // `reserved` map.
+                                if let Some(r) = reserved.get_mut(&old.seller) {
+                                    *r = r.saturating_sub(old.qty);
+                                }
+                            } else {
+                                // sov-64b: cross-kind overwrite. The displaced
+                                // claim's reservation lives in its OWN kind's
+                                // market, never in this loop's `reserved` map
+                                // (releasing here would unreserve the wrong
+                                // seller's stock and freeze the right one).
+                                retail_releases.push(old);
                             }
                         }
                         continue;
@@ -1258,6 +1271,16 @@ impl Market {
             // pass that posted (or re-posted) an order never counts itself.
             for o in buy_orders.values_mut() {
                 o.age = o.age.saturating_add(1);
+            }
+        }
+        // sov-64b: release cross-kind displaced claims (queued above) against
+        // their OWN kind's market. Never-game-over: a missing market or seller
+        // row degrades to the warn above, never a panic.
+        for old in retail_releases {
+            if let Some(other) = self.markets.get_mut(&old.kind) {
+                if let Some(r) = other.reserved.get_mut(&old.seller) {
+                    *r = r.saturating_sub(old.qty);
+                }
             }
         }
 

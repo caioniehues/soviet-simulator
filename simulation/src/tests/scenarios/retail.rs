@@ -9,6 +9,7 @@
 use super::*;
 
 use super::hoarding::{build_company_at, remove_soul, setup_seller_buyer};
+use super::inflation::remove_default_freight_station;
 use crate::economy::{DispatchState, Market};
 use crate::map_dynamic::BuildingInfos;
 use crate::souls::goods_company::recipe_should_produce;
@@ -951,6 +952,12 @@ fn scenario_tosource_unpark_refusal_releases_the_truck() {
     use crate::map_dynamic::{DispatchID, DispatchKind, DispatchQueryTarget, Dispatcher};
 
     let mut ctx = TestCtx::new();
+    // sov-2uv: freight stations now own base_mod-declared trucks, so the
+    // default city seeds two station trucks on its first tick and "no truck
+    // exists yet" no longer holds. That fleet stands; this test needs the
+    // old truckless composition, so drop the default station before any
+    // tick lets its soul park trucks.
+    remove_default_freight_station(&mut ctx);
     let (seller, buyer, seller_pos, buyer_pos) = setup_seller_buyer(&mut ctx, 120.0);
 
     let cereal = ItemID::new("cereal");
@@ -1061,4 +1068,89 @@ fn scenario_tosource_unpark_refusal_releases_the_truck() {
         "the truck must be released back to the dispatcher, not left reserved \
          by a dispatch that can never use it"
     );
+}
+
+/// sov-64b: a retail-claim overwrite across two item kinds must release the
+/// displaced claim's reservation from ITS kind's market, not the new claim's.
+/// Bread (bread seller) then cereal (cereal seller) for the same human buyer:
+/// the second match displaces the first, so bread reserved must return to 0
+/// while cereal reserved holds the new claim. Pre-fix the release hit the
+/// loop-local (cereal) map where the bread seller has no row: bread stayed
+/// frozen at 5 and the warn was the only trace.
+#[test]
+fn sov_64b_retail_claim_overwrite_across_kinds_releases_old_kind() {
+    let mut ctx = TestCtx::new();
+    let bakery = GoodsCompanyID::new("bakery").prototype();
+    let seller_bread_b = build_company_at(&mut ctx, bakery, geom::Vec2::new(30.0, 20.0));
+    let seller_cereal_b = build_company_at(&mut ctx, bakery, geom::Vec2::new(200.0, 20.0));
+    ctx.tick();
+    let binfos = ctx.g.read::<BuildingInfos>();
+    let seller_bread = binfos.owner(seller_bread_b).unwrap();
+    let seller_cereal = binfos.owner(seller_cereal_b).unwrap();
+    drop(binfos);
+    let bread_pos = ctx.g.map().buildings.get(seller_bread_b).unwrap().door_pos;
+    drop(ctx.g.map());
+    let cereal_pos = ctx
+        .g
+        .map()
+        .buildings
+        .get(seller_cereal_b)
+        .unwrap()
+        .door_pos;
+    drop(ctx.g.map());
+
+    let buyer = mk_human((1 << 32) | 64);
+    let cereal = ItemID::new("cereal");
+
+    // First purchase: bread from the bread seller.
+    {
+        let mut m = ctx.g.write::<Market>();
+        m.produce(seller_bread, bread(), 5);
+        m.sell(seller_bread, bread_pos.xy(), bread(), 5, 0);
+        m.buy(buyer, bread_pos.xy(), bread(), 5);
+    }
+    ctx.g.write::<Market>().make_trades(|_| None);
+    {
+        let m = ctx.g.read::<Market>();
+        let claim = m
+            .retail_claim(buyer)
+            .expect("the bread match must record a claim");
+        assert_eq!(claim.kind, bread());
+        assert_eq!(claim.seller, seller_bread);
+        assert_eq!(claim.qty, 5);
+        assert_eq!(
+            m.reserved(seller_bread, bread()),
+            5,
+            "setup: the bread sale must be reserved"
+        );
+    }
+
+    // Second purchase: cereal from the cereal seller displaces the bread claim.
+    {
+        let mut m = ctx.g.write::<Market>();
+        m.produce(seller_cereal, cereal, 5);
+        m.sell(seller_cereal, cereal_pos.xy(), cereal, 5, 0);
+        m.buy(buyer, cereal_pos.xy(), cereal, 5);
+    }
+    ctx.g.write::<Market>().make_trades(|_| None);
+    {
+        let m = ctx.g.read::<Market>();
+        let claim = m
+            .retail_claim(buyer)
+            .expect("the cereal match must record a claim");
+        assert_eq!(claim.kind, cereal);
+        assert_eq!(claim.seller, seller_cereal);
+        assert_eq!(claim.qty, 5);
+        assert_eq!(
+            m.reserved(seller_bread, bread()),
+            0,
+            "overwriting a bread claim with a cereal claim must release the bread \
+             reservation from the bread market, not the cereal one (sov-64b)"
+        );
+        assert_eq!(
+            m.reserved(seller_cereal, cereal),
+            5,
+            "the new claim's own reservation must be untouched"
+        );
+    }
 }

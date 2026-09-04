@@ -4,7 +4,7 @@
 **Authority:** operational; rules marked *(target)* depend on the persistence decision
 **Status:** active
 **Owner:** project lead
-**Last verified:** 2026-08-28
+**Last verified:** 2026-09-04
 
 ## Rules
 
@@ -25,6 +25,21 @@
    change; a new resource adds itself to that check by registration.
 7. **Should:** keep internal snapshots (`ArcSwap`-published views, caches) on a separate, faster
    path from the released save contract; `rkyv` is a candidate there only.
+8. **Must** (sov-bdr): all `bincode` access goes through `common/src/saveload.rs`
+   (`Bincode` / `CompressedBincode`, varint `DefaultOptions` config). Never call
+   `bincode::` free functions or paths from any other file — they use a different
+   (fixed-int, allow-trailing) config whose streams this file cannot read, so the
+   failure mode is a corrupt save, not a compile error. Enforced by the
+   `no_direct_bincode_use_outside_saveload` unit test in `saveload.rs` (clean as of
+   2026-08-28: zero direct uses outside that file).
+9. **Version gate** (sov-bdr): `Simulation`'s `Deserialize` impl warns — rather than
+   refuses — on a major/minor version mismatch, and a resource that fails to decode
+   falls back to its default, which can produce a hybrid world. Warn-is-enough during
+   development because the charter allows hard save breaks pre-1.0 and every break is
+   declared in its `bd` issue and commit (rule 3); refusing would add no signal while
+   developers iterate daily. After the 1.0 release candidate the gate must reject
+   (rule 5, target envelope + `SaveMigration`).
+
 
 ## Related
 

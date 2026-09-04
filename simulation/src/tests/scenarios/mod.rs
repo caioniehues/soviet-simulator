@@ -48,3 +48,4 @@ mod sov_nun_export_lane;
 mod sov_otw_return;
 mod sov_q5p_inflight;
 mod sov_uo5_border_stock;
+mod sov_2uv_station_vehicles;

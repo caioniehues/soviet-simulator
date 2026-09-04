@@ -5,7 +5,7 @@
 **Status:** active
 **Owner:** architecture
 **Verified-at:** `266f7b2`
-**Last verified:** 2026-09-03
+**Last verified:** 2026-09-04
 
 Every statement here was source-inspected on the verified commit, by the ten mining lanes on
 2026-08-28 and re-checked by the lead. Symbols are named; line numbers appear only where they
@@ -89,14 +89,14 @@ lockfile packages come from these two sources. `deny.toml` allows exactly these 
 ## Persistence and determinism
 
 - **Files:** `lib.rs` (`SimulationSer { world, version, res }`, `hashes`, `deserialize`), `common/src/saveload.rs` (`Encoder`, `Bincode`, `CompressedBincode`, `JSON`), `utils/replay.rs` (`Replay`, `SimulationReplayLoader`), `tests/test_iso.rs`, `tests/mod.rs` (`TestCtx::check_determinism`).
-- **Provides:** bincode saves with `miniz_oxide` compression; a `version` string (`VERSION` = 0.6.1) that **warns** on major mismatch and proceeds; per-resource hashes (`hashes()` over `FxHasher`); a replay of `(Tick, WorldCommand)`; a round-trip test (encode → decode → compare hashes) run every tick in `TestCtx::tick` and every 25 ticks in `advance_ticks`; `test_world_survives_serde` replays `world_replay.json` and bisects divergence by tick.
-- **Does not provide:** repeat-run determinism (same seed + commands → same digest — the test proves round-trip only); a migration path (missing resources get defaults; nothing transforms old payloads); a portable digest (`FxHasher` is not stable across platforms); cross-platform float determinism (`geom/` calls `sin`, `cos`, `sqrt`, `atan2` as intrinsics; no `libm`).
+- **Provides:** bincode saves with `miniz_oxide` compression; a `version` string (`VERSION` = 0.6.1) that **warns** on major mismatch and proceeds; per-resource hashes (`hashes()` over `FxHasher`); a replay of `(Tick, WorldCommand)`; `test_world_survives_serde` replays `world_replay.json` over two runs and fails on divergence (`simulation/src/tests/test_iso.rs:308-309`, armed post-`7fa08e8`/`eed5ead`, World compared since `7e771ce`); a round-trip check (encode → decode → compare hashes) run every tick in `TestCtx::tick` and every 25 ticks in `advance_ticks`.
+- **Does not provide:** cross-platform repeat-run determinism (same seed + commands → same digest holds same-machine only — portable digest missing since `FxHasher` is not stable across platforms); a migration path (missing resources get defaults; nothing transforms old payloads); cross-platform float determinism (`geom/` calls `sin`, `cos`, `sqrt`, `atan2` as intrinsics; no `libm`).
 - **Randomness:** one global `RandProvider` (Xorshift128, `utils/rand_provider.rs`, seeded `RNG_SEED`) drawn sequentially by `spawn_human` and others; a stateless positional hash in `common/src/rand.rs` (`rand2(x, y)`, `randu`).
 
 ## Multiplayer
 
-- **Files:** `networking/src/{lib,authent,catchup,connections,packets,worldsend}.rs`, `client/`, `server/`; `native_app/src/network.rs`; `headless/src/main.rs`; `simulation/src/multiplayer/`.
-- **Provides:** a lockstep client/server — `Frame(u64)`, `PlayerInput`, `MergedInputs`; the server merges inputs per frame and broadcasts; both client and headless `assert_eq!(frame, tick + 1)`; authentication; world-state catch-up.
+- **Files:** `networking/src/{lib,authent,catchup,connections,packets,worldsend}.rs`, `client/`, `server/` (the lockstep netcode); `native_app/src/network.rs`; `headless/src/main.rs`; `simulation/src/multiplayer/` (in-sim chat state only — `mod.rs` 9 lines, `chat.rs` 44 lines, `MultiplayerState { chat }`).
+- **Provides:** a lockstep client/server in `networking/` — `Frame(u64)`, `PlayerInput`, `MergedInputs`; the server merges inputs per frame and broadcasts; both client and headless `assert_eq!(frame, tick + 1)`; authentication; world-state catch-up. `simulation/src/multiplayer/` provides no transport: it is the chat box drained by the HUD, not a netcode seam.
 - **Constraint:** any non-deterministic parallelism breaks it. `WorldCommand` has no role filter. Transport is unauthenticated/unencrypted and reads peer-controlled frame sizes into growable buffers (technical-stack research, 2026-08-24) — trusted-LAN only.
 
 ## Presentation

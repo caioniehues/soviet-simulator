@@ -49,7 +49,10 @@ impl ServerPlayoutBuffer {
     }
 
     pub fn lag(&self, f: Frame) -> Option<u64> {
-        let lag = self.consumed_frame.0 - f.0;
+        // `f` arrives inside peer-controlled packets: a client ahead of the server
+        // must report no lag (and be disconnected upstream), never underflow the
+        // subtraction.
+        let lag = self.consumed_frame.0.checked_sub(f.0)?;
         if lag < self.past.len() as u64 - 1 {
             Some(lag)
         } else {
@@ -82,8 +85,15 @@ impl ServerPlayoutBuffer {
         let merged = merge_partial_inputs(&mut self.next);
 
         for ack_frame in acknowledged {
-            let lag = self.lag(ack_frame).expect("lag is too big");
-            debug_assert!(ack_frame <= self.consumed_frame);
+            // `ack_frame` is peer-controlled: refuse an ack outside the ring window
+            // instead of panicking. The empty entry keeps positional alignment with
+            // the playing clients; the lagging client is disconnected by the
+            // pre-consume sweep in `send_merged_inputs`.
+            let Some(lag) = self.lag(ack_frame) else {
+                log::warn!("ack {:?} outside playout window, refusing", ack_frame);
+                result.push(vec![]);
+                continue;
+            };
 
             let v = (1..=lag)
                 .map(|i| {
@@ -108,4 +118,28 @@ fn merge_partial_inputs(x: &mut PartialInputs) -> MergedInputs {
     x.iter_mut()
         .flat_map(|(&id, v)| v.drain(..).map(move |v| (id, v)))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hostile_ack_outside_window_is_refused_not_panicking() {
+        let mut buf = ServerPlayoutBuffer::new(Frame(0));
+        // Advance past the ring window so Frame(0) is ancient history.
+        for _ in 0..(128 + 5) {
+            buf.consume(std::iter::empty());
+        }
+        // Both directions of hostile ack report no lag instead of panicking:
+        // an ancient ack and an ack from the future.
+        assert!(buf.lag(Frame(0)).is_none());
+        assert!(buf.lag(buf.consumed_frame.incred().incred()).is_none());
+        // Consuming them refuses each entry (empty) while keeping positional
+        // alignment with the acknowledged clients.
+        let future = buf.consumed_frame.incred();
+        let (_merged, past) = buf.consume([Frame(0), future].into_iter());
+        assert_eq!(past.len(), 2);
+        assert!(past.iter().all(|v| v.is_empty()));
+    }
 }

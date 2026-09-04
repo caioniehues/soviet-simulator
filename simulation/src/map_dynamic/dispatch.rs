@@ -7,7 +7,9 @@ use derive_more::From;
 use geom::Vec3;
 use serde::{Deserialize, Serialize};
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
+use std::cmp::Reverse;
+use ordered_float::OrderedFloat;
 
 /// How precise the dispatcher is. Caches dispatchable entities's positions and relation to map but only in precision circle.
 /// So if a dispatchable entity moves less than the precision, nothing will be updated.
@@ -250,27 +252,39 @@ impl DispatchOne {
 
     /// Finds an entity that is closest to the target and returns it
     /// If no entity is found, returns None
+    ///
+    /// Ranked assignment (sov-2uv, SPEC-LOGISTICS-010): candidates compete by
+    /// meaningful route distance — network meters from the vehicle to the
+    /// target along the lane graph, not hop count — with the vehicle identity
+    /// as the stable tie-break. Money and price never participate: this
+    /// function never sees them. Demand-side deficit ordering lives above
+    /// this layer (the target policy); here every queried demand gets the
+    /// vehicle that reaches it cheapest, so a station's own parked trucks
+    /// serve the border leg while factory trucks keep serving short hops.
+    /// A vehicle past the target on its own lane would have to loop the
+    /// block to come back, so it ranks in a fallback tier below every
+    /// direct candidate — but it is still offered when nothing else is
+    /// left, rather than starving the demand outright.
     pub fn query(
         &mut self,
         map: &Map,
         kind: DispatchKind,
         target: DispatchQueryTarget,
     ) -> Option<DispatchID> {
-        // todo: handle the case where there are few entities in the cache
-        // todo: probably some kind of astar on good candidates
-
-        let mut start_along = f32::MAX;
-
         if self.positions.is_empty() {
             return None;
         }
 
+        // `start_cost[lane]`: network meters from that lane's START to the
+        // target. The target lane's own start sits `base_along` meters out;
+        // every predecessor adds its successor's full length on top.
+        let mut base_along = 0.0;
         let target_lane = match target {
             DispatchQueryTarget::Pos(pos) => {
                 let lid = map.nearest_lane(pos, kind.lane_kind(), Some(DISPATCH_LANE_CUTOFF))?;
                 let lane = map.lanes().get(lid)?;
                 let proj = lane.points.project(pos);
-                start_along = lane.points.length_at_proj(proj);
+                base_along = lane.points.length_at_proj(proj);
                 lid
             }
             DispatchQueryTarget::Lane(lane) => {
@@ -282,42 +296,97 @@ impl DispatchOne {
             }
         };
 
-        let mut best_dist = f32::MAX;
-        let mut best_ent = None;
+        // Dijkstra upstream from the target over predecessor lanes (the same
+        // `turns_to` expansion the old BFS used). A candidate at `dist_along`
+        // in lane L costs `start_cost[L] + (len(L) - dist_along)` — its
+        // remaining lane plus the network behind it. Lanes pop in cost
+        // order, so once the heap top is strictly worse than the best
+        // candidate no later lane can beat it.
+        let mut start_cost: BTreeMap<LaneID, f32> = BTreeMap::new();
+        let mut heap: BinaryHeap<(Reverse<OrderedFloat<f32>>, LaneID)> = BinaryHeap::new();
+        start_cost.insert(target_lane, base_along);
+        heap.push((Reverse(OrderedFloat(base_along)), target_lane));
 
-        // do a backward breadth first search, looking for lanes with matching entities
-        for lane in pathfinding::directed::bfs::bfs_reach(target_lane, move |&lid| {
-            let l = &map.lanes[lid];
-            let start_i = l.src;
-            let int = &map.intersections[start_i];
-            int.turns_to(lid).map(|(tid, dir)| match dir {
-                TraverseDirection::Forward => tid.src,
-                TraverseDirection::Backward => tid.dst,
-            })
-        }) {
-            let Some(ents) = self.lanes.get(&lane) else {
+        let mut best: Option<(f32, DispatchID)> = None;
+        // Fallback tier (sov-2uv): vehicles past the target on its own
+        // lane. They cannot reverse into it; they must drive to the lane
+        // end and loop the block back — categorically costlier and less
+        // predictable than any truck approaching direct, so they compete
+        // only against each other and are offered only when no direct
+        // candidate exists anywhere. Skipping them outright starved a
+        // domestic hop whose own factory truck had parked centimetres
+        // past its door while the rest of the fleet was out on long
+        // imports (the query returned None forever); ranking them first
+        // by raw meters would hand out 1200 m block-loops for 18 m hops.
+        let mut best_loop: Option<(f32, DispatchID)> = None;
+
+        while let Some((Reverse(cost), lid)) = heap.pop() {
+            let cost = cost.into_inner();
+            if start_cost.get(&lid).is_some_and(|&c| c < cost) {
                 continue;
-            };
-            for ent in ents {
-                if self.reserved_by.contains(ent) {
-                    continue;
-                }
-                let pos = self.positions.get(ent).unwrap();
-                let dist = -pos.dist_along; // since dist_along is from start to end, a good dist_along is one that is big
-                if lane == target_lane && pos.dist_along > start_along {
-                    continue;
-                }
-                if dist < best_dist {
-                    best_dist = dist;
-                    best_ent = Some(*ent);
-                }
             }
-            if best_ent.is_some() {
+            if best.is_some_and(|(c, _)| cost > c) {
                 break;
             }
-        }
 
-        best_ent
+            let lane_len = map.lanes[lid].points.length();
+            if let Some(ents) = self.lanes.get(&lid) {
+                for ent in ents {
+                    if self.reserved_by.contains(ent) {
+                        continue;
+                    }
+                    let Some(pos) = self.positions.get(ent) else {
+                        continue;
+                    };
+                    let on_target_lane = lid == target_lane
+                        && matches!(target, DispatchQueryTarget::Pos(_));
+                    if on_target_lane && pos.dist_along > base_along {
+                        // Fallback tier: loop the block (lane end, then lane
+                        // start to target as the ordering cost). Never
+                        // competes with direct candidates and never prunes
+                        // the search for one (see `best` below).
+                        let cand = (lane_len - pos.dist_along) + base_along;
+                        let replace = match best_loop {
+                            None => true,
+                            Some((c, id)) => cand < c || (cand == c && *ent < id),
+                        };
+                        if replace {
+                            best_loop = Some((cand, *ent));
+                        }
+                        continue;
+                    }
+                    let cand = if on_target_lane {
+                        base_along - pos.dist_along
+                    } else {
+                        cost + (lane_len - pos.dist_along)
+                    };
+                    let replace = match best {
+                        None => true,
+                        Some((c, id)) => cand < c || (cand == c && *ent < id),
+                    };
+                    if replace {
+                        best = Some((cand, *ent));
+                    }
+                }
+            }
+
+            let l = &map.lanes[lid];
+            let int = &map.intersections[l.src];
+            for (tid, dir) in int.turns_to(lid) {
+                let pred = match dir {
+                    TraverseDirection::Forward => tid.src,
+                    TraverseDirection::Backward => tid.dst,
+                };
+                let next = cost + lane_len;
+                if next < start_cost.get(&pred).copied().unwrap_or(f32::MAX) {
+                    start_cost.insert(pred, next);
+                    heap.push((Reverse(OrderedFloat(next)), pred));
+                }
+            }
+        }
+        // Direct approach wins over any block-loop, but a looper still
+        // beats nothing: it is offered when it is the only truck left.
+        best.or(best_loop).map(|(_, ent)| ent)
     }
 }
 
@@ -507,14 +576,6 @@ mod tests {
             .reserved_by
             .contains(&mk_ent(1 << 32));
 
-        assert!(d
-            .query(
-                &map,
-                DispatchKind::FreightTrain,
-                DispatchQueryTarget::Pos(Vec3::x(50.0)),
-            )
-            .is_none());
-
         assert_eq!(
             d.query(
                 &map,
@@ -523,6 +584,26 @@ mod tests {
             ),
             Some(ent2)
         );
+        d.free(ent2);
+        // `free` clears the reservation but only the next `update` (live
+        // vehicles) would restore the position entry `reserve` removed, so
+        // re-register the freed truck for the fallback probe below.
+        d.dispatches
+            .get_mut(&DispatchKind::FreightTrain)
+            .unwrap()
+            .register(ent2, &map, Vec3::x(100.0));
+        // sov-2uv fallback tier: with direct candidates exhausted, the
+        // past-target same-lane truck is offered via the block loop rather
+        // than skipped outright.
+        assert_eq!(
+            d.query(
+                &map,
+                DispatchKind::FreightTrain,
+                DispatchQueryTarget::Pos(Vec3::x(50.0)),
+            ),
+            Some(ent2)
+        );
+
     }
 
     #[test]
@@ -616,6 +697,48 @@ mod tests {
                 DispatchQueryTarget::Lane(lid),
             ),
             Some(ent2)
+        );
+    }
+
+    /// sov-2uv: ranked assignment ends in a stable identity tie-break. Two
+    /// vehicles at the same network distance from the target must resolve to
+    /// the smaller identity, deterministically, regardless of registration
+    /// order — never to whichever the lane's vec happens to list first.
+    #[test]
+    fn query_equal_distance_prefers_smaller_identity() {
+        let mut d = Dispatcher::default();
+        let mut map = Map::default();
+
+        map.make_connection(
+            MapProject::ground(Vec3::ZERO),
+            MapProject::ground(Vec3::x(100.0)),
+            None,
+            &LanePatternBuilder::new().one_way(true).rail(true).build(),
+        )
+        .unwrap();
+
+        let mut register = |id: DispatchID, pos: Vec3| {
+            d.dispatches
+                .entry(DispatchKind::FreightTrain)
+                .or_insert(DispatchOne::new(DispatchKind::FreightTrain.lane_kind()))
+                .register(id, &map, pos)
+        };
+
+        // Same spot, so same lane and same dist_along: a pure tie. The
+        // LARGER identity registers first so insertion order disagrees with
+        // the expected answer.
+        let lo = mk_ent(1 << 32);
+        let hi = mk_ent((1 << 32) + 1);
+        register(hi, Vec3::x(10.0));
+        register(lo, Vec3::x(10.0));
+
+        assert_eq!(
+            d.query(
+                &map,
+                DispatchKind::FreightTrain,
+                DispatchQueryTarget::Pos(Vec3::x(70.0)),
+            ),
+            Some(lo)
         );
     }
 

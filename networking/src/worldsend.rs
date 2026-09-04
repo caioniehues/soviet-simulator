@@ -6,6 +6,12 @@ use crate::{decode, encode, AuthentID, Frame, MAX_WORLDSEND_PACKET_SIZE};
 use common::FastMap;
 use serde::de::DeserializeOwned;
 
+/// Upper bound on a received world image. Every field of an inbound fragment is
+/// peer-controlled, so the accumulator must never grow without limit: a peer that
+/// exceeds this bound fails its transfer (`Errored`, which the client poll loop
+/// turns into a disconnect) instead of being accommodated.
+pub(crate) const MAX_WORLD_RECEIVE_SIZE: usize = 64 * 1024 * 1024;
+
 #[derive(Eq, PartialEq)]
 enum WorldSendStatus {
     ReadyToSend,
@@ -132,9 +138,30 @@ impl<W: DeserializeOwned> WorldReceive<W> {
             ref mut data_so_far,
         } = self
         {
-            *datasize = fragment.data_size;
+            // Every field here is peer-controlled: bound the declared total first,
+            // so a lying fragment cannot trick the reservation below into
+            // grabbing gigabytes.
+            if fragment.data_size > MAX_WORLD_RECEIVE_SIZE {
+                log::warn!("world fragment declares oversized world, failing transfer");
+                *self = WorldReceive::Errored;
+                return;
+            }
             if data_so_far.capacity() == 0 {
+                *datasize = fragment.data_size;
                 data_so_far.reserve(fragment.data_size)
+            } else if fragment.data_size != *datasize {
+                // The first fragment fixes the total; moving the goalposts
+                // mid-transfer is hostile.
+                log::warn!("world fragment changed declared size mid-transfer, failing");
+                *self = WorldReceive::Errored;
+                return;
+            }
+            // Bound the accumulator itself: a drip-feed of small fragments must
+            // never grow the buffer past the declared total (itself capped above).
+            if data_so_far.len().saturating_add(fragment.data.len()) > *datasize {
+                log::warn!("world fragment overruns declared size, failing transfer");
+                *self = WorldReceive::Errored;
+                return;
             }
             data_so_far.extend(fragment.data);
             if let Some(frame) = fragment.is_over {
@@ -155,5 +182,60 @@ impl<W: DeserializeOwned> WorldReceive<W> {
                 matches!(self, WorldReceive::Errored)
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpListener;
+
+    fn loopback_net() -> (TcpListener, ConnectionClient) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let addr = listener.local_addr().expect("loopback addr");
+        let net = ConnectionClient::new(addr).expect("loopback connect");
+        (listener, net)
+    }
+
+    #[test]
+    fn hostile_world_declared_size_over_bound_is_refused() {
+        let (_listener, net) = loopback_net();
+        let mut recv: WorldReceive<Vec<u8>> = WorldReceive::default();
+        // A single lying fragment declares a world past the bound. This must fail
+        // before any reservation, never attempt to reserve the declared size.
+        recv.handle(
+            WorldDataFragment {
+                is_over: None,
+                data_size: MAX_WORLD_RECEIVE_SIZE + 1,
+                data: vec![0u8; 8],
+            },
+            &net,
+        );
+        assert!(matches!(recv, WorldReceive::Errored));
+    }
+
+    #[test]
+    fn hostile_world_drip_feed_over_declared_size_is_refused() {
+        let (_listener, net) = loopback_net();
+        let mut recv: WorldReceive<Vec<u8>> = WorldReceive::default();
+        recv.handle(
+            WorldDataFragment {
+                is_over: None,
+                data_size: 8,
+                data: vec![0u8; 8],
+            },
+            &net,
+        );
+        assert!(matches!(recv, WorldReceive::Downloading { .. }));
+        // A second fragment would push the accumulator past the declared total.
+        recv.handle(
+            WorldDataFragment {
+                is_over: None,
+                data_size: 8,
+                data: vec![0u8; 8],
+            },
+            &net,
+        );
+        assert!(matches!(recv, WorldReceive::Errored));
     }
 }
