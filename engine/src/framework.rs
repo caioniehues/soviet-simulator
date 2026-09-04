@@ -42,7 +42,22 @@ pub struct CaptureOptions {
     pub warmup_frames: u32,
     /// How many frames to sample GPU timings over, ending on the captured frame. `None` leaves
     /// the timestamp gate off, which is the default.
+    ///
+    /// Must not exceed `warmup_frames + 1`: a wider window does not exist, and saturating down
+    /// to frame 0 would both drag cold start-up frames into the timings and report a count the
+    /// run did not take (sov-h4y). The `engine_demo` CLI rejects larger requests with this bound.
     pub gpu_timing_samples: Option<u32>,
+}
+
+/// First frame of the GPU-timing sample window: the `samples` frames ending with the captured
+/// frame (`warmup_frames`).
+///
+/// Shared by the windowed (wasm) loop in `run` and the offscreen loop in `run_offscreen`, so the
+/// two paths cannot arm different windows (sov-j3p). Callers must keep `samples` within
+/// `warmup_frames + 1`; anything larger saturates to frame 0, which is exactly the cold-frame
+/// contamination the bound on [`CaptureOptions::gpu_timing_samples`] exists to prevent.
+fn gpu_timing_window_first_frame(warmup_frames: u32, samples: u32) -> u32 {
+    warmup_frames.saturating_sub(samples.saturating_sub(1))
 }
 
 impl FrameworkOptions {
@@ -187,9 +202,8 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
                         // and their shader compilation never enter the timings.
                         if let (Some(cap), Some(t)) = (&opts.capture, &ctx.gfx.gpu_timings) {
                             if let Some(samples) = cap.gpu_timing_samples {
-                                let first = cap
-                                    .warmup_frames
-                                    .saturating_sub(samples.saturating_sub(1));
+                                let first =
+                                    gpu_timing_window_first_frame(cap.warmup_frames, samples);
                                 t.set_armed(frame_ix >= first && frame_ix <= cap.warmup_frames);
                             }
                         }
@@ -215,6 +229,17 @@ async fn run<S: State>(el: EventLoop<()>, window: Arc<Window>, opts: FrameworkOp
                             t.collect_frame(&ctx.gfx.device, &ctx.gfx.queue);
                         }
 
+                        // Windowed capture-and-exit, wasm32-only (sov-d3a, sov-j3p). On native,
+                        // `start_with_options` routes every capture to `run_offscreen`, so this
+                        // block is unreachable there and is compiled out: there is no `--windowed`
+                        // flag because a windowed comparison was never reproducible on demand
+                        // (the surface path negotiates its own format, e.g. Bgra, while the
+                        // offscreen record pins Rgba). The single live caller is the wasm branch
+                        // of `start_with_options`, which spawns `run` unguarded. It cannot share
+                        // `run_offscreen`'s implementation: this path reads back a swapchain
+                        // surface texture and presents it to a window, while offscreen renders to
+                        // a headless target texture with no surface at all.
+                        #[cfg(target_arch = "wasm32")]
                         if let Some(cap) = &opts.capture {
                             if frame_ix >= cap.warmup_frames {
                                 let record = ctx.gfx.capture_record(
@@ -284,7 +309,7 @@ async fn run_offscreen<S: State>(opts: FrameworkOptions) {
     for frame_ix in 0..=cap.warmup_frames {
         ctx.delta = opts.fixed_delta.unwrap_or(0.0);
         if let (Some(samples), Some(timings)) = (cap.gpu_timing_samples, &ctx.gfx.gpu_timings) {
-            let first = cap.warmup_frames.saturating_sub(samples.saturating_sub(1));
+            let first = gpu_timing_window_first_frame(cap.warmup_frames, samples);
             timings.set_armed(frame_ix >= first && frame_ix <= cap.warmup_frames);
         }
 

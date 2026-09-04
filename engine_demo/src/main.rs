@@ -386,13 +386,32 @@ impl State {
     }
 }
 
+/// Whether `parse_args`'s `Err` text is the `--list-scenes` printout rather than a real error.
+///
+/// Probed from the same `parse_args` that produced it, so this tracks the scene table without
+/// retyping its format: if the rendering ever drifts, a list falls through to exit 2 loudly
+/// instead of silently exiting 0 as a fake success.
+fn is_list_scenes_output(msg: &str) -> bool {
+    let probe =
+        crate::capture::parse_args(["engine_demo", "--list-scenes"].into_iter().map(String::from));
+    matches!(probe, Err(m) if m == msg)
+}
+
 fn main() {
+    // Exit-code contract (sov-hq3-finding-3): `--help` and `--list-scenes` are information, so
+    // they print to stdout and exit 0. Every other `Err` — unknown option or scene, bad
+    // `--gpu-samples`, missing value — is a genuine error: stderr, exit 2, so a typo'd scene in
+    // a `capture ... && diff ...` chain can never look like a successful run. A capture that
+    // starts but fails keeps its own exit-2 paths inside the capture code.
     let args = match crate::capture::parse_args(std::env::args()) {
         Ok(v) => v,
-        // --help and --list-scenes arrive here too; they are not failures.
-        Err(msg) => {
+        Err(msg) if msg == crate::capture::USAGE || is_list_scenes_output(&msg) => {
             println!("{msg}");
             return;
+        }
+        Err(msg) => {
+            eprintln!("{msg}");
+            std::process::exit(2);
         }
     };
 
@@ -403,6 +422,21 @@ fn main() {
         engine::framework::start::<State>();
         return;
     };
+
+    // Reject an unhonourable sample count before rendering (sov-h4y, sov-hq3-finding-1): only
+    // `warmup_frames + 1` frames exist, so a larger `--gpu-samples` would both arm cold
+    // start-up frames and write a `sample_frames` the per-pass `samples` contradict. The bound
+    // applies only when timings are armed; without `--gpu-timings` the count samples nothing.
+    if args.gpu_timings && args.gpu_samples > args.scene.warmup_frames + 1 {
+        eprintln!(
+            "--gpu-samples {} exceeds the {} frames available (warmup_frames {} + captured \
+             frame); lower it or raise warmup_frames",
+            args.gpu_samples,
+            args.scene.warmup_frames + 1,
+            args.scene.warmup_frames
+        );
+        std::process::exit(2);
+    }
 
     let opts = engine::framework::FrameworkOptions {
         fixed_size: Some((args.scene.width, args.scene.height)),

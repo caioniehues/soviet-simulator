@@ -17,6 +17,16 @@ fn main() {
     // Rebuild when the checked-out commit changes, so the stamp cannot go stale silently.
     println!("cargo:rerun-if-changed=../.git/HEAD");
     println!("cargo:rerun-if-changed=../.git/index");
+    // ... and when any compiled-in source tree changes (sov-hq3-finding-2). `git status`
+    // sees unstaged working-tree edits, but `.git/index` does not move for them, so without
+    // these the script would not rerun and `git_dirty` would report a clean tree for a binary
+    // built from modified source. One line per path dependency in `Cargo.toml`, plus this
+    // crate's own `src` and `build.rs`.
+    println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=../engine/src");
+    println!("cargo:rerun-if-changed=../common/src");
+    println!("cargo:rerun-if-changed=../geom/src");
 
     let commit = git(&["rev-parse", "--short=10", "HEAD"]).unwrap_or_else(|| "unknown".to_string());
     // An empty status means a clean tree. A failed git call is reported as unknown-dirty=true,
