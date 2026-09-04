@@ -1,4 +1,17 @@
-# Known RADV NAVI32 defect tracked by sov-ejz. Remove this entry when sov-ejz closes.
-SYNC-HAZARD-WRITE-AFTER-WRITE
+# Known RADV NAVI32 defects tracked by sov-ejz. Remove these entries when sov-ejz closes.
+#
+# sov-xa4: each entry below is a FULL message identity (hazard class + resource +
+# pass/subpass), matched by the gate with exact whole-line equality. NEVER shorten
+# an entry to the bare SYNC-HAZARD-* signature: a bare signature would allow-list
+# every future hazard of that class on any resource, in any pass, forever.
+# Shape (1) from the sov-ejz capture report: the vkCmdPipelineBarrier layout
+# transition races the attachment storeOp (src masks miss LATE_FRAGMENT_TESTS /
+# DEPTH_STENCIL_ATTACHMENT_WRITE) on VkImage 0xdaf0000000daf, subpass 0.
+Validation Error: [ SYNC-HAZARD-WRITE-AFTER-WRITE ] vkCmdPipelineBarrier layout transition writes VkImage 0xdaf0000000daf previously written by the attachment storeOp at vkCmdEndRenderPass end of subpass 0 (depth_prepass)
+# Shape (2) from the same report, the mirror image: vkCmdEndRenderPass races the
+# prior layout transition from vkCmdPipelineBarrier.
+Validation Error: [ SYNC-HAZARD-WRITE-AFTER-WRITE ] vkCmdEndRenderPass writes VkImage 0xdaf0000000daf previously written by the layout transition from vkCmdPipelineBarrier (depth_prepass)
+# Same shape-(1) race on the shadow cascade pass with its own depth image.
+Validation Error: [ SYNC-HAZARD-WRITE-AFTER-WRITE ] vkCmdPipelineBarrier layout transition writes VkImage 0xdb00000000db previously written by the attachment storeOp at vkCmdEndRenderPass end of subpass 0 (shadow_cascade_0)
 # Vulkan loader warning observed on Mesa 26.2.1 during the same capture.
-WARNING-vkGetDeviceProcAddr-device
+Validation Warning: vkGetDeviceProcAddr queried for unknown device function on VkDevice 0xdaf0000000daf (Mesa 26.2.1 loader)

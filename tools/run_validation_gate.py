@@ -123,9 +123,13 @@ def main(argv: list[str]) -> int:
         sys.stdout.write(result.stdout)
 
     observed = validation_lines(result.stdout)
-    new_messages = [
-        line for line in observed if not any(allowed in line for allowed in allowlist)
-    ]
+    allowlisted = set(allowlist)
+    # sov-xa4: exact full-line match. The old substring test (`allowed in line`)
+    # let a bare signature (e.g. SYNC-HAZARD-WRITE-AFTER-WRITE) allow-list every
+    # future hazard of that class on any resource, in any pass. Entries carry the
+    # full message identity (resource + pass), so only the identical known line
+    # is allowed; anything on a new resource or pass is reported as new.
+    new_messages = [line for line in observed if line.strip() not in allowlisted]
     allowed_count = len(observed) - len(new_messages)
 
     # F12: list the new messages BEFORE returning on a nonzero child exit, so a run that both

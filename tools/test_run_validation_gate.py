@@ -17,7 +17,7 @@ class ValidationGateTests(unittest.TestCase):
             tmp_path = Path(tmp)
             allowlist = tmp_path / "allowlist.txt"
             artifact = tmp_path / "validation-messages.txt"
-            allowlist.write_text("SYNC-HAZARD-WRITE-AFTER-WRITE\n")
+            allowlist.write_text("SYNC-HAZARD-WRITE-AFTER-WRITE known\n")
             result = subprocess.run(
                 [
                     "python3",
