@@ -31,6 +31,10 @@ use crate::{
 
 pub struct FBOs {
     pub(crate) depth: Texture,
+    /// Per-frame copy of [`FBOs::depth`] that shaders sample (SSAO, fog, water).
+    /// The live depth texture stays a pure attachment: sampling it in the same
+    /// pass that writes it is a RESOURCE vs DEPTH_STENCIL_WRITE conflict (sov-ejz).
+    pub(crate) depth_sample: Texture,
     pub(crate) depth_bg: wgpu::BindGroup,
     pub(crate) color_msaa: TextureView,
     pub(crate) ssao: Texture,
@@ -967,6 +971,7 @@ impl GfxContext {
                     }
                 });
                 scope.spawn(|_| {
+                    passes::copy_depth_for_sampling(self, &mut encs.before_main);
                     passes::render_ssao(self, &mut encs.before_main);
                     passes::render_fog(self, &mut encs.before_main);
 
@@ -986,6 +991,7 @@ impl GfxContext {
             if self.render_params.value().shadow_mapping_resolution != 0 {
                 encs.smap = self.shadow_map_pass(objsref).collect();
             }
+            passes::copy_depth_for_sampling(self, &mut encs.before_main);
             passes::render_ssao(self, &mut encs.before_main);
             passes::render_fog(self, &mut encs.before_main);
             encs.main = Some(self.main_render_pass(frame, objsref));
@@ -1052,21 +1058,19 @@ impl GfxContext {
                 ops,
             }
         };
-
         let mut render_pass = main_enc.begin_render_pass(&RenderPassDescriptor {
             label: Some("main render pass"),
             color_attachments: &[Some(attachment)],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.fbos.depth.view,
-                // sov-ejz: this MUST stay a read-write declaration. `None` means read-only to
-                // wgpu (None maps to read_only:true with Load+Store in wgpu-0.20.1
-                // map_pass_channel), so the submit-time transit barriers carried only
-                // DEPTH_STENCIL_ATTACHMENT_READ at EARLY|LATE_FRAGMENT_TESTS — while the
-                // pass still performs its attachment storeOp, a real
-                // DEPTH_STENCIL_ATTACHMENT_WRITE at LATE_FRAGMENT_TESTS. The layer reported
-                // both directions of that race (10x WRITE_AFTER_WRITE saturation on RADV).
-                // No pipeline bound here writes depth, so Load+Store preserves every pixel
-                // the prepass left; only the declared usage — and hence the barriers — changes.
+                // sov-ejz: this MUST stay a read-write declaration. The sampled depth
+                // image is `fbos.depth_sample` (a per-frame copy); nothing samples the
+                // live attachment, so no same-pass RESOURCE conflict exists. Declaring
+                // it read-only (`None`) instead breaks capture validation: wgpu still
+                // performs the attachment store but only emits READ barriers, which
+                // the layer reports as WRITE_AFTER_WRITE saturation on RADV.
+                // No pipeline bound here writes depth, so Load+Store preserves every
+                // pixel the prepass left.
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
@@ -1225,8 +1229,31 @@ impl GfxContext {
                 | TextureUsages::COPY_SRC,
             None,
         );
-        let depth = Texture::create_depth_texture(device, size, samples);
-        let depth_bg = depth.bindgroup(
+        // sov-ejz: `depth` is written by the depth prepass, the main pass, and the
+        // background pass, so it must stay a pure attachment. Shaders (SSAO, fog,
+        // water) sample `depth_sample` instead: a lossless per-frame copy made in
+        // `passes::copy_depth_for_sampling` once the prepass has stored. Sampling
+        // the live attachment in the main pass was the game-killing RESOURCE vs
+        // DEPTH_STENCIL_WRITE conflict; declaring the main pass read-only instead
+        // merely moved the failure into capture validation (WRITE_AFTER_WRITE:
+        // wgpu still stores the read-only attachment but only emits READ barriers).
+        let depth = Texture::create_fbo(
+            device,
+            size,
+            TextureFormat::Depth32Float,
+            TextureUsages::RENDER_ATTACHMENT
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
+            Some(samples),
+        );
+        let depth_sample = Texture::create_fbo(
+            device,
+            size,
+            TextureFormat::Depth32Float,
+            TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            Some(samples),
+        );
+        let depth_bg = depth_sample.bindgroup(
             device,
             &Texture::bindgroup_layout(
                 device,
@@ -1248,6 +1275,7 @@ impl GfxContext {
 
         FBOs {
             depth,
+            depth_sample,
             depth_bg,
             color_msaa: if samples > 1 {
                 Texture::create_color_msaa(device, desc, samples)
