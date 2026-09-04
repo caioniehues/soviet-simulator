@@ -83,10 +83,13 @@ impl Widget for SizedCanvasWidget {
 
     fn paint(&self, mut ctx: PaintContext<'_>) {
         if let Some(bg_color) = self.props.bg_color {
-            let this_rect = ctx.layout.get(ctx.dom.current()).unwrap().rect;
-            let mut p = PaintRect::new(this_rect);
-            p.color = bg_color;
-            p.add(ctx.paint);
+            // Missing layout entry (widget never laid out) → skip the background
+            // fill but still run the draw callback and children below.
+            if let Some(layout_node) = ctx.layout.get(ctx.dom.current()) {
+                let mut p = PaintRect::new(layout_node.rect);
+                p.color = bg_color;
+                p.add(ctx.paint);
+            }
         }
 
         if let Some(draw) = self.props.draw.take() {

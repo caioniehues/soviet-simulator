@@ -109,7 +109,12 @@ impl Widget for InteractBoxWidget {
 
     fn paint(&self, mut ctx: PaintContext<'_>) {
         let node = ctx.dom.get_current();
-        let layout_node = ctx.layout.get(ctx.dom.current()).unwrap();
+        // PaintDom::paint only invokes paint for widgets already present in the
+        // layout DOM, so this lookup is expected to succeed. Degrade to no-draw
+        // instead of panicking if that invariant ever breaks.
+        let Some(layout_node) = ctx.layout.get(ctx.dom.current()) else {
+            return;
+        };
 
         let curcolor = if self.resp.mouse_down {
             self.props.active_color

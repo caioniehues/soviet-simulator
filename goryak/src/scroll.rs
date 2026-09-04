@@ -149,7 +149,13 @@ impl Widget for VertScrollWidget {
     }
 
     fn paint(&self, mut ctx: PaintContext<'_>) {
-        let drawn_rect = ctx.layout.get(ctx.dom.current()).unwrap().rect;
+        // PaintDom::paint only invokes paint for widgets already present in the
+        // layout DOM, so this lookup is expected to succeed. Degrade to no-draw
+        // instead of panicking if that invariant ever breaks.
+        let Some(layout) = ctx.layout.get(ctx.dom.current()) else {
+            return;
+        };
+        let drawn_rect = layout.rect;
         let node = ctx.dom.get_current();
 
         for &child in &node.children {
@@ -385,7 +391,11 @@ impl Widget for HorizScrollWidget {
     }
 
     fn paint(&self, mut ctx: PaintContext<'_>) {
-        let drawn_rect = ctx.layout.get(ctx.dom.current()).unwrap().rect;
+        // Same no-draw degrade as above: layout entry is expected during paint.
+        let Some(layout) = ctx.layout.get(ctx.dom.current()) else {
+            return;
+        };
+        let drawn_rect = layout.rect;
         let node = ctx.dom.get_current();
 
         for &child in &node.children {

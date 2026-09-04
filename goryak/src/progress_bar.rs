@@ -62,7 +62,11 @@ impl Widget for ProgressBarWidget {
     }
 
     fn paint(&self, ctx: PaintContext<'_>) {
-        let rect = ctx.layout.get(ctx.dom.current()).unwrap().rect;
+        // Layout entry is expected to exist during paint; degrade to no-draw if missing.
+        let Some(layout) = ctx.layout.get(ctx.dom.current()) else {
+            return;
+        };
+        let rect = layout.rect;
 
         let progress = rect.size().x * self.props.value;
         let mut progress_rect = rect;
