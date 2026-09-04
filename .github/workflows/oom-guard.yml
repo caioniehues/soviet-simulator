@@ -1,0 +1,60 @@
+# OOM guard: runs the sov-bo3 memory-guard sweep under a hard memory ceiling.
+#
+# The guard is simulation/src/map/procgen/building.rs
+# placement_stress::gen_exterior_house_8m_100k_placements. It is #[ignore]d,
+# so no default test selection runs it; this workflow selects it explicitly
+# with `-- --ignored`. An uncapped run proves nothing -- the capped kill is
+# the evidence, so the test always runs under MemoryMax=2G.
+#
+# Scope is this one test under this one ceiling. Do NOT fold it into
+# .github/workflows/dependency-policy.yml: that file's header forbids
+# anything but the dependency-policy check (sov-ztg).
+#
+# Red-proof (sov-cnq): with LAV::iter_keys reverted to the unbounded walk
+# (no .take(limit)), this command is OOM-killed by the ceiling partway
+# through the sweep (measured 2026-09-04: last line "seed 30000: rss 8888 kB",
+# no test-result line, exit non-zero; journal: "The kernel OOM killer killed
+# some processes in this unit", "Failed with result 'oom-kill'", "2G memory
+# peak"); with the bound it completes 100000 placements with flat RSS
+# (7744 kB start, 8736 kB peak, 1.41 s, 1 passed). A runner that has only
+# ever been green proves nothing, so the revert was run once locally and
+# both outputs are on the ticket.
+#   systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 -- \
+#     cargo test -p simulation --release placement_stress -- --ignored --nocapture
+name: oom-guard
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cost control only. A superseded run on the same ref is cancelled; the newest
+# run still executes the same guard and still fails on a violation.
+concurrency:
+  group: oom-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  placement-stress:
+    name: placement stress under MemoryMax
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit sha, not a moving tag, for the same reason the
+      # dependency-policy workflow pins its checkout.
+      - name: Check out the repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0 (node24)
+
+      # The capped kill is the evidence; an uncapped run just dies. A non-zero
+      # exit (including SIGKILL by the ceiling) fails the step, which fails
+      # the job. There is no continue-on-error and no '|| true' anywhere in
+      # this workflow.
+      - name: placement_stress under a 2G ceiling
+        run: >
+          systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 --
+          cargo test -p simulation --release placement_stress -- --ignored --nocapture

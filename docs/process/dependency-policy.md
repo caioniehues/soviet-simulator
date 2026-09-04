@@ -168,9 +168,43 @@ do not waive remediation.
 
 Remove an exception when its dependency update lands. Before the review date,
 the owner must renew it with a new reason and date or remove the affected
-dependency. Asset provenance and Git revision pinning are out of scope for this
-policy baseline; `Uriopass/yakui` is consumed on branch `dev`, which is a
-reproducibility finding tracked separately, not an exception granted here.
+dependency. Git revision pinning is recorded in the next section; no git
+dependency remains on a moving branch reference.
+
+## Git revision pins and update cadence
+
+Tracker: `sov-buw`. Every git dependency in the workspace carries an explicit
+`rev` pinned to an immutable commit sha. There are two git sources and zero
+deliberately unpinned entries, so the unpinned-with-reason branch of the
+`sov-buw` acceptance is vacuous: nothing to document there.
+
+| Git source | Pinned rev | Consumed by |
+| --- | --- | --- |
+| `https://github.com/emilk/egui` | `d4e8966aac9347965f8d02310ecf2c9f23bb9bbc` | `egui`, `egui_extras`, `egui_plot` (`Cargo.toml` workspace dependencies); `egui-winit`, `egui-wgpu` (`engine/Cargo.toml`) |
+| `https://github.com/Uriopass/yakui` | `6c6982ff196850dc67de80ee7983ececd15966a8` | `yakui`, `yakui-wgpu`, `yakui-winit`, `yakui-core`, `yakui-widgets` (`Cargo.toml` workspace dependencies) |
+
+The pins above are the commits already in `Cargo.lock` at the time of
+pinning, verified 2026-09-04 by re-resolving offline
+(`cargo metadata --offline`): the same commit shas, exit 0, and
+`cargo-deny check` still exits 0 (`advisories ok, bans ok, licenses ok,
+`sources ok`). A pin freezes upstream fixes by design, so the pins are
+reviewed on this cadence:
+
+- Review the pinned revs no later than the exception review date
+  (**2026-11-25**, owner **project lead**), together with the time-limited
+  exceptions above.
+- Review earlier when an upstream fix we need lands, or when an advisory
+  against a pinned commit is published.
+- To move a pin: change the `rev` in the manifests, re-resolve, re-run
+  `cargo-deny check`, and re-record this document. The `rev` value is the
+  only thing that may move the build; a branch name is never an acceptable
+  substitute because it is not an immutable reference.
+
+Reproducibility follows from immutability: two fresh clones taken from the
+same repository commit resolve to identical `Cargo.lock` git entries,
+because a `rev` sha cannot advance upstream. `cargo-deny sources` answers
+only "is this source permitted"; the `rev` keys above are what answer "is
+this source fixed".
 
 ## Proof that the check fails
 

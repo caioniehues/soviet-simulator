@@ -19,18 +19,18 @@ resolver = "2"
 default-members = ["native_app"]
 
 [workspace.dependencies]
-egui          = { git = "https://github.com/emilk/egui" }
+egui          = { git = "https://github.com/emilk/egui", rev = "d4e8966aac9347965f8d02310ecf2c9f23bb9bbc" }
 flat_spatial  = "0.6"
-egui_extras   = { git = "https://github.com/emilk/egui" }
-egui_plot     = { git = "https://github.com/emilk/egui" }
+egui_extras   = { git = "https://github.com/emilk/egui", rev = "d4e8966aac9347965f8d02310ecf2c9f23bb9bbc" }
+egui_plot     = { git = "https://github.com/emilk/egui", rev = "d4e8966aac9347965f8d02310ecf2c9f23bb9bbc" }
 ordered-float = { version = "4.2.0", default-features = false }
 oddio         = "0.7.4"
 derive_more   = "0.99.17"
-yakui         = { git = "https://github.com/Uriopass/yakui", branch = "dev" }
-yakui-wgpu    = { git = "https://github.com/Uriopass/yakui", branch = "dev" }
-yakui-winit   = { git = "https://github.com/Uriopass/yakui", branch = "dev" }
-yakui-core    = { git = "https://github.com/Uriopass/yakui", branch = "dev" }
-yakui-widgets = { git = "https://github.com/Uriopass/yakui", branch = "dev" }
+yakui         = { git = "https://github.com/Uriopass/yakui", rev = "6c6982ff196850dc67de80ee7983ececd15966a8" }
+yakui-wgpu    = { git = "https://github.com/Uriopass/yakui", rev = "6c6982ff196850dc67de80ee7983ececd15966a8" }
+yakui-winit   = { git = "https://github.com/Uriopass/yakui", rev = "6c6982ff196850dc67de80ee7983ececd15966a8" }
+yakui-core    = { git = "https://github.com/Uriopass/yakui", rev = "6c6982ff196850dc67de80ee7983ececd15966a8" }
+yakui-widgets = { git = "https://github.com/Uriopass/yakui", rev = "6c6982ff196850dc67de80ee7983ececd15966a8" }
 itertools     = { version = "0.13.0", default-features = false }
 mlua          = { version = "0.9.4", features = ["luau"] }
 # rerun         = { version = "0.17.0", default-features = false, features = ["sdk"] }

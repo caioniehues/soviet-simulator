@@ -20,7 +20,7 @@ derive_more   = { workspace = true }
 wgpu          = { version = "0.20.1", default-features = false, features=["wgsl"] }
 winit         = { version = "0.29.4" }
 smol_str      = { version = "0.2.0", features = ["serde"]  }
-egui-winit    = { git = "https://github.com/emilk/egui" , default-features = false }
+egui-winit    = { git = "https://github.com/emilk/egui", rev = "d4e8966aac9347965f8d02310ecf2c9f23bb9bbc", default-features = false }
 bytemuck      = "1.7.2"
 image         = { version = "0.25.1", default-features = false, features = ["png"] }
 log           = "0.4.11"
@@ -31,7 +31,7 @@ rayon         = "1.6"
 beul          = "1.0.0"
 slotmapd      = "1.0"
 inline_tweak = { version = "1.0.8", features = ["derive"] }
-egui-wgpu     = { git = "https://github.com/emilk/egui" }
+egui-wgpu     = { git = "https://github.com/emilk/egui", rev = "d4e8966aac9347965f8d02310ecf2c9f23bb9bbc" }
 cpal          = "0.15.0"
 lewton        = "0.10.2"
 serde         = { version = "1.0.183", features = ["derive"] }
