@@ -22,9 +22,11 @@ default member), `engine` (wgpu renderer, terrain, PBR, LOD), `engine_demo`, `ge
 multiplayer), `goryak`, `egui-inspect`, `egui-inspect-derive`, `assets_gui`. Data lives in
 `base_mod/*.lua` (`items`, `companies`, `rollingstock`, `roadvehicles`, `leisure`, `colors`, `data`).
 
-Two git dependencies have **no `rev` pin**: `egui` (tracks upstream HEAD; lockfile at
-`d4e8966a`) and `yakui` (Uriopass's fork, branch `dev`; lockfile at `6c6982ff`). Thirteen
-lockfile packages come from these two sources. `deny.toml` allows exactly these two git sources.
+Two git dependencies are **pinned by `rev`** (sov-buw): `egui` at `d4e8966a`
+(was: tracks upstream HEAD) and `yakui` at `6c6982ff` (was: fork `dev`
+branch). Thirteen lockfile packages come from these two sources. `deny.toml`
+allows exactly these two git sources; see the cadence rule in
+`docs/process/dependency-policy.md`.
 
 ## Tick and schedule
 

@@ -260,7 +260,7 @@ mod tests {
         let mut test = TestCtx::new();
 
         test.build_roads(&[vec3(0., 0., 0.), vec3(100., 0., 0.)]);
-        let house = test.build_house_near(vec2(50.0, 50.0));
+        let house = test.build_house_at(vec2(50.0, 20.0));
         let human = spawn_human(&mut test.g, house).unwrap();
 
         test.apply(&[WorldCommand::MapBuildSpecialBuilding {

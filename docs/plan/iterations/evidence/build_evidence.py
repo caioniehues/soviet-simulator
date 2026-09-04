@@ -22,16 +22,37 @@ PROMOTED = {
     "SENTINEL-SUBSTRATE-DISPATCH-GATE": {
         "test": "tests::scenarios::hoarding::scenario_0082_dispatch_gates_stock_not_match",
         "description": "Current dispatch implementation delays stock transfer until its current delivery gate.",
+        "scope": "current substrate regression",
     },
     "SENTINEL-SUBSTRATE-NO-TRUCK": {
         "test": "tests::scenarios::hoarding::scenario_0083_zero_trucks_blocks_delivery",
         "description": "Current dispatch implementation retains a blocked delivery when no SmallTruck is available.",
+        "scope": "current substrate regression",
     },
     "SENTINEL-SUBSTRATE-HOARDING": {
         "test": "tests::scenarios::hoarding::scenario_0151_inflated_request_hoards_honest_does_not",
         "description": "Current market implementation exhibits its named inflated-request behavior.",
+        "scope": "current substrate regression",
+    },
+    "SENTINEL-JOURNEY-HAUL-CONSERVES": {
+        "test": "tests::scenarios::sentinel_journey::sentinel_journey_produce_haul_deliver_conserves",
+        "description": "Cross-domain target journey: declared production, match, physical haul, delivery, and consumption conserve quantity (EVID-LOGISTICS-001) with request distinct from receipt and consumption (EVID-PRODUCTION-002).",
+        "scope": "promoted target journey",
+        "requirement_ids": ["REQ-LOGISTICS-001", "REQ-PRODUCTION-001"],
+        "specification_ids": ["SPEC-LOGISTICS-002", "SPEC-LOGISTICS-006", "SPEC-PRODUCTION-003"],
+        "evidence_ids": ["EVID-LOGISTICS-001", "EVID-PRODUCTION-002"],
+    },
+    "SENTINEL-JOURNEY-STALL-RECOVERS": {
+        "test": "tests::scenarios::sentinel_journey::sentinel_journey_stall_recovers_without_loss",
+        "description": "Cross-domain target journey: a truck-less haul stalls visibly without loss and recovers on truck arrival (EVID-LOGISTICS-002) while the starved buyer stays registered with no free stock (EVID-PRODUCTION-004).",
+        "scope": "promoted target journey",
+        "requirement_ids": ["REQ-LOGISTICS-001", "REQ-PRODUCTION-001"],
+        "specification_ids": ["SPEC-LOGISTICS-004", "SPEC-PRODUCTION-005", "SPEC-PRODUCTION-008"],
+        "evidence_ids": ["EVID-LOGISTICS-002", "EVID-PRODUCTION-004"],
     },
 }
+SUBSTRATE_SCOPE = "current substrate regression"
+JOURNEY_SCOPE = "promoted target journey"
 
 
 def fail(message: str) -> None:
@@ -211,15 +232,18 @@ def build(extract: Path, specs: Path, bindings_path: Path) -> tuple[dict[str, ob
         name = item["test"]
         if name not in names:
             fail(f"{sentinel_id}: promoted current test is absent")
-        promoted.append(
-            {
-                "id": sentinel_id,
-                "test": name,
-                "command": f"cargo test -p simulation {name} -- --test-threads=1",
-                "scope": "current substrate regression",
-                "description": item["description"],
-            }
-        )
+        entry: dict[str, object] = {
+            "id": sentinel_id,
+            "test": name,
+            "command": f"cargo test -p simulation {name} -- --test-threads=1",
+            "scope": item["scope"],
+            "description": item["description"],
+        }
+        if item["scope"] == JOURNEY_SCOPE:
+            entry["requirement_ids"] = item["requirement_ids"]
+            entry["specification_ids"] = item["specification_ids"]
+            entry["evidence_ids"] = item["evidence_ids"]
+        promoted.append(entry)
     target_data = {
         "schema": "wave3-target-evidence/v1",
         "authority": "rewritten requirement-to-SPEC bindings; draft target evidence",
@@ -232,7 +256,7 @@ def build(extract: Path, specs: Path, bindings_path: Path) -> tuple[dict[str, ob
         "regressions": current,
     }
     coverage = coverage_markdown(requirements, targets, evidence)
-    validate(target_data, inventory, requirements, evidence)
+    validate(target_data, inventory, requirements, evidence, bindings, specs_by_file)
     return target_data, inventory, coverage
 
 
@@ -324,7 +348,14 @@ def inventory_markdown(inventory: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def validate(target_data: dict[str, object], inventory: dict[str, object], requirements: list[dict[str, object]], evidence: dict[str, dict[str, str]]) -> None:
+def validate(
+    target_data: dict[str, object],
+    inventory: dict[str, object],
+    requirements: list[dict[str, object]],
+    evidence: dict[str, dict[str, str]],
+    bindings: dict[str, list[str]],
+    specs_by_file: dict[str, set[str]],
+) -> None:
     targets = target_data["target_scenarios"]
     target_ids = [target["id"] for target in targets]
     evidence_ids = [target["evidence_id"] for target in targets]
@@ -349,16 +380,27 @@ def validate(target_data: dict[str, object], inventory: dict[str, object], requi
     if not regressions or len({row["id"] for row in regressions}) != len(regressions):
         fail("current regression inventory is empty or has duplicate IDs")
     names = {row["test"] for row in regressions}
+    known_specs = {spec_id for values in specs_by_file.values() for spec_id in values}
+    anchors_by_requirement = {str(requirement["id"]): set(requirement["specification_anchors"]) for requirement in requirements}
+    promoted_ids = [promoted["id"] for promoted in target_data["promoted_current_regressions"]]
+    if len(promoted_ids) != len(set(promoted_ids)):
+        fail("promoted sentinels have duplicate IDs")
     for promoted in target_data["promoted_current_regressions"]:
         expected = f"cargo test -p simulation {promoted['test']} -- --test-threads=1"
         if (
-            promoted["scope"] != "current substrate regression"
+            promoted["scope"] not in (SUBSTRATE_SCOPE, JOURNEY_SCOPE)
             or promoted["test"] not in names
             or promoted["command"] != expected
             or "TBD" in json.dumps(promoted)
             or "UNIMPLEMENTED" in json.dumps(promoted)
         ):
             fail(f"{promoted['id']}: invalid promoted current regression")
+        if not str(promoted["id"]).startswith("SENTINEL-"):
+            fail(f"{promoted['id']}: promoted ID outside the SENTINEL- namespace")
+        if promoted["id"] in target_ids or promoted["id"] in {row["id"] for row in regressions}:
+            fail(f"{promoted['id']}: promoted ID collides with a target or regression ID")
+        if promoted["scope"] == JOURNEY_SCOPE:
+            validate_journey_binding(promoted, known_requirements, known_specs, anchors_by_requirement, bindings, set(evidence))
         completed = subprocess.run(
             promoted["command"].split(), cwd=ROOT, text=True, capture_output=True, check=False
         )
@@ -367,6 +409,48 @@ def validate(target_data: dict[str, object], inventory: dict[str, object], requi
             r"test result: ok\. [1-9][0-9]* passed;", combined
         ):
             fail(f"{promoted['id']}: command did not execute a passing nonzero test")
+
+
+def ev_domain(evidence_id: str) -> str:
+    """The canonical domain of an EVID anchor: `EVID-LOGISTICS-001` -> `LOGISTICS`."""
+    return evidence_id.split("-")[1]
+
+
+def validate_journey_binding(
+    promoted: dict[str, object],
+    known_requirements: set[str],
+    known_specs: set[str],
+    anchors_by_requirement: dict[str, set[str]],
+    bindings: dict[str, list[str]],
+    known_evidence: set[str],
+) -> None:
+    """A promoted target journey must bind canonical cross-domain identities."""
+    sentinel_id = str(promoted["id"])
+    requirement_ids = promoted.get("requirement_ids")
+    specification_ids = promoted.get("specification_ids")
+    journey_evidence = promoted.get("evidence_ids")
+    for key, ids in (
+        ("requirement_ids", requirement_ids),
+        ("specification_ids", specification_ids),
+        ("evidence_ids", journey_evidence),
+    ):
+        if not isinstance(ids, list) or not ids or len(ids) != len(set(ids)):
+            fail(f"{sentinel_id}: {key} must be a non-empty duplicate-free ID list")
+    assert isinstance(requirement_ids, list) and isinstance(specification_ids, list) and isinstance(journey_evidence, list)
+    if not set(requirement_ids).issubset(known_requirements):
+        fail(f"{sentinel_id}: unknown requirement binding {sorted(set(requirement_ids) - known_requirements)}")
+    if not set(specification_ids).issubset(known_specs):
+        fail(f"{sentinel_id}: unknown SPEC binding {sorted(set(specification_ids) - known_specs)}")
+    if not set(journey_evidence).issubset(known_evidence):
+        fail(f"{sentinel_id}: unknown EVID binding {sorted(set(journey_evidence) - known_evidence)}")
+    bound_specs = {anchor for evidence_id in journey_evidence for anchor in bindings[evidence_id]}
+    if not bound_specs.issubset(set(specification_ids)):
+        fail(f"{sentinel_id}: SPEC binding omits {sorted(bound_specs - set(specification_ids))} bound by its EVID anchors")
+    anchored = {anchor for requirement_id in requirement_ids for anchor in anchors_by_requirement[requirement_id]}
+    if not set(specification_ids).issubset(anchored):
+        fail(f"{sentinel_id}: SPEC binding {sorted(set(specification_ids) - anchored)} has no anchoring requirement")
+    if len({ev_domain(evidence_id) for evidence_id in journey_evidence}) < 2:
+        fail(f"{sentinel_id}: journey binds a single domain, not a cross-domain pair")
 
 
 def write_or_check(path: Path, content: bytes, check: bool) -> None:

@@ -2,6 +2,46 @@
   "authority": "rewritten requirement-to-SPEC bindings; draft target evidence",
   "promoted_current_regressions": [
     {
+      "command": "cargo test -p simulation tests::scenarios::sentinel_journey::sentinel_journey_produce_haul_deliver_conserves -- --test-threads=1",
+      "description": "Cross-domain target journey: declared production, match, physical haul, delivery, and consumption conserve quantity (EVID-LOGISTICS-001) with request distinct from receipt and consumption (EVID-PRODUCTION-002).",
+      "evidence_ids": [
+        "EVID-LOGISTICS-001",
+        "EVID-PRODUCTION-002"
+      ],
+      "id": "SENTINEL-JOURNEY-HAUL-CONSERVES",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001",
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "promoted target journey",
+      "specification_ids": [
+        "SPEC-LOGISTICS-002",
+        "SPEC-LOGISTICS-006",
+        "SPEC-PRODUCTION-003"
+      ],
+      "test": "tests::scenarios::sentinel_journey::sentinel_journey_produce_haul_deliver_conserves"
+    },
+    {
+      "command": "cargo test -p simulation tests::scenarios::sentinel_journey::sentinel_journey_stall_recovers_without_loss -- --test-threads=1",
+      "description": "Cross-domain target journey: a truck-less haul stalls visibly without loss and recovers on truck arrival (EVID-LOGISTICS-002) while the starved buyer stays registered with no free stock (EVID-PRODUCTION-004).",
+      "evidence_ids": [
+        "EVID-LOGISTICS-002",
+        "EVID-PRODUCTION-004"
+      ],
+      "id": "SENTINEL-JOURNEY-STALL-RECOVERS",
+      "requirement_ids": [
+        "REQ-LOGISTICS-001",
+        "REQ-PRODUCTION-001"
+      ],
+      "scope": "promoted target journey",
+      "specification_ids": [
+        "SPEC-LOGISTICS-004",
+        "SPEC-PRODUCTION-005",
+        "SPEC-PRODUCTION-008"
+      ],
+      "test": "tests::scenarios::sentinel_journey::sentinel_journey_stall_recovers_without_loss"
+    },
+    {
       "command": "cargo test -p simulation tests::scenarios::hoarding::scenario_0082_dispatch_gates_stock_not_match -- --test-threads=1",
       "description": "Current dispatch implementation delays stock transfer until its current delivery gate.",
       "id": "SENTINEL-SUBSTRATE-DISPATCH-GATE",

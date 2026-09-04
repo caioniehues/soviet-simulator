@@ -83,8 +83,8 @@ fn refused_unpark_mid_parking_retries_to_completion() {
     let mut ctx = TestCtx::new();
     ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(100.0, 0.0, 0.0)]);
 
-    let home = ctx.build_house_near(Vec2::new(0.0, 0.0));
-    let dest = ctx.build_house_near(Vec2::new(90.0, 0.0));
+    let home = ctx.build_house_at(Vec2::new(0.0, 20.0));
+    let dest = ctx.build_house_at(Vec2::new(90.0, 20.0));
     let human = spawn_human(&mut ctx.g, home).expect("human must spawn");
     let car = ctx
         .g
@@ -215,7 +215,7 @@ fn test_router_and_back() {
 
     ctx.build_roads(&[vec2(0.0, 0.0), vec2(100.0, 0.0), vec2(100.0, 50.0)]);
 
-    let b1 = ctx.build_house_near(vec2(0.0, 0.0));
+    let b1 = ctx.build_house_at(vec2(0.0, 0.0));
     let human = spawn_human(&mut ctx.g, b1).unwrap();
 
     ctx.g
@@ -225,7 +225,7 @@ fn test_router_and_back() {
         .write::<ParCommandBuffer>()
         .remove_component::<Desire<BuyFood>>(human.0);
 
-    let b2 = ctx.build_house_near(vec2(100.0, 5.0));
+    let b2 = ctx.build_house_at(vec2(100.0, 5.0));
 
     for _ in 0..3 {
         ctx.g
@@ -268,7 +268,7 @@ fn test_router_and_back_change_middle() {
 
     ctx.build_roads(&[vec2(0.0, 0.0), vec2(100.0, 0.0), vec2(100.0, 50.0)]);
 
-    let b1 = ctx.build_house_near(vec2(0.0, 0.0));
+    let b1 = ctx.build_house_at(vec2(0.0, 0.0));
     let human = spawn_human(&mut ctx.g, b1).unwrap();
 
     ctx.g
@@ -278,7 +278,7 @@ fn test_router_and_back_change_middle() {
         .write::<ParCommandBuffer>()
         .remove_component::<Desire<BuyFood>>(human.0);
 
-    let b2 = ctx.build_house_near(vec2(100.0, 5.0));
+    let b2 = ctx.build_house_at(vec2(100.0, 5.0));
 
     for _ in 0..3 {
         ctx.g

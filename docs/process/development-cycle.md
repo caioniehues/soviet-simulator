@@ -279,7 +279,7 @@ Both lanes are archived — restore with `git mv docs/archive/agents-2026-09-02/
 
 | Agent | Does |
 |---|---|
-| `release-engineer` | Pin dependencies to commits. `egui` is currently `git = "…"` with **no branch or rev at all**, tracking upstream HEAD; `yakui` points at a personal fork's `dev` branch. The build is not reproducible |
+| `release-engineer` | Pin dependencies to commits. Done 2026-09-04 (sov-buw): `egui` at rev `d4e8966a`, `yakui` at rev `6c6982ff`; cadence rule in `docs/process/dependency-policy.md`. Verify pins on release, do not re-pin blindly |
 | `perf-engineer` | Five PROPOSED bench gates at 250k scale (`bench_services`, `bench_terrain`, `bench_chains`, `bench_rail`, `bench_save`) — **none exist yet, and the charter names none of them**; it delegates gate definition to the implementation plan (charter:55-57). `sov-1ae` would have built the first, but is CLOSED — cancelled 2026-08-27, WIP preserved unmerged on `wip/sov-m0q-wave1` — so the lane is dropped |
 
 Then the visual proof. Per `CLAUDE.md`, work is not done until the user has seen it running: a

@@ -2,14 +2,13 @@
 //! each as a `#[test]` fn whose name carries its stable corpus ID
 //! (`scenario_0082_...`, `journey_0001_...`).
 //!
-//! Sentinel set (planned, not yet implemented): six corpus IDs are nominated
-//! for regression re-runs across iterations (JOURNEY-0001, SCENARIO-0009,
-//! SCENARIO-0015, SCENARIO-0090, SCENARIO-0115, SCENARIO-0118), but no active
-//! test fn name contains `sentinel` today (verified 2026-09-03), so
-//! `cargo test -p simulation sentinel` matches zero tests. Until sentinel
-//! tests land, run `cargo test -p simulation scenario_`
-//! (verified 2026-09-04: 31 tests) for the scenario set. Scenarios not in
-//! the sentinel set omit that tag.
+//! Sentinel set: `sentinel_*` tests re-run every iteration as the regression
+//! corpus. The substrate sentinels (`scenario_0082/0083/0151`, promoted in
+//! `docs/plan/iterations/evidence/build_evidence.py`) plus the cross-domain
+//! target journeys (`sentinel_journey_*`, same promotion record) all run the
+//! standing pillar assertions in `sentinel_pillars`. Runnable corpus command:
+//! `cargo test -p simulation sentinel -- --test-threads=1`.
+//! Scenarios not in the sentinel set omit the `sentinel_` prefix.
 
 use super::*;
 
@@ -18,8 +17,9 @@ mod inflation;
 mod ledger;
 mod recipe_provided;
 mod retail;
+mod sentinel_journey;
+mod sentinel_pillars;
 mod validation;
-
 /// Harness smoke test: proves the scenario harness works end to end
 /// (roads, lot-independent building placement, multi-tick advance, and the
 /// periodic determinism check all fire). Not a corpus-numbered scenario.
