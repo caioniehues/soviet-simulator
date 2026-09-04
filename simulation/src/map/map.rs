@@ -1120,3 +1120,304 @@ impl MapObj for LotID {
         map.lots.get(self)
     }
 }
+
+/// Acceptance tests for the strategic route cache (sov-oiu).
+///
+/// The cache ranks candidate destinations and seeds lane sequences ONLY. The
+/// authoritative tick-seeded A* always decides the final path, and a stale
+/// cache is never served. PILLAR: these tests touch `&Map` plus owned IDs;
+#[cfg(test)]
+mod strategic_cache_acceptance {
+    use super::*;
+    use crate::map::{
+        LanePatternBuilder, PathKind, Pathfinder, StrategicCache, StrategicRevision,
+    };
+    use crate::map::{Traversable, TraverseDirection, TraverseKind};
+    use common::hash_u64;
+    use slotmapd::Key;
+
+    struct Diamond {
+        map: Map,
+        start: LaneID,
+        fork_left: LaneID,
+        fork_right: LaneID,
+        exit_left: LaneID,
+        road_fork_left: RoadID,
+    }
+
+    fn driving_lane(map: &Map, src: IntersectionID, dst: IntersectionID) -> LaneID {
+        map.lanes
+            .iter()
+            .find(|(_, lane)| {
+                lane.kind == LaneKind::Driving && lane.src == src && lane.dst == dst
+            })
+            .map(|(id, _)| id)
+            .unwrap_or_else(|| panic!("no driving lane {src:?} -> {dst:?}"))
+    }
+
+    /// Lead-in road plus a symmetric diamond. All legs are 30m at the same
+    /// speed limit, so the two fork lanes cost exactly the same statically.
+    fn diamond() -> Diamond {
+        let mut map = Map::empty();
+        let s = map.add_intersection(Vec3::new(-30.0, 0.0, 0.0));
+        let a = map.add_intersection(Vec3::new(0.0, 0.0, 0.0));
+        let b = map.add_intersection(Vec3::new(30.0, 0.0, 0.0));
+        let c = map.add_intersection(Vec3::new(0.0, 30.0, 0.0));
+        let d = map.add_intersection(Vec3::new(30.0, 30.0, 0.0));
+        let pattern = LanePatternBuilder::new()
+            .sidewalks(false)
+            .parking(false)
+            .build();
+        map.connect(s, a, &pattern, RoadSegmentKind::Straight);
+        let road_fork_left = map
+            .connect(a, b, &pattern, RoadSegmentKind::Straight)
+            .expect("fork road builds");
+        map.connect(a, c, &pattern, RoadSegmentKind::Straight);
+        map.connect(b, d, &pattern, RoadSegmentKind::Straight);
+        map.connect(c, d, &pattern, RoadSegmentKind::Straight);
+        for inter in [s, a, b, c, d] {
+            map.update_intersection(inter, |_| {});
+        }
+        Diamond {
+            start: driving_lane(&map, s, a),
+            fork_left: driving_lane(&map, a, b),
+            fork_right: driving_lane(&map, a, c),
+            exit_left: driving_lane(&map, b, d),
+            road_fork_left,
+            map,
+        }
+    }
+
+    fn astar_lanes(map: &Map, tick: Tick, start: LaneID, end: LaneID) -> Vec<LaneID> {
+        PathKind::Vehicle
+            .path(
+                map,
+                tick,
+                Traversable::new(TraverseKind::Lane(start), TraverseDirection::Forward),
+                end,
+            )
+            .expect("authoritative A* must connect the fixture")
+            .into_iter()
+            .filter_map(|step| match step.kind {
+                TraverseKind::Lane(id) => Some(id),
+                TraverseKind::Turn(_) => None,
+            })
+            .collect()
+    }
+
+    fn astar_path(map: &Map, tick: Tick, start: LaneID, end: LaneID) -> Vec<Traversable> {
+        PathKind::Vehicle
+            .path(
+                map,
+                tick,
+                Traversable::new(TraverseKind::Lane(start), TraverseDirection::Forward),
+                end,
+            )
+            .expect("authoritative A* must connect the fixture")
+    }
+
+    fn replay_hash(path: &[Traversable]) -> u64 {
+        hash_u64(
+            path.iter()
+                .map(|step| match step.kind {
+                    TraverseKind::Lane(id) => (0u64, id.data().as_ffi(), 0u64, 0u64),
+                    TraverseKind::Turn(id) => (
+                        1u64,
+                        id.parent.as_ffi(),
+                        id.src.data().as_ffi(),
+                        id.dst.data().as_ffi(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    /// Every step must exist in the current map with legal turns and
+    /// authorized lanes, alternating turn/lane after the start step.
+    fn assert_physically_valid(map: &Map, start: Traversable, path: &[Traversable]) {
+        assert!(!path.is_empty(), "path must not be empty");
+        assert_eq!(path[0], start, "path must begin at the start step");
+        assert!(
+            path[0].raw_points(map).is_some(),
+            "start step must have geometry"
+        );
+        let mut last_lane = start.destination_lane();
+        let mut i = 1;
+        while i < path.len() {
+            let turn_step = &path[i];
+            let lane_step = &path[i + 1];
+            let turn_id = match turn_step.kind {
+                TraverseKind::Turn(id) => id,
+                TraverseKind::Lane(_) => panic!("expected turn at step {i}"),
+            };
+            assert_eq!(turn_step.dir, TraverseDirection::Forward);
+            assert_eq!(turn_id.src, last_lane, "turn must leave the last lane");
+            assert!(!turn_id.bidirectional, "vehicle turns are one-way");
+            let next_lane = match lane_step.kind {
+                TraverseKind::Lane(id) => id,
+                TraverseKind::Turn(_) => panic!("expected lane at step {}", i + 1),
+            };
+            assert_eq!(turn_id.dst, next_lane, "turn must enter the next lane");
+            let lane = map.lanes.get(next_lane).expect("lane must exist");
+            assert!(
+                matches!(lane.kind, LaneKind::Driving | LaneKind::Bus),
+                "lane must be vehicle-authorized"
+            );
+            let inter = map
+                .intersections
+                .get(lane.src)
+                .expect("lane source intersection must exist");
+            assert_eq!(turn_id.parent, inter.id, "turn lives at the lane entry");
+            assert!(
+                inter
+                    .turns_from(last_lane)
+                    .any(|(legal, _)| legal.dst == next_lane),
+                "turn must be legal in the current map"
+            );
+            assert!(turn_step.raw_points(map).is_some(), "turn needs geometry");
+            assert!(lane_step.raw_points(map).is_some(), "lane needs geometry");
+            last_lane = next_lane;
+            i += 2;
+        }
+    }
+
+    #[test]
+    fn sov_dda_fast_paths_frozen_cache() {
+        let tick = Tick(7);
+        let Diamond {
+            mut map,
+            start,
+            fork_left,
+            fork_right,
+            exit_left,
+            road_fork_left,
+        } = diamond();
+        let start_step = Traversable::new(TraverseKind::Lane(start), TraverseDirection::Forward);
+
+        // PILLAR baseline: revision, lane count, and authoritative outcome
+        // before any cache lookup.
+        let revision_before = StrategicRevision::of(&map);
+        let lanes_before = map.lanes.len();
+        let authoritative_before = replay_hash(&astar_path(&map, tick, start, exit_left));
+
+        let cache = StrategicCache::build(&map);
+        assert!(cache.is_current(&map));
+        assert_eq!(cache.revision(), revision_before);
+
+        // (1) The cache ranks and seeds, but the A* decides. The delivered
+        // path is the authoritative tick-seeded A* path: its replay hash is
+        // unchanged by running the cache in the loop.
+        let ranked = cache
+            .rank_if_current(&map, start, &[exit_left, fork_right])
+            .expect("current cache must rank");
+        assert_eq!(
+            ranked,
+            vec![fork_right, exit_left],
+            "nearer static destination ranks first"
+        );
+        let seed = cache
+            .seed_if_current(&map, start, exit_left)
+            .expect("current cache must seed a connected lane");
+        assert_eq!(seed.first(), Some(&start));
+        assert_eq!(seed.last(), Some(&exit_left));
+        let expanded = StrategicCache::expand_seed(&map, start_step, &seed)
+            .expect("seed from a current cache must expand legally");
+        assert_physically_valid(&map, start_step, &expanded);
+        let delivered = astar_path(&map, tick, start, ranked[0]);
+        assert_physically_valid(&map, start_step, &delivered);
+        assert_eq!(
+            replay_hash(&delivered),
+            replay_hash(&astar_path(&map, tick, start, ranked[0])),
+            "delivered path equals pure authoritative routing: cache never decides"
+        );
+        // The cache takes no tick: its answers are identical across ticks
+        // while the authority stays tick-seeded, so it cannot reproduce —
+        // and therefore cannot weaken — deterministic tie-breaking.
+        for other in [Tick(0), Tick(1), Tick(u64::MAX)] {
+            assert_eq!(
+                cache.rank(start, &[exit_left, fork_right]),
+                ranked,
+                "static ranking ignores ticks"
+            );
+            let _ = astar_lanes(&map, other, start, exit_left);
+        }
+
+        // (2) Tie determinism: the symmetric fork pair costs exactly the same
+        // statically, so ranking canonicalizes by stable LaneID order — and
+        // that order survives a rebuild.
+        assert_eq!(
+            cache.cached_cost(start, fork_left),
+            cache.cached_cost(start, fork_right),
+            "symmetric fork must tie statically"
+        );
+        let mut tie_ids = vec![fork_left, fork_right];
+        tie_ids.sort();
+        assert_eq!(
+            cache.rank(start, &[fork_right, fork_left]),
+            tie_ids,
+            "ties break by stable LaneID order, not hierarchy order"
+        );
+        let rebuilt = StrategicCache::build(&map);
+        assert_eq!(
+            rebuilt.rank(start, &[fork_right, fork_left]),
+            tie_ids,
+            "tie order is stable across rebuilds"
+        );
+
+        // Separately-serialized round trip: mapping + edges only, prepared
+        // graph re-derived. Same revision, same answers on the live map.
+        let json = serde_json::to_string(&cache.snapshot()).expect("snapshot serializes");
+        let snapshot: crate::map::StrategicSnapshot =
+            serde_json::from_str(&json).expect("snapshot deserializes");
+        let restored = snapshot
+            .materialize()
+            .expect("snapshot materializes");
+        assert_eq!(restored.revision(), cache.revision());
+        assert!(restored.is_current(&map));
+        assert_eq!(restored.rank(start, &[exit_left, fork_right]), ranked);
+        assert_eq!(restored.seed(start, exit_left), Some(seed));
+
+        // PILLAR: lookups changed nothing observable.
+        assert_eq!(StrategicRevision::of(&map), revision_before);
+        assert_eq!(map.lanes.len(), lanes_before);
+        assert_eq!(
+            replay_hash(&astar_path(&map, tick, start, exit_left)),
+            authoritative_before,
+            "authoritative outcome unchanged by cache lookups"
+        );
+
+        // (3) Stale topology is never served. Removing one fork road flips the
+        // named revision; guarded lookups refuse; a rebuild serves again.
+        map.remove_road(road_fork_left);
+        assert!(
+            !cache.is_current(&map),
+            "road edit must invalidate the cache"
+        );
+        assert_eq!(cache.seed_if_current(&map, start, exit_left), None);
+        assert_eq!(cache.rank_if_current(&map, start, &[exit_left]), None);
+        let fresh = StrategicCache::build(&map);
+        assert!(fresh.is_current(&map));
+        assert_ne!(fresh.revision(), cache.revision());
+        let fresh_seed = fresh
+            .seed_if_current(&map, start, exit_left)
+            .expect("rebuilt cache routes the edited map");
+        assert!(!fresh_seed.contains(&fork_left), "seed avoids the removed road");
+        let fresh_path = astar_path(&map, tick, start, exit_left);
+        assert_physically_valid(&map, start_step, &fresh_path);
+        let expanded_fresh =
+            StrategicCache::expand_seed(&map, start_step, &fresh_seed).expect("fresh seed valid");
+        assert_physically_valid(&map, start_step, &expanded_fresh);
+
+        // Static-weight drift invalidates too: halving the exit speed limit
+        // renames the revision even though the topology is untouched.
+        map.lanes
+            .get_mut(exit_left)
+            .expect("exit lane survives")
+            .speed_limit *= 0.5;
+        assert!(
+            !fresh.is_current(&map),
+            "weight change must invalidate the cache"
+        );
+        assert_eq!(fresh.seed_if_current(&map, start, exit_left), None);
+    }
+}
