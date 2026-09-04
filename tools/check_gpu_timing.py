@@ -40,10 +40,22 @@ def compare(baseline: dict, capture: dict) -> list[str]:
         for entry in timing.get("passes", [])
         if isinstance(entry, dict) and isinstance(entry.get("pass"), str)
     }
-    tolerance = baseline.get("max_regression_fraction")
-    if not isinstance(tolerance, (int, float)) or tolerance < 0:
+    per_pass = baseline.get("tolerances", {})
+    if not isinstance(per_pass, dict):
+        failures.append("tolerances must be a per-pass object")
+        per_pass = {}
+    legacy = baseline.get("max_regression_fraction")
+    legacy_ok = isinstance(legacy, (int, float)) and legacy >= 0
+    if not per_pass and not legacy_ok:
         failures.append("max_regression_fraction must be a non-negative number")
-        tolerance = 0
+        legacy = 0
+
+    def tolerance_for(pass_name: str) -> float:
+        # Each pass answers for its own spread first (sov-70h); the global is only
+        # the schema-1 fallback for baselines that predate per-pass tolerances.
+        if isinstance(per_pass.get(pass_name), (int, float)):
+            return float(per_pass[pass_name])
+        return float(legacy) if legacy_ok else 0.0
 
     for pass_name, expected_median in baseline.get("medians_us", {}).items():
         entry = actual_passes.get(pass_name)
@@ -54,6 +66,10 @@ def compare(baseline: dict, capture: dict) -> list[str]:
         if not isinstance(actual_median, (int, float)):
             failures.append(f"pass {pass_name!r} has no numeric median_us")
             continue
+        if pass_name not in per_pass and not legacy_ok:
+            failures.append(f"pass {pass_name!r} has no tolerance in the baseline")
+            continue
+        tolerance = tolerance_for(pass_name)
         limit = expected_median * (1 + tolerance)
         if actual_median > limit:
             failures.append(

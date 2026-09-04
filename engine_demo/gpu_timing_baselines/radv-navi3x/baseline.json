@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "adapter_class": "radv-navi3x",
   "adapter_match": {
     "backend": "Vulkan",
@@ -8,23 +8,57 @@
     "driver": "radv"
   },
   "scene": "baseline",
-  "max_regression_fraction": 0.30,
-  "tolerance_rationale": "Measured main-pass spread was about 10 percent on RADV NAVI32. The 30 percent limit gives three times that observed noise while still catching a material regression.",
-  "medians_us": {
-    "depth_prepass": 25.120,
-    "shadow_cascade_0": 12.480,
-    "shadow_cascade_1": 10.200,
-    "shadow_cascade_2": 10.240,
-    "shadow_cascade_3": 10.200,
-    "ssao": 33.680,
-    "fog": 28.360,
-    "main": 92.120,
-    "background": 24.360
+  "provenance": {
+    "git_commit": "faca44d7e65d28cf83a211d21be19e8f56af001a",
+    "commit_note": "main HEAD on 2026-09-04; reachable from main by construction. Replaces the unreachable-commit medians (sov-ezf).",
+    "recorded_at": "2026-09-04",
+    "record_runs": 3,
+    "samples_per_pass_per_run": 30,
+    "warmup_frames": 90,
+    "command": "cargo run -p engine_demo -- capture --scene baseline --out <dir> --gpu-timings --gpu-samples 30",
+    "adapter": "AMD Radeon RX 7800 XT (RADV NAVI32), Mesa 26.2.1-arch3.1, 1280x720, debug profile",
+    "quiescence": "No concurrent GPU load. Two extra runs showed a uniform ~1.16-1.35x slowdown across ALL nine passes (clock/contention drift, not a code effect) and were excluded; a code regression cannot scale every pass uniformly while the scene is fixed.",
+    "tree_note": "engine/, engine_demo/ and tools/ held in-flight sibling changes at record time (capture record plumbing only: present_mode Option, windowed-capture cfg, h4y sample bound; none touch render passes, resolutions, or the timing window). The medians below are the per-pass median of the three quiet run-medians."
   },
+  "medians_us": {
+    "depth_prepass": 18.320,
+    "shadow_cascade_0": 9.120,
+    "shadow_cascade_1": 8.200,
+    "shadow_cascade_2": 8.160,
+    "shadow_cascade_3": 8.160,
+    "ssao": 25.080,
+    "fog": 21.080,
+    "main": 69.160,
+    "background": 18.560
+  },
+  "measured_spread_fraction": {
+    "depth_prepass": 0.002,
+    "shadow_cascade_0": 0.000,
+    "shadow_cascade_1": 0.020,
+    "shadow_cascade_2": 0.015,
+    "shadow_cascade_3": 0.015,
+    "ssao": 0.002,
+    "fog": 0.002,
+    "main": 0.023,
+    "background": 0.004
+  },
+  "tolerances": {
+    "depth_prepass": 0.15,
+    "shadow_cascade_0": 0.15,
+    "shadow_cascade_1": 0.15,
+    "shadow_cascade_2": 0.15,
+    "shadow_cascade_3": 0.15,
+    "ssao": 0.15,
+    "fog": 0.15,
+    "main": 0.15,
+    "background": 0.15
+  },
+  "tolerance_rule": "tolerance(pass) = max(3 * measured_spread_fraction(pass), 0.15). measured_spread_fraction is each pass's own run-to-run median range over the three quiet provenance runs, divided by its baseline median.",
+  "tolerance_rationale": "Quiescent run-to-run spread is 0.0-2.3% depending on the pass (main is noisiest at 2.3%, so 3x would give 6.8%). The 0.15 floor covers unmeasured quiescent-machine rerun variance with about 6x margin while staying about 2x below the 29% ssao regression the gate must catch (sov-70h): every pass fails a 29% move, and ordinary rerun noise (+-2%) passes everywhere. Gate runs need a quiet GPU; on failure, re-run quiet before blaming code. Replaces the old global 0.30 justified from the main pass alone.",
   "rank_order": [
     ["main", "ssao"],
     ["ssao", "fog"],
-    ["fog", "depth_prepass"],
-    ["depth_prepass", "background"]
-  ]
+    ["fog", "depth_prepass"]
+  ],
+  "rank_note": "The old [depth_prepass, background] pair is dropped: the two passes sit within noise of each other (18.32 vs 18.56us) and their order already flipped between baselines. Kept pairs have 15%+ margins and uniform environmental scaling cannot reorder them."
 }
