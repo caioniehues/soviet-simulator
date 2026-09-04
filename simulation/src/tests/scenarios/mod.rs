@@ -8,7 +8,7 @@
 //! test fn name contains `sentinel` today (verified 2026-09-03), so
 //! `cargo test -p simulation sentinel` matches zero tests. Until sentinel
 //! tests land, run `cargo test -p simulation scenario_`
-//! (verified 2026-09-03: 30 tests) for the scenario set. Scenarios not in
+//! (verified 2026-09-04: 31 tests) for the scenario set. Scenarios not in
 //! the sentinel set omit that tag.
 
 use super::*;
@@ -35,8 +35,16 @@ fn scenario_harness_smoke() {
     assert!(ctx.g.map().buildings().contains_key(b));
 }
 
+mod sov_13h_retries;
 mod sov_20g_exports;
+mod sov_5ut_exits;
 mod sov_7f7_settlement;
+mod sov_91e_park;
 mod sov_ahw;
+mod sov_b70_border_age;
 mod sov_bub_loss_sink;
+mod sov_eix_throughput;
+mod sov_nun_export_lane;
+mod sov_otw_return;
+mod sov_q5p_inflight;
 mod sov_uo5_border_stock;

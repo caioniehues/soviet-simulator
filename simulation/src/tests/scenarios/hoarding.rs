@@ -230,7 +230,13 @@ fn scenario_0083_zero_trucks_blocks_delivery() {
 #[test]
 fn scenario_0151_inflated_request_hoards_honest_does_not() {
     let mut ctx = TestCtx::new();
-
+    // No border for this domestic scenario: since sov-20g an export is a
+    // physical dispatch to the border door (capped at 100 units/pass by
+    // sov-eix), so the seller's 1000-unit surplus would flood the single
+    // truck with ~10 far-away export runs and starve the two domestic
+    // deliveries this scenario is actually about. Removing the default
+    // station keeps the honest-vs-inflated signal on the shared truck alone.
+    super::inflation::remove_default_freight_station(&mut ctx);
     ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(270.0, 0.0, 0.0)]);
     let bakery = GoodsCompanyID::new("bakery").prototype();
     let seller_b = build_company_at(&mut ctx, bakery, Vec2::new(30.0, 20.0));
@@ -306,4 +312,97 @@ fn scenario_0151_inflated_request_hoards_honest_does_not() {
         "inflated company must accumulate surplus above true consumption: {}",
         m.capital(inflated, cereal)
     );
+}
+
+/// sov-ijo: two domestic dispatches driving on two trucks at once must hold
+/// the per-tick save/load determinism check. Both dispatches run while
+/// `check_determinism` fires (every `tick`/`advance_ticks` check), with no
+/// ext-trade in the world, so a trip is a real divergence, not the
+/// `transport_grid` order artefact (sov-qi8/sov-733, now covered by the
+/// `transport_grid_equal` fallback in the check itself).
+#[test]
+fn sov_ijo_two_trucks_driving_simultaneously_hold_determinism() {
+    let mut ctx = TestCtx::new();
+    super::inflation::remove_default_freight_station(&mut ctx);
+
+    // One seller, two buyers on one road: a single match tick creates two
+    // domestic dispatches, and two parked trucks let both drive at once
+    // instead of serializing through the `Dispatcher` (cf. SCENARIO-0151).
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(390.0, 0.0, 0.0)]);
+    let bakery = GoodsCompanyID::new("bakery").prototype();
+    let seller_b = build_company_at(&mut ctx, bakery, Vec2::new(30.0, 20.0));
+    let buyer1_b = ctx.build_house_at(Vec2::new(180.0, 20.0));
+    let buyer2_b = ctx.build_house_at(Vec2::new(330.0, 20.0));
+
+    ctx.tick(); // company soul spawns, like houses
+
+    let seller = ctx.g.read::<BuildingInfos>().owner(seller_b).unwrap();
+    let buyer1 = mk_soul((1 << 32) | 21);
+    let buyer2 = mk_soul((1 << 32) | 22);
+    {
+        let mut binfos = ctx.g.write::<BuildingInfos>();
+        binfos.set_owner(buyer1_b, buyer1);
+        binfos.set_owner(buyer2_b, buyer2);
+    }
+
+    let map = ctx.g.map();
+    let seller_pos = map.buildings.get(seller_b).unwrap().door_pos;
+    let buyer1_pos = map.buildings.get(buyer1_b).unwrap().door_pos;
+    let buyer2_pos = map.buildings.get(buyer2_b).unwrap().door_pos;
+    drop(map);
+    spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos).expect("first truck must spawn");
+    // The second truck must park UPSTREAM of the seller, not beside it:
+    // `Dispatcher::query` only offers trucks at or behind the query target
+    // along the driving direction, so a second `reserve_near(seller_pos)` can
+    // take a nearer free spot downstream of the seller door that is never
+    // offered to the second dispatch. That serializes the two deliveries and
+    // the simultaneity below is never exercised. Parking it further up-road
+    // keeps both trucks offerable, so both dispatches hold one at once.
+    spawn_parked_vehicle(&mut ctx.g, VehicleKind::Truck, seller_pos + Vec3::new(90.0, 0.0, 0.0))
+        .expect("second truck must spawn");
+
+    let cereal = ItemID::new("cereal");
+    {
+        let mut m = ctx.g.write::<Market>();
+        m.produce(seller, cereal, 10);
+        m.sell(seller, seller_pos.xy(), cereal, 10, 0);
+        m.buy(buyer1, buyer1_pos.xy(), cereal, 5);
+        m.buy(buyer2, buyer2_pos.xy(), cereal, 5);
+    }
+
+    // The match happens on the next tick's market_update: two dispatches.
+    ctx.tick();
+    assert_eq!(
+        ctx.g.read::<Market>().dispatches().len(),
+        2,
+        "one seller and two buyers must match into two domestic dispatches"
+    );
+
+    // Both dispatches must hold a truck at the same time: without that,
+    // the test would merely serialize two deliveries and never reproduce
+    // the two-at-once driving sov-ijo reports.
+    let mut both_driving = false;
+    for _ in 0..500 {
+        ctx.tick();
+        let m = ctx.g.read::<Market>();
+        if m.dispatches().len() == 2 && m.dispatches().iter().all(|d| d.truck().is_some()) {
+            both_driving = true;
+            break;
+        }
+    }
+    assert!(
+        both_driving,
+        "both domestic dispatches must hold a truck simultaneously"
+    );
+
+    // Both deliveries complete while the determinism check fires throughout.
+    assert!(
+        drain_dispatches(&mut ctx, 20000),
+        "both dispatches must complete with two trucks available"
+    );
+
+    let m = ctx.g.read::<Market>();
+    assert_eq!(m.capital(seller, cereal), 0, "seller must end up debited");
+    assert_eq!(m.capital(buyer1, cereal), 5, "first buyer must end up credited");
+    assert_eq!(m.capital(buyer2, cereal), 5, "second buyer must end up credited");
 }

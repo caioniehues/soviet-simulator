@@ -795,8 +795,9 @@ fn sov_jcl_outbound_loading_route_failure_is_bounded() {
         .filter(|(_, v)| matches!(v.vehicle.kind, VehicleKind::Truck))
         .count();
 
-    // The bound is MAX_RETURN_ROUTE_RETRIES (20); give it a margin.
-    for _ in 0..40 {
+    // The bound is MAX_RETURN_ROUTE_RETRIES (300 since sov-13h raised it from
+    // 20 so transient road works ride through); give it a margin.
+    for _ in 0..600 {
         ctx.tick();
     }
 

@@ -33,6 +33,13 @@ pub struct SellOrder {
 pub struct BuyOrder {
     pub pos: Vec2,
     pub qty: u32,
+    /// Market passes survived since posting (sov-b70): an unmatched order
+    /// ages here and only becomes border-eligible at
+    /// `BORDER_ELIGIBILITY_TICKS`, so a domestic producer that gains stock
+    /// the next tick wins the order instead of the border. Domestic matching
+    /// ignores age entirely. Re-posting (`buy` over an existing order) keeps
+    /// the age; only a genuinely new order starts at 0.
+    pub age: u32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -103,6 +110,13 @@ pub struct Market {
     /// Named honest-loss sink (sov-bub): one row per deleted dispatch
     /// (`LostEntry`), written by every deletion site alongside its warning.
     lost: Vec<LostEntry>,
+    /// Border money owed back to the treasury (sov-5ut): `advance_dispatches`
+    /// returns each tick's settlement directly, but `Market::remove` runs
+    /// outside it (from `sim_drop`) with no `Government` access, so a remove
+    /// path that unwinds an already-settled border leg parks the reversal
+    /// here instead. Drained by `market_update` via `take_refunds` on the
+    /// next pass — a one-tick delay, never a loss.
+    refunds_due: Money,
     // reuse the trade vec to avoid allocations
     #[serde(skip)]
     all_trades: Vec<Trade>,
@@ -134,7 +148,6 @@ pub fn find_trade_place(target: TradeTarget, binfos: &BuildingInfos) -> Option<B
 /// itself is no longer a fixed proxy: it's however long the truck actually takes
 /// to drive there.
 const DISPATCH_DWELL_TICKS: u32 = 3;
-
 /// How many consecutive tick-retries a `Loading` dispatch gets to find a
 /// route out — either onward to a live buyer (`DispatchState::ToDestination`)
 /// or back to the seller after the buyer was demolished
@@ -142,10 +155,32 @@ const DISPATCH_DWELL_TICKS: u32 = 3;
 /// lost. A severed road can make the route search fail forever; without a
 /// bound this reintroduces the exact wedge shape this ticket exists to close.
 ///
+/// 300 ticks at 50 ticks/s is 6 seconds of wall clock at 1x (one
+/// game-minute). That is deliberately generous (sov-13h): the outbound
+/// trigger is usually TRANSIENT — `Itinerary::route` fails while the player
+/// drags a road, and the old bound of 20 ticks (0.4 s) sat inside a single
+/// road-drag, silently deleting city-wide loads. The bound still exists for
+/// the PERMANENT trigger (a demolished building), just later.
+///
 /// Both legs share `Dispatch::return_route_retries`: a dispatch only ever
 /// leaves `Loading` by one of them, and a budget already spent failing to
 /// reach the buyer is not worth re-granting to reach the seller.
-const MAX_RETURN_ROUTE_RETRIES: u32 = 20;
+const MAX_RETURN_ROUTE_RETRIES: u32 = 300;
+
+/// Market passes an unmatched non-human buy order must survive before the
+/// border may serve it (sov-b70). Domestic matching runs first every pass
+/// and ignores age, so with this at 1 an enterprise queues one pass on a
+/// domestic producer that gains stock the next tick instead of going abroad
+/// by default. The border stays the RESIDUAL supplier, not the default one.
+const BORDER_ELIGIBILITY_TICKS: u32 = 1;
+
+/// Border throughput per freight station per market pass, in units (sov-eix).
+/// The border is a HARD external constraint (Kornai): once a station has
+/// moved this much in one pass, further border matches wait for the next
+/// pass — they QUEUE, they are never refused and never priced out (clearing
+/// by price is forbidden). Domestic matching is uncapped; only the two
+/// ext-trade legs draw from this budget, imports and exports together.
+const MAX_BORDER_THROUGHPUT_PER_TICK: u32 = 100;
 
 /// How many consecutive ticks a `ToSource` dispatch may sit with NO truck
 /// assigned before it is given up on and the buyer's demand handed back to the
@@ -287,6 +322,7 @@ impl Default for Market {
             dispatches: Default::default(),
             retail_claims: Default::default(),
             lost: Default::default(),
+            refunds_due: Money::ZERO,
             all_trades: Default::default(),
             potential: Default::default(),
         }
@@ -324,6 +360,183 @@ impl Market {
         }
         self.sell(soul, near, kind, c as u32, stock);
     }
+}
+
+/// Everything a dispatch exit needs that is not the market itself (sov-5ut).
+/// `parking` is `None` on the `Market::remove` path, which runs from
+/// `sim_drop` without `ParkingManagement` access: those exits free the truck
+/// bare (as before) instead of parking it first.
+struct ExitCtx<'a> {
+    map: &'a Map,
+    binfos: &'a BuildingInfos,
+    world: &'a mut World,
+    dispatcher: &'a mut Dispatcher,
+    parking: Option<&'a mut ParkingManagement>,
+    tick: Tick,
+}
+
+/// How one return-to-seller attempt ends (sov-otw).
+enum ReturnOutcome {
+    /// The truck is routed to the seller and the dispatch is `Returning`.
+    Returning,
+    /// The seller's door is gone: nothing left to return the goods to.
+    SellerGone,
+    /// The seller stands but no route reaches it right now.
+    NoRouteBack,
+}
+
+impl Market {
+
+    /// One shared return-to-seller attempt (sov-otw), used by the dead-buyer
+    /// arm of `Market::remove` and the Loading buyer-gone branch of
+    /// `advance_dispatches` alike: resolve the seller's door, route the
+    /// truck there from wherever it is, and transition to `Returning` on
+    /// success. Failure is reported, never acted on: the ADVANCE path counts
+    /// it against `MAX_RETURN_ROUTE_RETRIES` (bounded retries, then honest
+    /// loss), while the REMOVE path gets exactly one attempt (it never had
+    /// retries). That asymmetry is deliberate — do not unify it.
+    fn try_return_to_seller(
+        &mut self,
+        index: usize,
+        map: &Map,
+        binfos: &BuildingInfos,
+        world: &mut World,
+        tick: Tick,
+    ) -> ReturnOutcome {
+        let d = self.dispatches[index];
+        let Some(seller_pos) = door_pos(d.seller, map, binfos) else {
+            return ReturnOutcome::SellerGone;
+        };
+        let start = d
+            .truck
+            .and_then(|v| world.vehicles.get(v))
+            .map(|ve| ve.trans.pos);
+        let route = start.and_then(|start| {
+            Itinerary::route(tick, start, seller_pos, map, PathKind::Vehicle)
+        });
+        let Some(route) = route else {
+            return ReturnOutcome::NoRouteBack;
+        };
+        if let Some(v) = d.truck {
+            if let Some(ve) = world.vehicles.get_mut(v) {
+                ve.it = route;
+            }
+        }
+        self.dispatches[index].state = DispatchState::Returning;
+        ReturnOutcome::Returning
+    }
+
+    /// One shared dispatch exit (sov-5ut): every dispatch termination that
+    /// does NOT deliver runs through here — the sov-ahw `ToSource` timeout
+    /// block is the model. Three duties, then the dispatch is gone:
+    ///
+    /// 1. Re-post the buyer's demand via `buy_until` (unless `repost_buyer`
+    ///    is false: the buyer is gone, or it already got the goods). Skipped
+    ///    automatically when the buyer's door is gone. The dispatch is
+    ///    removed BEFORE re-posting so `inbound_to` (sov-q5p) never counts
+    ///    the teardown dispatch itself and computes the full shortfall.
+    /// 2. Refund an already-settled border leg into `refunds_due`
+    ///    (ADR-0003 §5: border legs dead between match and delivery). That
+    ///    is an import past `ToSource` — settlement happens on the `Loading`
+    ///    arrival — and nothing else: `ToSource` exits settled nothing, and
+    ///    domestic legs carry a ZERO delta by construction (never "fix" it).
+    /// 3. Restore the seller's sell order from the pre-match shape (unless
+    ///    `restore_seller` is false: the goods are lost, or the seller is
+    ///    gone). Only `ToSource` exits and live-seller rollbacks qualify —
+    ///    restoring an offer for goods already debited-and-destroyed would
+    ///    conjure stock from nothing.
+    ///
+    /// `record_loss` writes the `Lost` row for goods debited but neither
+    /// delivered nor returned. The truck is parked-then-freed (sov-2c4
+    /// convention, sov-91e) wherever `parking` is available.
+    ///
+    /// Removing is `swap_remove`, so a second exit of the same dispatch is a
+    /// no-op by construction: there is nothing left at that shape to exit.
+    fn terminate_dispatch(
+        &mut self,
+        index: usize,
+        ctx: &mut ExitCtx,
+        repost_buyer: bool,
+        restore_seller: bool,
+        record_loss: bool,
+        reason: &str,
+    ) {
+        let d = self.dispatches[index];
+        // The match is undone first: everything below (notably the
+        // `buy_until` re-post) must observe a market WITHOUT this dispatch.
+        self.dispatches.swap_remove(index);
+        if let Some(v) = d.truck {
+            if let Some(parking) = ctx.parking.as_deref_mut() {
+                if let Some(pos) = ctx.world.vehicles.get(v).map(|ve| ve.trans.pos) {
+                    if let Ok(spot) = parking.reserve_near(pos, ctx.map) {
+                        if let Some(ve) = ctx.world.vehicles.get_mut(v) {
+                            park(ctx.map, ve, spot);
+                        }
+                    }
+                }
+            }
+            ctx.dispatcher.free(DispatchID::SmallTruck(v));
+        }
+        // The goods never physically left (or the seller row is gone with
+        // the seller): freeing the reservation is saturating, so releasing
+        // a row that was never reserved — an ext-trade import — is a no-op.
+        if let Some(r) = self.m(d.kind).reserved.get_mut(&d.seller) {
+            *r = r.saturating_sub(d.qty);
+        }
+        if restore_seller {
+            if let Some((pos, stock)) = d.sell_order {
+                // The sov-ahw shape: the match deletes the order outright at
+                // 0, so put the offer back — clamped to the seller's capital
+                // because `sell_all` may have re-posted off the full
+                // (still-undebited) capital in the meantime.
+                let m = self.m(d.kind);
+                let cap = m.capital(d.seller).unwrap_or(0).max(0) as u32;
+                match m.sell_orders.entry(d.seller) {
+                    Entry::Occupied(mut o) => {
+                        let order = o.get_mut();
+                        order.qty = (order.qty + d.qty).min(cap);
+                    }
+                    Entry::Vacant(v) => {
+                        v.insert(SellOrder {
+                            pos,
+                            qty: d.qty.min(cap),
+                            stock,
+                        });
+                    }
+                }
+            }
+        }
+        if repost_buyer && !matches!(d.buyer, SoulID::FreightStation(_)) {
+            // A freight-station buyer never consumes (it holds Border
+            // custody, a separate ledger): re-posting its "demand" would let
+            // it import from itself next pass. Export timeouts therefore
+            // restore the seller's offer only.
+            if let Some(buyer_pos) = door_pos(d.buyer, ctx.map, ctx.binfos) {
+                let want = self.requested(d.buyer, d.kind).unwrap_or(d.qty).max(d.qty);
+                self.buy_until(d.buyer, buyer_pos.xy(), d.kind, want);
+            }
+        }
+        if matches!(d.seller, SoulID::FreightStation(_)) && d.state != DispatchState::ToSource {
+            // The import leg settled on the `Loading` arrival and the goods
+            // never reached the buyer: reverse exactly that settlement.
+            self.refunds_due -= d.money_delta;
+        }
+        if record_loss {
+            self.record_lost(d.kind, d.qty);
+        }
+        log::warn!(
+            "dispatch {:?} {:?} ({:?} -> {:?}) terminated in {:?}: {}",
+            d.qty,
+            d.kind,
+            d.seller,
+            d.buyer,
+            d.state,
+            reason
+        );
+    }
+}
+impl Market {
+
 
     /// An agent was removed from the world, we need to clean after him
     /// `map`/`binfos`/`world`/`dispatcher`/`tick` are only needed to hand a
@@ -363,18 +576,25 @@ impl Market {
         }
 
         // Any dispatch naming this soul as buyer or seller is now a dangling
-        // reference. A dead SELLER is handled by the blanket `reserved`/
-        // `capital` removal above (the seller's own row is gone, so there's
-        // nothing left to credit or reserve); such dispatches are simply
-        // dropped, same as before.
+        // reference. A dead SELLER's own rows were wiped above, so there is
+        // nothing left to credit or reserve for it — but a LIVE buyer on the
+        // other end still needs its demand back (sov-5ut: the
+        // FreightStationEnt::sim_drop seller-half used to drop the buyer's
+        // dispatch silently, killing the enterprise permanently).
         //
         // A dead BUYER with a surviving seller is different: the seller's
         // row is still live, so silently dropping the dispatch either
         // strands `reserved[seller]` forever (`ToSource`, nothing debited
         // yet) or destroys goods already debited from the seller with no
-        // sink (`Loading`/`ToDestination`/`Returning`) -- see
+        // sink (`Loading`/`ToDestination`/`Returning`) — see
         // sov-dispatch-wedge-ab4. Route each such dispatch through the same
         // fate a live buyer-demolition takes in `advance_dispatches`.
+        //
+        // Every arm below terminates through `terminate_dispatch` (re-post
+        // unless the buyer is gone, refund of settled border legs, seller
+        // offer restored where the goods never left) and every return
+        // attempt through `try_return_to_seller` (one attempt here, never
+        // retries — the advance path's bound is its own, see sov-otw).
         let mut i = 0;
         while i < self.dispatches.len() {
             let d = &self.dispatches[i];
@@ -382,18 +602,29 @@ impl Market {
                 i += 1;
                 continue;
             }
-            let (seller, kind, qty, state, truck) = (d.seller, d.kind, d.qty, d.state, d.truck);
+            let state = d.state;
             match state {
                 DispatchState::ToSource => {
-                    // Nothing was ever debited: freeing the reservation is
-                    // the whole fix, the goods never physically left.
-                    if let Some(r) = self.m(kind).reserved.get_mut(&seller) {
-                        *r = r.saturating_sub(qty);
-                    }
-                    if let Some(v) = truck {
-                        dispatcher.free(DispatchID::SmallTruck(v));
-                    }
-                    self.dispatches.swap_remove(i);
+                    // Nothing was ever debited and the buyer is gone: free
+                    // the reservation and put the seller's offer back (the
+                    // sov-5ut TRAP — this arm used to free without
+                    // restoring), but re-post nothing for a dead buyer.
+                    let mut ctx = ExitCtx {
+                        map,
+                        binfos,
+                        world: &mut *world,
+                        dispatcher: &mut *dispatcher,
+                        parking: None,
+                        tick,
+                    };
+                    self.terminate_dispatch(
+                        i,
+                        &mut ctx,
+                        false,
+                        true,
+                        false,
+                        "buyer removed while waiting for a truck; seller offer restored",
+                    );
                     continue;
                 }
                 DispatchState::Loading
@@ -401,54 +632,53 @@ impl Market {
                 | DispatchState::Returning => {
                     // Seller already debited (or is mid-return): drive the
                     // goods physically back instead of teleport-refunding or
-                    // destroying them.
-                    if let Some(seller_pos) = door_pos(seller, map, binfos) {
-                        let start = truck
-                            .and_then(|v| world.vehicles.get(v))
-                            .map(|ve| ve.trans.pos);
-                        let route = start.and_then(|start| {
-                            Itinerary::route(tick, start, seller_pos, map, PathKind::Vehicle)
-                        });
-                        if let Some(route) = route {
-                            if let Some(v) = truck {
-                                if let Some(ve) = world.vehicles.get_mut(v) {
-                                    ve.it = route;
-                                }
-                            }
-                            self.dispatches[i].state = DispatchState::Returning;
-                        } else {
+                    // destroying them — one attempt, no retries.
+                    match self.try_return_to_seller(i, map, binfos, &mut *world, tick) {
+                        ReturnOutcome::Returning => {}
+                        ReturnOutcome::NoRouteBack => {
                             // No route back to the seller: an honest
                             // physical loss (the goods are already debited
-                            // from the seller and never credited to anyone),
-                            // same shape as the sibling loss paths above.
-                            log::warn!(
-                                "dispatch {:?} {:?} ({:?} -> dead buyer): no route back to \
-                                 seller, treating as lost",
-                                qty,
-                                kind,
-                                seller
+                            // from the seller and never credited to anyone).
+                            // A settled border leg is refunded inside.
+                            let mut ctx = ExitCtx {
+                                map,
+                                binfos,
+                                world: &mut *world,
+                                dispatcher: &mut *dispatcher,
+                                parking: None,
+                                tick,
+                            };
+                            self.terminate_dispatch(
+                                i,
+                                &mut ctx,
+                                false,
+                                false,
+                                true,
+                                "no route back to seller for a dead buyer's goods, treating as lost",
                             );
-                            self.record_lost(kind, qty);
-                            if let Some(v) = truck {
-                                dispatcher.free(DispatchID::SmallTruck(v));
-                            }
-                            self.dispatches.swap_remove(i);
                             continue;
                         }
-                    } else {
-                        // Seller is also gone: nothing left to return the
-                        // goods to.
-                        log::warn!(
-                            "dispatch {:?} {:?} lost: buyer and seller are both gone",
-                            qty,
-                            kind
-                        );
-                        self.record_lost(kind, qty);
-                        if let Some(v) = truck {
-                            dispatcher.free(DispatchID::SmallTruck(v));
+                        ReturnOutcome::SellerGone => {
+                            // Seller is also gone: nothing left to return the
+                            // goods to.
+                            let mut ctx = ExitCtx {
+                                map,
+                                binfos,
+                                world: &mut *world,
+                                dispatcher: &mut *dispatcher,
+                                parking: None,
+                                tick,
+                            };
+                            self.terminate_dispatch(
+                                i,
+                                &mut ctx,
+                                false,
+                                false,
+                                true,
+                                "buyer and seller are both gone",
+                            );
+                            continue;
                         }
-                        self.dispatches.swap_remove(i);
-                        continue;
                     }
                 }
                 DispatchState::Unloading => {
@@ -458,43 +688,82 @@ impl Market {
                     // and does not get the goods back (mirrors Unloading's
                     // own honest-loss shape: once loaded, goods that never
                     // reach a buyer are gone, not refunded).
-                    log::warn!(
-                        "dispatch {:?} {:?} lost: buyer removed while unloading",
-                        qty,
-                        kind
+                    let mut ctx = ExitCtx {
+                        map,
+                        binfos,
+                        world: &mut *world,
+                        dispatcher: &mut *dispatcher,
+                        parking: None,
+                        tick,
+                    };
+                    self.terminate_dispatch(
+                        i,
+                        &mut ctx,
+                        false,
+                        false,
+                        true,
+                        "buyer removed while unloading",
                     );
-                    self.record_lost(kind, qty);
-                    if let Some(v) = truck {
-                        dispatcher.free(DispatchID::SmallTruck(v));
-                    }
-                    self.dispatches.swap_remove(i);
                     continue;
                 }
             }
             i += 1;
         }
         // A dead SELLER's rows were wiped above, so there is nothing left to
-        // credit or reserve and the dispatch is simply dropped -- but the
+        // credit or reserve and the dispatch is simply dropped — but the
         // truck it holds must go back to the pool first. `Dispatcher::query`
         // skips anything still in `reserved_by` and only `free` clears it, so
         // dropping the dispatch without freeing removes that truck from the
-        // city permanently (sov-dispatch-wedge-ab4 round 4).
-        for d in self.dispatches.iter().filter(|d| d.seller == soul) {
-            if let Some(v) = d.truck {
-                dispatcher.free(DispatchID::SmallTruck(v));
+        // city permanently (sov-dispatch-wedge-ab4 round 4). The live buyer
+        // on the other end gets its demand re-posted (sov-5ut) and a settled
+        // border leg refunded; the seller's offer cannot be restored — its
+        // rows are gone with it. `repost` is skipped when the buyer is the
+        // removed soul itself (both ends gone).
+        let mut i = 0;
+        while i < self.dispatches.len() {
+            if self.dispatches[i].seller != soul {
+                i += 1;
+                continue;
             }
+            let state = self.dispatches[i].state;
+            let repost = self.dispatches[i].buyer != soul;
+            let mut ctx = ExitCtx {
+                map,
+                binfos,
+                world: &mut *world,
+                dispatcher: &mut *dispatcher,
+                parking: None,
+                tick,
+            };
+            // Only a dispatch that already debited its seller destroys
+            // goods here; a `ToSource` exit never moved anything.
+            let debited = state != DispatchState::ToSource;
+            self.terminate_dispatch(
+                i,
+                &mut ctx,
+                repost,
+                false,
+                debited,
+                "seller removed mid-flight; live buyer's demand handed back to the market",
+            );
         }
-        self.dispatches.retain(|d| d.seller != soul);
     }
 
     /// Called when an agent tells the world it wants to buy something
-    /// If an order is already placed, it will be updated.
+    /// If an order is already placed, it will be updated (pos/qty), keeping
+    /// its age so `recipe_act`'s every-cycle `buy_until` does not reset the
+    /// sov-b70 border-eligibility clock on standing demand.
     pub fn buy(&mut self, soul: SoulID, near: Vec2, kind: ItemID, qty: u32) {
         log::debug!("{:?} buy {:?} {:?} near {:?}", soul, qty, kind, near);
 
         self.m(kind)
             .buy_orders
-            .insert(soul, BuyOrder { pos: near, qty });
+            .entry(soul)
+            .and_modify(|o| {
+                o.pos = near;
+                o.qty = qty;
+            })
+            .or_insert(BuyOrder { pos: near, qty, age: 0 });
     }
 
     pub fn buy_until(&mut self, soul: SoulID, near: Vec2, kind: ItemID, qty: u32) {
@@ -506,7 +775,53 @@ impl Market {
         // zero before the u32 cast, otherwise `c as u32` wraps to ~4.29e9
         // and `qty - huge` underflows/panics.
         let have = c.max(0) as u32;
-        self.buy(soul, near, kind, qty.saturating_sub(have));
+        // In-flight inbound already covers part of the want (sov-q5p): a
+        // company that re-posts while an import is en route must order only
+        // its CURRENT shortfall, or every cycle stacks another full target
+        // onto the border. Without this a k=4 hoarder with a reachable
+        // station holds 1+2+3... in flight against a target of 4.
+        let shortfall = qty
+            .saturating_sub(have)
+            .saturating_sub(self.inbound_to(soul, kind));
+        if shortfall == 0 {
+            // Covered by stock on hand plus goods already coming: a stale
+            // standing order would re-match and over-supply, and a fresh
+            // qty-0 order would match a zero-quantity trade, so drop it.
+            self.m(kind).buy_orders.remove(&soul);
+            return;
+        }
+        self.buy(soul, near, kind, shortfall);
+    }
+
+    /// Quantity of `kind` already inbound to `soul`: matched into a dispatch
+    /// that has not delivered yet (`ToSource`/`Loading`/`ToDestination`).
+    /// `Returning` drives goods back to the SELLER, and `Unloading` already
+    /// credited the buyer, so neither counts. The honest-vs-dishonest signal
+    /// survives this (sov-q5p): an honest k=1 enterprise consumes to 0 and
+    /// stalls with nothing inbound, while a hoarder's surplus is capital on
+    /// hand, not goods in flight.
+    pub fn inbound_to(&self, soul: SoulID, kind: ItemID) -> u32 {
+        self.dispatches
+            .iter()
+            .filter(|d| {
+                d.buyer == soul
+                    && d.kind == kind
+                    && matches!(
+                        d.state,
+                        DispatchState::ToSource
+                            | DispatchState::Loading
+                            | DispatchState::ToDestination
+                    )
+            })
+            .map(|d| d.qty)
+            .sum()
+    }
+
+    /// Drains the sov-5ut refund buffer (see `refunds_due`): border money a
+    /// `Market::remove` exit unwound, applied by `market_update` on the next
+    /// pass. Returns `Money::ZERO` when nothing is owed.
+    pub fn take_refunds(&mut self) -> Money {
+        std::mem::replace(&mut self.refunds_due, Money::ZERO)
     }
 
     /// Get the capital that this agent owns
@@ -596,8 +911,27 @@ impl Market {
     /// A trade can only be completed if the seller has enough capital.
     /// Please do not keep the trades around much, it needs to be destroyed by the next time you call this function.
     pub fn make_trades(&mut self, find_external: impl Fn(Vec2) -> Option<SoulID>) -> &[Trade] {
-        self.all_trades.clear();
+        self.make_trades_split(&find_external, &find_external)
+    }
 
+    /// Same match as `make_trades`, with separate border lookups per
+    /// direction (sov-nun): imports need a driving lane (a truck must run
+    /// from the station door), so `find_import` keeps the
+    /// `DISPATCH_LANE_CUTOFF` reachability filter; exports ride a dispatch
+    /// the seller's own truck drives to the border door and need no lane at
+    /// the station end, so `find_export` is the unfiltered nearest-station
+    /// lookup. Gating exports on a lane they never use left a new city
+    /// unable to export at all until the player laid road near the station.
+    pub fn make_trades_split(
+        &mut self,
+        find_import: impl Fn(Vec2) -> Option<SoulID>,
+        find_export: impl Fn(Vec2) -> Option<SoulID>,
+    ) -> &[Trade] {
+        self.all_trades.clear();
+        // Border throughput drawn per station by the two ext-trade legs
+        // below, in units (sov-eix). Reset every pass: this is a per-tick
+        // capacity, not a budget that accumulates.
+        let mut border_used: BTreeMap<SoulID, u32> = BTreeMap::new();
         for (&kind, market) in &mut self.markets {
             // Naive O(n²) alg
             // We don't immediatly apply the trades, because we want to find the nearest-positioned trades
@@ -726,14 +1060,20 @@ impl Market {
                 // must survive this pass untouched so they're still there
                 // for next tick's domestic match, not silently dropped.
                 let btaken: BTreeMap<_, _> = buy_orders
-                    .extract_if(.., |s, _| !matches!(s, SoulID::Human(_)))
+                    .extract_if(.., |s, o| {
+                        // Humans never clear through the external market (see
+                        // below), and young orders queue one pass for a
+                        // domestic seller first (sov-b70): only non-human
+                        // orders old enough to have survived a domestic pass
+                        // may go abroad. Everything left behind stays for
+                        // next tick's domestic match, not silently dropped.
+                        !matches!(s, SoulID::Human(_)) && o.age >= BORDER_ELIGIBILITY_TICKS
+                    })
                     .collect();
                 // All remaining (non-human) buyers can fulfil since they can buy externally
                 self.all_trades.reserve(btaken.len());
                 for (buyer, order) in btaken {
-                    let qty_buy = order.qty as i32;
-
-                    let Some(ext) = find_external(order.pos) else {
+                    let Some(ext) = find_import(order.pos) else {
                         // The border cannot serve this buyer (no freight
                         // station in range, or none at all). That is not a
                         // reason to DESTROY its demand: `extract_if` above
@@ -747,6 +1087,30 @@ impl Market {
                         buy_orders.insert(buyer, order);
                         continue;
                     };
+
+                    // Border throughput (sov-eix): a station moves at most
+                    // `MAX_BORDER_THROUGHPUT_PER_TICK` units per pass. The
+                    // excess is served partially and the remainder re-queued
+                    // — never refused, never priced.
+                    let used = border_used.entry(ext).or_insert(0);
+                    let avail = MAX_BORDER_THROUGHPUT_PER_TICK.saturating_sub(*used);
+                    if avail == 0 {
+                        buy_orders.insert(buyer, order);
+                        continue;
+                    }
+                    let fill = order.qty.min(avail);
+                    *used += fill;
+                    if fill < order.qty {
+                        buy_orders.insert(
+                            buyer,
+                            BuyOrder {
+                                pos: order.pos,
+                                qty: order.qty - fill,
+                                age: order.age,
+                            },
+                        );
+                    }
+                    let qty_buy = fill as i32;
 
                     // No capital moves here. The border is debited when the
                     // truck loads at the freight station and the buyer is
@@ -789,9 +1153,31 @@ impl Market {
                         continue;
                     }
 
-                    let Some(ext) = find_external(order.pos) else {
+                    // The export lookup is lane-UNFILTERED (sov-nun): an
+                    // export creates no Dispatch at the station end (the
+                    // seller's truck drives to the border door), so a lane
+                    // the import leg needs must not gate it.
+                    let Some(ext) = find_export(order.pos) else {
                         continue;
                     };
+
+                    // Border throughput (sov-eix), same budget as the import
+                    // leg above: partial fill, remainder stays offered.
+                    let used = border_used.entry(ext).or_insert(0);
+                    let avail = MAX_BORDER_THROUGHPUT_PER_TICK.saturating_sub(*used);
+                    if avail == 0 {
+                        continue;
+                    }
+                    let fill = (qty_sell as u32).min(avail);
+                    *used += fill;
+                    let qty_sell = fill as i32;
+
+                    // Remember the pre-match offer shape for the exit helper:
+                    // unlike the domestic match (which records it above), the
+                    // export loop used to leave an export-only seller with no
+                    // `sell_order`, so a `ToSource` timeout released the
+                    // reservation but never put the offer back (sov-5ut).
+                    sold_from.entry(seller).or_insert((order.pos, order.stock));
 
                     // No capital moves here. The seller is debited when the
                     // truck loads at their door and the border is credited
@@ -865,6 +1251,14 @@ impl Market {
                     });
                 }
             }
+            // Age every surviving buy order (sov-b70): eligibility is read
+            // off the PRE-increment age in the ext-buy block above, so a
+            // fresh order queues exactly one full pass for a domestic
+            // seller before the border may take it. Incremented last so the
+            // pass that posted (or re-posted) an order never counts itself.
+            for o in buy_orders.values_mut() {
+                o.age = o.age.saturating_add(1);
+            }
         }
 
         &self.all_trades
@@ -936,7 +1330,7 @@ impl Market {
                 truck,
                 return_route_retries,
                 source_wait_ticks,
-                sell_order,
+                _sell_order,
             ) = {
                 let d = &self.dispatches[i];
                 (
@@ -1065,67 +1459,32 @@ impl Market {
                             if source_wait_ticks + 1 < MAX_SOURCE_WAIT_TICKS {
                                 self.dispatches[i].source_wait_ticks = source_wait_ticks + 1;
                             } else {
-                                // Nothing was ever debited from the seller in
-                                // `ToSource`, so releasing the reservation is
-                                // the whole physical rollback: the goods never
-                                // left, and no quantity is created or
-                                // destroyed here.
-                                if let Some(r) = self.m(kind).reserved.get_mut(&seller) {
-                                    *r = r.saturating_sub(qty);
-                                }
-                                // The other half of what the match consumed:
-                                // `make_trades` took `qty` off the seller's
-                                // `SellOrder` and deleted it outright at 0.
-                                // Releasing the reservation alone leaves that
-                                // stock present but unoffered, so the buy
-                                // order re-posted below finds no domestic
-                                // seller and the goods never move again.
-                                // Clamped to the seller's capital because
-                                // `sell_all` may have re-posted the order off
-                                // the full (still-undebited) capital in the
-                                // meantime, and `make_trades` skips any seller
-                                // whose order asks for more than it holds.
-                                let m = self.m(kind);
-                                let cap = m.capital(seller).unwrap_or(0).max(0) as u32;
-                                match m.sell_orders.entry(seller) {
-                                    Entry::Occupied(mut o) => {
-                                        let order = o.get_mut();
-                                        order.qty = (order.qty + qty).min(cap);
-                                    }
-                                    Entry::Vacant(v) => {
-                                        if let Some((pos, stock)) = sell_order {
-                                            v.insert(SellOrder {
-                                                pos,
-                                                qty: qty.min(cap),
-                                                stock,
-                                            });
-                                        }
-                                    }
-                                }
-                                // The half a bare countdown would miss: put
-                                // the demand back. `buy_until` is the same
-                                // entry point `recipe_init`/`recipe_act` use,
-                                // and posts the CURRENT shortfall against the
-                                // buyer's standing request, so a buyer that
-                                // has since been supplied re-posts nothing.
-                                // (sov-5yc's clamp inside `buy_until` stays:
-                                // a buyer with negative capital re-posts its
-                                // full shortfall, never a wrapped u32.)
-                                if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
-                                    let want = self.requested(buyer, kind).unwrap_or(qty).max(qty);
-                                    self.buy_until(buyer, buyer_pos.xy(), kind, want);
-                                }
-                                log::warn!(
-                                    "dispatch {:?} {:?} ({:?} -> {:?}) gave up waiting for a \
-                                     truck after {} ticks; reservation released and the buy \
-                                     order re-posted",
-                                    qty,
-                                    kind,
-                                    seller,
-                                    buyer,
-                                    MAX_SOURCE_WAIT_TICKS
+                                // Bounded wait, full rollback (sov-ahw): the
+                                // goods never left `ToSource`, so nothing was
+                                // ever debited and (since sov-7f7) no border
+                                // leg settled either. Hand both halves of the
+                                // match back — reservation, sell order, AND
+                                // the buy order (a bare countdown without the
+                                // re-post leaves the enterprise just as dead)
+                                // — so the city can serve it the moment a
+                                // route exists.
+                                let mut ctx = ExitCtx {
+                                    map,
+                                    binfos,
+                                    world: &mut *world,
+                                    dispatcher: &mut *dispatcher,
+                                    parking: Some(&mut *parking),
+                                    tick,
+                                };
+                                self.terminate_dispatch(
+                                    i,
+                                    &mut ctx,
+                                    true,
+                                    true,
+                                    false,
+                                    "gave up waiting for a truck; reservation released and the buy order re-posted",
                                 );
-                                remove = true;
+                                continue;
                             }
                         }
                     }
@@ -1134,13 +1493,29 @@ impl Market {
                             // Wedge (b): the reserved vehicle entity is gone
                             // (e.g. despawned) before it ever arrived.
                             // Nothing was ever debited from the seller, so
-                            // freeing the reservation is the whole fix — the
-                            // goods never physically left.
-                            dispatcher.free(DispatchID::SmallTruck(v));
-                            if let Some(r) = self.m(kind).reserved.get_mut(&seller) {
-                                *r = r.saturating_sub(qty);
-                            }
-                            remove = true;
+                            // the goods never physically left — but the
+                            // MATCH is still consumed, so the full rollback
+                            // (reservation, sell order, AND buy order) runs
+                            // here too (sov-5ut). Before, this arm freed and
+                            // dropped without re-posting, stranding the
+                            // enterprise exactly like the pre-sov-ahw hang.
+                            let mut ctx = ExitCtx {
+                                map,
+                                binfos,
+                                world: &mut *world,
+                                dispatcher: &mut *dispatcher,
+                                parking: Some(&mut *parking),
+                                tick,
+                            };
+                            self.terminate_dispatch(
+                                i,
+                                &mut ctx,
+                                true,
+                                true,
+                                false,
+                                "reserved truck vanished before arriving; match rolled back",
+                            );
+                            continue;
                         } else {
                             let arrived = world
                                 .vehicles
@@ -1207,14 +1582,26 @@ impl Market {
                                 // on it and are gone with it. Seller was
                                 // already debited (ToSource arrival), buyer
                                 // never credited — a real physical loss, not
-                                // a teleport, so nothing is re-credited.
-                                log::warn!(
-                                    "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished while loading",
-                                    qty, kind, seller, buyer
+                                // a teleport, so nothing is re-credited. The
+                                // buyer lives on: its demand is re-posted
+                                // and a settled border leg refunded inside.
+                                let mut ctx = ExitCtx {
+                                    map,
+                                    binfos,
+                                    world: &mut *world,
+                                    dispatcher: &mut *dispatcher,
+                                    parking: Some(&mut *parking),
+                                    tick,
+                                };
+                                self.terminate_dispatch(
+                                    i,
+                                    &mut ctx,
+                                    true,
+                                    false,
+                                    true,
+                                    "truck vanished while loading",
                                 );
-                                self.record_lost(kind, qty);
-                                dispatcher.free(DispatchID::SmallTruck(v));
-                                remove = true;
+                                continue;
                             } else if let Some(buyer_pos) = door_pos(buyer, map, binfos) {
                                 let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
                                 let route = start.and_then(|start| {
@@ -1225,7 +1612,7 @@ impl Market {
                                         ve.it = route;
                                     }
                                     self.dispatches[i].state = DispatchState::ToDestination;
-                                } else if return_route_retries + 1 >= MAX_RETURN_ROUTE_RETRIES {
+                                } else if return_route_retries >= MAX_RETURN_ROUTE_RETRIES {
                                     // sov-jcl: the buyer's building is still
                                     // standing but no route reaches it (e.g.
                                     // the road between them was bulldozed).
@@ -1236,19 +1623,27 @@ impl Market {
                                     // goods were debited at `ToSource`
                                     // arrival and are physically on the
                                     // truck: this is an honest logged loss,
-                                    // never a teleport-refund.
-                                    log::warn!(
-                                        "dispatch dropped {:?} {:?} ({:?} -> {:?}): no route to \
-                                         a live buyer after {} attempts",
-                                        qty,
-                                        kind,
-                                        seller,
-                                        buyer,
-                                        MAX_RETURN_ROUTE_RETRIES
+                                    // never a teleport-refund. The truck is
+                                    // parked-then-freed inside (sov-91e), the
+                                    // live buyer's demand re-posted, a
+                                    // settled border leg refunded.
+                                    let mut ctx = ExitCtx {
+                                        map,
+                                        binfos,
+                                        world: &mut *world,
+                                        dispatcher: &mut *dispatcher,
+                                        parking: Some(&mut *parking),
+                                        tick,
+                                    };
+                                    self.terminate_dispatch(
+                                        i,
+                                        &mut ctx,
+                                        true,
+                                        false,
+                                        true,
+                                        "no route to a live buyer after repeated attempts",
                                     );
-                                    self.record_lost(kind, qty);
-                                    dispatcher.free(DispatchID::SmallTruck(v));
-                                    remove = true;
+                                    continue;
                                 } else {
                                     // No route found: stay in Loading
                                     // (ticks_left at 0) and retry next tick.
@@ -1259,56 +1654,63 @@ impl Market {
                                 // Wedge (a): buyer's building was demolished.
                                 // The goods are already debited from the
                                 // seller and physically on the truck; drive
-                                // them back instead of teleport-refunding.
-                                if let Some(seller_pos) = door_pos(seller, map, binfos) {
-                                    let start = world.vehicles.get(v).map(|ve| ve.trans.pos);
-                                    let route = start.and_then(|start| {
-                                        Itinerary::route(
-                                            tick,
-                                            start,
-                                            seller_pos,
-                                            map,
-                                            PathKind::Vehicle,
-                                        )
-                                    });
-                                    if let Some(route) = route {
-                                        if let Some(ve) = world.vehicles.get_mut(v) {
-                                            ve.it = route;
+                                // them back instead of teleport-refunding
+                                // (sov-otw: one shared attempt, retries
+                                // counted below on failure only).
+                                match self.try_return_to_seller(i, map, binfos, &mut *world, tick)
+                                {
+                                    ReturnOutcome::Returning => {}
+                                    ReturnOutcome::NoRouteBack => {
+                                        if return_route_retries >= MAX_RETURN_ROUTE_RETRIES
+                                        {
+                                            // No route back after repeated tries
+                                            // (e.g. the road home was severed):
+                                            // treat as an honest physical loss
+                                            // rather than retry forever. No
+                                            // re-post: the buyer is gone.
+                                            let mut ctx = ExitCtx {
+                                                map,
+                                                binfos,
+                                                world: &mut *world,
+                                                dispatcher: &mut *dispatcher,
+                                                parking: Some(&mut *parking),
+                                                tick,
+                                            };
+                                            self.terminate_dispatch(
+                                                i,
+                                                &mut ctx,
+                                                false,
+                                                false,
+                                                true,
+                                                "no route back to seller after repeated attempts",
+                                            );
+                                            continue;
+                                        } else {
+                                            self.dispatches[i].return_route_retries =
+                                                return_route_retries + 1;
                                         }
-                                        self.dispatches[i].state = DispatchState::Returning;
-                                    } else if return_route_retries + 1 >= MAX_RETURN_ROUTE_RETRIES {
-                                        // No route back after repeated tries
-                                        // (e.g. the road home was severed):
-                                        // treat as an honest physical loss
-                                        // rather than retry forever.
-                                        log::warn!(
-                                            "dispatch dropped {:?} {:?}: no route back to \
-                                             seller after {} attempts",
-                                            qty,
-                                            kind,
-                                            MAX_RETURN_ROUTE_RETRIES
-                                        );
-                                        self.record_lost(kind, qty);
-                                        dispatcher.free(DispatchID::SmallTruck(v));
-                                        remove = true;
-                                    } else {
-                                        self.dispatches[i].return_route_retries =
-                                            return_route_retries + 1;
                                     }
-                                } else {
-                                    // Seller is also gone: free the truck and
-                                    // drop the goods (already debited from a
-                                    // seller that no longer exists — nothing
-                                    // left to return them to).
-                                    log::warn!(
-                                        "dispatch dropped {:?} {:?}: both buyer and seller \
-                                         buildings are gone",
-                                        qty,
-                                        kind
-                                    );
-                                    self.record_lost(kind, qty);
-                                    dispatcher.free(DispatchID::SmallTruck(v));
-                                    remove = true;
+                                    ReturnOutcome::SellerGone => {
+                                        // Seller is also gone: nothing left
+                                        // to return the goods to.
+                                        let mut ctx = ExitCtx {
+                                            map,
+                                            binfos,
+                                            world: &mut *world,
+                                            dispatcher: &mut *dispatcher,
+                                            parking: Some(&mut *parking),
+                                            tick,
+                                        };
+                                        self.terminate_dispatch(
+                                            i,
+                                            &mut ctx,
+                                            false,
+                                            false,
+                                            true,
+                                            "both buyer and seller buildings are gone",
+                                        );
+                                        continue;
+                                    }
                                 }
                             }
                         }
@@ -1319,19 +1721,26 @@ impl Market {
                 DispatchState::ToDestination => {
                     if truck.is_some_and(|v| world.vehicles.get(v).is_none()) {
                         // Truck vanished mid-transit: same physical loss as
-                        // the Loading case above.
-                        log::warn!(
-                            "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished in transit",
-                            qty,
-                            kind,
-                            seller,
-                            buyer
+                        // the Loading case above. The buyer lives on: its
+                        // demand is re-posted and a settled border leg
+                        // refunded inside.
+                        let mut ctx = ExitCtx {
+                            map,
+                            binfos,
+                            world: &mut *world,
+                            dispatcher: &mut *dispatcher,
+                            parking: Some(&mut *parking),
+                            tick,
+                        };
+                        self.terminate_dispatch(
+                            i,
+                            &mut ctx,
+                            true,
+                            false,
+                            true,
+                            "truck vanished in transit",
                         );
-                        self.record_lost(kind, qty);
-                        if let Some(v) = truck {
-                            dispatcher.free(DispatchID::SmallTruck(v));
-                        }
-                        remove = true;
+                        continue;
                     } else {
                         let arrived = truck
                             .and_then(|v| world.vehicles.get(v))
@@ -1357,19 +1766,27 @@ impl Market {
                     if truck.is_some_and(|v| world.vehicles.get(v).is_none()) {
                         // Truck vanished mid-return: same physical loss as
                         // the other in-flight states. The goods were already
-                        // debited from the seller and never re-credited.
-                        log::warn!(
-                            "dispatch lost {:?} {:?} ({:?} -> {:?}): truck vanished while returning",
-                            qty,
-                            kind,
-                            seller,
-                            buyer
+                        // debited from the seller and never re-credited. A
+                        // settled border leg is refunded inside; the buyer
+                        // re-post is skipped automatically when its door is
+                        // gone (the usual reason a dispatch is Returning).
+                        let mut ctx = ExitCtx {
+                            map,
+                            binfos,
+                            world: &mut *world,
+                            dispatcher: &mut *dispatcher,
+                            parking: Some(&mut *parking),
+                            tick,
+                        };
+                        self.terminate_dispatch(
+                            i,
+                            &mut ctx,
+                            true,
+                            false,
+                            true,
+                            "truck vanished while returning",
                         );
-                        self.record_lost(kind, qty);
-                        if let Some(v) = truck {
-                            dispatcher.free(DispatchID::SmallTruck(v));
-                        }
-                        remove = true;
+                        continue;
                     } else {
                         let arrived = truck
                             .and_then(|v| world.vehicles.get(v))
@@ -1747,6 +2164,103 @@ mod tests {
         assert!(
             ordered > 0 && ordered <= 10,
             "sane order quantity, got {ordered}"
+        );
+    }
+    /// sov-sp6: the external-trade branch of `Market::make_trades` moves
+    /// money and quantity on every successful leg, sign and magnitude. Eight
+    /// mutation shapes once survived here with the suite green (sign flips
+    /// on both money legs, magnitude swaps, surplus/guard/reservation/order
+    /// corruption); each is pinned below.
+    ///
+    /// Shape note (post-sov-20g/sov-7f7): the ticket's acceptance text
+    /// predates physical exports and delivery settlement, when the match
+    /// debited the seller's capital outright. On the final shape the match
+    /// only RESERVES (capital moves at the `Loading` arrival, proved by
+    /// `sov_20g_export_is_physical_dispatch_to_border`), so (a) asserts the
+    /// reservation plus the order decrement plus capital-UNTOUCHED — a
+    /// same-tick debit here would be the teleport, and the test fails on it.
+    #[test]
+    fn sov_sp6_ext_trade_money_and_quantity() {
+        test_prototypes(
+            r#"
+        data:extend {
+          {
+            type = "item",
+            name = "cereal",
+            label = "Cereal"
+          }
+        }
+        "#,
+        );
+
+        let mut m = Market::default();
+        let cereal = ItemID::new("cereal");
+        let seller = SoulID::GoodsCompany(mk_ent((1 << 32) | 21));
+        let buyer = SoulID::GoodsCompany(mk_ent((1 << 32) | 22));
+        let freight = SoulID::FreightStation(FreightStationID::from(slotmapd::KeyData::from_ffi(
+            (1 << 32) | 23,
+        )));
+        let ext_value = m.inner()[&cereal].ext_value;
+
+        m.produce(seller, cereal, 10);
+        m.sell(seller, Vec2::X, cereal, 10, 0);
+        // 15 exceeds the seller's 10, so no domestic match may steal the
+        // buyer: the BUY leg must clear externally, the SELL leg its surplus.
+        m.buy(buyer, Vec2::ZERO, cereal, 15);
+
+        // Pass 1: the fresh buy order queues for a domestic pass first
+        // (sov-b70), so only the SELL leg trades.
+        let pass1: Vec<_> = m
+            .make_trades(|_| Some(freight))
+            .iter()
+            .filter(|t| t.kind == cereal)
+            .copied()
+            .collect();
+        assert_eq!(pass1.len(), 1, "the seller's surplus must export: {pass1:?}");
+        let sell = pass1[0];
+        assert_eq!(sell.seller.0, seller);
+        assert_eq!(sell.buyer.0, freight);
+        assert_eq!(sell.qty, 10, "the whole surplus above stock 0 exports");
+        // (c) sell Trade.money_delta: sign AND magnitude.
+        assert_eq!(
+            sell.money_delta,
+            ext_value * 10,
+            "export money delta must be +(value*qty)"
+        );
+        // (a) post-20g shape: reservation and order move, capital does not.
+        assert_eq!(
+            m.reserved(seller, cereal),
+            10,
+            "matched export stock is reserved, not teleported away"
+        );
+        assert_eq!(
+            m.m(cereal).sell_order(seller).unwrap().qty,
+            0,
+            "the matched surplus leaves the sell order"
+        );
+        assert_eq!(
+            m.capital(seller, cereal),
+            10,
+            "the match itself must not debit capital (sov-20g teleport shape)"
+        );
+
+        // Pass 2: the aged buy order is border-eligible and imports.
+        let pass2: Vec<_> = m
+            .make_trades(|_| Some(freight))
+            .iter()
+            .filter(|t| t.kind == cereal)
+            .copied()
+            .collect();
+        assert_eq!(pass2.len(), 1, "the queued buyer must import: {pass2:?}");
+        let buy = pass2[0];
+        assert_eq!(buy.buyer.0, buyer);
+        assert_eq!(buy.seller.0, freight);
+        assert_eq!(buy.qty, 15);
+        // (b) buy Trade.money_delta: sign AND magnitude.
+        assert_eq!(
+            buy.money_delta,
+            -(ext_value * 15),
+            "import money delta must be -(value*qty)"
         );
     }
 }

@@ -61,34 +61,55 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
     let freights = &world.freight_stations;
 
     let map = resources.read::<Map>();
-    // A freight station is only a trading partner if a truck can actually be
-    // sent to its door: an ext-trade is a physical movement of goods now
+    // A freight station is only an IMPORT partner if a truck can actually be
+    // sent to its door: an import is a physical movement of goods now
     // (sov-abs), not a border credit, and `Dispatcher::query` refuses a door
     // further than `DISPATCH_LANE_CUTOFF` from a driving lane. Without this
     // check an unreachable station (the hardcoded START_COMMANDS one is
     // exactly that) promises deliveries that can never be made, and every
-    // import dispatch sits in `ToSource` forever.
-    let trades = m.make_trades(|pos| {
-        freights
-            .iter()
-            .filter(|(_, b)| {
-                map.buildings.get(b.f.building).is_some_and(|b| {
-                    map.nearest_lane(
-                        b.door_pos,
-                        LaneKind::Driving,
-                        Some(crate::map_dynamic::DISPATCH_LANE_CUTOFF),
-                    )
-                    .is_some()
+    // import dispatch sits in `ToSource` forever. Exports need no lane at
+    // the station end (sov-nun), so the export lookup below is unfiltered.
+    let trades = m.make_trades_split(
+        // Import lookup (sov-nun): a freight station is only a trading
+        // partner for imports if a truck can actually be sent to its door.
+        |pos| {
+            freights
+                .iter()
+                .filter(|(_, b)| {
+                    map.buildings.get(b.f.building).is_some_and(|b| {
+                        map.nearest_lane(
+                            b.door_pos,
+                            LaneKind::Driving,
+                            Some(crate::map_dynamic::DISPATCH_LANE_CUTOFF),
+                        )
+                        .is_some()
+                    })
                 })
-            })
-            .min_by_key(|(_, b)| {
-                let Some(b) = map.buildings.get(b.f.building) else {
-                    return OrderedFloat(f32::INFINITY);
-                };
-                OrderedFloat(b.door_pos.xy().distance2(pos))
-            })
-            .map(|(id, _)| SoulID::FreightStation(id))
-    });
+                .min_by_key(|(_, b)| {
+                    let Some(b) = map.buildings.get(b.f.building) else {
+                        return OrderedFloat(f32::INFINITY);
+                    };
+                    OrderedFloat(b.door_pos.xy().distance2(pos))
+                })
+                .map(|(id, _)| SoulID::FreightStation(id))
+        },
+        // Export lookup (sov-nun): lane-UNFILTERED. An export dispatch is
+        // driven by the seller's own truck to the border door; no lane at
+        // the station end is ever needed, so requiring one only locked new
+        // cities out of exporting until the player laid road by the station.
+        |pos| {
+            freights
+                .iter()
+                .filter(|(_, b)| map.buildings.get(b.f.building).is_some())
+                .min_by_key(|(_, b)| {
+                    let Some(b) = map.buildings.get(b.f.building) else {
+                        return OrderedFloat(f32::INFINITY);
+                    };
+                    OrderedFloat(b.door_pos.xy().distance2(pos))
+                })
+                .map(|(id, _)| SoulID::FreightStation(id))
+        },
+    );
 
     resources.write::<EcoStats>().advance(tick.0, trades);
 
@@ -122,11 +143,13 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
             SoulID::FreightStation(_) => {}
         }
     }
-
     let mut parking = resources.write::<ParkingManagement>();
     // sov-7f7 (ADR-0003 §1): border money settles at delivery, not at match.
     // The loop above only records the commitment (sold/bought); each arrival
-    // below returns its leg's committed delta, applied here.
+    // below returns its leg's committed delta, applied here — plus any
+    // sov-5ut refunds a `Market::remove` exit parked since (a remove path
+    // runs from `sim_drop` with no `Government` access, so the reversal
+    // waits one pass here instead of being lost).
     gvt.money += m.advance_dispatches(
         world,
         &map,
@@ -135,5 +158,5 @@ pub fn market_update(world: &mut World, resources: &mut Resources) {
         &cbuf_vehicle,
         &mut parking,
         tick,
-    );
+    ) + m.take_refunds();
 }
