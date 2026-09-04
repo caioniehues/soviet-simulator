@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
-use goryak::{image_button, minrow, on_secondary_container, textc};
+use goryak::{blur_bg, error, image_button, minrow, on_secondary_container, padxy, secondary_container, textc};
+use yakui::opaque;
 use ordered_float::OrderedFloat;
 use prototypes::ItemID;
 use yakui::{reflow, Alignment, Color, Dim2, Pivot, Vec2};
@@ -36,6 +37,7 @@ pub fn render_newgui(uiworld: &UiWorld, sim: &Simulation) {
     yakui::column(|| {
         power_errors(uiworld, sim);
         new_toolbox(uiworld, sim);
+        trade_status(uiworld, sim);
         menu_bar(uiworld, sim);
         chat::chat(uiworld, sim);
         new_inspector(uiworld, sim);
@@ -56,6 +58,40 @@ fn auto_save(uiworld: &UiWorld) {
             gui.last_save = Instant::now();
         }
     }
+}
+
+/// Planner-visible external-trade readout (sov-8lu): import availability
+/// plus the stalled-dispatch count, both from public sim accessors. Always
+/// shown: a connected border reads healthy, an isolated one escalates.
+fn trade_status(_uiworld: &UiWorld, sim: &Simulation) {
+    profiling::scope!("hud::trade_status");
+    let available = sim.external_trade_available();
+    let stalled = sim.stalled_dispatch_count();
+    // Own anchor: a bare row in the outer column flows below the
+    // full-height toolbox box and off-screen. Pin under the menu bar.
+    reflow(Alignment::TOP_LEFT, Pivot::TOP_LEFT, Dim2::pixels(5.0, 70.0), || {
+        opaque(|| {
+            blur_bg(secondary_container().with_alpha(0.5), 0.0, || {
+                padxy(5.0, 5.0, || {
+                    minrow(5.0, || {
+                        if available {
+                            textc(on_secondary_container(), "External trade: connected");
+                        } else {
+                            textc(
+                                error(),
+                                "External trade: isolated — no reachable freight station",
+                            );
+                        }
+                        if stalled > 0 {
+                            textc(error(), format!("Stalled dispatches: {stalled}"));
+                        } else {
+                            textc(on_secondary_container(), "Stalled dispatches: 0");
+                        }
+                    });
+                });
+            });
+        });
+    });
 }
 
 fn power_errors(uiworld: &UiWorld, sim: &Simulation) {

@@ -74,7 +74,13 @@ impl InspectRenderer {
                 )
             }
             AnyEntity::CompanyID(x) => {
-                <CompanyEnt as Inspect<CompanyEnt>>::render(sim.get(x).unwrap(), "", ui, &args)
+                let company = sim.get(x).unwrap();
+                render_company_report(x, company, sim, ui);
+                egui::CollapsingHeader::new("Raw components")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        <CompanyEnt as Inspect<CompanyEnt>>::render(company, "", ui, &args)
+                    });
             }
             AnyEntity::HumanID(x) => {
                 <HumanEnt as Inspect<HumanEnt>>::render(sim.get(x).unwrap(), "", ui, &args)
@@ -177,4 +183,101 @@ impl InspectRenderer {
             }
         }
     }
+}
+
+fn report_table(ui: &mut Ui, id: &'static str, rows: impl IntoIterator<Item = (String, String)>) {
+    egui::Grid::new(id)
+        .num_columns(2)
+        .striped(true)
+        .spacing([12.0, 3.0])
+        .show(ui, |ui| {
+            for (label, value) in rows {
+                ui.label(label);
+                ui.label(value);
+                ui.end_row();
+            }
+        });
+}
+
+fn render_company_report(
+    company_id: simulation::CompanyID,
+    company: &CompanyEnt,
+    sim: &Simulation,
+    ui: &mut Ui,
+) {
+    let soul = SoulID::GoodsCompany(company_id);
+    let proto = company.comp.proto.prototype();
+
+    egui::CollapsingHeader::new("Company report")
+        .default_open(true)
+        .show(ui, |ui| {
+            egui::CollapsingHeader::new("Identity and production")
+                .default_open(true)
+                .show(ui, |ui| {
+                    report_table(
+                        ui,
+                        "company-identity-production",
+                        [
+                            ("Prototype".into(), proto.label.clone()),
+                            ("Kind".into(), format!("{:?}", proto.kind)),
+                            ("Building".into(), format!("{:?}", company.comp.building)),
+                            (
+                                "Cycle progress".into(),
+                                format!("{:.0}%", company.comp.progress * 100.0),
+                            ),
+                        ],
+                    );
+                });
+
+            egui::CollapsingHeader::new("Labour and vehicles")
+                .default_open(true)
+                .show(ui, |ui| {
+                    let mut rows = vec![(
+                        "Workers".into(),
+                        format!("{}/{}", company.workers.0.len(), company.comp.max_workers),
+                    )];
+                    rows.push((
+                        "Driver".into(),
+                        company
+                            .comp
+                            .driver
+                            .map_or_else(|| "none".into(), |driver| format!("{:?}", driver)),
+                    ));
+                    rows.push(("Trucks".into(), format!("{}", company.comp.trucks.len())));
+                    report_table(ui, "company-labour-vehicles", rows);
+                });
+
+            let market = sim.read::<Market>();
+            let mut rows = Vec::new();
+            for (kind, single) in market.inner() {
+                let Some(capital) = single.capital(soul) else {
+                    continue;
+                };
+                let buy = single
+                    .buy_order(soul)
+                    .map_or_else(|| "-".into(), |o| o.qty.to_string());
+                let sell = single
+                    .sell_order(soul)
+                    .map_or_else(|| "-".into(), |o| format!("{} (stock {})", o.qty, o.stock));
+                let requested = single
+                    .requested(soul)
+                    .map_or_else(|| "-".into(), |qty| qty.to_string());
+                rows.push((
+                    kind.prototype().label.clone(),
+                    format!(
+                        "stock {}; reserved {}; request {}; buy {}; sell {}",
+                        capital,
+                        single.reserved(soul),
+                        requested,
+                        buy,
+                        sell
+                    ),
+                ));
+            }
+            if !rows.is_empty() {
+                egui::CollapsingHeader::new("Storage and orders")
+                    .default_open(true)
+                    .show(ui, |ui| report_table(ui, "company-storage-orders", rows));
+            }
+        });
 }

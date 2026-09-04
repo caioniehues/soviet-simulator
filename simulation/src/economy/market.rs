@@ -849,9 +849,30 @@ impl Market {
     pub fn requested(&self, soul: SoulID, kind: ItemID) -> Option<u32> {
         self.markets.get(&kind).and_then(|m| m.requested(soul))
     }
+    /// Requested quantity with the recipe amount as the fallback
+    /// (STORY-0107): `requested` returns `None` when no inflation was ever
+    /// declared, which is the NORMAL honest case meaning "use the recipe
+    /// amount" — never zero. The panel binds to this instead of
+    /// `unwrap_or(0)`, which would show every honest company requesting
+    /// nothing. Pure getter; changes nothing.
+    pub fn requested_or(&self, soul: SoulID, kind: ItemID, recipe_amount: u32) -> u32 {
+        self.requested(soul, kind).unwrap_or(recipe_amount)
+    }
 
     pub fn dispatches(&self) -> &[Dispatch] {
         &self.dispatches
+    }
+    /// Planner-visible stalled-dispatch count (sov-8lu): dispatches sitting
+    /// in `ToSource` with no truck assigned. This is the escalation the
+    /// ticket asks for — today such a dispatch only ever reaches
+    /// `log::warn!`, which no player sees — and it is bounded, not
+    /// terminal: `MAX_SOURCE_WAIT_TICKS` eventually rolls the match back
+    /// onto the market. Pure getter; changes nothing.
+    pub fn stalled_dispatch_count(&self) -> usize {
+        self.dispatches
+            .iter()
+            .filter(|d| d.state == DispatchState::ToSource && d.truck.is_none())
+            .count()
     }
 
     /// The named honest-loss sink (sov-bub): one row per dispatch deletion,

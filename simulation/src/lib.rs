@@ -385,6 +385,34 @@ impl Simulation {
     pub fn map(&self) -> Ref<'_, Map> {
         self.resources.read()
     }
+    /// Planner-visible external-trade availability (sov-8lu): true when at
+    /// least one freight station's door sits within `DISPATCH_LANE_CUTOFF`
+    /// of a driving lane — the same reachability filter `market_update`
+    /// applies before offering a station as an import partner. A fresh map
+    /// reads false here (the default station has no lane nearby), which is
+    /// exactly the silent failure the HUD readout exists to surface. Pure
+    /// getter; changes nothing.
+    pub fn external_trade_available(&self) -> bool {
+        let map = self.resources.read::<Map>();
+        self.world.freight_stations.iter().any(|(_, f)| {
+            map.buildings.get(f.f.building).is_some_and(|b| {
+                map.nearest_lane(
+                    b.door_pos,
+                    crate::map::LaneKind::Driving,
+                    Some(crate::map_dynamic::DISPATCH_LANE_CUTOFF),
+                )
+                .is_some()
+            })
+        })
+    }
+
+    /// Planner-visible stalled-dispatch count (sov-8lu): see
+    /// `Market::stalled_dispatch_count`. Pure getter; changes nothing.
+    pub fn stalled_dispatch_count(&self) -> usize {
+        self.resources
+            .read::<crate::economy::Market>()
+            .stalled_dispatch_count()
+    }
 
     pub(crate) fn map_mut(&self) -> RefMut<'_, Map> {
         self.resources.write()

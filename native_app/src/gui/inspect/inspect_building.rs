@@ -184,6 +184,14 @@ fn render_goodscompany(uiworld: &UiWorld, sim: &Simulation, b: &Building) {
         label(format!("workers: {}/{}", workers.0.len(), max_workers));
     });
 
+    // The only way into the debug Inspect window for a company: nothing else sets
+    // InspectedEntity to a CompanyID. Companies are not in query_selectable_pos, so
+    // they cannot be clicked in the world.
+    minrow(5.0, || {
+        label("Company");
+        entity_link(uiworld, sim, c_id);
+    });
+
     if let Some(driver) = goods.driver {
         minrow(5.0, || {
             label("Driver is");
@@ -207,6 +215,34 @@ fn render_goodscompany(uiworld: &UiWorld, sim: &Simulation, b: &Building) {
 
     if let Some(ref r) = proto.recipe {
         render_recipe(uiworld, r);
+    }
+    // STORY-0107: requested vs consumed, per input, from the real signal
+    // (`request_multiplier` via `Market::requested_or`). Shown as SEPARATE
+    // numbers — no honesty badge, no inflation factor; the player does the
+    // subtraction (kornai ruling on sov-lpj).
+    if let (Some(r), Some(owner)) = (&proto.recipe, owner) {
+        if !r.consumption.is_empty() {
+            fixed_spacer((0.0, 10.0));
+            label("Demand vs consumption (per cycle):");
+            for item in r.consumption.iter() {
+                let requested = market.requested_or(owner, item.id, item.amount as u32);
+                let on_hand = market.capital(owner, item.id);
+                let inbound = market.inbound_to(owner, item.id);
+                minrow(5.0, || {
+                    item_icon_yakui(uiworld, item.id, on_hand);
+                    label(format!(
+                        "requested {requested}, recipe needs {}, on hand {on_hand} (+{inbound} inbound)",
+                        item.amount,
+                    ));
+                });
+                if requested > item.amount as u32 {
+                    label(format!(
+                        "surplus demand: +{} over recipe",
+                        requested - item.amount as u32
+                    ));
+                }
+            }
+        }
     }
 
     if let Some(net_id) = map.electricity.net_id(b.id) {
