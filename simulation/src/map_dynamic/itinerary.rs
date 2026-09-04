@@ -262,6 +262,12 @@ impl Itinerary {
         pathkind: PathKind,
     ) -> Option<Itinerary> {
         let lanes = &map.lanes;
+        // A severed-road city can have no lanes at all (every road bulldozed):
+        // `rng % lanes.len()` below would divide by zero. No lane means no
+        // route, so refuse the same way the `authorized_lane` mismatch does.
+        if lanes.is_empty() {
+            return None;
+        }
         let lane = lanes.values().nth(rng as usize % lanes.len())?;
         if !pathkind.authorized_lane(lane.kind) {
             return None;

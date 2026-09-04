@@ -1,7 +1,8 @@
 use super::*;
-use crate::souls::human::spawn_human;
+use crate::map_dynamic::Destination;
+use crate::souls::human::{spawn_human, HumanDecisionKind};
 use crate::transportation::{
-    transport_grid_equal, TransportGrid, TransportState, TransportationGroup,
+    transport_grid_equal, Location, TransportGrid, TransportState, TransportationGroup,
 };
 use crate::Replay;
 use common::saveload::{Bincode, JSON};
@@ -239,4 +240,177 @@ fn sov_rvu_fixture_world_census() {
         "fixture world must contain at least one non-rail road, otherwise trucks, \
          parking and the road router are never exercised"
     );
+}
+
+/// sov-qi8: ten pedestrians over 20k ticks must hold the per-tick save/load
+/// determinism check. Ten grid entries (plus the parked car each `spawn_human`
+/// leaves behind) churn the `transport_grid`'s `FnvHashMap` cells hard enough
+/// that a bare byte compare trips on decode-order permutation (sov-733);
+/// the check's `transport_grid_equal` fallback keeps that spurious red out
+/// without going blind to real content changes.
+#[test]
+fn sov_qi8_ten_humans_hold_determinism_over_20k_ticks() {
+    let mut ctx = TestCtx::new();
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(600.0, 0.0, 0.0)]);
+    let mut houses = Vec::with_capacity(5);
+    for i in 0..5 {
+        houses.push(ctx.build_house_at(Vec2::new(60.0 + i as f32 * 110.0, 20.0)));
+    }
+    // No `ctx.tick()` before spawning: a tick would let
+    // `add_souls_to_empty_buildings` claim each empty house first, so the ten
+    // below would overshoot to fifteen. Spawn exactly the shortfall so the
+    // long run always starts with ten humans, however many (if any) the
+    // schedule has already placed.
+    let mut i = 0;
+    let mut humans = Vec::with_capacity(10);
+    while ctx.g.world().humans.len() < 10 {
+        humans.push(spawn_human(&mut ctx.g, houses[i % houses.len()]).expect("human must spawn"));
+        i += 1;
+    }
+    assert_eq!(
+        ctx.g.world().humans.len(),
+        10,
+        "setup: ten humans must exist before the long run"
+    );
+    // Ten idle humans never leave their houses, so no pedestrian ever enters
+    // the grid and the run proves nothing about cell order (the tail guard
+    // below fails on an all-empty run). Keep all ten commuting between the
+    // two far ends instead: whoever is indoors is sent back out every 100
+    // ticks through the normal `GoTo` decision path, so the grid holds
+    // entries throughout the run and the per-tick check keeps tripping over
+    // real cell churn, not an empty map.
+    let (west, east) = (houses[0], houses[houses.len() - 1]);
+    let mut saw_grid_entries = false;
+    for _ in 0..200 {
+        for h in &humans {
+            let dest = ctx.g.world().humans.get(*h).and_then(|e| match &e.location {
+                Location::Building(b) => Some(if *b == east { west } else { east }),
+                _ => None,
+            });
+            if let Some(dest) = dest {
+                ctx.g
+                    .world_mut_unchecked()
+                    .humans
+                    .get_mut(*h)
+                    .expect("human must survive the run")
+                    .decision
+                    .kind = HumanDecisionKind::GoTo(Destination::Building(dest));
+            }
+        }
+        ctx.advance_ticks(100);
+        saw_grid_entries |= ctx.g.read::<TransportGrid>().len() > 0;
+    }
+    assert_eq!(
+        ctx.g.world().humans.len(),
+        10,
+        "all ten humans must survive the 20k-tick run"
+    );
+    assert!(
+        saw_grid_entries,
+        "the grid must actually hold entries during the run, or the run proves nothing about cell order"
+    );
+}
+
+/// sov-aam: past ~300k ticks corridor convoys freeze with zero displacement --
+/// deliveries stop and matches decay to exports-only. The sketch assertion:
+/// materialise the fixture replay, tick past 300k, and require every Driving
+/// dispatch truck still en route to displace over the next 2000 ticks.
+///
+/// Cohort care (why the filter is shaped this way):
+/// - Only trucks with a NON-ended itinerary at snapshot count: an ended
+///   itinerary means arrived-and-waiting (`Loading`/`Unloading` dwell, or a
+///   border-stock wait in `ToSource`), which is legitimate stillness.
+/// - Only trucks still `Driving` at the end count: a healthy truck delivers
+///   and parks inside 2000 ticks, which is success, not stillness.
+/// - `> 1.0m`, not `> 0.0`: a healthy queue still creeps centimetres at stop
+///   lines; one metre over ~7 game-minutes is the barest credible motion.
+/// - 2000 ticks cover ~400 game-seconds: red lights cycle in seconds and a
+///   gridlock panic lasts at most 200s, so nothing transient can fail this.
+///   A truck that is still `Driving` en route after that window and has not
+///   moved a metre is the frozen-convoy shape, not traffic.
+/// - The cohort must be non-empty: an empty set would pass vacuously, and the
+///   decay symptom itself is "no trucks moving", so the scan walks forward
+///   until live dispatch trucking is observed (or fails loudly).
+#[test]
+fn sov_aam_dispatch_trucks_displace_past_300k() {
+    use crate::transportation::VehicleState;
+    use crate::VehicleID;
+
+    MyLog::init();
+    INIT.call_once(crate::init::init);
+
+    let replay: Replay = JSON::decode(Simulation::FIXTURE_REPLAY.as_bytes())
+        .expect("Simulation::FIXTURE_REPLAY must decode as a Replay");
+    let mut sim = Simulation::materialise_replay(replay);
+    let mut schedule = Simulation::schedule();
+
+    // The committed tail ends at 200k, inside the fluid phase (TRAP: do not
+    // extend it); the freeze manifests past ~300k, so drive there first.
+    while sim.get_tick() < 300_000 {
+        sim.tick(&mut schedule, WorldCommands::default().as_ref());
+    }
+    // First instant with live dispatch trucking: reserved by a live dispatch,
+    // `Driving`, itinerary not yet ended.
+    let mut cohort: Vec<(VehicleID, Vec3)> = Vec::new();
+    for _ in 0..20_000 {
+        cohort = en_route_dispatch_trucks(&sim);
+        if !cohort.is_empty() {
+            break;
+        }
+        sim.tick(&mut schedule, WorldCommands::default().as_ref());
+    }
+    assert!(
+        !cohort.is_empty(),
+        "sov-aam: no en-route dispatch truck observed in 20k ticks past 300k; \
+         matches have decayed to nothing truck-served"
+    );
+
+    for _ in 0..2000 {
+        sim.tick(&mut schedule, WorldCommands::default().as_ref());
+    }
+
+    let mut frozen: Vec<(VehicleID, f32)> = Vec::new();
+    let mut survivors = 0u32;
+    for (id, p0) in &cohort {
+        let Some(ve) = sim.world().vehicles.get(*id) else {
+            continue;
+        };
+        if !matches!(ve.vehicle.state, VehicleState::Driving) {
+            continue;
+        }
+        survivors += 1;
+        let d = p0.distance(ve.trans.pos);
+        if d <= 1.0 {
+            frozen.push((*id, d));
+        }
+    }
+    assert!(
+        frozen.is_empty(),
+        "sov-aam: {}/{} en-route dispatch trucks froze past 300k \
+         (<=1m over 2000 ticks): {:?}",
+        frozen.len(),
+        survivors,
+        frozen
+    );
+}
+
+/// Trucks currently owned by a live dispatch (`reserved_by`), of the dispatch
+/// fleet kind, `Driving`, and not yet arrived. Reads the dispatcher, never
+/// the market, so the gate owns no matching-rule knowledge.
+fn en_route_dispatch_trucks(sim: &Simulation) -> Vec<(crate::VehicleID, Vec3)> {
+    use crate::map_dynamic::{Dispatcher, DispatchID};
+    use crate::transportation::{VehicleKind, VehicleState};
+
+    let disp = sim.read::<Dispatcher>();
+    sim.world()
+        .vehicles
+        .iter()
+        .filter(|(id, ve)| {
+            matches!(ve.vehicle.kind, VehicleKind::Truck)
+                && matches!(ve.vehicle.state, VehicleState::Driving)
+                && !ve.it.has_ended(0.0)
+                && disp.is_reserved(DispatchID::SmallTruck(*id))
+        })
+        .map(|(id, ve)| (id, ve.trans.pos))
+        .collect()
 }

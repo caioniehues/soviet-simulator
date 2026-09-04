@@ -59,6 +59,106 @@ fn unpark_on_driving_vehicle_leaks_no_phantom_collider() {
     );
 }
 
+/// sov-8p6: a refused Unpark must degrade, never strand the rider.
+///
+/// If a dispatch leaves the rider's car mid-parking (`RoadToPark`) when the
+/// router's Unpark step runs, `unpark` refuses (sov-6qx: forcing it would
+/// orphan a grid entry as a permanent phantom blocker). The old router logged
+/// and proceeded to DriveTo, whose `has_ended` a parking-then-parked car never
+/// reaches -- the human sat in `Location::Vehicle` forever.
+///
+/// The fix re-queues the Unpark behind the plan: parking finishes in
+/// `TIME_TO_PARK` and the retry then succeeds, so the trip completes. This
+/// test drives the real route (walk to car, board, refused unpark, retry,
+/// drive, arrive). Against the pre-fix router it fails: the rider never
+/// reaches the destination building.
+#[test]
+fn refused_unpark_mid_parking_retries_to_completion() {
+    use crate::map_dynamic::router::park;
+    use crate::map_dynamic::{Destination, ParkingManagement};
+    use crate::souls::human::{spawn_human, HumanDecisionKind};
+    use crate::transportation::Location;
+    use crate::Map;
+
+    let mut ctx = TestCtx::new();
+    ctx.build_roads(&[Vec3::new(0.0, 0.0, 0.0), Vec3::new(100.0, 0.0, 0.0)]);
+
+    let home = ctx.build_house_near(Vec2::new(0.0, 0.0));
+    let dest = ctx.build_house_near(Vec2::new(90.0, 0.0));
+    let human = spawn_human(&mut ctx.g, home).expect("human must spawn");
+    let car = ctx
+        .g
+        .world()
+        .humans
+        .get(human)
+        .expect("human")
+        .router
+        .personal_car
+        .expect("spawned human owns a personal car");
+
+    // Drive the human through its normal decision path: GoTo keeps calling
+    // `go_to` until arrival, so no desire re-evaluation fights the trip.
+    ctx.g
+        .world_mut_unchecked()
+        .humans
+        .get_mut(human)
+        .expect("human")
+        .decision
+        .kind = HumanDecisionKind::GoTo(Destination::Building(dest));
+
+    // Tick until the human boards the car. Per-tick, not chunked: the Unpark
+    // step pops on the first routing update after boarding, so the sabotage
+    // below must land in between.
+    let mut boarded = false;
+    for _ in 0..2000 {
+        ctx.tick();
+        if ctx.g.world().humans.get(human).expect("human").location == Location::Vehicle(car) {
+            boarded = true;
+            break;
+        }
+    }
+    assert!(boarded, "human never boarded the car");
+
+    // A dispatch left the car mid-parking just as the Unpark step runs.
+    {
+        let (world, res) = ctx.g.world_res();
+        let resa = {
+            let map = res.read::<Map>();
+            let pos = world.vehicles.get(car).expect("car").trans.pos;
+            res.write::<ParkingManagement>()
+                .reserve_near(pos, &map)
+                .expect("a spot near the car")
+        };
+        {
+            let map = res.read::<Map>();
+            let v = world.vehicles.get_mut(car).expect("car");
+            park(&map, v, resa);
+        }
+        assert!(
+            matches!(
+                world.vehicles.get(car).expect("car").vehicle.state,
+                VehicleState::RoadToPark(..)
+            ),
+            "precondition: the car must be mid-parking when Unpark runs"
+        );
+    }
+
+    // The trip must complete: the retry unparks once parking finishes, then
+    // the human drives over and walks into the destination building.
+    let mut arrived = false;
+    for _ in 0..160 {
+        ctx.advance_ticks(25);
+        if ctx.g.world().humans.get(human).expect("human").location == Location::Building(dest) {
+            arrived = true;
+            break;
+        }
+    }
+    assert!(
+        arrived,
+        "rider stalled after refused unpark: never reached destination"
+    );
+}
+
 /*
 use crate::map_dynamic::{Destination, Itinerary, ParkingManagement, Router};
 use prototypes::GameTime;

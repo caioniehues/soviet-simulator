@@ -3,6 +3,7 @@
 
 use crate::map::{BuildingID, BuildingKind, LanePatternBuilder, ProjectFilter};
 use crate::map_dynamic::BuildingInfos;
+use crate::transportation::{transport_grid_equal, TransportGrid};
 use crate::utils::scheduler::SeqSchedule;
 use crate::world_command::{WorldCommand, WorldCommands};
 use crate::{Simulation, SimulationOptions};
@@ -111,6 +112,25 @@ impl TestCtx {
 
         let testhashes = self.g.hashes();
         for (key, hash) in deserialized.hashes().iter() {
+            if testhashes.get(key) == Some(hash) {
+                continue;
+            }
+            // sov-qi8 / sov-ijo (same root cause as sov-733): `TransportGrid`
+            // keeps its sparse cells in an `FnvHashMap`, so a bincode
+            // decode permutes cell order and the re-encoded bytes differ
+            // although the content is identical. `is_equal` already falls
+            // back to the order-insensitive `transport_grid_equal` for this
+            // key; the per-tick check must do the same instead of failing
+            // the byte compare, or any run with enough grid churn (10
+            // pedestrians, two trucks driving at once) trips it spuriously.
+            if key == "transport_grid"
+                && transport_grid_equal(
+                    &self.g.read::<TransportGrid>(),
+                    &deserialized.read::<TransportGrid>(),
+                )
+            {
+                continue;
+            }
             assert_eq!(
                 testhashes.get(key),
                 Some(hash),

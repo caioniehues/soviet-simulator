@@ -122,7 +122,7 @@ impl Dispatcher {
         disp.reserved_by.remove(&ent);
     }
 
-    /// Test-only: whether `ent` is still held by a reservation.
+    /// Whether `ent` is still held by a reservation.
     ///
     /// This is the ONLY way to observe a leaked reservation for an entity that
     /// no longer exists in the world. `DispatchOne::reserve` removes the entity
@@ -130,7 +130,11 @@ impl Dispatcher {
     /// which iterates LIVE vehicles — so a despawned entity is invisible to
     /// `query` whether or not it was freed, and any assertion phrased over
     /// queryable entities is blind to the leak.
-    #[cfg(test)]
+    ///
+    /// Shared beyond tests: the sov-aam abandoned-truck recovery
+    /// (`transportation::testing_vehicles`) and its sketch assertion
+    /// (`tests::determinism_gate`) both need to tell a truck owned by a live
+    /// dispatch from an abandoned one without touching the market.
     pub(crate) fn is_reserved(&self, ent: impl Into<DispatchID>) -> bool {
         let ent: DispatchID = ent.into();
         let kind: DispatchKind = ent.into();
@@ -177,7 +181,7 @@ impl DispatchOne {
         let ent = self.positions.entry(id);
 
         let lanekind = self.lanekind;
-        let find_lane = move || map.nearest_lane(pos, lanekind, Some(50.0));
+        let find_lane = move || map.nearest_lane(pos, lanekind, Some(DISPATCH_LANE_CUTOFF));
 
         match ent {
             Entry::Vacant(v) => {
@@ -233,10 +237,14 @@ impl DispatchOne {
     }
 
     pub fn unregister(&mut self, id: DispatchID) {
+        // sov-w03: `reserve` removes the entity from `positions`, so a truck
+        // destroyed while reserved has no position entry. The reservation must
+        // be cleared FIRST: the old early-return below kept the dead id in
+        // `reserved_by` forever (no later `update` ever sees it again).
+        self.reserved_by.remove(&id);
         let Some(pos) = self.positions.remove(&id) else {
             return;
         };
-        self.reserved_by.remove(&id);
         self.lanes.get_mut(&pos.lane).unwrap().retain(|e| *e != id);
     }
 
@@ -398,6 +406,50 @@ mod tests {
         let mut v = disp.lanes.values();
         assert_eq!(v.next().unwrap(), &vec![ent3]);
         assert_eq!(v.next().unwrap(), &vec![]);
+    }
+
+    /// sov-w03: a truck destroyed while reserved must not keep its id in
+    /// `reserved_by` forever. `reserve` removes the entity from `positions`,
+    /// so the old `unregister` early-returned before clearing the
+    /// reservation. Written at `Dispatcher` level through the test-only
+    /// `is_reserved` probe: a despawned truck never reappears in `query`
+    /// (only live vehicles are re-registered by `update`), so `reserved_by`
+    /// is the only place the leak is observable. Fails if the
+    /// `reserved_by.remove` moves back below the early return.
+    #[test]
+    fn unregister_reserved_truck_clears_reservation() {
+        let mut d = Dispatcher::default();
+        let mut map = Map::default();
+
+        map.make_connection(
+            MapProject::ground(Vec3::ZERO),
+            MapProject::ground(Vec3::x(100.0)),
+            None,
+            &LanePatternBuilder::default().build(),
+        )
+        .unwrap();
+
+        let truck = DispatchID::SmallTruck(VehicleID::from(KeyData::from_ffi(1 << 32)));
+        d.dispatches
+            .entry(DispatchKind::SmallTruck)
+            .or_insert(DispatchOne::new(DispatchKind::SmallTruck.lane_kind()))
+            .register(truck, &map, Vec3::ZERO);
+
+        // Reserve it the way `query` does, then destroy it the way
+        // `VehicleEnt::sim_drop` does.
+        d.dispatches
+            .get_mut(&DispatchKind::SmallTruck)
+            .unwrap()
+            .reserve(truck);
+        assert!(
+            d.is_reserved(truck),
+            "precondition: the truck must be reserved before it is destroyed"
+        );
+        d.unregister(truck);
+        assert!(
+            !d.is_reserved(truck),
+            "unregister must clear reserved_by even when positions has no entry"
+        );
     }
 
     #[test]

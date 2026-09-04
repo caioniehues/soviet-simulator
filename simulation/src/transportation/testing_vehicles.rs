@@ -1,5 +1,6 @@
 use crate::map::{Map, PathKind};
-use crate::map_dynamic::Itinerary;
+use crate::map_dynamic::{Dispatcher, DispatchID, Itinerary};
+use crate::transportation::{VehicleKind, VehicleState};
 use crate::utils::resources::Resources;
 use crate::{VehicleID, World};
 use common::scroll::BTreeSetScroller;
@@ -38,6 +39,45 @@ pub fn random_vehicles_update(world: &mut World, res: &mut Resources) {
 
         if let Some(it) = Itinerary::random_route(rng, v.trans.pos, tick, &map, PathKind::Vehicle) {
             v.it = it;
+        }
+    }
+
+    // sov-aam: recover abandoned dispatch trucks. `advance_dispatches`
+    // (economy/market.rs) parks every truck it is done with, but both park
+    // sites (`Unloading`, `Returning`) silently skip the truck when
+    // `reserve_near` finds no free spot: the dispatch is removed and the
+    // dispatcher freed, leaving a `Driving` truck with an ended itinerary in
+    // a live lane. Nothing ever assigns it a new route -- dispatch trucks are
+    // not random-vehicle members -- so `calc_decision` keeps returning
+    // `(0, dir)` (`get_point()` is `None`) and it sits forever, and every
+    // dispatch truck queued behind it in the corridor freezes with it while
+    // rail-served border exports keep flowing (the "matches decay to
+    // exports-only" symptom). The goods are already settled before either
+    // park site (buyer credited on the `ToDestination` arrival, seller
+    // re-credited on the `Returning` arrival), so the abandoned truck carries
+    // nothing and cruising it is pure recovery, never a teleport: adopt it
+    // into the random-vehicle set and the loop above hands it a route.
+    // Trucks owned by a live dispatch stay `reserved_by` and are untouched,
+    // as are `Parked`/`RoadToPark` trucks and non-trucks.
+    {
+        let disp = res.read::<Dispatcher>();
+        for (id, ve) in world.vehicles.iter() {
+            if !matches!(ve.vehicle.kind, VehicleKind::Truck) {
+                continue;
+            }
+            if !matches!(
+                ve.vehicle.state,
+                VehicleState::Driving | VehicleState::Panicking(_)
+            ) {
+                continue;
+            }
+            if !ve.it.has_ended(0.0) {
+                continue;
+            }
+            if disp.is_reserved(DispatchID::SmallTruck(id)) {
+                continue;
+            }
+            rv.vehicles.insert(id);
         }
     }
 

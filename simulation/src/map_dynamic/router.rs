@@ -184,10 +184,32 @@ pub fn routing_update_system(world: &mut World, resources: &mut Resources) {
             };
         }
 
-        if !(next_step_ready && cur_step_over) {
+        if !cur_step_over {
             return;
         }
-
+        if !next_step_ready {
+            // sov-aam: a `GetInVehicle` for a car that exists but is nowhere
+            // near can never become ready on its own -- nothing ever drives
+            // the car *to* the waiter; the plan only walks the human to the
+            // car's snapshot position, and if the car has moved since (a
+            // driver-assigned truck routed away by a market dispatch, say)
+            // the human stands at stale asphalt forever -- in the worst case
+            // in the middle of a live lane, where every truck queued behind
+            // reads a permanent `front_dist < 0.8` and freezes with exactly
+            // 0.0 displacement while the waiter waits for a truck that is
+            // itself frozen behind the waiter (human 12v1 <-> truck 1v1 <- ...
+            // <- truck 4v1 past 300k: a closed wait-for loop with no timeout
+            // on either edge). Degrade instead of waiting: drop the whole
+            // vehicle block and walk the rest on foot. The trip still
+            // completes (never game over); only the ride is lost.
+            if matches!(
+                h.router.steps.last(),
+                Some(RoutingStep::GetInVehicle(_))
+            ) {
+                skip_stale_vehicle_block(&mut h.router, &mut resources.write());
+            }
+            return;
+        }
         h.router.cur_step = h.router.steps.pop();
 
         if let Some(ref mut next_step) = h.router.cur_step {
@@ -215,13 +237,35 @@ pub fn routing_update_system(world: &mut World, resources: &mut Resources) {
                 }
                 RoutingStep::Unpark(vehicle) => {
                     cbuf_vehicle.exec_ent(vehicle, move |sim| {
-                        if !unpark(sim, vehicle) {
-                            // Already driving (or gone): the step is a no-op
-                            // rather than a second grid entry (sov-6qx). The
-                            // route itself is unaffected -- the vehicle keeps
-                            // the collider it already has.
+                        if unpark(sim, vehicle) {
+                            return;
+                        }
+                        // Refused: the vehicle is alive (a dead entity skips
+                        // this closure) but not Parked (sov-8p6). Driving or
+                        // Panicking is the benign sov-6qx no-op -- the vehicle
+                        // already holds its grid entry, so the DriveTo step
+                        // can proceed. RoadToPark is transient -- a dispatch
+                        // left it mid-parking -- and DriveTo could never
+                        // complete behind it, so re-queue the Unpark behind
+                        // the rest of the plan: parking finishes in
+                        // TIME_TO_PARK and the retry then succeeds. A destroyed
+                        // vehicle needs nothing: DriveTo self-completes on a
+                        // missing vehicle and the plan degrades to walking.
+                        // Either way the rider never waits permanently.
+                        let retry = sim.world.vehicles.get(vehicle).is_some_and(|v| {
+                            matches!(v.vehicle.state, VehicleState::RoadToPark(..))
+                        });
+                        if !retry {
                             log::debug!(
                                 "Unpark step on {:?} which wasn't parked; left as is",
+                                vehicle
+                            );
+                            return;
+                        }
+                        if let Some(h) = sim.world.humans.get_mut(body) {
+                            h.router.steps.push(RoutingStep::Unpark(vehicle));
+                            log::debug!(
+                                "Unpark step on {:?} refused mid-parking; retry queued",
                                 vehicle
                             );
                         }
@@ -275,11 +319,55 @@ fn walk_inside(body: HumanID, h: &mut HumanEnt, cbuf: &ParCommandBuffer<HumanEnt
 fn walk_outside(body: HumanID, pos: Vec3, cbuf: &ParCommandBuffer<HumanEnt>, loc: &mut Location) {
     *loc = Location::Outside;
     cbuf.exec_ent(body, move |sim| {
+        // sov-aam: never hold two live grid entries for one human. A stale
+        // plan can reach a GetOut step while the human is already outside
+        // with a live entry; inserting unconditionally would orphan the live
+        // one -- nothing ever owns or removes it again, and it sits in a
+        // live lane forever as an invisible obstacle. Reuse the live entry:
+        // the grid synchronises its position from `trans` every tick, so
+        // updating `trans` is exactly equivalent one tick later.
+        if sim.world.humans.get(body).is_some_and(|h| h.collider.is_some()) {
+            if let Some(h) = sim.world.humans.get_mut(body) {
+                h.trans.pos = pos;
+            }
+            return;
+        }
         let coll = put_pedestrian_in_transport_grid(&mut sim.write::<TransportGrid>(), pos);
         let h = unwrap_ret!(sim.world.humans.get_mut(body));
         h.trans.pos = pos;
         h.collider = Some(coll);
     });
+}
+
+/// sov-aam: drop a vehicle block whose `GetInVehicle` can never become ready
+/// (the car exists but is nowhere near, so nobody will ever bring it within
+/// boarding range). Pops the `GetInVehicle` plus the `Unpark`/`DriveTo`/`Park`
+/// /`GetOutVehicle` steps behind it, freeing the held parking reservation, so
+/// the remaining plan (a final `WalkTo`, usually) continues on foot. Steps
+/// are matched by variant, not counted, so shorter blocks degrade the same
+/// way; anything unrecognised stops the pop and stays queued.
+fn skip_stale_vehicle_block(router: &mut Router, parking: &mut ParkingManagement) {
+    if !matches!(router.steps.last(), Some(RoutingStep::GetInVehicle(_))) {
+        return;
+    }
+    router.steps.pop();
+    loop {
+        match router.steps.last() {
+            Some(RoutingStep::Unpark(_))
+            | Some(RoutingStep::DriveTo(..))
+            | Some(RoutingStep::GetOutVehicle(_)) => {
+                router.steps.pop();
+            }
+            Some(RoutingStep::Park(..)) => {
+                if let Some(RoutingStep::Park(_, spot)) = router.steps.pop() {
+                    if let Some(spot_resa) = spot {
+                        parking.free(spot_resa);
+                    }
+                }
+            }
+            _ => return,
+        }
+    }
 }
 
 pub(crate) fn park(map: &Map, vehicle: &mut VehicleEnt, spot_resa: SpotReservation) {
