@@ -1,0 +1,78 @@
+lavapipe cross-adapter capture evidence (sov-qhf)
+================================================
+
+RESULT: PASS. A fixed `baseline` capture runs on lavapipe headless
+(no display, no window system) and matches the RADV golden
+(engine_demo/golden/baseline.png) with MSSIM 0.99478, inside the
+calibrated threshold MSSIM >= 0.99. No code or CLI changes were needed;
+selection is pure environment (VK_ICD_FILENAMES + WGPU_BACKEND).
+Nothing is committed; files below are the working-tree evidence.
+
+Environment (no root used)
+-------------------------
+- Host Mesa 26.2.2-arch3.2; vulkan-radeon 26.2.2. No system
+  vulkan-swrast installed and no passwordless sudo (`sudo -n true`
+  fails), so instead of `pacman -S vulkan-swrast` the package tarball
+  was fetched and extracted user-locally (network works):
+    curl -o /tmp/swrast.pkg.tar.zst \
+      https://cachyos-mirror.m1k.cloud/repo/x86_64_v4/cachyos-znver4/vulkan-swrast-3:26.2.2-2-x86_64_v4.pkg.tar.zst
+    mkdir -p ~/lavapipe-pkg
+    tar --use-compress-program=unzstd -xf /tmp/swrast.pkg.tar.zst -C ~/lavapipe-pkg
+  This yields ~/lavapipe-pkg/usr/lib/libvulkan_lvp.so (Mesa 26.2.2,
+  same major version as host Mesa) plus lvp_icd.json. Any CI image can
+  instead just `pacman -S vulkan-swrast`; the env selection below is
+  identical either way.
+
+Repro commands (from repo root, DISPLAY unset = headless)
+---------------------------------------------------------
+1. lavapipe capture:
+     env -u DISPLAY -u WAYLAND_DISPLAY WGPU_BACKEND=vulkan \
+       VK_ICD_FILENAMES=$HOME/lavapipe-pkg/usr/share/vulkan/icd.d/lvp_icd.json \
+       LD_LIBRARY_PATH=$HOME/lavapipe-pkg/usr/lib \
+       cargo run -p engine_demo -- capture --scene baseline --out /tmp/lavapipe-capture
+   Sidecar reports: adapter "llvmpipe (LLVM 22.1.8, 256 bits)"
+   (Vulkan, Cpu), driver llvmpipe, Mesa 26.2.2-arch3.2 (LLVM 22.1.8),
+   1280x720, same 12 passes as RADV, "capture ok".
+   Note: without WGPU_BACKEND=vulkan the framework picks the GL
+   backend (radeonsi); that is existing backend-selection behavior,
+   not something this track changed. No edit to main.rs/capture.rs/CLI.
+
+2. RADV control capture (default ICD, headless):
+     env -u DISPLAY -u WAYLAND_DISPLAY WGPU_BACKEND=vulkan \
+       cargo run -p engine_demo -- capture --scene baseline --out /tmp/radv-capture
+   Sidecar reports: "AMD Radeon RX 7800 XT (RADV NAVI32)" (Vulkan, DiscreteGpu).
+
+3. MSSIM compare (no new deps: CPython zlib + numpy 2.5.2 from system):
+     python3 /tmp/mssim.py <candidate> engine_demo/golden/baseline.png
+   (script kept outside the repo; uses 7x7 Gaussian SSIM over RGB,
+   C1/C2 per Wang et al., mean over channels then pixels.)
+
+Numbers (this machine, git faca44d7e6 dirty build, debug profile)
+-----------------------------------------------------------------
+- Fresh RADV Vulkan vs committed golden baseline.png:
+    MSSIM 1.000000, byte-identical (md5 1820c766ea67d03d0f2054aecbd4ac3e both).
+    The committed golden is a RADV Vulkan capture and the capture is
+    same-adapter deterministic.
+- lavapipe vs committed golden (== lavapipe vs fresh RADV):
+    MSSIM 0.994781, per-channel R 0.995174 / G 0.994247 / B 0.994922.
+    Pixel diffs: mean abs 0.28 LSB; 42% of pixels differ at all but only
+    0.17% differ by >10 LSB; 41 px differ by >128 LSB (isolated texels,
+    consistent with known cross-vendor rasterizer/rounding variance in
+    shadow/specular edges, not scene differences).
+- Evidence image: engine_demo/golden/lavapipe.baseline.png
+    (md5 190b89f60c3b78d4792276a4af5b4d97, 1280x720 RGBA).
+
+Calibrated threshold: MSSIM >= 0.99 vs engine_demo/golden/baseline.png
+---------------------------------------------------------------------------
+- Measured cross-adapter value 0.9948 clears it with ~0.005 margin.
+- Same-adapter runs score exactly 1.0, so 0.99 keeps full sensitivity to
+  real regressions (wrong scene/camera/pass drops MSSIM far below 0.9).
+- 0.99 (not tighter) leaves room for Mesa/LLVM version drift of the
+  software rasterizer across CI machines.
+
+Follow-ups for the owning tracks (not done here)
+------------------------------------------------
+- FrameworkCap: if CI should not depend on WGPU_BACKEND env, consider a
+  `--backend vulkan` capture flag; current env forcing is sufficient.
+- Whoever wires CI: install vulkan-swrast in the image and gate captures
+  on `MSSIM(candidate, golden/baseline.png) >= 0.99`.
