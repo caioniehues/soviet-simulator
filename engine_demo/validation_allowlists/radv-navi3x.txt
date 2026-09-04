@@ -1,17 +1,15 @@
-# Known RADV NAVI32 defects tracked by sov-ejz. Remove these entries when sov-ejz closes.
+# Validation allow-list for RADV NAVI32 (sov-y27, sov-ejz).
+#
+# Adapter scope: the gate applies these entries ONLY to runs whose capture
+# record matches every field below, and refuses to apply them elsewhere.
+# adapter_match: {"backend": "Vulkan", "vendor_id": 4098, "device_id": 29822, "driver": "radv"}
 #
 # sov-xa4: each entry below is a FULL message identity (hazard class + resource +
 # pass/subpass), matched by the gate with exact whole-line equality. NEVER shorten
 # an entry to the bare SYNC-HAZARD-* signature: a bare signature would allow-list
 # every future hazard of that class on any resource, in any pass, forever.
-# Shape (1) from the sov-ejz capture report: the vkCmdPipelineBarrier layout
-# transition races the attachment storeOp (src masks miss LATE_FRAGMENT_TESTS /
-# DEPTH_STENCIL_ATTACHMENT_WRITE) on VkImage 0xdaf0000000daf, subpass 0.
-Validation Error: [ SYNC-HAZARD-WRITE-AFTER-WRITE ] vkCmdPipelineBarrier layout transition writes VkImage 0xdaf0000000daf previously written by the attachment storeOp at vkCmdEndRenderPass end of subpass 0 (depth_prepass)
-# Shape (2) from the same report, the mirror image: vkCmdEndRenderPass races the
-# prior layout transition from vkCmdPipelineBarrier.
-Validation Error: [ SYNC-HAZARD-WRITE-AFTER-WRITE ] vkCmdEndRenderPass writes VkImage 0xdaf0000000daf previously written by the layout transition from vkCmdPipelineBarrier (depth_prepass)
-# Same shape-(1) race on the shadow cascade pass with its own depth image.
-Validation Error: [ SYNC-HAZARD-WRITE-AFTER-WRITE ] vkCmdPipelineBarrier layout transition writes VkImage 0xdb00000000db previously written by the attachment storeOp at vkCmdEndRenderPass end of subpass 0 (shadow_cascade_0)
-# Vulkan loader warning observed on Mesa 26.2.1 during the same capture.
-Validation Warning: vkGetDeviceProcAddr queried for unknown device function on VkDevice 0xdaf0000000daf (Mesa 26.2.1 loader)
+#
+# The three WRITE-AFTER-WRITE depth-stencil entries were removed when sov-ejz
+# closed (barrier fix verified: 10 hazards -> 0 across debug and release runs).
+# Vulkan loader warning observed during validation captures on this adapter.
+Validation Warning: [ WARNING-vkGetDeviceProcAddr-device ] | MessageID = 0x22b1fbac

@@ -151,7 +151,7 @@ fn capture_record_json_is_complete_and_deterministic() {
         height: 720,
         requested_size: Some((1280, 720)),
         surface_format: engine::wgpu::TextureFormat::Bgra8UnormSrgb,
-        present_mode: engine::wgpu::PresentMode::Fifo,
+        present_mode: Some(engine::wgpu::PresentMode::Fifo),
         msaa_samples: 1,
         validation_requested: false,
         passes: vec!["depth_prepass", "main"],

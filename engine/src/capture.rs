@@ -174,7 +174,10 @@ pub struct CaptureRecord {
     /// The size that was asked for, when capture mode pinned one. A compositor may refuse it.
     pub requested_size: Option<(u32, u32)>,
     pub surface_format: TextureFormat,
-    pub present_mode: wgpu::PresentMode,
+    /// How the surface presents, when there is a surface. `None` offscreen (sov-y27): an
+    /// offscreen run presents nothing, so the record reports no mode rather than one that
+    /// was never used.
+    pub present_mode: Option<wgpu::PresentMode>,
     pub msaa_samples: u32,
     /// Whether wgpu was asked for its validation layers on this run.
     pub validation_requested: bool,
@@ -269,9 +272,14 @@ impl CaptureRecord {
                 None => "null".to_string(),
             },
         ));
+        let present_mode = match self.present_mode {
+            Some(mode) => format!("\"{mode:?}\""),
+            // No surface, no presentation: null, never a mode that was not used (sov-y27).
+            None => "null".to_string(),
+        };
         out.push_str(&format!(
-            "  \"surface\": {{\n    \"format\": \"{:?}\",\n    \"present_mode\": \"{:?}\",\n    \"msaa_samples\": {}\n  }},\n",
-            self.surface_format, self.present_mode, self.msaa_samples,
+            "  \"surface\": {{\n    \"format\": \"{:?}\",\n    \"present_mode\": {},\n    \"msaa_samples\": {}\n  }},\n",
+            self.surface_format, present_mode, self.msaa_samples,
         ));
         out.push_str(&format!(
             "  \"device\": {{\n    \"enabled_features\": \"{:?}\",\n    \"validation_requested\": {}\n  }},\n",

@@ -18,12 +18,52 @@ VALIDATION_MARKERS = (
 )
 
 
-def read_allowlist(path: Path) -> list[str]:
+def parse_allowlist(path: Path) -> tuple[dict, list[str]]:
+    """Split an allow-list file into its adapter scope and its message entries.
+
+    sov-y27/F14: an allow-list written for one adapter class (e.g. RADV NAVI32) must not
+    silently apply on another GPU. The scope travels with the file as `# adapter_match: {...}`
+    header lines carrying the same field names `tools/check_gpu_timing.py` compares against
+    the capture record's `adapter` object (e.g. `backend`, `vendor_id`, `device_id`, `driver`).
+    Later headers override earlier ones per field. A file without headers is unscoped and
+    behaves exactly as before.
+
+    sov-xa4 is untouched: entries are still full message identities matched by exact
+    whole-line equality in `main`.
+    """
     try:
         lines = path.read_text().splitlines()
     except OSError as error:
         raise ValueError(f"cannot read allow-list {path}: {error}") from error
-    return [line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")]
+    adapter_match: dict = {}
+    entries = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            marker = "# adapter_match:"
+            if stripped.lower().startswith(marker):
+                try:
+                    scope = json.loads(stripped[len(marker):].strip())
+                except json.JSONDecodeError as error:
+                    raise ValueError(
+                        f"allow-list {path} has an unparsable adapter_match header: {error}"
+                    ) from error
+                if not isinstance(scope, dict):
+                    raise ValueError(
+                        f"allow-list {path} adapter_match must be a JSON object, "
+                        f"got {scope!r}"
+                    )
+                adapter_match.update(scope)
+            continue
+        entries.append(stripped)
+    return adapter_match, entries
+
+
+def read_allowlist(path: Path) -> list[str]:
+    _, entries = parse_allowlist(path)
+    return entries
 
 
 def validation_lines(stderr: str) -> list[str]:
@@ -79,6 +119,43 @@ def validation_was_requested(path: Path) -> bool:
     return bool(device["validation_requested"])
 
 
+def read_record_adapter(path: Path) -> dict:
+    """Read the `adapter` object out of a capture record, for adapter scoping.
+
+    Raises `ValueError` when the record is missing, unparseable, or carries no adapter --
+    the gate must fail loudly rather than assume the allow-list applies.
+    """
+    try:
+        record = json.loads(path.read_text())
+    except OSError as error:
+        raise ValueError(f"cannot read capture record {path}: {error}") from error
+    except json.JSONDecodeError as error:
+        raise ValueError(f"capture record {path} is not valid JSON: {error}") from error
+    adapter = record.get("adapter")
+    if not isinstance(adapter, dict):
+        raise ValueError(f"capture record {path} has no adapter object to scope against")
+    return adapter
+
+
+def check_adapter_scope(
+    allowlist_path: Path, adapter_match: dict, actual_adapter: dict
+) -> list[str]:
+    """Compare the run's adapter against the allow-list's scope (sov-y27/F14).
+
+    The same field-by-field check `tools/check_gpu_timing.py` applies to baselines, with the
+    same wording, so the two gates reject a wrong-GPU run for the same stated reason.
+    """
+    failures = []
+    for field, expected in adapter_match.items():
+        actual = actual_adapter.get(field)
+        if actual != expected:
+            failures.append(
+                f"allow-list {allowlist_path} scopes to {field}={expected!r}, "
+                f"but this run's adapter has {field}={actual!r}"
+            )
+    return failures
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="capture combined output and fail on validation messages outside an allow-list"
@@ -105,7 +182,7 @@ def main(argv: list[str]) -> int:
     # record written *during* the run look older than the run.
     started_at = math.floor(time.time())
     try:
-        allowlist = read_allowlist(args.allowlist)
+        adapter_match, allowlist = parse_allowlist(args.allowlist)
         result = subprocess.run(
             args.command,
             text=True,
@@ -121,6 +198,32 @@ def main(argv: list[str]) -> int:
 
     if result.stdout:
         sys.stdout.write(result.stdout)
+
+    # sov-y27/F14: a scoped allow-list applies only to its own adapter class. Check this
+    # before matching messages: on another GPU the known lines say nothing, so the run
+    # must fail loudly instead of passing against the wrong list. Unscoped files skip this
+    # entirely and behave exactly as before.
+    if adapter_match:
+        if args.capture_record is None:
+            print(
+                f"FAIL allow-list {args.allowlist} scopes to adapter {adapter_match}, "
+                f"but no --capture-record was given, so the run's adapter cannot be checked; "
+                f"the list must not silently apply to an unknown GPU",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            require_record_written_by_this_run(args.capture_record, started_at)
+            actual_adapter = read_record_adapter(args.capture_record)
+        except ValueError as error:
+            print(f"FAIL validation gate: {error}", file=sys.stderr)
+            return 2
+        scope_failures = check_adapter_scope(args.allowlist, adapter_match, actual_adapter)
+        if scope_failures:
+            print(f"FAIL adapter scope: {args.allowlist} does not cover this run", file=sys.stderr)
+            for failure in scope_failures:
+                print(f"  - {failure}", file=sys.stderr)
+            return 1
 
     observed = validation_lines(result.stdout)
     allowlisted = set(allowlist)

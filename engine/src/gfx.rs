@@ -794,7 +794,9 @@ impl GfxContext {
             height: self.sc_desc.height,
             requested_size,
             surface_format: self.sc_desc.format,
-            present_mode: self.sc_desc.present_mode,
+            // Offscreen has no surface, so `sc_desc.present_mode` describes nothing there (sov-y27):
+            // report no present mode rather than a mode that was never used.
+            present_mode: self.surface.as_ref().map(|_| self.sc_desc.present_mode),
             msaa_samples: self.samples,
             validation_requested,
             passes: self.enabled_passes(),
@@ -811,16 +813,42 @@ impl GfxContext {
         }
     }
 
-    pub fn window(&self) -> &Window {
+    /// The window, or the reason there is none.
+    ///
+    /// An offscreen context has no window, so offscreen-capable code (every capture path, every
+    /// `State` that may run headless) must use this and report the `Err` reason instead of
+    /// panicking (sov-y27), per the principle at `crate::capture::capture_texture`.
+    pub fn try_window(&self) -> Result<&Window, &'static str> {
         self.window
             .as_deref()
-            .expect("the offscreen graphics target has no window")
+            .ok_or("the offscreen graphics target has no window")
     }
 
-    pub fn surface(&self) -> &Surface<'static> {
+    /// The surface, or the reason there is none. Same contract as [`GfxContext::try_window`].
+    pub fn try_surface(&self) -> Result<&Surface<'static>, &'static str> {
         self.surface
             .as_ref()
-            .expect("the offscreen graphics target has no surface")
+            .ok_or("the offscreen graphics target has no surface")
+    }
+
+    /// The window for code that already established a windowed context.
+    ///
+    /// Kept for the windowed-only callers (`framework::run`, the interactive demo, egui's
+    /// live platform) so their call sites do not churn: those paths own a window by
+    /// construction and never run offscreen. Anything that may run offscreen must call
+    /// [`GfxContext::try_window`] and handle the reason. Once the last caller migrates,
+    /// these wrappers go away (sov-y27 follow-up).
+    pub fn window(&self) -> &Window {
+        self.try_window()
+            .expect("windowed-only caller ran on an offscreen graphics target")
+    }
+
+    /// The surface for code that already established a windowed context. See
+    /// [`GfxContext::window`]: windowed-only callers keep their call sites, offscreen-capable
+    /// code must call [`GfxContext::try_surface`].
+    pub fn surface(&self) -> &Surface<'static> {
+        self.try_surface()
+            .expect("windowed-only caller ran on an offscreen graphics target")
     }
 
     pub fn create_offscreen_target(&self) -> Texture {
@@ -1030,7 +1058,19 @@ impl GfxContext {
             color_attachments: &[Some(attachment)],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.fbos.depth.view,
-                depth_ops: None,
+                // sov-ejz: this MUST stay a read-write declaration. `None` means read-only to
+                // wgpu (None maps to read_only:true with Load+Store in wgpu-0.20.1
+                // map_pass_channel), so the submit-time transit barriers carried only
+                // DEPTH_STENCIL_ATTACHMENT_READ at EARLY|LATE_FRAGMENT_TESTS — while the
+                // pass still performs its attachment storeOp, a real
+                // DEPTH_STENCIL_ATTACHMENT_WRITE at LATE_FRAGMENT_TESTS. The layer reported
+                // both directions of that race (10x WRITE_AFTER_WRITE saturation on RADV).
+                // No pipeline bound here writes depth, so Load+Store preserves every pixel
+                // the prepass left; only the declared usage — and hence the barriers — changes.
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
                 stencil_ops: None,
             }),
             timestamp_writes: self
