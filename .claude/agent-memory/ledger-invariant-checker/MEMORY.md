@@ -8,3 +8,4 @@
 - [Border soul ledger](border-soul-ledger.md) — after sov-abs imports move physically and the border is a soul with a negative capital row; exports still teleport out
 - [Vacuous pool-check shape](vacuous-pool-check-shape.md) — a "no leaked truck" assertion is vacuous when the scenario destroyed the vehicle; mutation-proven, and the correct form
 - [Truck pool reservation lifetime](truck-pool-reservation-lifetime.md) — 15 free sites vs one acquire; free doesn't re-add to the position cache, so same-tick re-acquire misses
+- [Partial rollback shape (Family J)](partial-rollback-shape.md) — rollbacks restore reserved/money/buy order but never sell_orders[seller].qty; re-posted order then eaten by the ext block

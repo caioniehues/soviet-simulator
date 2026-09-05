@@ -10,12 +10,22 @@
 # is only true if the hooks ship with the repo. settings.local.json stays
 # ignored -- it holds per-machine permissions.
 !.claude/settings.json
+!.claude/hooks/
 CLAUDE.local.md
 /screenshots
 /saves
 task_plan.md
 findings.md
 progress.md
+
+# Harness and session scratch state — machine-local, never project knowledge
+.ocx/
+.opencode/
+.work/
+.codebuddy/
+muse_raw.txt
+# determinism debugging dumps
+simulation/world_*.json
 
 # Claude Code dumps local-command transcripts at the repo root
 *-local-command-*.txt

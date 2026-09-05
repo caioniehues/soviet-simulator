@@ -14,8 +14,8 @@
    real output, revert (Phase 3, `evidence-auditor`). Mechanical form: cargo-mutants on eligible
    changes ([mutation policy](../process/mutation-policy.md)).
 2. **Must:** a test filter executes at least one test. `cargo test -p simulation sentinel`
-   matches zero tests today (no active `fn` contains `sentinel`; verified 2026-09-03) and exits
-   green; that vacuous pass is the failure this rule prevents.
+   ran zero tests and exited green until 2026-09-04, when the two `sentinel_journey` tests
+   landed — the vacuous pass this rule prevents. Re-verify any new filter before trusting it.
 3. **Must:** an acceptance test for a specification claim is named for it (`evid_<subsystem>_<claim>`)
    and the spec's evidence table names the deliberately wrong implementation the test must reject.
    **None of the 107 `evid_*` tests exists yet**; each is created with its mechanism, never before.

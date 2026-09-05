@@ -4,7 +4,7 @@
 **Authority:** operational handoff only; `bd` (beads, replaced `br` 2026-08-26) remains task-state authority
 **Status:** cutover complete — commit `b6381a5`; parent closure recorded in `bd`
 **Owner:** project lead
-**Last verified:** 2026-08-27
+**Last verified:** 2026-09-05
 
 > **2026-08-27 — a separate wave is in progress and is NOT part of this documentation plan.**
 > The `sov-m0q` tooling evidence epic was worked and cut short. Its handoff, including a P1 crash
@@ -22,6 +22,11 @@
 > and the four-bead settlement build all landed. Handoff:
 > [`HANDOFF-2026-09-04-border-settlement.md`](HANDOFF-2026-09-04-border-settlement.md).
 > Read it before taking any economy, process, or documentation task.
+
+> **2026-09-04 — empty-board run complete.** All 171 beads closed across five parallel waves
+> (26 commits, ~7.8k insertions). The durable record: `bd list --status=closed`, the wave
+> commits (`git log --grep="wave"`), `docs/generated/evidence/`, and the session retrospectives
+> at [`.planning/empty-board-reflection.md`](../../../.planning/empty-board-reflection.md).
 
 ## Verified state
 
@@ -83,17 +88,7 @@ their inputs live under `docs/plan/`.
 Live work is tracked in `bd`. **Re-derive the queue with `bd ready`** rather than trusting this
 section — it went stale the day it was written last time.
 
-As of 2026-08-27 the dishonest-enterprise core loop is wired end to end. `sov-lpj`
-(REQ-PRODUCTION-001, the `request_multiplier` field) landed at commit `0caee71`; the truck-parking
-bugs it was blocked on, `sov-2c4` and `sov-7pg`, landed at `e27a068`. Before that commit
-`Market::set_requested` had zero production callers, so the surplus was identically zero in a
-running game and the core loop existed only inside a test.
-
-That unblocked **`sov-hoard-panel-mko` (STORY-0107)** — the inspection panel showing requested
-versus consumed. It is the natural next story: the surplus now exists in the simulation, but THE
-PLANNER still cannot see it.
-
-Behind it sit five dispatch-wedge bugs (`sov-jcl`, `sov-xyx`, `sov-abs`, `sov-dii`, `sov-6qx`) and
-the in-progress tooling epic `sov-m0q`. `sov-361` stays open: commit `bc555d9` fixed
-`mismatched_lifetime_syntaxes` in engine, common and map_dynamic, but NOT the files that ticket
-names — `simulation/src/lib.rs:319+` and `simulation/src/utils/resources.rs` still warn.
+**Historical note (2026-08-27, all items since closed):** `sov-lpj` landed the core loop
+(`0caee71`), the hoard panel followed (`sov-hoard-panel-mko`, commit `1051f65`), the five
+dispatch-wedge bugs (`sov-jcl`, `sov-xyx`, `sov-abs`, `sov-dii`, `sov-6qx`) and `sov-361`
+(warnings fixed — build is clean) are all closed. **`bd ready` is now the only live queue.**

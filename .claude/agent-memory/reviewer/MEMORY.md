@@ -11,10 +11,11 @@
 - [No staff or no power = no production](zero-workers-zero-production.md) — n_workers AND electricity gate recipe_act; unstaffed or blacked-out scenarios prove only recipe_init
 - [Dispatch truck park seam](dispatch-truck-park-seam.md) — unpark on non-Parked truck leaks phantom collider (sov-6qx); market.rs grab guarded, router.rs:217 not
 - [exec runs after kill](parcommandbuffer-exec-after-kill.md) — PROVED: apply() runs exec closures for entities killed in same drain
-- [Determinism guard (was: cannot fail)](determinism-test-cannot-fail.md) — FIXED 7fa08e8: panics on divergence, .max(3) clamp load-bearing; is_equal still omits World
+- [Determinism guard (was: cannot fail)](determinism-test-cannot-fail.md) — FIXED a48ea1d (branch-local): panic + load-bearing .max(3); empty schedule + World-blind is_equal remain (sov-n8v)
 - [Silent decode to default seam](silent-decode-default-seam.md) — 16 resources cross save/load, errors swallowed into defaults, only map guarded
 - [Skeleton corrupt-LAV refusal](skeleton-corrupt-lav-refusal.md) — skeleton() returns Option since sov-bo3; the vs.len()+1 bound's `+1` is load-bearing; ONE production caller
 - [No test CI in this repo](repo-has-no-test-ci.md) — only dependency-policy.yml (cargo-deny); score coverage against a default local `cargo test`, never against CI
 - [Prototype validation seam](prototype-validation-seam.md) — validate() is the only data gate; storage_multiplier/duration still unguarded; get_lua().unwrap_or() swallows type errors
 - [Review method patterns](review-method-patterns.md) — LSP warmup, out-of-tree oracles, mutation protocol, concurrent-review fencing (ported from refactor-reviewer)
 - [Renderer evidence tooling](renderer-evidence-tooling.md) — wgpu 256-byte query-resolve alignment trap; both evidence gates pass on empty/near-miss input; capture PNG hash e547e263; graph is stale on branches
+- [Ext-trade block eats buy orders](exttrade-block-eats-buy-orders.md) — extract_if + continue destroys unplaceable non-human orders; timeouts/re-posts are no-ops in the default city (sov-ahw send-back 2026-09-02)

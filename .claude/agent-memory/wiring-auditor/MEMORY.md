@@ -140,3 +140,5 @@ which resets to the last commit and destroys any uncommitted target changes alon
   It proves the *Market* mechanics work; it does not prove any real in-game company ever inflates its
   request, because nothing populates `requested` outside that test. Check whether a "proves the feature"
   test actually drives the production entry point, or reimplements it inline.
+
+- [Audit worktree may be clean](audit-worktree-may-be-clean.md) — check `git diff --stat` in the named worktree first; sov-ahw diff lived only in main (2026-09-02)

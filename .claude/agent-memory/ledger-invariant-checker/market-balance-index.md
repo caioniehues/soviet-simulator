@@ -52,6 +52,13 @@ Writers: `make_trades` human-buyer branch (`:503-531`) — `insert` whose displa
 Readers: `Market::retail_claim` → `buyfood.rs:100` (`WaitingForTrade` reset) and `buyfood.rs:117` (`BoughtAt` eat-or-go-without gate, Family G).
 Keyed by buyer, so one human = at most one live claim. The release uses the per-kind loop's local `reserved` map, guarded only by `debug_assert_eq!(old.kind, kind)` — sound today because `buyfood.rs:82` is the sole human buy-order issuer and hardcodes `bread`.
 
+## `Government::money` written from inside `advance_dispatches` (sov-ahw, 2026-09-02)
+`gvt.money -= d.money_delta` on the ToSource/no-truck timeout (`MAX_SOURCE_WAIT_TICKS`,
+300 ticks). `Dispatch` now carries `money_delta` (copied from the import Trade) and
+`source_wait_ticks` (never reset). Refund mutation-proven exactly-once (remove → -0.50$,
+double → +0.49$ vs baseline). No other dispatch drop path (dead truck, `Market::remove`,
+Loading loss) refunds an import — pre-existing asymmetry. See [[partial-rollback-shape]].
+
 ## `requested: BTreeMap<SoulID, u32>`
 Writers: `set_requested`; `Market::remove` (`:260`) now removes it.
 Readers: `recipe_init` / `recipe_act`.

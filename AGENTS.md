@@ -17,6 +17,10 @@ Keep these model rules intact:
 - Domestic clearing uses queues, substitution, and going without. It is never price-based.
 - Failure degrades the settlement. It never ends the game.
 - Roubles clear only at the border.
+- Citizen, household, and enterprise identities persist for life; the Planner acts on observable
+  state, never hidden ledgers.
+
+The five binding pillars live in `docs/plan/charter-1.0.md`; this list summarizes them.
 
 Read `CLAUDE.md` before work. Read `docs/reference/glossary.md` before naming a domain concept. For substantive work, follow `docs/process/development-cycle.md` and track it in `bd`.
 
@@ -65,7 +69,7 @@ python3 scripts/check_docs.py && mdbook build
 cargo-deny check
 ```
 
-Use `cargo test -p simulation scenario_ -- --nocapture` for the scenario set (verified 2026-09-03: 30 tests). The `sentinel` tag is planned, not implemented — no `fn` contains `sentinel` today, so that filter runs zero tests. Confirm that every filtered command runs at least one test.
+Use `cargo test -p simulation scenario_ -- --nocapture` for the scenario set (verified 2026-09-05: 31 tests). The `sentinel` filter runs the two journey-sentinel tests added 2026-09-04 (`sentinel_journey`); confirm that every filtered command runs at least one test.
 
 ## Code Conventions & Common Patterns
 

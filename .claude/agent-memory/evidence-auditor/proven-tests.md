@@ -30,3 +30,44 @@ entire "refuse rather than truncate" half — leaves `cargo test -p geom` at 23 
 
 Useful side-fact: the six `.unwrap()`s added to `skeleton::tests` are live guards, not
 None-hiders. Mutation C makes every one of them fire.
+
+## 2026-08-28 — sov-mwy audit, `simulation/src/economy/market.rs` at main `f6725f1`
+
+**Proven NOT guarded — the ext-trade branch of `Market::make_trades`.** Eleven mutations,
+each applied alone, full `cargo test -p simulation` each, reverted each. **All eleven printed
+`test result: ok. 52 passed; 0 failed`.** Line numbers at `f6725f1`:
+
+- `651` delete `-` and `*`→`/` — the import `money_delta` sign and magnitude
+- `718` `-`→`+` — exportable surplus quantity
+- `723` `<`→`<=` and `-`→`+` — the oversell guard and its reserved-aware subtraction
+- `732` `-=`→`+=` / `/=` — the seller's capital debit on export (units leave the city here)
+- `733` `-=`→`+=` / `/=` — the sell-order quantity debit on export
+- `740` `*`→`/` — the export `money_delta` magnitude
+- `569` `-`→`+` — the domestic reserved-aware affordability guard
+
+Filed as `sov-sp6` (blocked by `sov-20g`). Reachability: `base_mod/items.lua` has 21 items and
+sets `optout_exttrade` on exactly one, so 20 of 21 goods take this path.
+
+**Control that makes those eleven believable** — same harness, same command, one function over:
+`market.rs:485` `settle_retail` `-=`→`+=` gives
+`test result: FAILED. 51 passed; 1 failed`, `scenario_retail_no_dispatch_settles_at_eat_time`,
+`seller must end up debited`. Always run this control before reporting a wall of survivors;
+without it "nothing failed" and "the harness is broken" look identical.
+
+**PROVEN guards (from the trial's own `mutants.out/caught.txt`, 96 kills, base `345a79a`):**
+`Market::remove` `+=`→`-=` and `<`→`>`; `Market::settle_retail` `-=`→`+=`. These are real.
+
+## 2026-09-02 — sov-ahw, worktree `/home/caio/sov-ahw-wt` at `4e9e930` + uncommitted diff
+
+`ledger::sov_ahw_stranded_tosource_import_reposts_and_resumes_production` — PROVEN for
+the re-post (drop `buy_until` → red :1279), the refund (drop `gvt.money -= money_delta` →
+red :1307), the bound (`MAX_SOURCE_WAIT_TICKS = u32::MAX` → red :1279) and the removal
+(drop `remove = true` → red :1292). **NOT guarded for the seller's reserved release**: the
+test asserts `reserved(bakery, flour)`, the buyer, which is always 0. Only
+`hoarding::scenario_0083` (:229) catches that mutation. `scenario_0083`'s rewritten
+`.all(|d| ...)` state assertion is VACUOUS — its negation passes, zero dispatches at tick 1000.
+Gotcha: `Money` Debug prints negative cents as `0$` (`-0.50$` shows as `0$`), so a
+`money_delta: 0$` in a Dispatch dump is not proof the delta is zero.
+Collision lesson: another agent doing a stale `Write` of market.rs re-introduced my in-flight
+mutation after I had restored it. Keep a pristine copy and `diff` against it at the very end,
+not just md5 right after each restore.

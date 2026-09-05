@@ -14,13 +14,17 @@ substrate behavior. The repo is GPL-3.0 by inheritance, permanently.
 
 The core loop is the **dishonest enterprise**: an enterprise requests more input than its recipe
 consumes, hoards the surplus, and the player — acting as THE PLANNER — catches it from observable
-state. Two design pillars constrain every change:
+state. **Five binding pillars** constrain every change (`docs/plan/charter-1.0.md:27-34` is the
+binding source; this list paraphrases it):
 
-- **Nothing teleports.** Goods move physically or they do not move. Stock must never change hands
-  at trade-match time.
-- **Never game over.** Failure degrades into queues, shortages and colder homes. It never terminates.
-
-Clearing is by queue, substitution and going without — **never by price**. Money is not a gate.
+- **Nothing teleports.** Goods move physically or they do not move; matching, payment, or
+  allocation never teleports stock.
+- **Never game over.** Failure degrades into queues, shortages, colder homes, and going without.
+  It never terminates.
+- **No domestic price.** Clearing is by queue, substitution and going without — never by price.
+- **Border money only.** The rouble is a single foreign currency used only at the border.
+- **Persistent identities.** Observable state and stable citizen identities let the Planner catch
+  the dishonest enterprise.
 
 - **How work gets done: `docs/process/development-cycle.md`.** Eight phases, the 8-agent roster and what each is
   for. Every phase names the failure it exists to prevent. Read it before dispatching ANY implementation
@@ -117,7 +121,14 @@ closed issue must be auditable months later.
   2026-08-26). After mutating tracker state, run `bd export -o .beads/issues.jsonl` before
   committing it; the installed git hooks may cover this — trust them only once observed.
 - Version exactly these, never `git add .beads/` and never `git add -A`:
-  `.beads/.gitignore .beads/config.yaml .beads/issues.jsonl .beads/metadata.json .beads/README.md`
+  `.beads/.gitignore .beads/config.yaml .beads/issues.jsonl .beads/metadata.json
+  .beads/README.md` — plus `.beads/interactions.jsonl` (the cross-agent
+  interaction log; tracked since 345a79a, added to this list 2026-09-05).
+- **Continuing on another machine**: clone/pull, then `bd import` — it upserts
+  `.beads/issues.jsonl` (the configured default) into a fresh local Dolt DB;
+  `bd export | bd import` is a full round-trip. Verify with `bd ready`. If you
+  rely on `bd remember` memories, export with `--all` — the default export
+  excludes them.
 
 ## Delivery
 

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "markdown-mermaid-writing": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/markdown-mermaid-writing/SKILL.md",
+      "computedHash": "7cc64999b7ee20df40a8d1c89d123e43364fd1788c451a8d139a69ebf932bde7"
+    },
+    "mdbook": {
+      "source": "marceloeatworld/mdbook-ai-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "3d740c2a64fde923e4f85e1baaf1df85885b4a3330fcaf3a08b8b71e7a639f62"
+    }
+  }
+}

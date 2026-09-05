@@ -16,3 +16,5 @@
 - [Dead-entity leaks need reserved_by](dead-entity-leaks-need-reserved-by.md) — "every live truck is still reservable" can never detect a leak held by a despawned entity; use `Dispatcher::is_reserved`
 - [Determinism guard's real reach](determinism-guard-reach.md) — test_world_survives_serde runs an EMPTY schedule; is_equal ignores the ECS World (sov-n8v)
 - [Default city border is closed](default-city-border-is-closed.md) — no external trade and no cargo train until the player lays road; ratified, not a bug; plus three test-harness traps
+- [A match rollback has four halves](market-match-rollback-both-halves.md) — the seller's SellOrder is the one every rollback forgets; clamp the restore to capital
+- [The ext-trade block eats unplaceable orders](ext-trade-block-eats-unplaceable-orders.md) — fixed 2026-09-02; a domestic seller masks it from every existing test
